@@ -74,10 +74,10 @@ export function ObjectiveScreen() {
             <p className="text-text-secondary text-sm">{tr.objective.lead}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <LanguageToggle variant="compact" />
+            <LanguageToggle />
             <button
               onClick={() => setKbOpen(true)}
-              className="px-3 py-1.5 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors flex items-center gap-2"
+              className="h-[30px] px-3 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors flex items-center gap-2"
               title={tr.objective.kbTitle}
             >
               <span>{tr.objective.kbBadge}</span>

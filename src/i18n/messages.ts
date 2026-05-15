@@ -47,7 +47,7 @@ export const en = {
     demoDivider: 'or',
     demoTitle: 'Just want to see it working?',
     demoBody:
-      'Open a fully-built example (kite project) — graph, lenses, ground truth, decisions — without setting up any key. AI actions stay disabled until you configure a provider.',
+      'Open a fully-built example (RC car project) — graph, lenses, ground truth, decisions — without setting up any key. AI actions stay disabled until you configure a provider.',
     demoCta: '▶ See live demo',
     demoCtaHint: 'no key needed · read-only navigation · everything you see is real',
   },
@@ -91,10 +91,10 @@ export const en = {
     title: 'Start with the objective.',
     lead: 'The AI proposes complete paths. You pick one and follow it step by step.',
     projectNameLabel: 'Project name',
-    projectNamePlaceholder: 'e.g. Kite for my kid',
+    projectNamePlaceholder: 'e.g. Auth migration',
     objectiveLabel: 'What is the objective? (f(X) = ?)',
     objectivePlaceholder:
-      'e.g. build a kite — paper + sticks → toy that flies',
+      'e.g. migrate auth from session cookies to JWT in 2 weeks without breaking existing logins',
     exampleRust: 'example: learn Rust in 30 days',
     exampleRustName: 'Rust in 30 days',
     exampleRustObjective:
@@ -357,7 +357,7 @@ export const ptBR: Messages = {
     demoDivider: 'ou',
     demoTitle: 'Só quer ver funcionando primeiro?',
     demoBody:
-      'Abre um exemplo pronto (projeto de pipa) — grafo, lentes, ground truth, decisões — sem configurar nenhuma chave. Ações de IA ficam desativadas até você adicionar um provider.',
+      'Abre um exemplo pronto (carrinho de controle remoto) — grafo, lentes, ground truth, decisões — sem configurar nenhuma chave. Ações de IA ficam desativadas até você adicionar um provider.',
     demoCta: '▶ Ver demonstração',
     demoCtaHint: 'sem chave · navegação livre · tudo que aparece é de verdade',
   },
@@ -402,10 +402,10 @@ export const ptBR: Messages = {
     title: 'Comece pelo objetivo.',
     lead: 'A AI propõe caminhos completos. Você escolhe um e vai seguindo passo a passo.',
     projectNameLabel: 'Nome do projeto',
-    projectNamePlaceholder: 'ex: Pipa para meu filho',
+    projectNamePlaceholder: 'ex: Migrar auth',
     objectiveLabel: 'Qual o objetivo? (f(X) = ?)',
     objectivePlaceholder:
-      'ex: construir uma pipa — papel + gravetos → brinquedo que voa',
+      'ex: migrar auth de cookies de sessão pra JWT em 2 semanas sem quebrar logins existentes',
     exampleRust: 'exemplo: aprender Rust em 30 dias',
     exampleRustName: 'Rust em 30 dias',
     exampleRustObjective:
