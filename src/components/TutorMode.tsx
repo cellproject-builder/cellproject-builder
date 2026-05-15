@@ -6,6 +6,7 @@ import {
   breadcrumbFor,
 } from '@/store';
 import { explainNode } from '@/ai/service';
+import { requireAI } from '@/ai/availability';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useT } from '@/i18n';
 import type { Messages } from '@/i18n';
@@ -220,6 +221,7 @@ function TutorCard({ node, project, onConfirm, onViewInGraph, tr }: TutorCardPro
       setOpen((o) => !o);
       return;
     }
+    if (!requireAI()) return;
     setLoading(true);
     try {
       const text = await explainNode({

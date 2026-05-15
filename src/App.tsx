@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
-import { useGraphStore } from '@/store';
+import { useGraphStore, isDemoProject } from '@/store';
 import { useConfigStore } from '@/config/store';
 import { ObjectiveScreen } from '@/components/ObjectiveScreen';
 import { TopBar } from '@/components/TopBar';
@@ -35,7 +35,11 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [setLens, setViewMode]);
 
-  if (!hasKey) {
+  // Demo projects bypass the API key gate — user explicitly chose "try without a key".
+  // AI actions are blocked separately at the call sites.
+  const inDemo = isDemoProject(project);
+
+  if (!hasKey && !inDemo) {
     return <ApiKeyGate />;
   }
 

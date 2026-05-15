@@ -7,6 +7,7 @@ import {
   critiqueNode,
   replanFromFailure,
 } from '@/ai/service';
+import { requireAI } from '@/ai/availability';
 
 // ---------------------------------------------------------------------------
 // (a) User-written criterion — locked before seeing the AI's
@@ -154,6 +155,7 @@ export function CritiqueSection({
   const crumbs = breadcrumbFor(project, node.id);
 
   const run = async () => {
+    if (!requireAI()) return;
     setRunning(true);
     setError(null);
     try {
@@ -494,6 +496,7 @@ export function FailureSection({
 
   const handleReplan = async () => {
     if (!node.failureContext) return;
+    if (!requireAI()) return;
     setReplanning(true);
     setError(null);
     try {

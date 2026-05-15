@@ -13,6 +13,7 @@ import type {
   AdversarialCritique,
   GroundTruthRef,
 } from '@/types';
+import { buildDemoProject, DEMO_PROJECT_ID } from '@/data/demoProject';
 
 type Lens = 'structure' | 'flow' | 'risk' | 'state' | 'connections';
 type ViewMode = 'graph' | 'tutor';
@@ -37,6 +38,7 @@ interface GraphState {
   } | null;
 
   createProjectFromPlan: (objective: string, name: string, plan: AIPlan) => void;
+  loadDemoProject: () => void;
   selectNode: (id: string | null) => void;
   focusNode: (id: string | null) => void;
   setLens: (lens: Lens) => void;
@@ -289,6 +291,18 @@ export const useGraphStore = create<GraphState>()(
           focusedParentId: rootId,
           pendingSuggestions: null,
           viewMode: 'tutor',
+        });
+      },
+
+      loadDemoProject: () => {
+        const project = buildDemoProject();
+        set({
+          project,
+          selectedNodeId: project.rootId,
+          focusedParentId: project.rootId,
+          pendingSuggestions: null,
+          lens: 'structure',
+          viewMode: 'graph',
         });
       },
 
@@ -844,6 +858,9 @@ export const useGraphStore = create<GraphState>()(
 // ---------------------------------------------------------------------------
 // Selectors
 // ---------------------------------------------------------------------------
+
+export const isDemoProject = (project: Project | null): boolean =>
+  project?.id === DEMO_PROJECT_ID;
 
 export const breadcrumbFor = (
   project: Project | null,

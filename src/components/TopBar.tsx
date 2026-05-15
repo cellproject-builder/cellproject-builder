@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { useGraphStore, breadcrumbFor, type Lens, type ViewMode } from '@/store';
+import { useGraphStore, breadcrumbFor, isDemoProject, type Lens, type ViewMode } from '@/store';
 import { useKBStore } from '@/kb/store';
 import { useConfigStore, PROVIDER_LABELS } from '@/config/store';
 import { useT } from '@/i18n';
 import { KnowledgeRepo } from './KnowledgeRepo';
 import { ApiKeyGate } from './ApiKeyGate';
+import { Logo } from './Logo';
 
 export function TopBar() {
   const tr = useT();
@@ -53,6 +54,7 @@ export function TopBar() {
   }, [overflowOpen]);
 
   const crumbs = breadcrumbFor(project, selectedId);
+  const inDemo = isDemoProject(project);
 
   const exportJson = () => {
     if (!project) return;
@@ -66,7 +68,8 @@ export function TopBar() {
   };
 
   const handleReset = () => {
-    if (confirm(tr.topBar.resetConfirm)) {
+    const msg = inDemo ? tr.topBar.demoExitConfirm : tr.topBar.resetConfirm;
+    if (confirm(msg)) {
       resetProject();
     }
   };
@@ -74,8 +77,16 @@ export function TopBar() {
   return (
     <div className="min-h-11 shrink-0 border-b border-border-base bg-bg-secondary flex items-center px-2 sm:px-3 gap-2 sm:gap-3 text-sm pt-[env(safe-area-inset-top)]">
       <div className="flex items-center gap-1.5 min-w-0">
-        <span className="text-ai-accent font-mono text-xs">◆</span>
+        <Logo size={16} className="text-text-primary shrink-0" />
         <span className="text-text-primary font-semibold truncate">{project?.name}</span>
+        {inDemo && (
+          <span
+            title={tr.topBar.demoBadgeTitle}
+            className="shrink-0 font-mono text-[9px] tracking-widest text-ai-accent border border-ai-accent/40 bg-ai-accent/10 px-1.5 py-[1px] rounded-[2px] uppercase"
+          >
+            {tr.topBar.demoBadge}
+          </span>
+        )}
         {viewMode === 'graph' && (
           <div className="hidden md:flex items-center gap-1 min-w-0 overflow-hidden">
             <span className="text-text-muted mx-1">/</span>
@@ -189,9 +200,13 @@ export function TopBar() {
 
       <button
         onClick={handleReset}
-        className="hidden md:block px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-muted hover:text-state-problem hover:border-state-problem/40 transition-colors shrink-0"
+        className={`hidden md:block px-2.5 py-1 text-xs border rounded-sm transition-colors shrink-0 ${
+          inDemo
+            ? 'border-ai-accent/40 text-ai-accent hover:bg-ai-accent/10'
+            : 'border-border-base text-text-muted hover:text-state-problem hover:border-state-problem/40'
+        }`}
       >
-        {tr.topBar.reset}
+        {inDemo ? tr.topBar.demoExit : tr.topBar.reset}
       </button>
 
       <div className="md:hidden relative shrink-0" ref={overflowRef}>
@@ -233,9 +248,13 @@ export function TopBar() {
                 handleReset();
                 setOverflowOpen(false);
               }}
-              className="w-full text-left px-3 py-2.5 text-xs text-text-muted hover:text-state-problem hover:bg-bg-elevated transition-colors"
+              className={`w-full text-left px-3 py-2.5 text-xs hover:bg-bg-elevated transition-colors ${
+                inDemo
+                  ? 'text-ai-accent'
+                  : 'text-text-muted hover:text-state-problem'
+              }`}
             >
-              {tr.topBar.reset}
+              {inDemo ? tr.topBar.demoExit : tr.topBar.reset}
             </button>
           </div>
         )}

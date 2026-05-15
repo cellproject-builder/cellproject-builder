@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cellproject — Y-fork lateral · o gesto que lê</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #09090b;
+    --ink-2: #131316;
+    --ink-3: #1c1c20;
+    --line: #2a2a30;
+    --line-soft: #1f1f24;
+    --paper: #efe9dc;
+    --bone: #f5f1e8;
+    --paper-ink: #1a1813;
+    --violet: #a78bfa;
+    --violet-dim: rgba(167, 139, 250, 0.15);
+    --violet-deep: #7c5ed1;
+    --text: #fafafa;
+    --text-2: #d4d4d8;
+    --text-mute: #71717a;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --display: "Fraunces", "Instrument Serif", Georgia, serif;
+    --serif: "Instrument Serif", Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--ink);
+    color: var(--text-2);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0.07;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ============ HERO */
+  .hero {
+    padding: 48px 8vw 64px;
+    border-bottom: 1px solid var(--line);
+    background:
+      radial-gradient(50% 80% at 90% 50%, rgba(167,139,250,0.16), transparent 60%),
+      var(--ink);
+    position: relative;
+  }
+  .hero-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .back-link {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: color 200ms ease;
+  }
+  .back-link:hover { color: var(--violet); }
+  .back-link .arr { color: var(--violet); }
+  .crumb {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .crumb strong { color: var(--text); font-weight: 500; }
+
+  .hero h1 {
+    font-family: var(--display);
+    font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 1;
+    font-weight: 320;
+    font-size: clamp(44px, 9vw, 132px);
+    line-height: 0.92;
+    letter-spacing: -0.04em;
+    color: var(--text);
+    max-width: 1200px;
+  }
+  .hero h1 em {
+    font-style: italic;
+    font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1;
+    color: var(--violet);
+    font-weight: 280;
+  }
+  .hero-sub {
+    margin-top: 28px;
+    max-width: 64ch;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--text-2);
+  }
+  .hero-sub em { font-family: var(--serif); font-style: italic; color: var(--text); font-size: 14.5px; }
+  .hero-sub code {
+    background: var(--ink-2);
+    padding: 1px 6px;
+    border-radius: 2px;
+    color: var(--violet);
+    font-size: 12px;
+  }
+
+  /* ============ HERO ORIENTATION GRID */
+  .orient {
+    margin-top: 56px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 32px;
+    align-items: center;
+    border-top: 1px dashed var(--line);
+    padding-top: 36px;
+  }
+  .orient .label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    margin-bottom: 14px;
+  }
+  .orient .label strong { color: var(--text); font-weight: 500; }
+  .orient .mini-stage {
+    background: var(--ink-2);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 24px;
+    min-height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .orient .arrow {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 40px;
+    color: var(--violet);
+    text-align: center;
+    line-height: 1;
+  }
+  .orient .arrow div:last-child {
+    font-family: var(--mono);
+    font-style: normal;
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    margin-top: 8px;
+  }
+
+  /* ============ SECTION */
+  section.show {
+    padding: 96px 8vw 96px;
+    border-bottom: 1px solid var(--line);
+  }
+  section.show.paper {
+    background: var(--paper);
+    color: var(--paper-ink);
+    border-bottom-color: rgba(26,24,19,0.1);
+  }
+  section.show.paper .kicker { color: rgba(26,24,19,0.55); }
+  section.show.paper .kicker .num { color: #6c4c2c; }
+  section.show.paper .kicker .rule { background: rgba(26,24,19,0.25); }
+  section.show.paper h2 { color: var(--paper-ink); }
+  section.show.paper h2 em { color: #6c4c2c; }
+  section.show.paper .desc { color: rgba(26,24,19,0.78); }
+  section.show.paper .desc em { color: var(--paper-ink); }
+  section.show.paper .stage { background: var(--bone); border-color: rgba(26,24,19,0.12); }
+  section.show.paper .stage.invert { background: var(--paper-ink); border-color: var(--paper-ink); }
+  section.show.paper .stage .stage-meta { color: rgba(26,24,19,0.55); }
+  section.show.paper .stage.invert .stage-meta { color: rgba(255,255,255,0.5); }
+  section.show.paper .pill { color: rgba(26,24,19,0.55); border-color: rgba(26,24,19,0.18); }
+  section.show.paper .pill.accent { color: #6c4c2c; border-color: rgba(108,76,44,0.4); background: rgba(108,76,44,0.08); }
+
+  .head {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 56px;
+    align-items: start;
+    margin-bottom: 56px;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .kicker .num {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 30px;
+    color: var(--violet);
+    line-height: 1;
+  }
+  .kicker .rule { flex: 1; height: 1px; background: currentColor; opacity: 0.25; }
+  h2 {
+    font-family: var(--display);
+    font-variation-settings: "opsz" 144, "SOFT" 40;
+    font-weight: 340;
+    font-size: clamp(34px, 4.8vw, 64px);
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    color: var(--text);
+  }
+  h2 em {
+    font-style: italic;
+    font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1;
+    font-weight: 300;
+    color: var(--violet);
+  }
+  .desc {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-2);
+  }
+  .desc + .desc { margin-top: 14px; }
+  .desc em { font-family: var(--serif); font-style: italic; color: var(--text); font-size: 14px; }
+  .desc code {
+    background: var(--ink-2);
+    padding: 1px 6px;
+    border-radius: 2px;
+    color: var(--violet);
+    font-size: 12px;
+  }
+
+  .stage {
+    background: var(--ink-2);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 64px 56px;
+    min-height: 360px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .stage.invert { background: var(--bone); border-color: var(--bone); color: var(--paper-ink); }
+  .stage-meta {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+  }
+  .annot {
+    position: absolute;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    pointer-events: none;
+  }
+
+  /* hero showcase (big stage) */
+  .hero-stage {
+    background: var(--ink-2);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 80px 64px;
+    min-height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+
+  /* dual stage row */
+  .row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 36px;
+  }
+
+  /* grid of 4 variations */
+  .row-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 36px;
+  }
+  .row-4 .stage {
+    padding: 44px 24px;
+    min-height: 220px;
+  }
+  .row-4 .stage .v-label {
+    position: absolute;
+    bottom: 14px;
+    left: 16px;
+    right: 16px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    text-align: center;
+  }
+  .row-4 .stage .v-label strong { color: var(--text); }
+
+  /* lockups */
+  .lockups {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 36px;
+  }
+  .lockup {
+    padding: 36px 32px;
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    min-height: 160px;
+    justify-content: space-between;
+  }
+  .lockup:last-child { border-right: none; }
+  .lockup .label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+  }
+  .lockup .render { display: flex; align-items: center; gap: 16px; }
+
+  .wordmark {
+    font-family: var(--display);
+    font-variation-settings: "opsz" 144, "SOFT" 50;
+    font-weight: 380;
+    letter-spacing: -0.025em;
+    color: currentColor;
+  }
+  .wordmark .dot { color: var(--violet); }
+
+  .pillrow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .pill {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    color: var(--text-mute);
+    border-radius: 2px;
+  }
+  .pill.accent { color: var(--violet); border-color: rgba(167,139,250,0.45); background: var(--violet-dim); }
+
+  /* mock browser frame */
+  .mock {
+    background: var(--ink-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 28px;
+  }
+  .mock .chrome {
+    background: var(--ink-3);
+    padding: 10px 14px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+  }
+  .mock .chrome .dots { display: flex; gap: 6px; }
+  .mock .chrome .dots span {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--line);
+  }
+  .mock .chrome .url {
+    flex: 1;
+    background: var(--ink-2);
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text-mute);
+    margin-left: 10px;
+  }
+  .mock .chrome .url strong { color: var(--violet); font-weight: 400; }
+  .mock-app {
+    background: var(--ink);
+    min-height: 320px;
+  }
+  .mock-app .topbar {
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .mock-app .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .mock-app .breadcrumb {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-mute);
+    letter-spacing: 0.05em;
+  }
+  .mock-app .breadcrumb span.cur { color: var(--text); }
+  .mock-app .topbar-right {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    display: flex;
+    gap: 16px;
+  }
+  .mock-app .topbar-right span.active { color: var(--violet); }
+  .mock-app .canvas {
+    padding: 40px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-mute);
+    letter-spacing: 0.05em;
+  }
+  .mock-app .canvas pre {
+    color: var(--text-2);
+    line-height: 1.7;
+    font-size: 11.5px;
+  }
+
+  /* footer */
+  footer.foot {
+    padding: 56px 8vw 64px;
+    background: var(--ink);
+    color: var(--text-mute);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+  }
+  footer.foot .col strong { color: var(--text-2); font-weight: 500; display: block; margin-bottom: 10px; }
+  footer.foot .col p { margin-bottom: 6px; line-height: 1.7; }
+  footer.foot .sig {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 19px;
+    color: var(--violet);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  /* ============ ANIMATIONS */
+  @keyframes drawpath {
+    from { stroke-dashoffset: var(--len, 200); opacity: 0.3; }
+    to { stroke-dashoffset: 0; opacity: 1; }
+  }
+  @keyframes pulse-tip {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.65; }
+  }
+  @keyframes breath {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+  }
+  @keyframes flow {
+    from { stroke-dashoffset: 100; }
+    to { stroke-dashoffset: 0; }
+  }
+  .drawpath { stroke-dasharray: var(--len, 200); animation: drawpath 1.8s ease-out backwards; }
+  .pulse-tip { animation: pulse-tip 1.8s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+  .breath { animation: breath 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .flowing-slow { stroke-dasharray: 4 16; animation: flow 4s linear infinite; }
+
+  /* responsive */
+  @media (max-width: 980px) {
+    .head { grid-template-columns: 1fr; gap: 28px; }
+    .row-2, .row-4 { grid-template-columns: 1fr; }
+    .lockups { grid-template-columns: 1fr; }
+    .lockup { border-right: none; border-bottom: 1px solid var(--line); }
+    .lockup:last-child { border-bottom: none; }
+    .orient { grid-template-columns: 1fr; }
+    .orient .arrow { transform: rotate(90deg); }
+    .hero { padding: 32px 22px 36px; }
+    section.show { padding: 56px 22px 64px; }
+    footer.foot { grid-template-columns: 1fr; padding: 40px 22px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- =========================================== HERO -->
+<header class="hero">
+  <div class="hero-top">
+    <a href="cellproject-logos-fluxo.html" class="back-link"><span class="arr">◀</span> voltar pro estudo de fluxo</a>
+    <div class="crumb">
+      <span>direção</span>
+      <span><strong>01 · Y-fork</strong></span>
+      <span>· rotacionado 90°</span>
+      <span><strong>orientação = →</strong></span>
+      <span>2026.05.15</span>
+    </div>
+  </div>
+
+  <h1>
+    Deitado, o gesto<br/>
+    <em>flui no sentido</em> da leitura.
+  </h1>
+
+  <p class="hero-sub">
+    Em pé, o Y-fork dramatiza a decomposição como <em>elevação</em> — algo sobe, algo se eleva.
+    Deitado, ele vira <em>movimento adiante</em>: a origem está à esquerda, as três pontas miram pra direita,
+    e o wordmark <code>cellproject</code> recebe o gesto na linha exata em que está escrito.
+    A marca deixa de ser um símbolo <em>ao lado</em> do nome e vira a <em>frase visual</em> do nome.
+  </p>
+
+  <div class="orient">
+    <div>
+      <div class="label"><strong>antes</strong> · vertical · 90°</div>
+      <div class="mini-stage">
+        <svg width="80" height="100" viewBox="0 0 320 380" fill="none">
+          <path d="M 160 340 L 160 200" stroke="#71717a" stroke-width="4" stroke-linecap="round"/>
+          <path d="M 160 200 C 160 170, 130 150, 80 100" stroke="#71717a" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M 160 200 L 160 60" stroke="#71717a" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M 160 200 C 160 170, 190 150, 240 100" stroke="#71717a" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="160" cy="340" r="8" fill="#71717a"/>
+          <circle cx="80" cy="100" r="6" fill="#71717a"/>
+          <circle cx="160" cy="60" r="6" fill="#71717a"/>
+          <circle cx="240" cy="100" r="6" fill="#71717a"/>
+        </svg>
+      </div>
+    </div>
+    <div class="arrow">
+      <div>↻</div>
+      <div>rotaciona</div>
+    </div>
+    <div>
+      <div class="label"><strong>depois</strong> · horizontal · →</div>
+      <div class="mini-stage">
+        <svg width="120" height="80" viewBox="0 0 420 280" fill="none">
+          <path d="M 50 140 L 180 140" stroke="#a78bfa" stroke-width="4" stroke-linecap="round"/>
+          <path d="M 180 140 C 220 140, 260 100, 360 40" stroke="#a78bfa" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M 180 140 L 360 140" stroke="#a78bfa" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M 180 140 C 220 140, 260 180, 360 240" stroke="#a78bfa" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="50" cy="140" r="8" fill="#a78bfa"/>
+          <circle cx="360" cy="40" r="6" fill="#a78bfa"/>
+          <circle cx="360" cy="140" r="6" fill="#a78bfa"/>
+          <circle cx="360" cy="240" r="6" fill="#a78bfa"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- =========================================== SECTION 01 — MARCA PRIMÁRIA -->
+<section class="show">
+  <div class="head">
+    <div>
+      <div class="kicker"><span class="num">01</span> <span>Marca primária</span> <span class="rule"></span> <span>horizontal · animada</span></div>
+      <h2>A origem à <em>esquerda</em>, as três pontas mirando o futuro.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        A leitura ocidental flui esquerda-direita. Colocar a origem onde a leitura começa e as pontas
+        onde ela termina sincroniza o gesto da marca com o gesto do olho. Lê-se naturalmente como
+        <em>“parte daqui, vira três coisas”</em> — sem precisar pensar.
+      </p>
+      <p class="desc">
+        Stem grosso, ramos finos, todos com <code>stroke-linecap: round</code>. As três pontas pulsam
+        sequencialmente; o ponto de origem respira. Quando o desenho carrega, os ramos se desenham
+        com pequeno delay um do outro — encena a operação <code>decomposeNode</code> em tempo real.
+      </p>
+    </div>
+  </div>
+
+  <div class="hero-stage">
+    <span class="annot" style="top: 50%; left: 8%; transform: translateY(-50%);">◯ origem</span>
+    <span class="annot" style="top: 14%; right: 8%;">⤴ ramo 1</span>
+    <span class="annot" style="top: 50%; right: 8%; transform: translateY(-50%);">→ ramo 2</span>
+    <span class="annot" style="bottom: 14%; right: 8%;">⤵ ramo 3</span>
+    <svg width="640" height="320" viewBox="0 0 640 320" fill="none">
+      <!-- stem -->
+      <path class="drawpath" style="--len: 240;" d="M 80 160 L 280 160" stroke="#fafafa" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <!-- top branch -->
+      <path class="drawpath" style="--len: 360; animation-delay: 0.6s;" d="M 280 160 C 340 160, 420 110, 560 50" stroke="#fafafa" stroke-width="3" stroke-linecap="round" fill="none"/>
+      <!-- center branch -->
+      <path class="drawpath" style="--len: 280; animation-delay: 0.6s;" d="M 280 160 L 560 160" stroke="#fafafa" stroke-width="3" stroke-linecap="round" fill="none"/>
+      <!-- bottom branch -->
+      <path class="drawpath" style="--len: 360; animation-delay: 0.6s;" d="M 280 160 C 340 160, 420 210, 560 270" stroke="#fafafa" stroke-width="3" stroke-linecap="round" fill="none"/>
+      <!-- origin -->
+      <circle cx="80" cy="160" r="8" fill="#a78bfa"/>
+      <circle cx="80" cy="160" r="16" stroke="#a78bfa" stroke-width="0.6" fill="none" opacity="0.5" class="breath"/>
+      <!-- tips -->
+      <circle cx="560" cy="50" r="6" fill="#a78bfa" class="pulse-tip"/>
+      <circle cx="560" cy="160" r="6" fill="#a78bfa" class="pulse-tip" style="animation-delay: 0.3s;"/>
+      <circle cx="560" cy="270" r="6" fill="#a78bfa" class="pulse-tip" style="animation-delay: 0.6s;"/>
+      <!-- fork point -->
+      <circle cx="280" cy="160" r="3" fill="#a78bfa" opacity="0.65"/>
+    </svg>
+  </div>
+
+  <div class="row-2">
+    <div class="stage invert">
+      <div class="stage-meta"><span>◆ contorno · positivo</span><span>bone</span></div>
+      <svg width="280" height="160" viewBox="0 0 640 320" fill="none">
+        <path d="M 80 160 L 280 160" stroke="#1a1813" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <path d="M 280 160 C 340 160, 420 110, 560 50" stroke="#1a1813" stroke-width="4" stroke-linecap="round" fill="none"/>
+        <path d="M 280 160 L 560 160" stroke="#1a1813" stroke-width="4" stroke-linecap="round" fill="none"/>
+        <path d="M 280 160 C 340 160, 420 210, 560 270" stroke="#1a1813" stroke-width="4" stroke-linecap="round" fill="none"/>
+        <circle cx="80" cy="160" r="10" fill="#7c5ed1"/>
+        <circle cx="560" cy="50" r="7" fill="#7c5ed1"/>
+        <circle cx="560" cy="160" r="7" fill="#7c5ed1"/>
+        <circle cx="560" cy="270" r="7" fill="#7c5ed1"/>
+      </svg>
+    </div>
+    <div class="stage">
+      <div class="stage-meta"><span>◆ versão geométrica</span><span>retas · ângulos fixos</span></div>
+      <svg width="280" height="160" viewBox="0 0 640 320" fill="none">
+        <!-- straight angular version, no curves -->
+        <line x1="80" y1="160" x2="280" y2="160" stroke="#fafafa" stroke-width="4" stroke-linecap="round"/>
+        <line x1="280" y1="160" x2="560" y2="50" stroke="#fafafa" stroke-width="3" stroke-linecap="round"/>
+        <line x1="280" y1="160" x2="560" y2="160" stroke="#fafafa" stroke-width="3" stroke-linecap="round"/>
+        <line x1="280" y1="160" x2="560" y2="270" stroke="#fafafa" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="80" cy="160" r="8" fill="#a78bfa"/>
+        <circle cx="560" cy="50" r="6" fill="#a78bfa"/>
+        <circle cx="560" cy="160" r="6" fill="#a78bfa"/>
+        <circle cx="560" cy="270" r="6" fill="#a78bfa"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="pillrow">
+    <span class="pill accent">flui esq → dir</span>
+    <span class="pill accent">leitura natural</span>
+    <span class="pill">orgânico ou angular</span>
+    <span class="pill">silhueta forte</span>
+    <span class="pill">favicon resiste</span>
+  </div>
+</section>
+
+<!-- =========================================== SECTION 02 — VARIAÇÕES DE ABERTURA -->
+<section class="show paper">
+  <div class="head">
+    <div>
+      <div class="kicker"><span class="num">02</span> <span>Variações de abertura</span> <span class="rule"></span> <span>ângulo dos ramos</span></div>
+      <h2>Quatro <em>aberturas</em>, mesmo gesto.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        O mesmo gesto pode <em>respirar</em> mais ou menos abrindo os ramos. Aqui quatro testes:
+        do mais fechado (ramos quase paralelos) ao mais aberto (ângulo 45°/0°/-45°).
+        A abertura mexe drasticamente com a personalidade: <em>contido</em> vs <em>expansivo</em>.
+      </p>
+      <p class="desc">
+        Para uso em header de produto (espaço vertical limitado), as versões 01 e 02 funcionam melhor.
+        Para uso em poster, capa, mídia social — as versões 03 e 04 ganham presença.
+      </p>
+    </div>
+  </div>
+
+  <div class="row-4">
+    <!-- V1: tight -->
+    <div class="stage">
+      <svg width="180" height="100" viewBox="0 0 360 200" fill="none">
+        <path d="M 40 100 L 140 100" stroke="#1a1813" stroke-width="3" stroke-linecap="round"/>
+        <path d="M 140 100 C 200 100, 260 88, 320 70" stroke="#1a1813" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M 140 100 L 320 100" stroke="#1a1813" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M 140 100 C 200 100, 260 112, 320 130" stroke="#1a1813" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="40" cy="100" r="6" fill="#a78bfa"/>
+        <circle cx="320" cy="70" r="4.5" fill="#a78bfa"/>
+        <circle cx="320" cy="100" r="4.5" fill="#a78bfa"/>
+        <circle cx="320" cy="130" r="4.5" fill="#a78bfa"/>
+      </svg>
+      <div class="v-label"><strong>fechado</strong> · ±15°</div>
+    </div>
+    <!-- V2: medium -->
+    <div class="stage">
+      <svg width="180" height="100" viewBox="0 0 360 200" fill="none">
+        <path d="M 40 100 L 140 100" stroke="#1a1813" stroke-width="3" stroke-linecap="round"/>
+        <path d="M 140 100 C 200 100, 260 70, 320 40" stroke="#1a1813" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M 140 100 L 320 100" stroke="#1a1813" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M 140 100 C 200 100, 260 130, 320 160" stroke="#1a1813" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="40" cy="100" r="6" fill="#a78bfa"/>
+        <circle cx="320" cy="40" r="4.5" fill="#a78bfa"/>
+        <circle cx="320" cy="100" r="4.5" fill="#a78bfa"/>
+        <circle cx="320" cy="160" r="4.5" fill="#a78bfa"/>
+      </svg>
+      <div class="v-label"><strong>médio</strong> · ±30°</div>
+    </div>
+    <!-- V3: wide -->
+    <div class="stage">
+      <svg width="180" height="100" viewBox="0 0 360 200" fill="none">
+        <path d="M 40 100 L 120 100" stroke="#1a1813" stroke-width="3" stroke-linecap="round"/>
+        <path d="M 120 100 C 200 100, 240 50, 320 10" stroke="#1a1813" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M 120 100 L 320 100" stroke="#1a1813" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M 120 100 C 200 100, 240 150, 320 190" stroke="#1a1813" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="40" cy="100" r="6" fill="#a78bfa"/>
+        <circle cx="320" cy="10" r="4.5" fill="#a78bfa"/>
+        <circle cx="320" cy="100" r="4.5" fill="#a78bfa"/>
+        <circle cx="320" cy="190" r="4.5" fill="#a78bfa"/>
+      </svg>
+      <div class="v-label"><strong>aberto</strong> · ±45°</div>
+    </div>
+    <!-- V4: dramatic with longer stem -->
+    <div class="stage">
+      <svg width="180" height="100" viewBox="0 0 360 200" fill="none">
+        <path d="M 40 100 L 200 100" stroke="#1a1813" stroke-width="3" stroke-linecap="round"/>
+        <path d="M 200 100 C 240 100, 280 60, 320 20" stroke="#1a1813" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M 200 100 L 320 100" stroke="#1a1813" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M 200 100 C 240 100, 280 140, 320 180" stroke="#1a1813" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="40" cy="100" r="6" fill="#a78bfa"/>
+        <circle cx="320" cy="20" r="4.5" fill="#a78bfa"/>
+        <circle cx="320" cy="100" r="4.5" fill="#a78bfa"/>
+        <circle cx="320" cy="180" r="4.5" fill="#a78bfa"/>
+      </svg>
+      <div class="v-label"><strong>stem longo</strong> · fork tardio</div>
+    </div>
+  </div>
+
+  <div class="pillrow">
+    <span class="pill accent">sistema flexível</span>
+    <span class="pill">contexto define abertura</span>
+    <span class="pill">mesma gramática</span>
+    <span class="pill">favicon usa fechado</span>
+    <span class="pill">poster usa aberto</span>
+  </div>
+</section>
+
+<!-- =========================================== SECTION 03 — LOCKUPS COM WORDMARK -->
+<section class="show">
+  <div class="head">
+    <div>
+      <div class="kicker"><span class="num">03</span> <span>Lockups com wordmark</span> <span class="rule"></span> <span>integração natural</span></div>
+      <h2>O gesto <em>desemboca</em> no nome.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        A vantagem decisiva do Y-fork lateral é como ele <em>conversa com o wordmark</em>. O ramo central
+        encontra a baseline do texto exatamente onde a letra <code>c</code> de <em>cellproject</em> começa.
+        O símbolo deixa de ser uma decoração ao lado e vira o <em>preâmbulo gráfico</em> do nome.
+      </p>
+      <p class="desc">
+        Quatro lockups testados abaixo: padrão, compacto, com ascendente, e em uma única linha integrada
+        onde o stem do Y é uma continuação tipográfica.
+      </p>
+    </div>
+  </div>
+
+  <div class="lockups">
+    <div class="lockup">
+      <span class="label">◆ lockup 01 · padrão</span>
+      <div class="render">
+        <svg width="84" height="60" viewBox="0 0 320 200" fill="none">
+          <path d="M 40 100 L 140 100" stroke="#fafafa" stroke-width="10" stroke-linecap="round"/>
+          <path d="M 140 100 C 200 100, 240 60, 300 30" stroke="#fafafa" stroke-width="8" stroke-linecap="round"/>
+          <path d="M 140 100 L 300 100" stroke="#fafafa" stroke-width="8" stroke-linecap="round"/>
+          <path d="M 140 100 C 200 100, 240 140, 300 170" stroke="#fafafa" stroke-width="8" stroke-linecap="round"/>
+          <circle cx="40" cy="100" r="14" fill="#a78bfa"/>
+          <circle cx="300" cy="30" r="10" fill="#a78bfa"/>
+          <circle cx="300" cy="100" r="10" fill="#a78bfa"/>
+          <circle cx="300" cy="170" r="10" fill="#a78bfa"/>
+        </svg>
+        <span class="wordmark" style="font-size: 38px; color: var(--text);">cellproject</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ lockup 02 · compacto</span>
+      <div class="render">
+        <svg width="56" height="44" viewBox="0 0 320 200" fill="none">
+          <path d="M 50 100 L 150 100" stroke="#fafafa" stroke-width="14" stroke-linecap="round"/>
+          <path d="M 150 100 C 200 100, 240 80, 290 60" stroke="#fafafa" stroke-width="10" stroke-linecap="round"/>
+          <path d="M 150 100 L 290 100" stroke="#fafafa" stroke-width="10" stroke-linecap="round"/>
+          <path d="M 150 100 C 200 100, 240 120, 290 140" stroke="#fafafa" stroke-width="10" stroke-linecap="round"/>
+          <circle cx="50" cy="100" r="18" fill="#a78bfa"/>
+          <circle cx="290" cy="60" r="12" fill="#a78bfa"/>
+          <circle cx="290" cy="100" r="12" fill="#a78bfa"/>
+          <circle cx="290" cy="140" r="12" fill="#a78bfa"/>
+        </svg>
+        <span class="wordmark" style="font-size: 26px; color: var(--text);">cellproject<span class="dot">.</span></span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ lockup 03 · com tagline</span>
+      <div class="render" style="align-items: flex-start;">
+        <svg width="72" height="50" viewBox="0 0 320 200" fill="none">
+          <path d="M 40 100 L 140 100" stroke="#fafafa" stroke-width="10" stroke-linecap="round"/>
+          <path d="M 140 100 C 200 100, 240 60, 300 30" stroke="#fafafa" stroke-width="8" stroke-linecap="round"/>
+          <path d="M 140 100 L 300 100" stroke="#fafafa" stroke-width="8" stroke-linecap="round"/>
+          <path d="M 140 100 C 200 100, 240 140, 300 170" stroke="#fafafa" stroke-width="8" stroke-linecap="round"/>
+          <circle cx="40" cy="100" r="14" fill="#a78bfa"/>
+          <circle cx="300" cy="30" r="10" fill="#a78bfa"/>
+          <circle cx="300" cy="100" r="10" fill="#a78bfa"/>
+          <circle cx="300" cy="170" r="10" fill="#a78bfa"/>
+        </svg>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span class="wordmark" style="font-size: 30px; color: var(--text); line-height: 0.9;">cellproject</span>
+          <span style="font-family: var(--serif); font-style: italic; font-size: 13px; color: var(--text-mute); line-height: 1.2;">planeja por decomposição.</span>
+        </div>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ lockup 04 · integrado (stem = traço do c)</span>
+      <div class="render">
+        <svg width="200" height="56" viewBox="0 0 600 160" fill="none">
+          <!-- horizontal flowing stem feeding into the wordmark area -->
+          <path d="M 30 80 L 120 80" stroke="#a78bfa" stroke-width="10" stroke-linecap="round"/>
+          <path d="M 120 80 C 150 80, 165 56, 180 38" stroke="#a78bfa" stroke-width="8" stroke-linecap="round"/>
+          <path d="M 120 80 L 180 80" stroke="#a78bfa" stroke-width="8" stroke-linecap="round"/>
+          <path d="M 120 80 C 150 80, 165 104, 180 122" stroke="#a78bfa" stroke-width="8" stroke-linecap="round"/>
+          <circle cx="30" cy="80" r="14" fill="#a78bfa"/>
+          <circle cx="180" cy="38" r="9" fill="#a78bfa"/>
+          <circle cx="180" cy="80" r="9" fill="#a78bfa"/>
+          <circle cx="180" cy="122" r="9" fill="#a78bfa"/>
+          <!-- text continuing seamlessly -->
+          <text x="200" y="106" font-family="Fraunces" font-size="100" font-weight="400" fill="#fafafa" font-style="italic" letter-spacing="-3">cell</text>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 10px; color: var(--text-mute); letter-spacing: 0.18em; text-transform: uppercase;">stem ↔ glifo</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pillrow">
+    <span class="pill accent">marca + wordmark = unidade</span>
+    <span class="pill">tem versão minimal</span>
+    <span class="pill">tem versão tagline</span>
+    <span class="pill">stem integra com tipografia</span>
+  </div>
+</section>
+
+<!-- =========================================== SECTION 04 — APLICAÇÃO -->
+<section class="show paper">
+  <div class="head">
+    <div>
+      <div class="kicker"><span class="num">04</span> <span>Aplicação real</span> <span class="rule"></span> <span>vendo o logo no produto</span></div>
+      <h2>Como ele <em>vive</em> no header.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        Um logo que parece bonito num stage de 600px e some quando entra numa <code>TopBar</code> de 56px
+        não serviu pra nada. Aqui o mockup do app real do Cellproject — breadcrumb, lentes, view mode —
+        com o lockup horizontal no canto esquerdo.
+      </p>
+      <p class="desc">
+        Em 56px de altura, a marca lateral sobrevive porque o gesto é <em>linear</em> e a leitura
+        é <em>esquerda-direita</em> — mesma direção da TopBar inteira.
+      </p>
+    </div>
+  </div>
+
+  <div class="mock">
+    <div class="chrome">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="url">cellproject.local <strong>· bambu — base 40cm</strong></div>
+    </div>
+    <div class="mock-app">
+      <div class="topbar">
+        <div class="topbar-left">
+          <!-- the actual logo lockup -->
+          <svg width="44" height="32" viewBox="0 0 320 200">
+            <path d="M 50 100 L 150 100" stroke="#fafafa" stroke-width="14" stroke-linecap="round"/>
+            <path d="M 150 100 C 200 100, 240 70, 290 50" stroke="#fafafa" stroke-width="10" stroke-linecap="round"/>
+            <path d="M 150 100 L 290 100" stroke="#fafafa" stroke-width="10" stroke-linecap="round"/>
+            <path d="M 150 100 C 200 100, 240 130, 290 150" stroke="#fafafa" stroke-width="10" stroke-linecap="round"/>
+            <circle cx="50" cy="100" r="18" fill="#a78bfa"/>
+            <circle cx="290" cy="50" r="12" fill="#a78bfa"/>
+            <circle cx="290" cy="100" r="12" fill="#a78bfa"/>
+            <circle cx="290" cy="150" r="12" fill="#a78bfa"/>
+          </svg>
+          <span class="wordmark" style="font-size: 18px; color: var(--text);">cellproject</span>
+          <div style="width: 1px; height: 18px; background: var(--line); margin: 0 8px;"></div>
+          <div class="breadcrumb">bambu · <span style="color: var(--text-2);">recursos</span> · <span class="cur">vareta 40cm</span></div>
+        </div>
+        <div class="topbar-right">
+          <span class="active">structure</span>
+          <span>flow</span>
+          <span>risk</span>
+          <span>state</span>
+          <span>connections</span>
+          <span style="margin-left: 24px; color: var(--violet);">◆ kb</span>
+        </div>
+      </div>
+      <div class="canvas">
+<pre style="font-family: var(--mono); color: var(--text-2); line-height: 1.7;">
+  ╭─ <span style="color: var(--violet);">f(X) = montar pipa octogonal de bambu</span>
+  ├─ <span style="color: #6ee7a3;">recursos</span>
+  │  ├─ <span style="color: var(--text);">2 varetas de bambu, 40cm ± 2cm</span>     <span style="color: var(--text-mute);">spec ✓</span>
+  │  ├─ linha encerada 4m                <span style="color: var(--text-mute);">link</span>
+  │  └─ papel seda 50×50cm               <span style="color: var(--text-mute);">medida ✓</span>
+  ├─ <span style="color: #f5c14a;">execução</span>
+  │  ├─ 1. cortar varetas no tamanho exato
+  │  ├─ 2. amarrar em cruz com nó de cirurgião
+  │  └─ 3. tensionar borda com linha periférica
+  └─ <span style="color: #ff6b6b;">decisões</span>
+     └─ 4 ou 8 pontos de tensão na borda?  <span style="color: var(--text-mute);">pendente</span>
+</pre>
+      </div>
+    </div>
+  </div>
+
+  <p class="desc" style="margin-top: 28px;">
+    <em>Observação:</em> o lockup à esquerda tem ~44px de largura, idêntico ao espaço que o logo
+    teria nesta TopBar. O gesto continua legível porque o stem é grosso e os ramos curvam
+    sem ângulos rasos. Em luminância alta (fundo claro), basta inverter <code>stroke</code> e manter o ponto violeta.
+  </p>
+</section>
+
+<!-- =========================================== FOOTER -->
+<footer class="foot">
+  <div class="col">
+    <strong>linha do tempo</strong>
+    <p><a href="cellproject-logos.html" style="color: var(--violet); text-decoration: none; border-bottom: 1px dotted rgba(167,139,250,0.4);">· estudo inicial</a></p>
+    <p><a href="cellproject-logos-mitose.html" style="color: var(--violet); text-decoration: none; border-bottom: 1px dotted rgba(167,139,250,0.4);">· mitose em 3</a></p>
+    <p><a href="cellproject-logos-fluxo.html" style="color: var(--violet); text-decoration: none; border-bottom: 1px dotted rgba(167,139,250,0.4);">· fluxo em 3</a></p>
+    <p style="color: var(--text); margin-top: 8px;">· Y-fork lateral <span style="color: var(--violet);">← você está aqui</span></p>
+  </div>
+  <div class="col">
+    <strong>princípio</strong>
+    <p class="sig">o gesto segue a leitura.</p>
+    <p style="margin-top: 12px;">Origem na esquerda.<br/>Três pontas mirando o futuro.</p>
+  </div>
+  <div class="col">
+    <strong>próximo</strong>
+    <p>· vetorizar versão final em SVG</p>
+    <p>· definir abertura padrão (médio?)</p>
+    <p>· exportar 16/32/64/256 px</p>
+    <p>· definir wordmark final (Fraunces?)</p>
+  </div>
+</footer>
+
+</body>
+</html>

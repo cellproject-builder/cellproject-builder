@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
+  <title>Cellproject</title>
+  <g stroke="#fafafa" stroke-linecap="round" fill="none">
+    <path d="M 40 100 L 220 100" stroke-width="5"/>
+    <path d="M 220 100 C 260 100, 300 60, 360 20" stroke-width="3.5"/>
+    <path d="M 220 100 L 360 100" stroke-width="3.5"/>
+    <path d="M 220 100 C 260 100, 300 140, 360 180" stroke-width="3.5"/>
+  </g>
+  <circle cx="40" cy="100" r="8" fill="#8b5cf6"/>
+  <circle cx="360" cy="20" r="6" fill="#8b5cf6"/>
+  <circle cx="360" cy="100" r="6" fill="#8b5cf6"/>
+  <circle cx="360" cy="180" r="6" fill="#8b5cf6"/>
+</svg>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { nanoid } from 'nanoid';
 import { useGraphStore, breadcrumbFor, isBlocked } from '@/store';
 import { decomposeNode, explainNode } from '@/ai/service';
+import { requireAI } from '@/ai/availability';
 import { useKBStore } from '@/kb/store';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useT } from '@/i18n';
@@ -58,6 +59,7 @@ export function DetailPanel() {
   const canConfirm = (node.kind === 'recurso' || node.kind === 'passo') && !blocked;
 
   const handleDecompose = async () => {
+    if (!requireAI()) return;
     setDecomposing(true);
     try {
       const siblings = Object.values(project.nodes)
@@ -127,6 +129,7 @@ export function DetailPanel() {
       setExplanationOpen((o) => !o);
       return;
     }
+    if (!requireAI()) return;
     setExplaining(true);
     try {
       const text = await explainNode({

@@ -61,7 +61,7 @@ export function ObjectiveScreen() {
 
   return (
     <div className="fixed inset-0 bg-bg-primary flex items-start justify-center overflow-y-auto">
-      <div className="w-full max-w-5xl p-4 sm:p-8">
+      <div className="w-full max-w-5xl px-4 sm:px-8 pt-[max(env(safe-area-inset-top),1rem)] pb-[max(env(safe-area-inset-bottom),1rem)] sm:pt-[max(env(safe-area-inset-top),2rem)] sm:pb-[max(env(safe-area-inset-bottom),2rem)]">
         <div className="mb-8 sm:mb-10 flex items-start gap-3">
           <div className="flex-1">
             <div className="text-ai-accent text-xs font-mono uppercase tracking-widest mb-2">

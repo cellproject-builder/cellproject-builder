@@ -1,0 +1,1339 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cellproject — Fluxo · ramificação como gesto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #09090b;
+    --ink-2: #131316;
+    --ink-3: #1c1c20;
+    --line: #2a2a30;
+    --line-soft: #1f1f24;
+    --paper: #efe9dc;
+    --bone: #f5f1e8;
+    --paper-ink: #1a1813;
+    --violet: #a78bfa;
+    --violet-dim: rgba(167, 139, 250, 0.15);
+    --violet-deep: #7c5ed1;
+    --green: #6ee7a3;
+    --amber: #f5c14a;
+    --red: #ff6b6b;
+    --cyan: #5fd8e7;
+    --text: #fafafa;
+    --text-2: #d4d4d8;
+    --text-mute: #71717a;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --display: "Fraunces", "Instrument Serif", Georgia, serif;
+    --serif: "Instrument Serif", Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--ink);
+    color: var(--text-2);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0.07;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ----------------- HERO */
+  .hero {
+    padding: 48px 8vw 56px;
+    border-bottom: 1px solid var(--line);
+    background:
+      radial-gradient(60% 80% at 80% -10%, rgba(167,139,250,0.18), transparent 60%),
+      radial-gradient(40% 60% at 0% 100%, rgba(110,231,163,0.06), transparent 60%),
+      var(--ink);
+    position: relative;
+    overflow: hidden;
+  }
+  /* hero background flow lines */
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.18;
+  }
+  .hero-bg path { stroke-dasharray: 4 8; }
+  .hero-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+    gap: 18px;
+    position: relative;
+    z-index: 2;
+  }
+  .back-link {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: color 200ms ease;
+  }
+  .back-link:hover { color: var(--violet); }
+  .back-link .arr { color: var(--violet); }
+  .crumb {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .crumb strong { color: var(--text); font-weight: 500; }
+
+  .hero h1 {
+    font-family: var(--display);
+    font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 1;
+    font-weight: 320;
+    font-size: clamp(46px, 9.5vw, 140px);
+    line-height: 0.92;
+    letter-spacing: -0.04em;
+    color: var(--text);
+    max-width: 1200px;
+    position: relative;
+    z-index: 2;
+  }
+  .hero h1 em {
+    font-style: italic;
+    font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1;
+    color: var(--violet);
+    font-weight: 280;
+  }
+  .hero h1 .strike {
+    color: var(--text-mute);
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+    text-decoration-color: var(--violet);
+    font-weight: 240;
+  }
+  .hero-sub {
+    margin-top: 28px;
+    max-width: 64ch;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--text-2);
+    position: relative;
+    z-index: 2;
+  }
+  .hero-sub em { font-family: var(--serif); font-style: italic; color: var(--text); font-size: 14.5px; }
+  .hero-sub code {
+    background: var(--ink-2);
+    padding: 1px 6px;
+    border-radius: 2px;
+    color: var(--violet);
+    font-size: 12px;
+  }
+  .pivot {
+    margin-top: 36px;
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 22px 12px 14px;
+    border: 1px solid rgba(167,139,250,0.3);
+    background: var(--violet-dim);
+    border-radius: 2px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--violet);
+    position: relative;
+    z-index: 2;
+  }
+  .pivot .from { color: var(--text-mute); text-decoration: line-through; }
+  .pivot .arr-l { color: var(--violet); font-size: 14px; }
+
+  /* ----------------- INDEX */
+  .index-bar {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    border-bottom: 1px solid var(--line);
+    background: var(--ink-2);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .index-bar a {
+    padding: 16px 18px;
+    color: var(--text-mute);
+    text-decoration: none;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    border-right: 1px solid var(--line);
+    transition: color 200ms ease, background 200ms ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .index-bar a:last-child { border-right: none; }
+  .index-bar a:hover { color: var(--text); background: var(--ink-3); }
+  .index-bar a .n {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 17px;
+    color: var(--violet);
+  }
+
+  /* ----------------- VARIATION */
+  .variant {
+    padding: 88px 8vw 96px;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+  }
+  .variant.paper {
+    background: var(--paper);
+    color: var(--paper-ink);
+    border-bottom-color: rgba(26,24,19,0.1);
+  }
+  .variant.paper .kicker { color: rgba(26,24,19,0.55); }
+  .variant.paper .kicker .num { color: #6c4c2c; }
+  .variant.paper .kicker .rule { background: rgba(26,24,19,0.25); }
+  .variant.paper h2 { color: var(--paper-ink); }
+  .variant.paper h2 em { color: #6c4c2c; }
+  .variant.paper .desc { color: rgba(26,24,19,0.78); }
+  .variant.paper .desc em { color: var(--paper-ink); }
+  .variant.paper .desc code { background: rgba(26,24,19,0.08); color: #6c4c2c; }
+  .variant.paper .stage { background: var(--bone); border-color: rgba(26,24,19,0.12); }
+  .variant.paper .stage.invert { background: var(--paper-ink); border-color: var(--paper-ink); }
+  .variant.paper .stage .stage-meta { color: rgba(26,24,19,0.55); }
+  .variant.paper .stage.invert .stage-meta { color: rgba(255,255,255,0.5); }
+  .variant.paper .lockup-row { border-color: rgba(26,24,19,0.12); }
+  .variant.paper .lockup { border-color: rgba(26,24,19,0.12); }
+  .variant.paper .lockup .label { color: rgba(26,24,19,0.5); }
+  .variant.paper .pill { color: rgba(26,24,19,0.55); border-color: rgba(26,24,19,0.18); }
+
+  .v-head {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 56px;
+    align-items: start;
+    margin-bottom: 56px;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .kicker .num {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 30px;
+    color: var(--violet);
+    line-height: 1;
+  }
+  .kicker .rule { flex: 1; height: 1px; background: currentColor; opacity: 0.25; }
+
+  h2 {
+    font-family: var(--display);
+    font-variation-settings: "opsz" 144, "SOFT" 40;
+    font-weight: 340;
+    font-size: clamp(34px, 4.8vw, 64px);
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    color: var(--text);
+  }
+  h2 em {
+    font-style: italic;
+    font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1;
+    font-weight: 300;
+    color: var(--violet);
+  }
+  .desc {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-2);
+  }
+  .desc + .desc { margin-top: 14px; }
+  .desc em { font-family: var(--serif); font-style: italic; color: var(--text); font-size: 14px; }
+  .desc code {
+    background: var(--ink-2);
+    padding: 1px 6px;
+    border-radius: 2px;
+    color: var(--violet);
+    font-size: 12px;
+  }
+
+  /* stages */
+  .stages {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 18px;
+    margin-bottom: 36px;
+  }
+  .stage {
+    background: var(--ink-2);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 56px 40px;
+    min-height: 380px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .stage.invert { background: var(--bone); border-color: var(--bone); color: var(--paper-ink); }
+  .stage-meta {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+  }
+  /* annotation overlay on stage */
+  .annot {
+    position: absolute;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    pointer-events: none;
+  }
+
+  /* lockup row */
+  .lockup-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .lockup {
+    padding: 26px 22px;
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    min-height: 124px;
+    justify-content: space-between;
+  }
+  .lockup:last-child { border-right: none; }
+  .lockup .label {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+  }
+  .lockup .render { display: flex; align-items: center; gap: 12px; }
+
+  /* wordmark */
+  .wordmark {
+    font-family: var(--display);
+    font-variation-settings: "opsz" 144, "SOFT" 50;
+    font-weight: 380;
+    letter-spacing: -0.025em;
+    color: currentColor;
+  }
+  .wordmark .dot { color: var(--violet); }
+
+  /* pills */
+  .pillrow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .pill {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    color: var(--text-mute);
+    border-radius: 2px;
+  }
+  .pill.accent { color: var(--violet); border-color: rgba(167,139,250,0.45); background: var(--violet-dim); }
+
+  /* ---------- COMPARISON */
+  .compare {
+    padding: 96px 8vw 80px;
+    background: var(--ink-2);
+    border-bottom: 1px solid var(--line);
+  }
+  .compare h3 {
+    font-family: var(--display);
+    font-variation-settings: "opsz" 144, "SOFT" 40;
+    font-weight: 340;
+    font-size: clamp(28px, 3.8vw, 48px);
+    color: var(--text);
+    letter-spacing: -0.02em;
+    margin-bottom: 40px;
+    line-height: 1.05;
+  }
+  .compare h3 em { font-style: italic; color: var(--violet); font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1; }
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 60px 1fr 1fr 1.2fr;
+    border-top: 1px solid var(--line);
+  }
+  .compare-row { display: contents; }
+  .compare-row > div {
+    padding: 22px 18px;
+    border-bottom: 1px solid var(--line-soft);
+    border-right: 1px solid var(--line-soft);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text-2);
+    line-height: 1.5;
+  }
+  .compare-row > div:last-child { border-right: none; }
+  .compare-row.head > div {
+    background: var(--ink-3);
+    color: var(--text-mute);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 16px 18px;
+  }
+  .compare-row .name {
+    color: var(--text);
+    font-family: var(--display);
+    font-style: italic;
+    font-variation-settings: "opsz" 144, "SOFT" 80;
+    font-size: 17px;
+  }
+  .compare-row .vid {
+    color: var(--violet);
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 22px;
+  }
+  .compare-row .gesto { color: var(--text); }
+  .compare-row .gesto em { font-family: var(--serif); font-style: italic; color: var(--violet); }
+  /* mini preview in compare */
+  .mini-preview {
+    width: 56px;
+    height: 38px;
+    background: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+
+  /* footer */
+  footer.foot {
+    padding: 56px 8vw 64px;
+    background: var(--ink);
+    color: var(--text-mute);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+  }
+  footer.foot .col strong { color: var(--text-2); font-weight: 500; display: block; margin-bottom: 10px; }
+  footer.foot .col p { margin-bottom: 6px; line-height: 1.7; }
+  footer.foot .sig {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 19px;
+    color: var(--violet);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  /* ---------- ANIMATIONS */
+  @keyframes drawpath {
+    from { stroke-dashoffset: var(--len, 400); opacity: 0.3; }
+    to { stroke-dashoffset: 0; opacity: 1; }
+  }
+  @keyframes flow {
+    from { stroke-dashoffset: 100; }
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes flow-rev {
+    from { stroke-dashoffset: 0; }
+    to { stroke-dashoffset: 100; }
+  }
+  @keyframes pulse-tip {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.65; }
+  }
+  @keyframes flicker-1 {
+    0%, 30%, 100% { opacity: 1; }
+    33%, 66% { opacity: 0.25; }
+  }
+  @keyframes flicker-2 {
+    0%, 33%, 100% { opacity: 0.25; }
+    34%, 63% { opacity: 1; }
+    66%, 99% { opacity: 0.25; }
+  }
+  @keyframes flicker-3 {
+    0%, 66%, 100% { opacity: 0.25; }
+    67%, 99% { opacity: 1; }
+  }
+  @keyframes particle {
+    0% { offset-distance: 0%; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { offset-distance: 100%; opacity: 0; }
+  }
+  @keyframes wave-1 {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  @keyframes wave-2 {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(6px); }
+  }
+  @keyframes breath {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+
+  .drawpath { stroke-dasharray: var(--len, 200); animation: drawpath 1.8s ease-out backwards; }
+  .flowing { stroke-dasharray: 6 10; animation: flow 2.2s linear infinite; }
+  .flowing-slow { stroke-dasharray: 4 16; animation: flow 4s linear infinite; }
+  .flowing-rev { stroke-dasharray: 6 10; animation: flow-rev 2.6s linear infinite; }
+  .pulse-tip { animation: pulse-tip 1.8s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+  .flicker-1 { animation: flicker-1 3.6s steps(1) infinite; }
+  .flicker-2 { animation: flicker-2 3.6s steps(1) infinite; }
+  .flicker-3 { animation: flicker-3 3.6s steps(1) infinite; }
+  .wave-1 { animation: wave-1 5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .wave-2 { animation: wave-2 5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .breath { animation: breath 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
+  /* responsive */
+  @media (max-width: 980px) {
+    .v-head { grid-template-columns: 1fr; gap: 28px; }
+    .stages { grid-template-columns: 1fr; }
+    .lockup-row { grid-template-columns: 1fr 1fr; }
+    .lockup:nth-child(2n) { border-right: none; }
+    .lockup { border-bottom: 1px solid var(--line); }
+    .lockup:last-child, .lockup:nth-last-child(2) { border-bottom: none; }
+    .index-bar { grid-template-columns: repeat(3, 1fr); }
+    .index-bar a:nth-child(3) { border-right: none; }
+    .index-bar a { padding: 12px 14px; font-size: 9.5px; }
+    .hero { padding: 32px 22px 36px; }
+    .variant { padding: 56px 22px 64px; }
+    .compare { padding: 60px 22px; }
+    .compare-grid { grid-template-columns: 56px 1fr; }
+    .compare-row > div:nth-child(3),
+    .compare-row > div:nth-child(4) { grid-column: 1 / -1; padding-top: 4px; padding-bottom: 18px; border-right: none; }
+    .compare-row.head > div:nth-child(3),
+    .compare-row.head > div:nth-child(4) { display: none; }
+    footer.foot { grid-template-columns: 1fr; padding: 40px 22px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- =========================================== HERO -->
+<header class="hero">
+  <!-- background flowing paths -->
+  <svg class="hero-bg" viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice">
+    <path d="M 0 600 Q 400 580 600 480 T 1100 320 T 1600 180" stroke="#a78bfa" stroke-width="1" fill="none" class="flowing-slow"/>
+    <path d="M 0 650 Q 350 640 580 560 T 1080 420 T 1600 280" stroke="#a78bfa" stroke-width="0.7" fill="none" class="flowing-slow" style="animation-delay: -1s;"/>
+    <path d="M 200 700 Q 500 650 720 540 T 1200 380 T 1600 220" stroke="#a78bfa" stroke-width="0.5" fill="none" class="flowing-slow" style="animation-delay: -2s;"/>
+  </svg>
+
+  <div class="hero-top">
+    <a href="cellproject-logos.html" class="back-link"><span class="arr">◀</span> voltar pro estudo</a>
+    <div class="crumb">
+      <span>direção</span>
+      <span><strong>01 · Mitose</strong></span>
+      <span>· terceira leitura</span>
+      <span><strong>foco = fluxo</strong></span>
+      <span>2026.05.15</span>
+    </div>
+  </div>
+
+  <h1>
+    O que importa<br/>
+    não é a <span class="strike">célula</span>,<br/>
+    é o <em>ramo</em> que ela faz.
+  </h1>
+
+  <p class="hero-sub">
+    Pivotada: as variações anteriores trataram a tríade como <em>objeto</em> — três círculos parados.
+    Esta página trata como <em>gesto</em>. Onde tinha forma fechada, agora tem traço bifurcando,
+    vetor saindo, fluxo se ramificando. A operação do Cellproject (<code>decomposeNode</code>) virou a marca.
+  </p>
+
+  <div class="pivot">
+    <span class="from">objeto</span>
+    <span class="arr-l">→</span>
+    <span>gesto</span>
+    <span style="color: var(--text-mute); margin: 0 8px;">·</span>
+    <span class="from">células</span>
+    <span class="arr-l">→</span>
+    <span>ramificação</span>
+    <span style="color: var(--text-mute); margin: 0 8px;">·</span>
+    <span class="from">estado</span>
+    <span class="arr-l">→</span>
+    <span>fluxo</span>
+  </div>
+</header>
+
+<!-- =========================================== INDEX -->
+<nav class="index-bar">
+  <a href="#v1"><span class="n">01</span> Y-fork gestual</a>
+  <a href="#v2"><span class="n">02</span> Vetor trifásico</a>
+  <a href="#v3"><span class="n">03</span> Delta de fluxo</a>
+  <a href="#v4"><span class="n">04</span> Serpentina trífona</a>
+  <a href="#v5"><span class="n">05</span> Broadcast radial</a>
+</nav>
+
+<!-- =========================================== V1 — Y-FORK GESTUAL -->
+<section class="variant" id="v1">
+  <div class="v-head">
+    <div>
+      <div class="kicker"><span class="num">01</span> <span>Y-fork gestual</span> <span class="rule"></span> <span>traço único · orgânico</span></div>
+      <h2>Um único <em>movimento</em> que bifurca em três.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        Tudo é um traço só. Nasce embaixo num ponto firme (o objetivo), sobe reto, e quando atinge a altura
+        de decisão se abre em três pontas — esquerda inclinada, centro reta, direita inclinada.
+        É o mesmo gesto da mão que escreve <code>f(X)</code> e depois desenha as três setas saindo.
+      </p>
+      <p class="desc">
+        Cada ponta termina num pequeno núcleo que pulsa — o "f(X) ainda em aberto" de cada filho.
+        Nenhuma das três é mais importante que a outra; mas a <em>origem</em> é única.
+      </p>
+    </div>
+  </div>
+
+  <div class="stages">
+    <div class="stage">
+      <div class="stage-meta"><span>◆ marca primária</span><span>traço único · ink</span></div>
+      <span class="annot" style="bottom: 18%; left: 12%;">origem</span>
+      <span class="annot" style="top: 14%; right: 24%;">⤴ fork</span>
+      <svg width="320" height="380" viewBox="0 0 320 380" fill="none">
+        <!-- stem from bottom -->
+        <path class="drawpath" style="--len: 200;" d="M 160 340 L 160 200" stroke="#fafafa" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <!-- left branch -->
+        <path class="drawpath" style="--len: 200; animation-delay: 0.6s;" d="M 160 200 C 160 170, 130 150, 80 100" stroke="#fafafa" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+        <!-- center branch -->
+        <path class="drawpath" style="--len: 140; animation-delay: 0.6s;" d="M 160 200 L 160 60" stroke="#fafafa" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+        <!-- right branch -->
+        <path class="drawpath" style="--len: 200; animation-delay: 0.6s;" d="M 160 200 C 160 170, 190 150, 240 100" stroke="#fafafa" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+        <!-- origin point -->
+        <circle cx="160" cy="340" r="6" fill="#a78bfa"/>
+        <circle cx="160" cy="340" r="13" stroke="#a78bfa" stroke-width="0.6" fill="none" opacity="0.4" class="breath"/>
+        <!-- tip nuclei -->
+        <circle cx="80" cy="100" r="5" fill="#a78bfa" class="pulse-tip"/>
+        <circle cx="160" cy="60" r="5" fill="#a78bfa" class="pulse-tip" style="animation-delay: 0.3s;"/>
+        <circle cx="240" cy="100" r="5" fill="#a78bfa" class="pulse-tip" style="animation-delay: 0.6s;"/>
+        <!-- fork point subtle indicator -->
+        <circle cx="160" cy="200" r="2.5" fill="#a78bfa" opacity="0.6"/>
+      </svg>
+    </div>
+    <div class="stage invert">
+      <div class="stage-meta"><span>◆ contorno · positivo</span><span>bone</span></div>
+      <svg width="200" height="240" viewBox="0 0 320 380" fill="none">
+        <path d="M 160 340 L 160 200" stroke="#1a1813" stroke-width="4" stroke-linecap="round" fill="none"/>
+        <path d="M 160 200 C 160 170, 130 150, 80 100" stroke="#1a1813" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        <path d="M 160 200 L 160 60" stroke="#1a1813" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        <path d="M 160 200 C 160 170, 190 150, 240 100" stroke="#1a1813" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        <circle cx="160" cy="340" r="8" fill="#7c5ed1"/>
+        <circle cx="80" cy="100" r="6" fill="#7c5ed1"/>
+        <circle cx="160" cy="60" r="6" fill="#7c5ed1"/>
+        <circle cx="240" cy="100" r="6" fill="#7c5ed1"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="lockup-row">
+    <div class="lockup">
+      <span class="label">◆ lockup horizontal</span>
+      <div class="render">
+        <svg width="40" height="50" viewBox="0 0 320 380">
+          <path d="M 160 340 L 160 200" stroke="#fafafa" stroke-width="14" stroke-linecap="round" fill="none"/>
+          <path d="M 160 200 C 160 170, 130 150, 80 100" stroke="#fafafa" stroke-width="11" stroke-linecap="round" fill="none"/>
+          <path d="M 160 200 L 160 60" stroke="#fafafa" stroke-width="11" stroke-linecap="round" fill="none"/>
+          <path d="M 160 200 C 160 170, 190 150, 240 100" stroke="#fafafa" stroke-width="11" stroke-linecap="round" fill="none"/>
+          <circle cx="160" cy="340" r="22" fill="#a78bfa"/>
+          <circle cx="80" cy="100" r="16" fill="#a78bfa"/>
+          <circle cx="160" cy="60" r="16" fill="#a78bfa"/>
+          <circle cx="240" cy="100" r="16" fill="#a78bfa"/>
+        </svg>
+        <span class="wordmark" style="font-size: 26px; color: var(--text);">cellproject</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ empilhado</span>
+      <div class="render" style="flex-direction: column; align-items: center; gap: 10px;">
+        <svg width="44" height="52" viewBox="0 0 320 380">
+          <path d="M 160 340 L 160 200" stroke="#fafafa" stroke-width="14" stroke-linecap="round" fill="none"/>
+          <path d="M 160 200 C 160 170, 130 150, 80 100" stroke="#fafafa" stroke-width="11" stroke-linecap="round" fill="none"/>
+          <path d="M 160 200 L 160 60" stroke="#fafafa" stroke-width="11" stroke-linecap="round" fill="none"/>
+          <path d="M 160 200 C 160 170, 190 150, 240 100" stroke="#fafafa" stroke-width="11" stroke-linecap="round" fill="none"/>
+          <circle cx="160" cy="340" r="22" fill="#a78bfa"/>
+          <circle cx="80" cy="100" r="16" fill="#a78bfa"/>
+          <circle cx="160" cy="60" r="16" fill="#a78bfa"/>
+          <circle cx="240" cy="100" r="16" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--text); letter-spacing: 0.18em; text-transform: uppercase; font-weight: 500;">CELLPROJECT</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ favicon 32</span>
+      <div class="render">
+        <svg width="34" height="34" viewBox="0 0 32 32" style="background: #18181b; border-radius: 4px;">
+          <path d="M 16 28 L 16 18" stroke="#fafafa" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+          <path d="M 16 18 C 16 15, 13 13, 8 8" stroke="#fafafa" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+          <path d="M 16 18 L 16 6" stroke="#fafafa" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+          <path d="M 16 18 C 16 15, 19 13, 24 8" stroke="#fafafa" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+          <circle cx="16" cy="28" r="2.2" fill="#a78bfa"/>
+          <circle cx="8" cy="8" r="1.4" fill="#a78bfa"/>
+          <circle cx="16" cy="6" r="1.4" fill="#a78bfa"/>
+          <circle cx="24" cy="8" r="1.4" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--text-mute);">silhueta clara</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ assinatura ASCII</span>
+      <div class="render">
+        <span style="font-family: var(--mono); font-size: 13px; color: var(--text); line-height: 1.3;">
+          <span style="color: var(--violet);">\</span> <span style="color: var(--violet);">|</span> <span style="color: var(--violet);">/</span><br/>
+          <span style="color: var(--violet);">·\|/·</span><br/>
+          <span style="color: var(--text-mute);">&nbsp;&nbsp;|</span><br/>
+          <span style="color: var(--violet);">&nbsp;&nbsp;●</span><br/>
+          <span style="color: var(--text-mute); font-size: 9px; letter-spacing: 0.18em;">CELLPROJECT</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pillrow">
+    <span class="pill accent">gestual</span>
+    <span class="pill accent">origem única</span>
+    <span class="pill">silhueta forte</span>
+    <span class="pill">brushstroke-ready</span>
+    <span class="pill">animação: desenha</span>
+  </div>
+</section>
+
+<!-- =========================================== V2 — VETOR TRIFÁSICO -->
+<section class="variant paper" id="v2">
+  <div class="v-head">
+    <div>
+      <div class="kicker"><span class="num">02</span> <span>Vetor trifásico</span> <span class="rule"></span> <span>seta · direção · ângulo</span></div>
+      <h2>Três <em>direções</em> saindo de um único ponto.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        Geométrico, brutalista, sem dúvida. Três setas saindo de uma mesma origem em ângulos calculados —
+        <em>−45°, 0°, +45°</em>. Cabeças triangulares cheias, traço com espessura constante.
+        Lê-se como diagrama de vetor de física: <em>uma força se decompõe em três</em>.
+      </p>
+      <p class="desc">
+        As três setas piscam alternadamente quando animadas — sugere que a decomposição não é simultânea,
+        é sequencial: o usuário escolhe qual ramo seguir primeiro.
+      </p>
+    </div>
+  </div>
+
+  <div class="stages">
+    <div class="stage">
+      <div class="stage-meta"><span>◆ marca primária</span><span>vetorial · paper</span></div>
+      <span class="annot" style="bottom: 14%; left: 50%; transform: translateX(-50%); color: rgba(26,24,19,0.4);">◯ origem</span>
+      <span class="annot" style="top: 22%; left: 18%; color: rgba(26,24,19,0.4);">−45°</span>
+      <span class="annot" style="top: 8%; left: 50%; transform: translateX(-50%); color: rgba(26,24,19,0.4);">0°</span>
+      <span class="annot" style="top: 22%; right: 18%; color: rgba(26,24,19,0.4);">+45°</span>
+      <svg width="340" height="320" viewBox="0 0 340 320" fill="none">
+        <!-- origin circle -->
+        <circle cx="170" cy="240" r="9" fill="#1a1813"/>
+        <circle cx="170" cy="240" r="18" stroke="#1a1813" stroke-width="1" fill="none" opacity="0.3"/>
+        <!-- arrow 1: top-left -->
+        <g class="flicker-1">
+          <line x1="170" y1="240" x2="80" y2="100" stroke="#1a1813" stroke-width="3" stroke-linecap="round"/>
+          <polygon points="80,100 96,110 92,90" fill="#1a1813"/>
+        </g>
+        <!-- arrow 2: top -->
+        <g class="flicker-2">
+          <line x1="170" y1="240" x2="170" y2="60" stroke="#1a1813" stroke-width="3" stroke-linecap="round"/>
+          <polygon points="170,60 180,76 160,76" fill="#1a1813"/>
+        </g>
+        <!-- arrow 3: top-right -->
+        <g class="flicker-3">
+          <line x1="170" y1="240" x2="260" y2="100" stroke="#1a1813" stroke-width="3" stroke-linecap="round"/>
+          <polygon points="260,100 244,110 248,90" fill="#1a1813"/>
+        </g>
+        <!-- center accent on origin -->
+        <circle cx="170" cy="240" r="3" fill="#a78bfa"/>
+      </svg>
+    </div>
+    <div class="stage invert">
+      <div class="stage-meta"><span>◆ negativo</span><span>ink</span></div>
+      <svg width="240" height="220" viewBox="0 0 340 320" fill="none">
+        <circle cx="170" cy="240" r="10" fill="#f5f1e8"/>
+        <line x1="170" y1="240" x2="80" y2="100" stroke="#f5f1e8" stroke-width="3.5" stroke-linecap="round"/>
+        <polygon points="80,100 96,110 92,90" fill="#f5f1e8"/>
+        <line x1="170" y1="240" x2="170" y2="60" stroke="#f5f1e8" stroke-width="3.5" stroke-linecap="round"/>
+        <polygon points="170,60 180,76 160,76" fill="#f5f1e8"/>
+        <line x1="170" y1="240" x2="260" y2="100" stroke="#f5f1e8" stroke-width="3.5" stroke-linecap="round"/>
+        <polygon points="260,100 244,110 248,90" fill="#f5f1e8"/>
+        <circle cx="170" cy="240" r="3.5" fill="#a78bfa"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="lockup-row">
+    <div class="lockup">
+      <span class="label">◆ lockup horizontal</span>
+      <div class="render">
+        <svg width="40" height="40" viewBox="0 0 340 320">
+          <line x1="170" y1="240" x2="80" y2="100" stroke="#1a1813" stroke-width="22" stroke-linecap="round"/>
+          <polygon points="80,100 110,118 100,80" fill="#1a1813"/>
+          <line x1="170" y1="240" x2="170" y2="60" stroke="#1a1813" stroke-width="22" stroke-linecap="round"/>
+          <polygon points="170,60 190,90 150,90" fill="#1a1813"/>
+          <line x1="170" y1="240" x2="260" y2="100" stroke="#1a1813" stroke-width="22" stroke-linecap="round"/>
+          <polygon points="260,100 230,118 240,80" fill="#1a1813"/>
+          <circle cx="170" cy="240" r="22" fill="#a78bfa"/>
+        </svg>
+        <span class="wordmark" style="font-size: 26px; color: var(--paper-ink);">cellproject</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ single vector</span>
+      <div class="render" style="flex-direction: column; align-items: center; gap: 8px;">
+        <svg width="44" height="44" viewBox="0 0 60 60">
+          <line x1="30" y1="50" x2="30" y2="14" stroke="#1a1813" stroke-width="3" stroke-linecap="round"/>
+          <polygon points="30,8 38,22 22,22" fill="#1a1813"/>
+          <circle cx="30" cy="50" r="4" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 10px; color: rgba(26,24,19,0.55); letter-spacing: 0.18em; text-transform: uppercase;">single 0°</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ favicon</span>
+      <div class="render">
+        <svg width="34" height="34" viewBox="0 0 32 32" style="background: #1a1813; border-radius: 4px;">
+          <circle cx="16" cy="24" r="2.4" fill="#f5f1e8"/>
+          <line x1="16" y1="24" x2="7" y2="10" stroke="#f5f1e8" stroke-width="1.3" stroke-linecap="round"/>
+          <polygon points="7,10 10.2,11.5 9.4,8" fill="#f5f1e8"/>
+          <line x1="16" y1="24" x2="16" y2="6" stroke="#f5f1e8" stroke-width="1.3" stroke-linecap="round"/>
+          <polygon points="16,6 18,9.5 14,9.5" fill="#f5f1e8"/>
+          <line x1="16" y1="24" x2="25" y2="10" stroke="#f5f1e8" stroke-width="1.3" stroke-linecap="round"/>
+          <polygon points="25,10 22.6,8 21.8,11.5" fill="#f5f1e8"/>
+          <circle cx="16" cy="24" r="1" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 11px; color: rgba(26,24,19,0.55);">3-vetor limpo</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ assinatura mono</span>
+      <div class="render">
+        <span style="font-family: var(--mono); font-size: 13px; color: var(--paper-ink); line-height: 1.3;">
+          <span style="color: #6c4c2c;">↖ ↑ ↗</span><br/>
+          <span style="color: #6c4c2c;">&nbsp;&nbsp;●</span><br/>
+          <span style="color: rgba(26,24,19,0.55); font-size: 9px; letter-spacing: 0.18em;">CELLPROJECT</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pillrow">
+    <span class="pill accent">vetorial</span>
+    <span class="pill accent">geométrico</span>
+    <span class="pill">cabeça angular</span>
+    <span class="pill">brutalist</span>
+    <span class="pill">animação: flicker sequencial</span>
+  </div>
+</section>
+
+<!-- =========================================== V3 — DELTA DE FLUXO -->
+<section class="variant" id="v3">
+  <div class="v-head">
+    <div>
+      <div class="kicker"><span class="num">03</span> <span>Delta de fluxo</span> <span class="rule"></span> <span>volume · rio · vazão</span></div>
+      <h2>O rio que <em>se abre em três canais</em>.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        Aqui o traço tem volume. Uma forma única, grossa, entra de baixo — como vazão concentrada — e
+        no meio do percurso se rasga em três canais que se afinam à medida que sobem. É o gesto da decomposição
+        visto como <em>fluido distribuindo carga</em>.
+      </p>
+      <p class="desc">
+        Cor única, sem outline. A massa é o argumento. Em escala pequena lê-se como um delta de rio
+        ou um <em>brushstroke</em> sumi-e. Funciona muito bem com motion: partículas correm dentro
+        dos canais sinalizando direção.
+      </p>
+    </div>
+  </div>
+
+  <div class="stages">
+    <div class="stage">
+      <div class="stage-meta"><span>◆ marca primária</span><span>volume · ink</span></div>
+      <svg width="320" height="380" viewBox="0 0 320 380" fill="none">
+        <defs>
+          <linearGradient id="delta-grad" x1="50%" y1="100%" x2="50%" y2="0%">
+            <stop offset="0%" stop-color="#a78bfa" stop-opacity="1"/>
+            <stop offset="100%" stop-color="#a78bfa" stop-opacity="0.55"/>
+          </linearGradient>
+        </defs>
+        <!-- main stem (thick bottom -> narrowing) -->
+        <path d="M 130 360 Q 130 280 140 220 Q 145 200 160 200 Q 175 200 180 220 Q 190 280 190 360 Z" fill="url(#delta-grad)"/>
+        <!-- left channel -->
+        <path d="M 150 220 Q 120 180 90 100 Q 88 80 95 80 Q 100 80 105 100 Q 130 170 165 215 Q 158 220 150 220 Z" fill="url(#delta-grad)" opacity="0.92"/>
+        <!-- center channel -->
+        <path d="M 160 215 Q 158 140 160 60 Q 162 50 165 50 Q 168 50 168 60 Q 170 140 170 215 Z" fill="url(#delta-grad)" opacity="0.92"/>
+        <!-- right channel -->
+        <path d="M 170 220 Q 200 180 230 100 Q 232 80 225 80 Q 220 80 215 100 Q 190 170 155 215 Q 162 220 170 220 Z" fill="url(#delta-grad)" opacity="0.92"/>
+        <!-- flowing particles along channel center lines -->
+        <circle r="3" fill="#fafafa">
+          <animateMotion dur="3s" repeatCount="indefinite" path="M 160 360 L 160 60"/>
+        </circle>
+        <circle r="2.5" fill="#fafafa" opacity="0.7">
+          <animateMotion dur="3.4s" repeatCount="indefinite" path="M 160 360 Q 150 280 130 220 Q 110 180 95 90"/>
+        </circle>
+        <circle r="2.5" fill="#fafafa" opacity="0.7">
+          <animateMotion dur="3.4s" repeatCount="indefinite" path="M 160 360 Q 170 280 190 220 Q 210 180 225 90"/>
+        </circle>
+      </svg>
+    </div>
+    <div class="stage invert">
+      <div class="stage-meta"><span>◆ silhueta · positivo</span><span>bone</span></div>
+      <svg width="200" height="240" viewBox="0 0 320 380" fill="none">
+        <path d="M 130 360 Q 130 280 140 220 Q 145 200 160 200 Q 175 200 180 220 Q 190 280 190 360 Z" fill="#1a1813"/>
+        <path d="M 150 220 Q 120 180 90 100 Q 88 80 95 80 Q 100 80 105 100 Q 130 170 165 215 Q 158 220 150 220 Z" fill="#1a1813"/>
+        <path d="M 160 215 Q 158 140 160 60 Q 162 50 165 50 Q 168 50 168 60 Q 170 140 170 215 Z" fill="#1a1813"/>
+        <path d="M 170 220 Q 200 180 230 100 Q 232 80 225 80 Q 220 80 215 100 Q 190 170 155 215 Q 162 220 170 220 Z" fill="#1a1813"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="lockup-row">
+    <div class="lockup">
+      <span class="label">◆ lockup horizontal</span>
+      <div class="render">
+        <svg width="32" height="48" viewBox="0 0 320 380">
+          <path d="M 130 360 Q 130 280 140 220 Q 145 200 160 200 Q 175 200 180 220 Q 190 280 190 360 Z" fill="#a78bfa"/>
+          <path d="M 150 220 Q 120 180 90 100 Q 88 80 95 80 Q 100 80 105 100 Q 130 170 165 215 Q 158 220 150 220 Z" fill="#a78bfa"/>
+          <path d="M 160 215 Q 158 140 160 60 Q 162 50 165 50 Q 168 50 168 60 Q 170 140 170 215 Z" fill="#a78bfa"/>
+          <path d="M 170 220 Q 200 180 230 100 Q 232 80 225 80 Q 220 80 215 100 Q 190 170 155 215 Q 162 220 170 220 Z" fill="#a78bfa"/>
+        </svg>
+        <span class="wordmark" style="font-size: 26px; color: var(--text);">cellproject</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ silhueta sólida</span>
+      <div class="render" style="flex-direction: column; align-items: center; gap: 8px;">
+        <svg width="44" height="56" viewBox="0 0 320 380">
+          <path d="M 130 360 Q 130 280 140 220 Q 145 200 160 200 Q 175 200 180 220 Q 190 280 190 360 Z" fill="#fafafa"/>
+          <path d="M 150 220 Q 120 180 90 100 Q 88 80 95 80 Q 100 80 105 100 Q 130 170 165 215 Q 158 220 150 220 Z" fill="#fafafa"/>
+          <path d="M 160 215 Q 158 140 160 60 Q 162 50 165 50 Q 168 50 168 60 Q 170 140 170 215 Z" fill="#fafafa"/>
+          <path d="M 170 220 Q 200 180 230 100 Q 232 80 225 80 Q 220 80 215 100 Q 190 170 155 215 Q 162 220 170 220 Z" fill="#fafafa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 10px; color: var(--text-mute); letter-spacing: 0.18em; text-transform: uppercase;">monolítica</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ favicon</span>
+      <div class="render">
+        <svg width="34" height="34" viewBox="0 0 32 32" style="background: #18181b; border-radius: 4px;">
+          <path d="M 13 30 Q 13 24 14 19 Q 14.5 18 16 18 Q 17.5 18 18 19 Q 19 24 19 30 Z" fill="#a78bfa"/>
+          <path d="M 15 19 Q 12 15 9 8 Q 9 6 10 6 Q 11 6 11.5 8 Q 13.5 14 16.5 18.5 Q 16 19 15 19 Z" fill="#a78bfa"/>
+          <path d="M 16 18.5 Q 15.8 12 16 4 Q 16.2 3 16.5 3 Q 16.8 3 17 4 Q 17 12 17 18.5 Z" fill="#a78bfa"/>
+          <path d="M 17 19 Q 20 15 23 8 Q 23 6 22 6 Q 21 6 20.5 8 Q 18.5 14 15.5 18.5 Q 16 19 17 19 Z" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--text-mute);">delta vazão</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ assinatura mono</span>
+      <div class="render">
+        <span style="font-family: var(--mono); font-size: 13px; color: var(--text); line-height: 1.3;">
+          <span style="color: var(--violet);">╲╎╱</span><br/>
+          <span style="color: var(--violet);">&nbsp;▌</span><br/>
+          <span style="color: var(--text-mute); font-size: 9px; letter-spacing: 0.18em;">CELLPROJECT</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pillrow">
+    <span class="pill accent">volumétrico</span>
+    <span class="pill accent">fluido</span>
+    <span class="pill">sumi-e</span>
+    <span class="pill">partículas em motion</span>
+    <span class="pill">silhueta poderosa</span>
+  </div>
+</section>
+
+<!-- =========================================== V4 — SERPENTINA TRÍFONA -->
+<section class="variant" id="v4">
+  <div class="v-head">
+    <div>
+      <div class="kicker"><span class="num">04</span> <span>Serpentina trífona</span> <span class="rule"></span> <span>3 fluxos · curvas independentes</span></div>
+      <h2>Três caminhos que <em>concordam em começar juntos</em>.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        Três curvas serpenteantes nascem do mesmo ponto e divergem em alturas diferentes — uma sobe direto,
+        uma faz uma curva longa pela esquerda, uma faz uma curva longa pela direita. Cada caminho é
+        <em>independente</em> mas reconhece a origem.
+      </p>
+      <p class="desc">
+        É a única variação onde os três fluxos têm <em>personalidade própria</em>. Sugere o que o conceito chama
+        de <code>EdgeKind</code>: <code>direct</code>, <code>middleware</code>, <code>optional</code> — três tipos
+        de relação que partem do mesmo nó-pai mas se comportam de forma distinta.
+      </p>
+    </div>
+  </div>
+
+  <div class="stages">
+    <div class="stage">
+      <div class="stage-meta"><span>◆ marca primária</span><span>3 fluxos animados</span></div>
+      <svg width="380" height="320" viewBox="0 0 380 320" fill="none">
+        <!-- origin -->
+        <circle cx="190" cy="270" r="8" fill="#a78bfa"/>
+        <circle cx="190" cy="270" r="16" stroke="#a78bfa" stroke-width="0.6" fill="none" opacity="0.5" class="breath"/>
+        <!-- flow 1: direct (straight up center, slight wave) -->
+        <path d="M 190 262 Q 188 200 192 140 Q 195 100 190 60" stroke="#6ee7a3" stroke-width="2.2" fill="none" stroke-linecap="round" class="flowing"/>
+        <circle cx="190" cy="60" r="5" fill="#6ee7a3" class="pulse-tip"/>
+        <!-- flow 2: middleware (S-curve left) -->
+        <path d="M 184 264 Q 150 240 120 200 Q 80 160 80 120 Q 80 90 70 70" stroke="#f5c14a" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-dasharray="6 4" class="flowing-rev"/>
+        <circle cx="70" cy="70" r="5" fill="#f5c14a" class="pulse-tip" style="animation-delay: 0.3s;"/>
+        <!-- flow 3: optional (S-curve right, more wandering) -->
+        <path d="M 196 264 Q 230 250 270 230 Q 320 200 300 140 Q 290 100 310 70" stroke="#ff6b6b" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-dasharray="2 4" class="flowing"/>
+        <circle cx="310" cy="70" r="5" fill="#ff6b6b" class="pulse-tip" style="animation-delay: 0.6s;"/>
+        <!-- labels -->
+        <text x="190" y="44" fill="#71717a" font-family="JetBrains Mono" font-size="9" letter-spacing="1.8" text-anchor="middle">DIRECT</text>
+        <text x="70" y="54" fill="#71717a" font-family="JetBrains Mono" font-size="9" letter-spacing="1.8" text-anchor="middle">MIDDLEWARE</text>
+        <text x="310" y="54" fill="#71717a" font-family="JetBrains Mono" font-size="9" letter-spacing="1.8" text-anchor="middle">OPTIONAL</text>
+        <text x="190" y="298" fill="#71717a" font-family="JetBrains Mono" font-size="9" letter-spacing="1.8" text-anchor="middle">f(X)</text>
+      </svg>
+    </div>
+    <div class="stage invert">
+      <div class="stage-meta"><span>◆ monocromática</span><span>bone</span></div>
+      <svg width="260" height="220" viewBox="0 0 380 320" fill="none">
+        <path d="M 190 270 Q 188 200 192 140 Q 195 100 190 60" stroke="#1a1813" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        <path d="M 184 264 Q 150 240 120 200 Q 80 160 80 120 Q 80 90 70 70" stroke="#1a1813" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-dasharray="8 5"/>
+        <path d="M 196 264 Q 230 250 270 230 Q 320 200 300 140 Q 290 100 310 70" stroke="#1a1813" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-dasharray="3 5"/>
+        <circle cx="190" cy="270" r="10" fill="#7c5ed1"/>
+        <circle cx="190" cy="60" r="5" fill="#7c5ed1"/>
+        <circle cx="70" cy="70" r="5" fill="#7c5ed1"/>
+        <circle cx="310" cy="70" r="5" fill="#7c5ed1"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="lockup-row">
+    <div class="lockup">
+      <span class="label">◆ lockup horizontal</span>
+      <div class="render">
+        <svg width="56" height="44" viewBox="0 0 380 320">
+          <path d="M 190 270 Q 188 200 192 140 Q 195 100 190 60" stroke="#fafafa" stroke-width="12" fill="none" stroke-linecap="round"/>
+          <path d="M 184 264 Q 150 240 120 200 Q 80 160 80 120 Q 80 90 70 70" stroke="#fafafa" stroke-width="12" fill="none" stroke-linecap="round"/>
+          <path d="M 196 264 Q 230 250 270 230 Q 320 200 300 140 Q 290 100 310 70" stroke="#fafafa" stroke-width="12" fill="none" stroke-linecap="round"/>
+          <circle cx="190" cy="270" r="20" fill="#a78bfa"/>
+          <circle cx="190" cy="60" r="14" fill="#a78bfa"/>
+          <circle cx="70" cy="70" r="14" fill="#a78bfa"/>
+          <circle cx="310" cy="70" r="14" fill="#a78bfa"/>
+        </svg>
+        <span class="wordmark" style="font-size: 26px; color: var(--text);">cellproject</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ versão tipada</span>
+      <div class="render" style="flex-direction: column; align-items: center; gap: 8px;">
+        <svg width="48" height="44" viewBox="0 0 380 320">
+          <path d="M 190 270 Q 188 200 192 140 Q 195 100 190 60" stroke="#6ee7a3" stroke-width="10" fill="none" stroke-linecap="round"/>
+          <path d="M 184 264 Q 150 240 120 200 Q 80 160 80 120 Q 80 90 70 70" stroke="#f5c14a" stroke-width="10" fill="none" stroke-linecap="round"/>
+          <path d="M 196 264 Q 230 250 270 230 Q 320 200 300 140 Q 290 100 310 70" stroke="#ff6b6b" stroke-width="10" fill="none" stroke-linecap="round"/>
+          <circle cx="190" cy="270" r="18" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 10px; color: var(--text-mute); letter-spacing: 0.18em; text-transform: uppercase;">3 edge kinds</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ favicon</span>
+      <div class="render">
+        <svg width="34" height="34" viewBox="0 0 32 32" style="background: #18181b; border-radius: 4px;">
+          <path d="M 16 24 Q 16 18 16 6" stroke="#fafafa" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+          <path d="M 16 24 Q 10 22 6 12 Q 5 8 5 6" stroke="#fafafa" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-dasharray="3 2"/>
+          <path d="M 16 24 Q 22 22 26 12 Q 27 8 27 6" stroke="#fafafa" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-dasharray="1 2"/>
+          <circle cx="16" cy="24" r="2.4" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--text-mute);">3 trilhas</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ assinatura mono</span>
+      <div class="render">
+        <span style="font-family: var(--mono); font-size: 13px; color: var(--text); line-height: 1.3;">
+          <span style="color: var(--violet);">╱</span> <span style="color: var(--violet);">|</span> <span style="color: var(--violet);">╲</span><br/>
+          <span style="color: var(--violet);">╱</span> <span style="color: var(--violet);">|</span> <span style="color: var(--violet);">╲</span><br/>
+          <span style="color: var(--violet);">&nbsp;&nbsp;●</span><br/>
+          <span style="color: var(--text-mute); font-size: 9px; letter-spacing: 0.18em;">CELLPROJECT</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pillrow">
+    <span class="pill accent">3 fluxos distintos</span>
+    <span class="pill accent">codifica EdgeKind</span>
+    <span class="pill">animação contínua</span>
+    <span class="pill">colorável</span>
+    <span class="pill">narrativo</span>
+  </div>
+</section>
+
+<!-- =========================================== V5 — BROADCAST RADIAL -->
+<section class="variant" id="v5">
+  <div class="v-head">
+    <div>
+      <div class="kicker"><span class="num">05</span> <span>Broadcast radial</span> <span class="rule"></span> <span>energia · irradiação · partículas</span></div>
+      <h2>O <em>pulso</em> que sai do centro.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        Um ponto de origem irradia três feixes em ângulos iguais (120° entre si). Pequenas partículas
+        viajam continuamente ao longo das linhas, do centro pra fora. É energia se distribuindo —
+        a marca não fica parada, ela <em>emite</em>.
+      </p>
+      <p class="desc">
+        Diferente das outras quatro, esta marca <em>vive em movimento</em>. Sem animação ela é bonita;
+        com animação ela é hipnótica. Risco proporcional: em mídias estáticas (favicon, OG image), o gesto
+        se perde — vira só um Y geométrico.
+      </p>
+    </div>
+  </div>
+
+  <div class="stages">
+    <div class="stage">
+      <div class="stage-meta"><span>◆ marca primária</span><span>radial · partículas</span></div>
+      <svg width="320" height="320" viewBox="0 0 320 320" fill="none">
+        <!-- soft pulse rings -->
+        <circle cx="160" cy="160" r="40" stroke="#a78bfa" stroke-width="0.6" fill="none" opacity="0.5" class="breath"/>
+        <circle cx="160" cy="160" r="70" stroke="#a78bfa" stroke-width="0.4" fill="none" opacity="0.3" class="breath" style="animation-delay: -1s;"/>
+        <circle cx="160" cy="160" r="100" stroke="#a78bfa" stroke-width="0.3" fill="none" opacity="0.2" class="breath" style="animation-delay: -2s;"/>
+        <!-- 3 radial lines at 90°, 210°, 330° -->
+        <line x1="160" y1="160" x2="160" y2="40" stroke="#fafafa" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="160" y1="160" x2="56" y2="220" stroke="#fafafa" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="160" y1="160" x2="264" y2="220" stroke="#fafafa" stroke-width="1.5" stroke-linecap="round"/>
+        <!-- terminal nodes -->
+        <circle cx="160" cy="40" r="6" fill="#fafafa"/>
+        <circle cx="56" cy="220" r="6" fill="#fafafa"/>
+        <circle cx="264" cy="220" r="6" fill="#fafafa"/>
+        <!-- center origin -->
+        <circle cx="160" cy="160" r="10" fill="#a78bfa"/>
+        <circle cx="160" cy="160" r="5" fill="#fafafa"/>
+        <!-- moving particles -->
+        <circle r="3" fill="#a78bfa">
+          <animateMotion dur="1.8s" repeatCount="indefinite" path="M 160 160 L 160 40"/>
+        </circle>
+        <circle r="3" fill="#a78bfa">
+          <animateMotion dur="1.8s" repeatCount="indefinite" begin="0.6s" path="M 160 160 L 56 220"/>
+        </circle>
+        <circle r="3" fill="#a78bfa">
+          <animateMotion dur="1.8s" repeatCount="indefinite" begin="1.2s" path="M 160 160 L 264 220"/>
+        </circle>
+        <!-- secondary particles smaller -->
+        <circle r="1.8" fill="#a78bfa" opacity="0.7">
+          <animateMotion dur="1.8s" repeatCount="indefinite" begin="0.9s" path="M 160 160 L 160 40"/>
+        </circle>
+        <circle r="1.8" fill="#a78bfa" opacity="0.7">
+          <animateMotion dur="1.8s" repeatCount="indefinite" begin="1.5s" path="M 160 160 L 56 220"/>
+        </circle>
+        <circle r="1.8" fill="#a78bfa" opacity="0.7">
+          <animateMotion dur="1.8s" repeatCount="indefinite" begin="0.3s" path="M 160 160 L 264 220"/>
+        </circle>
+      </svg>
+    </div>
+    <div class="stage invert">
+      <div class="stage-meta"><span>◆ estático · positivo</span><span>bone</span></div>
+      <svg width="200" height="200" viewBox="0 0 320 320" fill="none">
+        <line x1="160" y1="160" x2="160" y2="40" stroke="#1a1813" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="160" y1="160" x2="56" y2="220" stroke="#1a1813" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="160" y1="160" x2="264" y2="220" stroke="#1a1813" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="160" cy="40" r="7" fill="#1a1813"/>
+        <circle cx="56" cy="220" r="7" fill="#1a1813"/>
+        <circle cx="264" cy="220" r="7" fill="#1a1813"/>
+        <circle cx="160" cy="160" r="11" fill="#7c5ed1"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="lockup-row">
+    <div class="lockup">
+      <span class="label">◆ lockup horizontal</span>
+      <div class="render">
+        <svg width="40" height="40" viewBox="0 0 320 320">
+          <line x1="160" y1="160" x2="160" y2="40" stroke="#fafafa" stroke-width="14" stroke-linecap="round"/>
+          <line x1="160" y1="160" x2="56" y2="220" stroke="#fafafa" stroke-width="14" stroke-linecap="round"/>
+          <line x1="160" y1="160" x2="264" y2="220" stroke="#fafafa" stroke-width="14" stroke-linecap="round"/>
+          <circle cx="160" cy="40" r="18" fill="#fafafa"/>
+          <circle cx="56" cy="220" r="18" fill="#fafafa"/>
+          <circle cx="264" cy="220" r="18" fill="#fafafa"/>
+          <circle cx="160" cy="160" r="22" fill="#a78bfa"/>
+        </svg>
+        <span class="wordmark" style="font-size: 26px; color: var(--text);">cellproject</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ só centro</span>
+      <div class="render" style="flex-direction: column; align-items: center; gap: 8px;">
+        <svg width="44" height="44" viewBox="0 0 60 60">
+          <circle cx="30" cy="30" r="8" fill="#a78bfa"/>
+          <circle cx="30" cy="30" r="3.5" fill="#fafafa"/>
+          <circle cx="30" cy="30" r="16" stroke="#a78bfa" stroke-width="0.8" fill="none" opacity="0.5"/>
+          <circle cx="30" cy="30" r="24" stroke="#a78bfa" stroke-width="0.5" fill="none" opacity="0.3"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 10px; color: var(--text-mute); letter-spacing: 0.18em; text-transform: uppercase;">origem isolada</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ favicon</span>
+      <div class="render">
+        <svg width="34" height="34" viewBox="0 0 32 32" style="background: #18181b; border-radius: 4px;">
+          <line x1="16" y1="16" x2="16" y2="6" stroke="#fafafa" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="16" y1="16" x2="7" y2="22" stroke="#fafafa" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="16" y1="16" x2="25" y2="22" stroke="#fafafa" stroke-width="1.4" stroke-linecap="round"/>
+          <circle cx="16" cy="6" r="1.6" fill="#fafafa"/>
+          <circle cx="7" cy="22" r="1.6" fill="#fafafa"/>
+          <circle cx="25" cy="22" r="1.6" fill="#fafafa"/>
+          <circle cx="16" cy="16" r="2.6" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--text-mute);">Y geométrico</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ assinatura mono</span>
+      <div class="render">
+        <span style="font-family: var(--mono); font-size: 13px; color: var(--text); line-height: 1.3;">
+          <span style="color: #fafafa;">&nbsp;&nbsp;○</span><br/>
+          <span style="color: var(--violet);">&nbsp;&nbsp;◉</span><br/>
+          <span style="color: #fafafa;">○</span><span style="color: var(--text-mute);">&nbsp;&nbsp;</span><span style="color: #fafafa;">○</span><br/>
+          <span style="color: var(--text-mute); font-size: 9px; letter-spacing: 0.18em;">CELLPROJECT</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pillrow">
+    <span class="pill accent">irradiante</span>
+    <span class="pill accent">vive em motion</span>
+    <span class="pill">120° entre eixos</span>
+    <span class="pill">favicon = Y</span>
+    <span class="pill">hipnótico</span>
+  </div>
+</section>
+
+<!-- =========================================== COMPARAÇÃO -->
+<div class="compare">
+  <h3>Cinco gestos, <em>uma operação</em> — qual fluxo a marca encena.</h3>
+  <div class="compare-grid">
+    <div class="compare-row head">
+      <div>#</div>
+      <div>Variação</div>
+      <div>Tipo de gesto</div>
+      <div>Quando faz mais sentido</div>
+    </div>
+    <div class="compare-row">
+      <div class="vid">01</div>
+      <div class="name">Y-fork gestual</div>
+      <div>traço único · orgânico · brushstroke</div>
+      <div class="gesto">Quando a marca precisa <em>sobreviver em silhueta</em> — silk-screen, gravação, ponto a ponto.</div>
+    </div>
+    <div class="compare-row">
+      <div class="vid">02</div>
+      <div class="name">Vetor trifásico</div>
+      <div>setas geométricas · ângulos calculados</div>
+      <div class="gesto">Quando o produto se posiciona como <em>ferramenta técnica</em>. Diagrama de física por cima de logo de startup.</div>
+    </div>
+    <div class="compare-row">
+      <div class="vid">03</div>
+      <div class="name">Delta de fluxo</div>
+      <div>massa · volume · vazão</div>
+      <div class="gesto">Quando a tese é "carga se distribuindo". Mais artística, com <em>presença em escala grande</em> (poster, capa).</div>
+    </div>
+    <div class="compare-row">
+      <div class="vid">04</div>
+      <div class="name">Serpentina trífona</div>
+      <div>3 caminhos com personalidade própria</div>
+      <div class="gesto">Quando vale codificar os três <code>EdgeKind</code> na marca. <em>Conta uma história</em> sobre tipos de ligação.</div>
+    </div>
+    <div class="compare-row" style="border-bottom: none;">
+      <div class="vid">05</div>
+      <div class="name">Broadcast radial</div>
+      <div>energia · partículas · pulsa</div>
+      <div class="gesto">Quando o canal principal de exibição da marca é <em>animado</em> — site, app icon vivo, loading screen.</div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================== FOOTER -->
+<footer class="foot">
+  <div class="col">
+    <strong>linha do tempo</strong>
+    <p><a href="cellproject-logos.html" style="color: var(--violet); text-decoration: none; border-bottom: 1px dotted rgba(167,139,250,0.4);">· estudo inicial (5 direções)</a></p>
+    <p><a href="cellproject-logos-mitose.html" style="color: var(--violet); text-decoration: none; border-bottom: 1px dotted rgba(167,139,250,0.4);">· mitose em 3 (objeto)</a></p>
+    <p style="color: var(--text); margin-top: 8px;">· fluxo em 3 (gesto) <span style="color: var(--violet);">← você está aqui</span></p>
+  </div>
+  <div class="col">
+    <strong>princípio</strong>
+    <p class="sig">a marca é o verbo,<br/>não os substantivos.</p>
+    <p style="margin-top: 12px;">Decompor é uma ação.<br/>Mostra a ação acontecendo.</p>
+  </div>
+  <div class="col">
+    <strong>próximo</strong>
+    <p>· cruzar com a Trinca hierárquica</p>
+    <p>· prototipar 02 + 04 em vetor</p>
+    <p>· testar em motion (V3, V5)</p>
+    <p>· decidir qual virar marca primária</p>
+  </div>
+</footer>
+
+</body>
+</html>

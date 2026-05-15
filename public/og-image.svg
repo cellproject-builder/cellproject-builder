@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <title>Cellproject — planeja por decomposição</title>
+
+  <defs>
+    <radialGradient id="bgGrad" cx="80%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#1a1736" stop-opacity="0.7"/>
+      <stop offset="60%" stop-color="#09090b" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="#09090b"/>
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+
+  <!-- Logo (stem longo · fork tardio) -->
+  <g transform="translate(96, 232)">
+    <g stroke="#fafafa" stroke-linecap="round" fill="none">
+      <path d="M 0 80 L 180 80" stroke-width="7"/>
+      <path d="M 180 80 C 220 80, 260 44, 320 8" stroke-width="5"/>
+      <path d="M 180 80 L 320 80" stroke-width="5"/>
+      <path d="M 180 80 C 220 80, 260 116, 320 152" stroke-width="5"/>
+    </g>
+    <circle cx="0" cy="80" r="11" fill="#8b5cf6"/>
+    <circle cx="320" cy="8" r="8" fill="#8b5cf6"/>
+    <circle cx="320" cy="80" r="8" fill="#8b5cf6"/>
+    <circle cx="320" cy="152" r="8" fill="#8b5cf6"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="96" y="468"
+        font-family="Fraunces, Georgia, serif"
+        font-size="120"
+        font-weight="380"
+        letter-spacing="-3"
+        fill="#fafafa">cellproject</text>
+
+  <!-- Tagline -->
+  <text x="96" y="528"
+        font-family="JetBrains Mono, monospace"
+        font-size="22"
+        font-weight="400"
+        letter-spacing="2"
+        fill="#a1a1aa">planeja · ensina · valida — por decomposição.</text>
+
+  <!-- Meta corner -->
+  <g transform="translate(1104, 80)" text-anchor="end">
+    <text font-family="JetBrains Mono, monospace" font-size="16" letter-spacing="3" fill="#71717a">
+      <tspan x="0" dy="0">CELLPROJECT</tspan>
+      <tspan x="0" dy="24" fill="#8b5cf6">f(X) = ?</tspan>
+    </text>
+  </g>
+
+  <!-- Bottom rule -->
+  <line x1="96" y1="568" x2="1104" y2="568" stroke="#27272a" stroke-width="1"/>
+  <text x="96" y="594"
+        font-family="JetBrains Mono, monospace"
+        font-size="13"
+        letter-spacing="2"
+        fill="#71717a">v0.1 · BYOK · LOCAL-FIRST</text>
+  <text x="1104" y="594" text-anchor="end"
+        font-family="JetBrains Mono, monospace"
+        font-size="13"
+        letter-spacing="2"
+        fill="#71717a">2026</text>
+</svg>

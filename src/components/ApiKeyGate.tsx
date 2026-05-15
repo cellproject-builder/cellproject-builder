@@ -8,6 +8,8 @@ import {
   type ProviderConfig,
 } from '@/config/store';
 import { useT, useLocaleStore, LOCALE_LABELS, type Locale } from '@/i18n';
+import { useGraphStore } from '@/store';
+import { Logo } from './Logo';
 
 const PROVIDERS: Provider[] = ['openrouter', 'openai', 'anthropic'];
 const LOCALES: Locale[] = ['en', 'pt-BR'];
@@ -26,6 +28,7 @@ export function ApiKeyGate({ onClose }: Props) {
   const saveProviderConfig = useConfigStore((s) => s.saveProviderConfig);
   const setActiveProvider = useConfigStore((s) => s.setActiveProvider);
   const clearProvider = useConfigStore((s) => s.clearProvider);
+  const loadDemoProject = useGraphStore((s) => s.loadDemoProject);
 
   const [selected, setSelected] = useState<Provider>(activeProvider ?? 'openrouter');
   const existing = providers[selected];
@@ -72,16 +75,58 @@ export function ApiKeyGate({ onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 bg-bg-primary flex items-center justify-center overflow-y-auto p-4 sm:p-6 z-50">
-      <div className="w-full max-w-2xl">
-        <div className="flex items-start justify-between mb-2">
-          <div className="text-ai-accent text-xs font-mono uppercase tracking-widest">
-            {tr.apiKey.kicker}
+    <div className="fixed inset-0 bg-bg-primary overflow-y-auto z-50">
+      <div
+        className="min-h-full flex items-center justify-center px-4 sm:px-6 pt-[max(env(safe-area-inset-top),1rem)] pb-[max(env(safe-area-inset-bottom),1rem)] sm:pt-[max(env(safe-area-inset-top),1.5rem)] sm:pb-[max(env(safe-area-inset-bottom),1.5rem)]"
+      >
+        <div className="w-full max-w-2xl py-4 sm:py-6">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            <Logo size={22} className="text-text-primary" />
+            <div className="text-ai-accent text-xs font-mono uppercase tracking-widest">
+              {tr.apiKey.kicker}
+            </div>
           </div>
           <LanguageSelector locale={locale} onChange={setLocale} />
         </div>
         <h1 className="text-2xl font-semibold text-text-primary mb-2">{tr.apiKey.title}</h1>
-        <p className="text-sm text-text-secondary mb-6 leading-relaxed">{tr.apiKey.subtitle}</p>
+        <p className="text-sm text-text-secondary mb-5 leading-relaxed">{tr.apiKey.subtitle}</p>
+
+        {/* Demo CTA — visible BEFORE the config form so newcomers can try without setup */}
+        {!onClose && (
+          <div className="mb-6 rounded-sm border border-ai-accent/30 bg-gradient-to-br from-ai-accent/10 to-ai-accent/[0.03] p-4 sm:p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] font-mono uppercase tracking-widest text-ai-accent mb-1">
+                  {tr.apiKey.demoTitle}
+                </div>
+                <p className="text-sm text-text-secondary leading-relaxed">
+                  {tr.apiKey.demoBody}
+                </p>
+              </div>
+              <button
+                onClick={loadDemoProject}
+                className="shrink-0 px-4 sm:px-5 py-3 min-h-[44px] bg-ai-accent/20 hover:bg-ai-accent/35 border border-ai-accent/50 text-ai-accent text-sm font-semibold rounded-sm transition-colors whitespace-nowrap"
+              >
+                {tr.apiKey.demoCta}
+              </button>
+            </div>
+            <div className="mt-3 text-[10px] font-mono text-text-muted">
+              {tr.apiKey.demoCtaHint}
+            </div>
+          </div>
+        )}
+
+        {/* Divider */}
+        {!onClose && (
+          <div className="flex items-center gap-3 mb-5">
+            <div className="flex-1 h-px bg-border-base" />
+            <span className="text-[10px] font-mono uppercase tracking-widest text-text-muted">
+              {tr.apiKey.demoDivider}
+            </span>
+            <div className="flex-1 h-px bg-border-base" />
+          </div>
+        )}
 
         {/* Provider selector */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-5">
@@ -197,6 +242,7 @@ export function ApiKeyGate({ onClose }: Props) {
 
         <div className="mt-6 text-[11px] font-mono text-text-muted text-center">
           {tr.apiKey.footer}
+        </div>
         </div>
       </div>
     </div>

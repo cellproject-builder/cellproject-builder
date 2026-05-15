@@ -44,6 +44,12 @@ export const en = {
     removeKeyConfirm: (provider: string) => `Remove the ${provider} key?`,
     footer:
       '◆ open-source · BYOK · no backend · your projects live in your browser',
+    demoDivider: 'or',
+    demoTitle: 'Just want to see it working?',
+    demoBody:
+      'Open a fully-built example (kite project) — graph, lenses, ground truth, decisions — without setting up any key. AI actions stay disabled until you configure a provider.',
+    demoCta: '▶ See live demo',
+    demoCtaHint: 'no key needed · read-only navigation · everything you see is real',
   },
   topBar: {
     viewTutor: 'Tutor',
@@ -66,6 +72,10 @@ export const en = {
     moreActions: 'More actions',
     exportJson: 'Export JSON',
     settingsAction: '⚙ Settings',
+    demoBadge: 'DEMO',
+    demoBadgeTitle: 'Demo project — AI actions disabled until you configure a key',
+    demoExit: 'Exit demo',
+    demoExitConfirm: 'Close the demo and go back to the API key screen?',
   },
   statusBar: {
     progress: 'Progress',
@@ -290,6 +300,10 @@ export const en = {
     failurePromptLabel: (objective: string) => `Objective: ${objective}`,
     failurePromptExtra: (name: string, ctx: string) =>
       `Node that failed: ${name} — ${ctx}`,
+    aiBlockedDemo:
+      'You are in the demo. Configure an API key in ⚙ to use AI actions.',
+    aiMissingKey:
+      'No API key configured. Open ⚙ Settings and add one.',
   },
 };
 
@@ -338,6 +352,12 @@ export const ptBR: Messages = {
     removeKeyConfirm: (provider: string) => `Remover chave de ${provider}?`,
     footer:
       '◆ open-source · BYOK · sem backend · seus projetos vivem no seu navegador',
+    demoDivider: 'ou',
+    demoTitle: 'Só quer ver funcionando primeiro?',
+    demoBody:
+      'Abre um exemplo pronto (projeto de pipa) — grafo, lentes, ground truth, decisões — sem configurar nenhuma chave. Ações de IA ficam desativadas até você adicionar um provider.',
+    demoCta: '▶ Ver demonstração',
+    demoCtaHint: 'sem chave · navegação livre · tudo que aparece é de verdade',
   },
   topBar: {
     viewTutor: 'Tutor',
@@ -360,6 +380,10 @@ export const ptBR: Messages = {
     moreActions: 'Mais ações',
     exportJson: 'Exportar JSON',
     settingsAction: '⚙ Configurações',
+    demoBadge: 'DEMO',
+    demoBadgeTitle: 'Projeto de demonstração — ações de IA desativadas até configurar uma chave',
+    demoExit: 'Sair da demo',
+    demoExitConfirm: 'Fechar a demo e voltar pra tela de chave de API?',
   },
   statusBar: {
     progress: 'Progresso',
@@ -590,5 +614,9 @@ export const ptBR: Messages = {
     failurePromptLabel: (objective: string) => `Objetivo: ${objective}`,
     failurePromptExtra: (name: string, ctx: string) =>
       `Nó que falhou: ${name} — ${ctx}`,
+    aiBlockedDemo:
+      'Você está na demonstração. Configure uma chave em ⚙ pra usar ações de IA.',
+    aiMissingKey:
+      'Nenhuma chave de API configurada. Abra ⚙ Configurações e adicione uma.',
   },
 };
