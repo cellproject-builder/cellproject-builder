@@ -1,0 +1,1271 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cellproject — Mitose · estudo em três</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #09090b;
+    --ink-2: #131316;
+    --ink-3: #1c1c20;
+    --line: #2a2a30;
+    --line-soft: #1f1f24;
+    --paper: #efe9dc;
+    --bone: #f5f1e8;
+    --paper-ink: #1a1813;
+    --violet: #a78bfa;
+    --violet-dim: rgba(167, 139, 250, 0.15);
+    --violet-deep: #7c5ed1;
+    --green: #6ee7a3;
+    --amber: #f5c14a;
+    --red: #ff6b6b;
+    --cyan: #5fd8e7;
+    --text: #fafafa;
+    --text-2: #d4d4d8;
+    --text-mute: #71717a;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --display: "Fraunces", "Instrument Serif", Georgia, serif;
+    --serif: "Instrument Serif", Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--ink);
+    color: var(--text-2);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0.07;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ----------------- HERO compacto */
+  .hero {
+    padding: 48px 8vw 36px;
+    border-bottom: 1px solid var(--line);
+    background:
+      radial-gradient(50% 70% at 15% -10%, rgba(167,139,250,0.18), transparent 60%),
+      var(--ink);
+  }
+  .hero-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .back-link {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: color 200ms ease;
+  }
+  .back-link:hover { color: var(--violet); }
+  .back-link .arr { color: var(--violet); }
+  .crumb {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .crumb strong { color: var(--text); font-weight: 500; }
+
+  .hero h1 {
+    font-family: var(--display);
+    font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 1;
+    font-weight: 320;
+    font-size: clamp(46px, 9vw, 124px);
+    line-height: 0.94;
+    letter-spacing: -0.035em;
+    color: var(--text);
+    max-width: 1100px;
+  }
+  .hero h1 em {
+    font-style: italic;
+    font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1;
+    color: var(--violet);
+    font-weight: 280;
+  }
+  .hero h1 .num {
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--text-mute);
+    font-weight: 200;
+    font-size: 0.55em;
+    vertical-align: super;
+  }
+  .hero-sub {
+    margin-top: 28px;
+    max-width: 64ch;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--text-2);
+  }
+  .hero-sub em { font-family: var(--serif); font-style: italic; color: var(--text); font-size: 14.5px; }
+
+  /* ----------------- INDEX */
+  .index-bar {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    border-bottom: 1px solid var(--line);
+    background: var(--ink-2);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .index-bar a {
+    padding: 16px 18px;
+    color: var(--text-mute);
+    text-decoration: none;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    border-right: 1px solid var(--line);
+    transition: color 200ms ease, background 200ms ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .index-bar a:last-child { border-right: none; }
+  .index-bar a:hover { color: var(--text); background: var(--ink-3); }
+  .index-bar a .n {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 17px;
+    color: var(--violet);
+  }
+
+  /* ----------------- VARIATION SECTION */
+  .variant {
+    padding: 88px 8vw 96px;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+  }
+  .variant.paper {
+    background: var(--paper);
+    color: var(--paper-ink);
+    border-bottom-color: rgba(26,24,19,0.1);
+  }
+  .variant.paper .kicker { color: rgba(26,24,19,0.55); }
+  .variant.paper .kicker .num { color: #6c4c2c; }
+  .variant.paper .kicker .rule { background: rgba(26,24,19,0.25); }
+  .variant.paper h2 { color: var(--paper-ink); }
+  .variant.paper h2 em { color: #6c4c2c; }
+  .variant.paper .desc { color: rgba(26,24,19,0.78); }
+  .variant.paper .desc em { color: var(--paper-ink); }
+  .variant.paper .stage { background: var(--bone); border-color: rgba(26,24,19,0.12); }
+  .variant.paper .stage.invert { background: var(--paper-ink); border-color: var(--paper-ink); }
+  .variant.paper .stage .stage-meta { color: rgba(26,24,19,0.55); }
+  .variant.paper .stage.invert .stage-meta { color: rgba(255,255,255,0.5); }
+  .variant.paper .lockup-row { border-color: rgba(26,24,19,0.12); }
+  .variant.paper .lockup { border-color: rgba(26,24,19,0.12); }
+  .variant.paper .lockup .label { color: rgba(26,24,19,0.5); }
+  .variant.paper .pill { color: rgba(26,24,19,0.55); border-color: rgba(26,24,19,0.18); }
+
+  .v-head {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 56px;
+    align-items: start;
+    margin-bottom: 56px;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .kicker .num {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 30px;
+    color: var(--violet);
+    line-height: 1;
+  }
+  .kicker .rule { flex: 1; height: 1px; background: currentColor; opacity: 0.25; }
+
+  h2 {
+    font-family: var(--display);
+    font-variation-settings: "opsz" 144, "SOFT" 40;
+    font-weight: 340;
+    font-size: clamp(34px, 4.8vw, 64px);
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    color: var(--text);
+  }
+  h2 em {
+    font-style: italic;
+    font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1;
+    font-weight: 300;
+    color: var(--violet);
+  }
+  .desc {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-2);
+  }
+  .desc + .desc { margin-top: 14px; }
+  .desc em { font-family: var(--serif); font-style: italic; color: var(--text); font-size: 14px; }
+  .desc code {
+    background: var(--ink-2);
+    padding: 1px 6px;
+    border-radius: 2px;
+    color: var(--violet);
+    font-size: 12px;
+  }
+
+  /* stages */
+  .stages {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 18px;
+    margin-bottom: 36px;
+  }
+  .stage {
+    background: var(--ink-2);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 56px 40px;
+    min-height: 360px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .stage.invert { background: var(--bone); border-color: var(--bone); color: var(--paper-ink); }
+  .stage-meta {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+  }
+
+  /* lockup row */
+  .lockup-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .lockup {
+    padding: 26px 22px;
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    min-height: 124px;
+    justify-content: space-between;
+  }
+  .lockup:last-child { border-right: none; }
+  .lockup .label {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+  }
+  .lockup .render { display: flex; align-items: center; gap: 12px; }
+
+  /* wordmark */
+  .wordmark {
+    font-family: var(--display);
+    font-variation-settings: "opsz" 144, "SOFT" 50;
+    font-weight: 380;
+    letter-spacing: -0.025em;
+    color: currentColor;
+  }
+  .wordmark .dot { color: var(--violet); }
+
+  /* pills */
+  .pillrow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .pill {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    color: var(--text-mute);
+    border-radius: 2px;
+  }
+  .pill.accent { color: var(--violet); border-color: rgba(167,139,250,0.45); background: var(--violet-dim); }
+
+  /* ---------- COMPARISON TABLE */
+  .compare {
+    padding: 96px 8vw 80px;
+    background: var(--ink-2);
+    border-bottom: 1px solid var(--line);
+  }
+  .compare h3 {
+    font-family: var(--display);
+    font-variation-settings: "opsz" 144, "SOFT" 40;
+    font-weight: 340;
+    font-size: clamp(28px, 3.8vw, 48px);
+    color: var(--text);
+    letter-spacing: -0.02em;
+    margin-bottom: 40px;
+    line-height: 1.05;
+  }
+  .compare h3 em { font-style: italic; color: var(--violet); font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1; }
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 80px 1fr 1.2fr 1.4fr;
+    border-top: 1px solid var(--line);
+  }
+  .compare-row {
+    display: contents;
+  }
+  .compare-row > div {
+    padding: 20px 18px;
+    border-bottom: 1px solid var(--line-soft);
+    border-right: 1px solid var(--line-soft);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text-2);
+    line-height: 1.5;
+  }
+  .compare-row > div:last-child { border-right: none; }
+  .compare-row.head > div {
+    background: var(--ink-3);
+    color: var(--text-mute);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 16px 18px;
+  }
+  .compare-row .name {
+    color: var(--text);
+    font-family: var(--display);
+    font-style: italic;
+    font-variation-settings: "opsz" 144, "SOFT" 80;
+    font-size: 17px;
+  }
+  .compare-row .vid {
+    color: var(--violet);
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 22px;
+  }
+  .compare-row .verdict {
+    color: var(--text);
+  }
+  .compare-row .verdict em {
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--violet);
+  }
+
+  /* footer */
+  footer.foot {
+    padding: 56px 8vw 64px;
+    background: var(--ink);
+    color: var(--text-mute);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+  }
+  footer.foot .col strong { color: var(--text-2); font-weight: 500; display: block; margin-bottom: 10px; }
+  footer.foot .col p { margin-bottom: 6px; line-height: 1.7; }
+  footer.foot .sig {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 19px;
+    color: var(--violet);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  /* ---------- ANIMATIONS */
+  @keyframes pulse-cell {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.15); opacity: 0.15; }
+  }
+  @keyframes drift-up {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  @keyframes drift-dn {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(4px); }
+  }
+  @keyframes drift-l {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(-5px); }
+  }
+  @keyframes drift-r {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(5px); }
+  }
+  @keyframes orbit-slow {
+    from { transform: rotate(0); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes orbit-rev {
+    from { transform: rotate(0); }
+    to { transform: rotate(-360deg); }
+  }
+  @keyframes mitose-seq {
+    0%, 100% { opacity: 0.3; }
+    33% { opacity: 1; }
+  }
+  @keyframes draw-arc {
+    from { stroke-dashoffset: 240; }
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes breath {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+  }
+
+  .halo-pulse { animation: pulse-cell 4s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+  .drift-up { animation: drift-up 5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .drift-dn { animation: drift-dn 5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .drift-l { animation: drift-l 5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .drift-r { animation: drift-r 5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .orbit-slow { animation: orbit-slow 28s linear infinite; transform-origin: center; transform-box: fill-box; }
+  .orbit-rev { animation: orbit-rev 22s linear infinite; transform-origin: center; transform-box: fill-box; }
+  .breath { animation: breath 4.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .seq-1 { animation: mitose-seq 3s steps(1) infinite; }
+  .seq-2 { animation: mitose-seq 3s steps(1) -1s infinite; }
+  .seq-3 { animation: mitose-seq 3s steps(1) -2s infinite; }
+  .draw-arc { stroke-dasharray: 240; animation: draw-arc 2.4s ease-out 0.3s backwards; }
+
+  /* responsive */
+  @media (max-width: 980px) {
+    .v-head { grid-template-columns: 1fr; gap: 28px; }
+    .stages { grid-template-columns: 1fr; }
+    .lockup-row { grid-template-columns: 1fr 1fr; }
+    .lockup:nth-child(2n) { border-right: none; }
+    .lockup { border-bottom: 1px solid var(--line); }
+    .lockup:last-child, .lockup:nth-last-child(2) { border-bottom: none; }
+    .index-bar { grid-template-columns: repeat(3, 1fr); font-size: 10px; }
+    .index-bar a:nth-child(3) { border-right: none; }
+    .index-bar a { padding: 12px 14px; font-size: 9.5px; }
+    .hero { padding: 32px 22px 24px; }
+    .variant { padding: 56px 22px 64px; }
+    .compare { padding: 60px 22px; }
+    .compare-grid { grid-template-columns: 56px 1fr; }
+    .compare-row > div:nth-child(3),
+    .compare-row > div:nth-child(4) { grid-column: 1 / -1; padding-top: 4px; padding-bottom: 18px; border-right: none; }
+    .compare-row.head > div:nth-child(3),
+    .compare-row.head > div:nth-child(4) { display: none; }
+    footer.foot { grid-template-columns: 1fr; padding: 40px 22px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- =========================================== HERO -->
+<header class="hero">
+  <div class="hero-top">
+    <a href="cellproject-logos.html" class="back-link"><span class="arr">◀</span> voltar pro estudo de 5 direções</a>
+    <div class="crumb">
+      <span>direção</span>
+      <span><strong>01 · Mitose</strong></span>
+      <span>· aprofundamento</span>
+      <span><strong>elementos = 3</strong></span>
+      <span>2026.05.15</span>
+    </div>
+  </div>
+
+  <h1>
+    A célula<br/>
+    <em>aprende a se dividir</em><br/>
+    em <span style="position: relative; display: inline-block;">
+      três<span class="num">³</span>
+    </span>.
+  </h1>
+
+  <p class="hero-sub">
+    Cinco topologias diferentes pra mesma operação: <em>um vira três</em>. Não é “mais três células no logo” — é
+    cinco maneiras de codificar a tríade canônica do Cellproject (<strong style="color: var(--text);">Recursos · Execução · Decisões</strong>),
+    a sequência da decomposição, ou a tensão entre pai e filhos. Cada variação responde uma pergunta diferente sobre
+    <em>o que acontece quando a célula se divide</em>.
+  </p>
+</header>
+
+<!-- =========================================== INDEX -->
+<nav class="index-bar">
+  <a href="#v1"><span class="n">01</span> Trinca hierárquica</a>
+  <a href="#v2"><span class="n">02</span> Tríade simétrica</a>
+  <a href="#v3"><span class="n">03</span> Sequência temporal</a>
+  <a href="#v4"><span class="n">04</span> Núcleo + satélites</a>
+  <a href="#v5"><span class="n">05</span> Tríade entrelaçada</a>
+</nav>
+
+<!-- =========================================== V1 — TRINCA HIERÁRQUICA -->
+<section class="variant" id="v1">
+  <div class="v-head">
+    <div>
+      <div class="kicker"><span class="num">01</span> <span>Trinca hierárquica</span> <span class="rule"></span> <span>1 mãe → 2 filhas</span></div>
+      <h2>A mitose <em>com memória</em> de quem veio antes.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        Uma célula grande à esquerda, duas menores à direita, conectadas por cordões orgânicos.
+        A mãe não desaparece quando divide — fica como <em>contexto</em>, exatamente como o nó <code>root</code> permanece visível no grafo.
+      </p>
+      <p class="desc">
+        Topologia direta da realidade do produto: <code>decomposeNode</code> não substitui o pai, ele
+        adiciona filhos. A hierarquia é preservada visualmente — quem olha o logo entende que <em>tem um antes</em>.
+      </p>
+    </div>
+  </div>
+
+  <div class="stages">
+    <div class="stage">
+      <div class="stage-meta"><span>◆ marca primária</span><span>fundo · ink</span></div>
+      <svg width="380" height="240" viewBox="0 0 380 240" fill="none">
+        <!-- cordões -->
+        <path class="draw-arc" d="M 130 110 C 180 90, 220 76, 260 70" stroke="#a78bfa" stroke-width="1.2" fill="none" stroke-dasharray="2 4" opacity="0.55"/>
+        <path class="draw-arc" d="M 130 130 C 180 150, 220 164, 260 170" stroke="#a78bfa" stroke-width="1.2" fill="none" stroke-dasharray="2 4" opacity="0.55" style="animation-delay: 0.4s;"/>
+        <!-- mother cell -->
+        <g class="breath">
+          <circle cx="80" cy="120" r="56" stroke="#fafafa" stroke-width="1.6" fill="none"/>
+          <circle cx="80" cy="120" r="46" stroke="#fafafa" stroke-width="0.5" stroke-dasharray="1 3" fill="none" opacity="0.4"/>
+          <circle cx="80" cy="120" r="7" fill="#a78bfa"/>
+          <circle cx="80" cy="120" r="12" stroke="#a78bfa" stroke-width="0.6" fill="none" opacity="0.5" class="halo-pulse"/>
+        </g>
+        <!-- daughter top -->
+        <g class="drift-up">
+          <circle cx="290" cy="70" r="34" stroke="#fafafa" stroke-width="1.5" fill="none"/>
+          <circle cx="290" cy="70" r="26" stroke="#fafafa" stroke-width="0.5" stroke-dasharray="1 3" fill="none" opacity="0.4"/>
+          <circle cx="290" cy="70" r="5" fill="#a78bfa"/>
+        </g>
+        <!-- daughter bottom -->
+        <g class="drift-dn">
+          <circle cx="290" cy="170" r="34" stroke="#fafafa" stroke-width="1.5" fill="none"/>
+          <circle cx="290" cy="170" r="26" stroke="#fafafa" stroke-width="0.5" stroke-dasharray="1 3" fill="none" opacity="0.4"/>
+          <circle cx="290" cy="170" r="5" fill="#a78bfa"/>
+        </g>
+      </svg>
+    </div>
+    <div class="stage invert">
+      <div class="stage-meta"><span>◆ negativo</span><span>bone · solid</span></div>
+      <svg width="260" height="160" viewBox="0 0 380 240" fill="none">
+        <path d="M 130 110 C 180 90, 220 76, 260 70" stroke="#1a1813" stroke-width="1.8" fill="none" stroke-dasharray="3 5" opacity="0.7"/>
+        <path d="M 130 130 C 180 150, 220 164, 260 170" stroke="#1a1813" stroke-width="1.8" fill="none" stroke-dasharray="3 5" opacity="0.7"/>
+        <circle cx="80" cy="120" r="56" stroke="#1a1813" stroke-width="2" fill="none"/>
+        <circle cx="290" cy="70" r="34" stroke="#1a1813" stroke-width="2" fill="none"/>
+        <circle cx="290" cy="170" r="34" stroke="#1a1813" stroke-width="2" fill="none"/>
+        <circle cx="80" cy="120" r="7" fill="#7c5ed1"/>
+        <circle cx="290" cy="70" r="5" fill="#7c5ed1"/>
+        <circle cx="290" cy="170" r="5" fill="#7c5ed1"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="lockup-row">
+    <div class="lockup">
+      <span class="label">◆ lockup horizontal</span>
+      <div class="render">
+        <svg width="52" height="32" viewBox="0 0 380 240">
+          <path d="M 130 110 C 180 90, 220 76, 260 70" stroke="#fafafa" stroke-width="6" stroke-dasharray="8 14" opacity="0.6" fill="none"/>
+          <path d="M 130 130 C 180 150, 220 164, 260 170" stroke="#fafafa" stroke-width="6" stroke-dasharray="8 14" opacity="0.6" fill="none"/>
+          <circle cx="80" cy="120" r="54" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="290" cy="70" r="32" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="290" cy="170" r="32" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="80" cy="120" r="14" fill="#a78bfa"/>
+          <circle cx="290" cy="70" r="10" fill="#a78bfa"/>
+          <circle cx="290" cy="170" r="10" fill="#a78bfa"/>
+        </svg>
+        <span class="wordmark" style="font-size: 26px; color: var(--text);">cellproject<span class="dot">.</span></span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ empilhado</span>
+      <div class="render" style="flex-direction: column; align-items: center; gap: 8px;">
+        <svg width="70" height="42" viewBox="0 0 380 240">
+          <path d="M 130 110 C 180 90, 220 76, 260 70" stroke="#fafafa" stroke-width="6" stroke-dasharray="8 14" opacity="0.6" fill="none"/>
+          <path d="M 130 130 C 180 150, 220 164, 260 170" stroke="#fafafa" stroke-width="6" stroke-dasharray="8 14" opacity="0.6" fill="none"/>
+          <circle cx="80" cy="120" r="54" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="290" cy="70" r="32" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="290" cy="170" r="32" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="80" cy="120" r="14" fill="#a78bfa"/>
+          <circle cx="290" cy="70" r="10" fill="#a78bfa"/>
+          <circle cx="290" cy="170" r="10" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--text); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 500;">CELLPROJECT</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ favicon 32</span>
+      <div class="render">
+        <svg width="34" height="34" viewBox="0 0 32 32" style="background: #18181b; border-radius: 4px;">
+          <circle cx="10" cy="16" r="7" stroke="#fafafa" stroke-width="1.2" fill="none"/>
+          <circle cx="23" cy="10" r="4" stroke="#fafafa" stroke-width="1.2" fill="none"/>
+          <circle cx="23" cy="22" r="4" stroke="#fafafa" stroke-width="1.2" fill="none"/>
+          <circle cx="10" cy="16" r="1.8" fill="#a78bfa"/>
+          <circle cx="23" cy="10" r="1.2" fill="#a78bfa"/>
+          <circle cx="23" cy="22" r="1.2" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--text-mute);">hierarquia mantida</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ assinatura mono</span>
+      <div class="render">
+        <span style="font-family: var(--mono); font-size: 12px; color: var(--text); line-height: 1.45;">
+          <span style="color: var(--violet);">◯</span>──<span style="color: var(--violet);">○</span><br/>
+          <span style="opacity: 0;">◯</span>└─<span style="color: var(--violet);">○</span><br/>
+          <span style="color: var(--text-mute); font-size: 10px; letter-spacing: 0.18em;">CELLPROJECT</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pillrow">
+    <span class="pill accent">hierárquica</span>
+    <span class="pill accent">orgânica</span>
+    <span class="pill">cordão pontilhado</span>
+    <span class="pill">favicon claro</span>
+    <span class="pill">leitura: pai → filhos</span>
+  </div>
+</section>
+
+<!-- =========================================== V2 — TRÍADE SIMÉTRICA -->
+<section class="variant paper" id="v2">
+  <div class="v-head">
+    <div>
+      <div class="kicker"><span class="num">02</span> <span>Tríade simétrica</span> <span class="rule"></span> <span>3 iguais · 1 núcleo invisível</span></div>
+      <h2>Recursos, execução, decisões — <em>peso igual</em>.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        Três células idênticas em triângulo equilátero, com um centro invisível que conecta as três por linhas finas.
+        É a forma canônica do projeto desenhada literal: o root vive como ponto de convergência geométrico,
+        não como célula separada.
+      </p>
+      <p class="desc">
+        Cada círculo pode receber a cor da categoria que representa — verde, âmbar, coral — ou ficar monocromático
+        no roxo da IA. As duas leituras coexistem: <em>identidade neutra</em> vs <em>identidade tipada</em>.
+      </p>
+    </div>
+  </div>
+
+  <div class="stages">
+    <div class="stage">
+      <div class="stage-meta"><span>◆ marca primária</span><span>tríade tipada · paper</span></div>
+      <svg width="340" height="320" viewBox="0 0 340 320" fill="none">
+        <!-- inner triangle lines (the invisible root) -->
+        <g class="orbit-slow">
+          <line x1="170" y1="68" x2="100" y2="206" stroke="#1a1813" stroke-width="0.7" stroke-dasharray="1 4" opacity="0.4"/>
+          <line x1="100" y1="206" x2="240" y2="206" stroke="#1a1813" stroke-width="0.7" stroke-dasharray="1 4" opacity="0.4"/>
+          <line x1="240" y1="206" x2="170" y2="68" stroke="#1a1813" stroke-width="0.7" stroke-dasharray="1 4" opacity="0.4"/>
+          <!-- center invisible root point -->
+          <circle cx="170" cy="160" r="3" fill="#1a1813" opacity="0.4"/>
+          <circle cx="170" cy="160" r="8" stroke="#1a1813" stroke-width="0.5" stroke-dasharray="1 2" fill="none" opacity="0.3"/>
+        </g>
+        <!-- cell 1 — recurso (top) -->
+        <g class="drift-up">
+          <circle cx="170" cy="68" r="42" stroke="#1a1813" stroke-width="1.6" fill="none"/>
+          <circle cx="170" cy="68" r="34" stroke="#1a1813" stroke-width="0.5" stroke-dasharray="1 3" fill="none" opacity="0.35"/>
+          <circle cx="170" cy="68" r="6" fill="#3a8a52"/>
+        </g>
+        <!-- cell 2 — passo (bottom left) -->
+        <g class="drift-l">
+          <circle cx="100" cy="206" r="42" stroke="#1a1813" stroke-width="1.6" fill="none"/>
+          <circle cx="100" cy="206" r="34" stroke="#1a1813" stroke-width="0.5" stroke-dasharray="1 3" fill="none" opacity="0.35"/>
+          <circle cx="100" cy="206" r="6" fill="#c98a0e"/>
+        </g>
+        <!-- cell 3 — decisão (bottom right) -->
+        <g class="drift-r">
+          <circle cx="240" cy="206" r="42" stroke="#1a1813" stroke-width="1.6" fill="none"/>
+          <circle cx="240" cy="206" r="34" stroke="#1a1813" stroke-width="0.5" stroke-dasharray="1 3" fill="none" opacity="0.35"/>
+          <circle cx="240" cy="206" r="6" fill="#b53d3d"/>
+        </g>
+        <!-- micro labels -->
+        <text x="170" y="36" fill="#6c4c2c" font-family="JetBrains Mono" font-size="9" letter-spacing="1.8" text-anchor="middle" opacity="0.7">RECURSOS</text>
+        <text x="60" y="246" fill="#6c4c2c" font-family="JetBrains Mono" font-size="9" letter-spacing="1.8" opacity="0.7">PASSOS</text>
+        <text x="220" y="246" fill="#6c4c2c" font-family="JetBrains Mono" font-size="9" letter-spacing="1.8" opacity="0.7">DECISÕES</text>
+      </svg>
+    </div>
+    <div class="stage invert">
+      <div class="stage-meta"><span>◆ monocromática</span><span>versão neutra</span></div>
+      <svg width="240" height="220" viewBox="0 0 340 320" fill="none">
+        <line x1="170" y1="68" x2="100" y2="206" stroke="#a78bfa" stroke-width="1" opacity="0.5"/>
+        <line x1="100" y1="206" x2="240" y2="206" stroke="#a78bfa" stroke-width="1" opacity="0.5"/>
+        <line x1="240" y1="206" x2="170" y2="68" stroke="#a78bfa" stroke-width="1" opacity="0.5"/>
+        <circle cx="170" cy="68" r="40" stroke="#f5f1e8" stroke-width="1.8" fill="none"/>
+        <circle cx="100" cy="206" r="40" stroke="#f5f1e8" stroke-width="1.8" fill="none"/>
+        <circle cx="240" cy="206" r="40" stroke="#f5f1e8" stroke-width="1.8" fill="none"/>
+        <circle cx="170" cy="68" r="6" fill="#a78bfa"/>
+        <circle cx="100" cy="206" r="6" fill="#a78bfa"/>
+        <circle cx="240" cy="206" r="6" fill="#a78bfa"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="lockup-row">
+    <div class="lockup">
+      <span class="label">◆ lockup horizontal</span>
+      <div class="render">
+        <svg width="40" height="36" viewBox="0 0 340 320">
+          <circle cx="170" cy="68" r="42" fill="#1a1813"/>
+          <circle cx="100" cy="206" r="42" fill="#1a1813"/>
+          <circle cx="240" cy="206" r="42" fill="#1a1813"/>
+          <circle cx="170" cy="68" r="14" fill="#a78bfa"/>
+          <circle cx="100" cy="206" r="14" fill="#a78bfa"/>
+          <circle cx="240" cy="206" r="14" fill="#a78bfa"/>
+        </svg>
+        <span class="wordmark" style="font-size: 26px; color: var(--paper-ink);">cellproject</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ versão tipada</span>
+      <div class="render" style="flex-direction: column; align-items: center; gap: 6px;">
+        <svg width="48" height="44" viewBox="0 0 340 320">
+          <circle cx="170" cy="68" r="40" fill="#3a8a52"/>
+          <circle cx="100" cy="206" r="40" fill="#c98a0e"/>
+          <circle cx="240" cy="206" r="40" fill="#b53d3d"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 9px; color: rgba(26,24,19,0.55); letter-spacing: 0.22em; text-transform: uppercase;">tipada</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ favicon</span>
+      <div class="render">
+        <svg width="34" height="34" viewBox="0 0 32 32" style="background: #1a1813; border-radius: 4px;">
+          <circle cx="16" cy="9" r="5" stroke="#f5f1e8" stroke-width="1.2" fill="none"/>
+          <circle cx="9" cy="22" r="5" stroke="#f5f1e8" stroke-width="1.2" fill="none"/>
+          <circle cx="23" cy="22" r="5" stroke="#f5f1e8" stroke-width="1.2" fill="none"/>
+          <circle cx="16" cy="9" r="1.6" fill="#a78bfa"/>
+          <circle cx="9" cy="22" r="1.6" fill="#a78bfa"/>
+          <circle cx="23" cy="22" r="1.6" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 11px; color: rgba(26,24,19,0.55);">triângulo simétrico</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ assinatura mono</span>
+      <div class="render">
+        <span style="font-family: var(--mono); font-size: 12px; color: var(--paper-ink); line-height: 1.45;">
+          <span style="color: rgba(26,24,19,0.4);">  </span><span style="color: #6c4c2c;">○</span><br/>
+          <span style="color: #6c4c2c;">○</span> <span style="color: rgba(26,24,19,0.3);">·</span> <span style="color: #6c4c2c;">○</span><br/>
+          <span style="color: rgba(26,24,19,0.5); font-size: 10px; letter-spacing: 0.18em;">CELLPROJECT</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pillrow">
+    <span class="pill accent">simétrica</span>
+    <span class="pill accent">tipada opcional</span>
+    <span class="pill">root invisível</span>
+    <span class="pill">canônica</span>
+    <span class="pill">multi-leitura</span>
+  </div>
+</section>
+
+<!-- =========================================== V3 — SEQUÊNCIA TEMPORAL -->
+<section class="variant" id="v3">
+  <div class="v-head">
+    <div>
+      <div class="kicker"><span class="num">03</span> <span>Sequência temporal</span> <span class="rule"></span> <span>1 · 2 · 3 — processo</span></div>
+      <h2>Mostra a <em>operação</em>, não o resultado.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        Em vez de exibir três células prontas, esta variação mostra <em>o ato de dividir em três tempos</em>:
+        uma célula sozinha → começando a fender → finalmente três corpos distintos. É um logo que
+        <em>narra</em>, lido da esquerda pra direita como uma frase.
+      </p>
+      <p class="desc">
+        Cada frame pode piscar em loop pra reforçar a temporalidade, ou ficar estático como story-board.
+        O produto não é "três coisas" — é o <em>verbo</em> que produz três coisas a partir de uma.
+      </p>
+    </div>
+  </div>
+
+  <div class="stages">
+    <div class="stage">
+      <div class="stage-meta"><span>◆ marca primária</span><span>processo · 3 frames</span></div>
+      <svg width="480" height="200" viewBox="0 0 480 200" fill="none">
+        <!-- frame separators -->
+        <line x1="160" y1="40" x2="160" y2="160" stroke="#71717a" stroke-width="0.6" stroke-dasharray="1 4" opacity="0.4"/>
+        <line x1="320" y1="40" x2="320" y2="160" stroke="#71717a" stroke-width="0.6" stroke-dasharray="1 4" opacity="0.4"/>
+        <!-- frame labels -->
+        <text x="80" y="32" fill="#71717a" font-family="JetBrains Mono" font-size="9" letter-spacing="1.5" text-anchor="middle">t₀</text>
+        <text x="240" y="32" fill="#71717a" font-family="JetBrains Mono" font-size="9" letter-spacing="1.5" text-anchor="middle">t₁</text>
+        <text x="400" y="32" fill="#71717a" font-family="JetBrains Mono" font-size="9" letter-spacing="1.5" text-anchor="middle">t₂</text>
+        <!-- arrows between -->
+        <path d="M 152 100 L 168 100" stroke="#a78bfa" stroke-width="1" fill="none"/>
+        <path d="M 165 96 L 168 100 L 165 104" stroke="#a78bfa" stroke-width="1" fill="none"/>
+        <path d="M 312 100 L 328 100" stroke="#a78bfa" stroke-width="1" fill="none"/>
+        <path d="M 325 96 L 328 100 L 325 104" stroke="#a78bfa" stroke-width="1" fill="none"/>
+
+        <!-- frame 1: single cell -->
+        <g>
+          <circle cx="80" cy="100" r="36" stroke="#fafafa" stroke-width="1.5" fill="none"/>
+          <circle cx="80" cy="100" r="28" stroke="#fafafa" stroke-width="0.4" stroke-dasharray="1 3" fill="none" opacity="0.4"/>
+          <circle cx="80" cy="100" r="5" fill="#a78bfa"/>
+        </g>
+
+        <!-- frame 2: fissioning -->
+        <g>
+          <ellipse cx="240" cy="100" rx="48" ry="36" stroke="#fafafa" stroke-width="1.5" fill="none"/>
+          <path d="M 240 64 Q 232 100 240 136" stroke="#fafafa" stroke-width="1" stroke-dasharray="2 3" fill="none" opacity="0.6"/>
+          <circle cx="220" cy="100" r="4" fill="#a78bfa"/>
+          <circle cx="260" cy="100" r="4" fill="#a78bfa"/>
+        </g>
+
+        <!-- frame 3: three cells -->
+        <g>
+          <circle cx="372" cy="78" r="22" stroke="#fafafa" stroke-width="1.5" fill="none"/>
+          <circle cx="372" cy="78" r="3" fill="#a78bfa"/>
+          <circle cx="402" cy="122" r="22" stroke="#fafafa" stroke-width="1.5" fill="none"/>
+          <circle cx="402" cy="122" r="3" fill="#a78bfa"/>
+          <circle cx="430" cy="78" r="22" stroke="#fafafa" stroke-width="1.5" fill="none"/>
+          <circle cx="430" cy="78" r="3" fill="#a78bfa"/>
+        </g>
+
+        <!-- frame captions -->
+        <text x="80" y="178" fill="#71717a" font-family="JetBrains Mono" font-size="9" letter-spacing="1.8" text-anchor="middle">f(X)</text>
+        <text x="240" y="178" fill="#71717a" font-family="JetBrains Mono" font-size="9" letter-spacing="1.8" text-anchor="middle">DECOMPOSE</text>
+        <text x="400" y="178" fill="#71717a" font-family="JetBrains Mono" font-size="9" letter-spacing="1.8" text-anchor="middle">f(a) f(b) f(c)</text>
+      </svg>
+    </div>
+    <div class="stage invert">
+      <div class="stage-meta"><span>◆ frame final</span><span>resultado · bone</span></div>
+      <svg width="200" height="160" viewBox="0 0 200 160" fill="none">
+        <circle cx="60" cy="56" r="24" stroke="#1a1813" stroke-width="2" fill="none"/>
+        <circle cx="100" cy="104" r="24" stroke="#1a1813" stroke-width="2" fill="none"/>
+        <circle cx="140" cy="56" r="24" stroke="#1a1813" stroke-width="2" fill="none"/>
+        <circle cx="60" cy="56" r="3.5" fill="#7c5ed1"/>
+        <circle cx="100" cy="104" r="3.5" fill="#7c5ed1"/>
+        <circle cx="140" cy="56" r="3.5" fill="#7c5ed1"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="lockup-row">
+    <div class="lockup">
+      <span class="label">◆ lockup horizontal</span>
+      <div class="render">
+        <svg width="78" height="22" viewBox="0 0 480 140">
+          <circle cx="60" cy="70" r="32" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="60" cy="70" r="10" fill="#a78bfa"/>
+          <path d="M 110 70 L 130 70" stroke="#a78bfa" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M 122 60 L 130 70 L 122 80" stroke="#a78bfa" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <ellipse cx="200" cy="70" rx="40" ry="30" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="184" cy="70" r="8" fill="#a78bfa"/>
+          <circle cx="216" cy="70" r="8" fill="#a78bfa"/>
+          <path d="M 256 70 L 276 70" stroke="#a78bfa" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M 268 60 L 276 70 L 268 80" stroke="#a78bfa" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="312" cy="50" r="22" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="312" cy="50" r="6" fill="#a78bfa"/>
+          <circle cx="352" cy="90" r="22" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="352" cy="90" r="6" fill="#a78bfa"/>
+          <circle cx="392" cy="50" r="22" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="392" cy="50" r="6" fill="#a78bfa"/>
+        </svg>
+        <span class="wordmark" style="font-size: 22px; color: var(--text);">cellproject</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ só frame final</span>
+      <div class="render" style="flex-direction: column; align-items: center; gap: 8px;">
+        <svg width="52" height="44" viewBox="0 0 200 160">
+          <circle cx="60" cy="56" r="24" stroke="#fafafa" stroke-width="6" fill="none"/>
+          <circle cx="100" cy="104" r="24" stroke="#fafafa" stroke-width="6" fill="none"/>
+          <circle cx="140" cy="56" r="24" stroke="#fafafa" stroke-width="6" fill="none"/>
+          <circle cx="60" cy="56" r="6" fill="#a78bfa"/>
+          <circle cx="100" cy="104" r="6" fill="#a78bfa"/>
+          <circle cx="140" cy="56" r="6" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 10px; color: var(--text-mute); letter-spacing: 0.18em; text-transform: uppercase;">t₂ apenas</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ favicon</span>
+      <div class="render">
+        <svg width="34" height="34" viewBox="0 0 32 32" style="background: #18181b; border-radius: 4px;">
+          <circle cx="8" cy="10" r="4" stroke="#fafafa" stroke-width="1.2" fill="none"/>
+          <circle cx="16" cy="22" r="4" stroke="#fafafa" stroke-width="1.2" fill="none"/>
+          <circle cx="24" cy="10" r="4" stroke="#fafafa" stroke-width="1.2" fill="none"/>
+          <circle cx="8" cy="10" r="1.2" fill="#a78bfa"/>
+          <circle cx="16" cy="22" r="1.2" fill="#a78bfa"/>
+          <circle cx="24" cy="10" r="1.2" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--text-mute);">zigzag</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ assinatura prosa</span>
+      <div class="render">
+        <span style="font-family: var(--mono); font-size: 11.5px; color: var(--text); line-height: 1.5;">
+          <span style="color: var(--violet);">○</span> <span style="color: var(--text-mute);">→</span> <span style="color: var(--violet);">◐</span> <span style="color: var(--text-mute);">→</span> <span style="color: var(--violet);">○○○</span><br/>
+          <span style="color: var(--text-mute); font-size: 9.5px; letter-spacing: 0.18em;">f(X) → DECOMPOSE → f(a..c)</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pillrow">
+    <span class="pill accent">narrativo</span>
+    <span class="pill accent">processo</span>
+    <span class="pill">storyboard</span>
+    <span class="pill">esticável horizontal</span>
+    <span class="pill">animável em loop</span>
+  </div>
+</section>
+
+<!-- =========================================== V4 — NÚCLEO + SATÉLITES -->
+<section class="variant" id="v4">
+  <div class="v-head">
+    <div>
+      <div class="kicker"><span class="num">04</span> <span>Núcleo + satélites</span> <span class="rule"></span> <span>1 dominante · 2 dependentes</span></div>
+      <h2>Um <em>peso central</em>, dois orbitando.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        Uma célula grande no centro e duas menores em órbita — em cima e embaixo, ou ambas à direita.
+        O peso visual fica concentrado: o <code>f(X)</code> raiz domina; os filhos existem em função dele.
+      </p>
+      <p class="desc">
+        Diferente da trinca hierárquica (V1), aqui as filhas estão visualmente <em>contidas</em> pela órbita
+        do pai. Sugere que o nó-raiz <em>governa</em> os descendentes, não só os antecede.
+      </p>
+    </div>
+  </div>
+
+  <div class="stages">
+    <div class="stage">
+      <div class="stage-meta"><span>◆ marca primária</span><span>órbita · ink</span></div>
+      <svg width="320" height="280" viewBox="0 0 320 280" fill="none">
+        <!-- orbit ring -->
+        <g class="orbit-slow">
+          <ellipse cx="160" cy="140" rx="120" ry="40" stroke="#a78bfa" stroke-width="0.6" stroke-dasharray="2 5" fill="none" opacity="0.4" transform="rotate(-15 160 140)"/>
+        </g>
+        <!-- central cell -->
+        <g class="breath">
+          <circle cx="160" cy="140" r="58" stroke="#fafafa" stroke-width="1.6" fill="none"/>
+          <circle cx="160" cy="140" r="48" stroke="#fafafa" stroke-width="0.5" stroke-dasharray="1 3" fill="none" opacity="0.4"/>
+          <circle cx="160" cy="140" r="8" fill="#a78bfa"/>
+          <circle cx="160" cy="140" r="14" stroke="#a78bfa" stroke-width="0.5" fill="none" opacity="0.5" class="halo-pulse"/>
+        </g>
+        <!-- satellite A (upper right) -->
+        <g class="drift-up">
+          <circle cx="262" cy="92" r="22" stroke="#fafafa" stroke-width="1.4" fill="none"/>
+          <circle cx="262" cy="92" r="16" stroke="#fafafa" stroke-width="0.4" stroke-dasharray="1 3" fill="none" opacity="0.4"/>
+          <circle cx="262" cy="92" r="3.5" fill="#a78bfa"/>
+        </g>
+        <!-- satellite B (lower left) -->
+        <g class="drift-dn">
+          <circle cx="58" cy="188" r="22" stroke="#fafafa" stroke-width="1.4" fill="none"/>
+          <circle cx="58" cy="188" r="16" stroke="#fafafa" stroke-width="0.4" stroke-dasharray="1 3" fill="none" opacity="0.4"/>
+          <circle cx="58" cy="188" r="3.5" fill="#a78bfa"/>
+        </g>
+        <!-- gravity lines (fine) -->
+        <line x1="216" y1="113" x2="240" y2="103" stroke="#a78bfa" stroke-width="0.5" opacity="0.5"/>
+        <line x1="104" y1="167" x2="80" y2="177" stroke="#a78bfa" stroke-width="0.5" opacity="0.5"/>
+      </svg>
+    </div>
+    <div class="stage invert">
+      <div class="stage-meta"><span>◆ flat positivo</span><span>bone</span></div>
+      <svg width="240" height="180" viewBox="0 0 320 280" fill="none">
+        <ellipse cx="160" cy="140" rx="120" ry="40" stroke="#1a1813" stroke-width="1" stroke-dasharray="4 6" fill="none" opacity="0.5" transform="rotate(-15 160 140)"/>
+        <circle cx="160" cy="140" r="58" stroke="#1a1813" stroke-width="2" fill="none"/>
+        <circle cx="262" cy="92" r="22" stroke="#1a1813" stroke-width="2" fill="none"/>
+        <circle cx="58" cy="188" r="22" stroke="#1a1813" stroke-width="2" fill="none"/>
+        <circle cx="160" cy="140" r="9" fill="#7c5ed1"/>
+        <circle cx="262" cy="92" r="3.5" fill="#7c5ed1"/>
+        <circle cx="58" cy="188" r="3.5" fill="#7c5ed1"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="lockup-row">
+    <div class="lockup">
+      <span class="label">◆ lockup horizontal</span>
+      <div class="render">
+        <svg width="46" height="40" viewBox="0 0 320 280">
+          <circle cx="160" cy="140" r="56" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="262" cy="92" r="20" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="58" cy="188" r="20" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="160" cy="140" r="16" fill="#a78bfa"/>
+          <circle cx="262" cy="92" r="7" fill="#a78bfa"/>
+          <circle cx="58" cy="188" r="7" fill="#a78bfa"/>
+        </svg>
+        <span class="wordmark" style="font-size: 26px; color: var(--text);">cellproject</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ só núcleo</span>
+      <div class="render" style="flex-direction: column; align-items: center; gap: 8px;">
+        <svg width="48" height="48" viewBox="0 0 60 60">
+          <circle cx="30" cy="30" r="22" stroke="#fafafa" stroke-width="1.8" fill="none"/>
+          <circle cx="30" cy="30" r="14" stroke="#fafafa" stroke-width="0.5" stroke-dasharray="1 3" fill="none" opacity="0.4"/>
+          <circle cx="30" cy="30" r="5" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 10px; color: var(--text-mute); letter-spacing: 0.18em; text-transform: uppercase;">núcleo isolado</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ favicon</span>
+      <div class="render">
+        <svg width="34" height="34" viewBox="0 0 32 32" style="background: #18181b; border-radius: 4px;">
+          <circle cx="16" cy="16" r="8" stroke="#fafafa" stroke-width="1.4" fill="none"/>
+          <circle cx="25" cy="7" r="3" stroke="#fafafa" stroke-width="1.2" fill="none"/>
+          <circle cx="7" cy="25" r="3" stroke="#fafafa" stroke-width="1.4" fill="none"/>
+          <circle cx="16" cy="16" r="2.2" fill="#a78bfa"/>
+          <circle cx="25" cy="7" r="0.9" fill="#a78bfa"/>
+          <circle cx="7" cy="25" r="0.9" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--text-mute);">peso central</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ assinatura mono</span>
+      <div class="render">
+        <span style="font-family: var(--mono); font-size: 12px; color: var(--text); line-height: 1.45;">
+          <span style="color: var(--text-mute);">         </span><span style="color: var(--violet);">·</span><br/>
+          <span style="color: var(--violet);">       ◉</span><br/>
+          <span style="color: var(--violet);">·</span><br/>
+          <span style="color: var(--text-mute); font-size: 10px; letter-spacing: 0.18em;">CELLPROJECT</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pillrow">
+    <span class="pill accent">hierárquico forte</span>
+    <span class="pill accent">orbital</span>
+    <span class="pill">núcleo isolável</span>
+    <span class="pill">animação rotacional</span>
+    <span class="pill">peso visual claro</span>
+  </div>
+</section>
+
+<!-- =========================================== V5 — TRÍADE ENTRELAÇADA -->
+<section class="variant" id="v5">
+  <div class="v-head">
+    <div>
+      <div class="kicker"><span class="num">05</span> <span>Tríade entrelaçada</span> <span class="rule"></span> <span>borromean · interdependência</span></div>
+      <h2>Três círculos que <em>se sustentam</em>.</h2>
+    </div>
+    <div>
+      <p class="desc">
+        Anéis borromeanos: três círculos sobrepostos onde nenhum par está ligado entre si, mas os três juntos
+        formam uma trava topológica. Tira qualquer um e os outros dois se soltam. <em>Interdependência forte.</em>
+      </p>
+      <p class="desc">
+        É a metáfora exata do que o conceito chama de mecanismos ortogonais: <code>critério do usuário</code>,
+        <code>crítica adversarial</code>, <code>âncora verificável</code>. Sozinho cada um é insuficiente;
+        os três juntos quebram o loop IA→IA.
+      </p>
+    </div>
+  </div>
+
+  <div class="stages">
+    <div class="stage">
+      <div class="stage-meta"><span>◆ marca primária</span><span>borromean · ink</span></div>
+      <svg width="340" height="320" viewBox="0 0 340 320" fill="none">
+        <!-- three interlocking circles -->
+        <!-- circle 1 - top -->
+        <circle cx="170" cy="120" r="76" stroke="#a78bfa" stroke-width="1.6" fill="none" opacity="0.95"/>
+        <!-- circle 2 - bottom left -->
+        <circle cx="120" cy="200" r="76" stroke="#fafafa" stroke-width="1.6" fill="none" opacity="0.95" style="mix-blend-mode: screen;"/>
+        <!-- circle 3 - bottom right -->
+        <circle cx="220" cy="200" r="76" stroke="#fafafa" stroke-width="1.6" fill="none" opacity="0.95" style="mix-blend-mode: screen;"/>
+        <!-- central convergence point -->
+        <circle cx="170" cy="172" r="6" fill="#a78bfa"/>
+        <circle cx="170" cy="172" r="12" stroke="#a78bfa" stroke-width="0.6" fill="none" opacity="0.5" class="halo-pulse"/>
+        <!-- nuclei in each cell -->
+        <circle cx="170" cy="86" r="3" fill="#fafafa" opacity="0.7"/>
+        <circle cx="86" cy="222" r="3" fill="#fafafa" opacity="0.7"/>
+        <circle cx="254" cy="222" r="3" fill="#fafafa" opacity="0.7"/>
+        <!-- labels -->
+        <text x="170" y="36" fill="#71717a" font-family="JetBrains Mono" font-size="9" letter-spacing="1.8" text-anchor="middle">CRITÉRIO</text>
+        <text x="46" y="262" fill="#71717a" font-family="JetBrains Mono" font-size="9" letter-spacing="1.8">CRÍTICA</text>
+        <text x="240" y="262" fill="#71717a" font-family="JetBrains Mono" font-size="9" letter-spacing="1.8">ÂNCORA</text>
+      </svg>
+    </div>
+    <div class="stage invert">
+      <div class="stage-meta"><span>◆ monocromática</span><span>bone · neutra</span></div>
+      <svg width="240" height="220" viewBox="0 0 340 320" fill="none">
+        <circle cx="170" cy="120" r="74" stroke="#1a1813" stroke-width="2" fill="none"/>
+        <circle cx="120" cy="200" r="74" stroke="#1a1813" stroke-width="2" fill="none"/>
+        <circle cx="220" cy="200" r="74" stroke="#1a1813" stroke-width="2" fill="none"/>
+        <circle cx="170" cy="172" r="6" fill="#7c5ed1"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="lockup-row">
+    <div class="lockup">
+      <span class="label">◆ lockup horizontal</span>
+      <div class="render">
+        <svg width="48" height="44" viewBox="0 0 340 320">
+          <circle cx="170" cy="120" r="74" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="120" cy="200" r="74" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="220" cy="200" r="74" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="170" cy="172" r="16" fill="#a78bfa"/>
+        </svg>
+        <span class="wordmark" style="font-size: 26px; color: var(--text);">cellproject</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ tagline embaixo</span>
+      <div class="render" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+        <svg width="42" height="38" viewBox="0 0 340 320">
+          <circle cx="170" cy="120" r="74" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="120" cy="200" r="74" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="220" cy="200" r="74" stroke="#fafafa" stroke-width="8" fill="none"/>
+          <circle cx="170" cy="172" r="14" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--serif); font-style: italic; font-size: 12px; color: var(--text); line-height: 1.3; max-width: 180px;">os três juntos quebram o loop.</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ favicon</span>
+      <div class="render">
+        <svg width="34" height="34" viewBox="0 0 32 32" style="background: #18181b; border-radius: 4px;">
+          <circle cx="16" cy="12" r="7" stroke="#fafafa" stroke-width="1.2" fill="none"/>
+          <circle cx="11" cy="20" r="7" stroke="#fafafa" stroke-width="1.2" fill="none"/>
+          <circle cx="21" cy="20" r="7" stroke="#fafafa" stroke-width="1.2" fill="none"/>
+          <circle cx="16" cy="17" r="1.6" fill="#a78bfa"/>
+        </svg>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--text-mute);">trava topológica</span>
+      </div>
+    </div>
+    <div class="lockup">
+      <span class="label">◆ assinatura mono</span>
+      <div class="render">
+        <span style="font-family: var(--mono); font-size: 13px; color: var(--text); line-height: 1.45;">
+          <span style="color: var(--violet);">⫯</span><span style="opacity:0.5;">⫯</span><span style="color: var(--violet);">⫯</span><br/>
+          <span style="color: var(--violet); font-family: var(--serif); font-style: italic; font-size: 12px;">cellproject</span><br/>
+          <span style="color: var(--text-mute); font-size: 9px; letter-spacing: 0.2em;">3-LOCK</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pillrow">
+    <span class="pill accent">interdependente</span>
+    <span class="pill accent">topológico</span>
+    <span class="pill">argumentativo</span>
+    <span class="pill">elegante em escala</span>
+    <span class="pill">multi-leitura</span>
+  </div>
+</section>
+
+<!-- =========================================== COMPARAÇÃO -->
+<div class="compare">
+  <h3>Cinco perguntas, <em>cinco respostas</em> — o que cada uma defende.</h3>
+  <div class="compare-grid">
+    <div class="compare-row head">
+      <div>#</div>
+      <div>Nome</div>
+      <div>Tese que carrega</div>
+      <div>Direção que valoriza</div>
+    </div>
+    <div class="compare-row">
+      <div class="vid">01</div>
+      <div class="name">Trinca hierárquica</div>
+      <div>A mãe não some quando divide.</div>
+      <div class="verdict">Pra quem quer mostrar <em>hierarquia</em> e contexto preservado. O favicon mais legível da série.</div>
+    </div>
+    <div class="compare-row">
+      <div class="vid">02</div>
+      <div class="name">Tríade simétrica</div>
+      <div>Recursos, execução e decisões têm peso igual.</div>
+      <div class="verdict">Pra quem assume a <em>taxonomia canônica</em> como núcleo da marca. Versão tipada é didática por si só.</div>
+    </div>
+    <div class="compare-row">
+      <div class="vid">03</div>
+      <div class="name">Sequência temporal</div>
+      <div>O produto é o verbo, não os nomes.</div>
+      <div class="verdict">Pra quem quer um logo que <em>narra</em>. Animação faz sentido nativa. Esticável horizontal pro header.</div>
+    </div>
+    <div class="compare-row">
+      <div class="vid">04</div>
+      <div class="name">Núcleo + satélites</div>
+      <div>Tem um centro de gravidade — o objetivo manda.</div>
+      <div class="verdict">Pra quem prioriza <em>peso visual claro</em>. Núcleo isolado vira o avatar; satélites somem em escala pequena.</div>
+    </div>
+    <div class="compare-row" style="border-bottom: none;">
+      <div class="vid">05</div>
+      <div class="name">Tríade entrelaçada</div>
+      <div>Tira um e os outros dois se soltam.</div>
+      <div class="verdict">Pra quem quer codificar a tese do <em>ground truth</em> na marca. A mais argumentativa; a mais difícil em pixel pequeno.</div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================== FOOTER -->
+<footer class="foot">
+  <div class="col">
+    <strong>fonte</strong>
+    <p><a href="cellproject-logos.html" style="color: var(--violet); text-decoration: none; border-bottom: 1px dotted rgba(167,139,250,0.4);">← estudo de 5 direções</a></p>
+    <p><a href="CONCEITO.md" style="color: var(--violet); text-decoration: none; border-bottom: 1px dotted rgba(167,139,250,0.4);">docs/CONCEITO.md</a></p>
+  </div>
+  <div class="col">
+    <strong>princípio</strong>
+    <p class="sig">três não é “mais um”.</p>
+    <p style="margin-top: 12px;">Cada topologia codifica uma<br/>tese diferente sobre o produto.</p>
+  </div>
+  <div class="col">
+    <strong>próximo</strong>
+    <p>· escolher 1–2 variações</p>
+    <p>· testar contraste 16px</p>
+    <p>· prototipar wordmark final</p>
+    <p>· checar em dark e light</p>
+  </div>
+</footer>
+
+</body>
+</html>

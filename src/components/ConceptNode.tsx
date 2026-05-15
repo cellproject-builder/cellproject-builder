@@ -2,20 +2,12 @@ import { memo } from 'react';
 import { Handle, Position, useStore as useRfStore, type NodeProps } from '@xyflow/react';
 import type { ConceptNodeData, NodeKind } from '@/types';
 import { useGraphStore, confidenceBand, isBlocked } from '@/store';
+import { useT } from '@/i18n';
 
 const confidenceDot = (band: 'high' | 'mid' | 'low') => {
   if (band === 'high') return 'bg-conf-high';
   if (band === 'mid') return 'bg-conf-mid';
   return 'bg-conf-low';
-};
-
-const kindLabel: Record<NodeKind, string> = {
-  root: 'OBJETIVO',
-  categoria: 'CATEGORIA',
-  recurso: 'RECURSO',
-  passo: 'PASSO',
-  decisao: 'DECISÃO',
-  concept: 'CONCEITO',
 };
 
 const kindAccent: Record<NodeKind, string> = {
@@ -38,6 +30,7 @@ interface NodeExtras {
 type Props = NodeProps & { data: ConceptNodeData & NodeExtras };
 
 function ConceptNodeImpl({ id, data, selected }: Props) {
+  const tr = useT();
   const zoom = useRfStore((s) => s.transform[2]);
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
   const project = useGraphStore((s) => s.project);
@@ -45,6 +38,7 @@ function ConceptNodeImpl({ id, data, selected }: Props) {
   const rejectSuggestion = useGraphStore((s) => s.rejectSuggestion);
   const confirmNode = useGraphStore((s) => s.confirmNode);
 
+  const kindLabel = tr.conceptNode[data.kind];
   const band = confidenceBand(data.confidence);
   const isFocused = selected || selectedNodeId === id;
   const blocked = data.kind === 'passo' && !data.confirmado && isBlocked(project, data.id);
@@ -67,14 +61,13 @@ function ConceptNodeImpl({ id, data, selected }: Props) {
     data.isSuggestion ? '!border-dashed !border-ai-accent bg-bg-secondary/70' : '',
   ].join(' ');
 
-  // ---------- Suggestion preview ----------
   if (data.isSuggestion) {
     return (
       <div className={`${baseClass} w-[240px] p-3`}>
         <Handle type="target" position={Position.Top} className="!bg-ai-accent !border-none" />
         <div className="flex items-center gap-2 mb-1">
           <span className="text-ai-accent text-[10px] font-mono uppercase tracking-wider">
-            ◆ {kindLabel[data.kind]}
+            ◆ {kindLabel}
           </span>
           <span className="ml-auto font-mono text-xs text-text-secondary">
             {data.confidence}%
@@ -92,7 +85,7 @@ function ConceptNodeImpl({ id, data, selected }: Props) {
             }}
             className="flex-1 bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-xs py-2 min-h-[36px] rounded-sm border border-conf-high/40 transition-colors"
           >
-            ✓ Aceitar
+            {tr.conceptNode.accept}
           </button>
           <button
             onClick={(e) => {
@@ -101,7 +94,7 @@ function ConceptNodeImpl({ id, data, selected }: Props) {
             }}
             className="flex-1 bg-bg-elevated hover:bg-state-problem/20 text-text-secondary hover:text-state-problem text-xs py-2 min-h-[36px] rounded-sm border border-border-base transition-colors"
           >
-            ✕
+            {tr.conceptNode.reject}
           </button>
         </div>
         <Handle type="source" position={Position.Bottom} className="!bg-ai-accent !border-none" />
@@ -109,11 +102,9 @@ function ConceptNodeImpl({ id, data, selected }: Props) {
     );
   }
 
-  // ---------- Confirm quick action (only for recurso/passo at mid+ zoom) ----------
   const canQuickConfirm =
     !blocked && !data.confirmado && (data.kind === 'recurso' || data.kind === 'passo');
 
-  // ---------- Far zoom ----------
   if (level === 'far') {
     return (
       <div className={`${baseClass} w-[200px] px-3 py-2 flex items-center gap-2`}>
@@ -134,19 +125,20 @@ function ConceptNodeImpl({ id, data, selected }: Props) {
     );
   }
 
-  // ---------- Mid zoom ----------
   if (level === 'mid') {
     return (
       <div className={`${baseClass} w-[260px] p-2.5`}>
         <Handle type="target" position={Position.Top} className="!bg-border-base !border-none" />
         <div className="flex items-center gap-2 mb-1.5">
           <span className="text-[9px] font-mono uppercase tracking-wider text-text-muted">
-            {kindLabel[data.kind]}
+            {kindLabel}
           </span>
-          {data.kind === 'passo' && <span className="font-mono text-[10px] text-text-muted">#{data.order + 1}</span>}
+          {data.kind === 'passo' && (
+            <span className="font-mono text-[10px] text-text-muted">#{data.order + 1}</span>
+          )}
           <span className="ml-auto flex items-center gap-1.5">
             {data.confirmado && <span className="text-state-done text-xs">✓</span>}
-            {blocked && <span className="text-text-muted text-[10px]">bloqueado</span>}
+            {blocked && <span className="text-text-muted text-[10px]">{tr.conceptNode.blocked}</span>}
             <span className="font-mono text-[11px] text-text-secondary">{data.confidence}%</span>
           </span>
         </div>
@@ -162,7 +154,7 @@ function ConceptNodeImpl({ id, data, selected }: Props) {
             }}
             className="mt-2 w-full bg-conf-high/10 hover:bg-conf-high/25 text-conf-high text-[11px] py-1 rounded-sm border border-conf-high/30 transition-colors"
           >
-            ✓ Já {data.kind === 'recurso' ? 'tenho' : 'fiz'}
+            {data.kind === 'recurso' ? tr.conceptNode.quickHaveResource : tr.conceptNode.quickHaveStep}
           </button>
         )}
         <Handle type="source" position={Position.Bottom} className="!bg-border-base !border-none" />
@@ -170,20 +162,19 @@ function ConceptNodeImpl({ id, data, selected }: Props) {
     );
   }
 
-  // ---------- Near zoom (full detail) ----------
   return (
     <div className={`${baseClass} w-[300px] p-3`}>
       <Handle type="target" position={Position.Top} className="!bg-border-base !border-none" />
       <div className="flex items-center gap-2 mb-2">
         <span className="text-[9px] font-mono uppercase tracking-wider text-text-muted">
-          {kindLabel[data.kind]}
+          {kindLabel}
         </span>
         {data.kind === 'passo' && (
           <span className="font-mono text-[10px] text-text-muted">#{data.order + 1}</span>
         )}
         <span className="ml-auto flex items-center gap-1.5">
           {data.confirmado && <span className="text-state-done text-xs">✓</span>}
-          {blocked && <span className="text-text-muted text-[10px]">bloqueado</span>}
+          {blocked && <span className="text-text-muted text-[10px]">{tr.conceptNode.blocked}</span>}
           <span className={`w-2 h-2 rounded-full ${confidenceDot(band)}`} />
           <span className="font-mono text-[11px] text-text-secondary">{data.confidence}%</span>
         </span>
@@ -192,19 +183,25 @@ function ConceptNodeImpl({ id, data, selected }: Props) {
       <div className="border-t border-border-base pt-2 space-y-1.5">
         {data.oQue && (
           <div className="text-[11px] leading-snug">
-            <span className="text-text-muted font-mono text-[10px] uppercase">o que:</span>{' '}
+            <span className="text-text-muted font-mono text-[10px] uppercase">
+              {tr.conceptNode.whatPrefix}
+            </span>{' '}
             <span className="text-text-secondary">{data.oQue}</span>
           </div>
         )}
         {data.porQue && (
           <div className="text-[11px] leading-snug">
-            <span className="text-text-muted font-mono text-[10px] uppercase">por quê:</span>{' '}
+            <span className="text-text-muted font-mono text-[10px] uppercase">
+              {tr.conceptNode.whyPrefix}
+            </span>{' '}
             <span className="text-text-secondary">{data.porQue}</span>
           </div>
         )}
         {data.comoConfirmar && (data.kind === 'recurso' || data.kind === 'passo') && (
           <div className="text-[11px] leading-snug">
-            <span className="text-text-muted font-mono text-[10px] uppercase">check:</span>{' '}
+            <span className="text-text-muted font-mono text-[10px] uppercase">
+              {tr.conceptNode.checkPrefix}
+            </span>{' '}
             <span className="text-text-secondary italic">{data.comoConfirmar}</span>
           </div>
         )}
@@ -217,7 +214,7 @@ function ConceptNodeImpl({ id, data, selected }: Props) {
           }}
           className="mt-2.5 w-full bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-xs py-2.5 min-h-[40px] rounded-sm border border-conf-high/40 transition-colors font-medium"
         >
-          ✓ {data.kind === 'recurso' ? 'Já tenho este item' : 'Já executei este passo'}
+          {data.kind === 'recurso' ? tr.detail.alreadyHave : tr.detail.alreadyDid}
         </button>
       )}
       <Handle type="source" position={Position.Bottom} className="!bg-border-base !border-none" />

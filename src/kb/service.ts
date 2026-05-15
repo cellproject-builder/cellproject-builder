@@ -1,15 +1,16 @@
 import { generateObject } from 'ai';
 import { kbModel, assertAIReady } from '@/ai/client';
+import { currentLocaleAIName } from '@/i18n';
 import { KBSummarySchema, RelevancePickSchema } from './schemas';
 import type { KBContextEntry, KBDocument, KBSummary } from './types';
 
 // ---------------------------------------------------------------------------
-// summarizeDocument — 1 chamada ao kbModel por upload
+// summarizeDocument — 1 call to kbModel per upload.
+// We clip the input before sending: most useful PDFs fit in ~40k chars from
+// the first slice, and cheap models have limited context. If the doc is much
+// larger we take start + middle chunk + end — good coverage without blowing
+// up the prompt.
 // ---------------------------------------------------------------------------
-// Cortamos o texto antes de enviar: a maioria dos PDFs úteis cabe em ~40k
-// caracteres da primeira fatia, e modelos baratos tem contexto limitado.
-// Se o doc for muito grande, pegamos início + trecho do meio + fim —
-// boa cobertura sem estourar o prompt.
 
 const MAX_CHARS = 40_000;
 
@@ -20,17 +21,20 @@ function clipText(text: string): string {
   const midStart = Math.floor(text.length / 2) - Math.floor(chunk / 2);
   const mid = text.slice(midStart, midStart + chunk);
   const end = text.slice(-chunk);
-  return `${start}\n\n[...corte...]\n\n${mid}\n\n[...corte...]\n\n${end}`;
+  return `${start}\n\n[...cut...]\n\n${mid}\n\n[...cut...]\n\n${end}`;
 }
 
-const SUMMARY_SYSTEM = `Você é um indexador de conhecimento. Dado o texto de um documento, extrai um resumo estruturado que será usado depois como contexto de base por outra IA planejadora.
+function summarySystem(): string {
+  const lang = currentLocaleAIName();
+  return `You are a knowledge indexer. Given a document's text, extract a structured summary that will be used later as background context by another planning AI.
 
-REGRAS
-- Responda em português do Brasil, mesmo quando o documento estiver em outro idioma (traduza os conceitos, não o vocabulário técnico estabelecido).
-- Seja fiel ao texto. NÃO invente fatos que não aparecem lá.
-- 'dominio' deve ser curto e específico — "eletrônica analógica" é útil, "ciência" é inútil.
-- 'fatos' deve conter afirmações VERIFICÁVEIS: medidas com unidade, limites, regras explícitas do autor. Se o texto é puramente conceitual, retorne array vazio.
-- Se autores não aparecerem no texto, omita o campo. Não inventar.`;
+RULES
+- Respond in ${lang}, even when the document is in another language (translate concepts, not established technical vocabulary).
+- Stay faithful to the text. DO NOT invent facts that are not there.
+- 'dominio' must be short and specific — "analog electronics" is useful, "science" is useless.
+- 'fatos' should contain VERIFIABLE claims: measurements with units, limits, explicit rules from the author. If the text is purely conceptual, return an empty array.
+- If authors are not mentioned in the text, omit the field. Do not invent.`;
+}
 
 export async function summarizeDocument(extractedText: string): Promise<KBSummary> {
   assertAIReady();
@@ -39,14 +43,14 @@ export async function summarizeDocument(extractedText: string): Promise<KBSummar
     model: kbModel,
     schema: KBSummarySchema,
     schemaName: 'KBSummary',
-    system: SUMMARY_SYSTEM,
-    prompt: `DOCUMENTO (texto extraído, pode estar cortado):
+    system: summarySystem(),
+    prompt: `DOCUMENT (extracted text, may be clipped):
 """
 ${clipped}
 """
 
-TAREFA
-Gere o resumo estruturado deste documento.`,
+TASK
+Generate the structured summary for this document.`,
     temperature: 0.3,
   });
   return {
@@ -61,24 +65,28 @@ Gere o resumo estruturado deste documento.`,
 }
 
 // ---------------------------------------------------------------------------
-// pickRelevantDocs — AI-judge de relevância
+// pickRelevantDocs — AI relevance judge.
+// Receives the pool of known docs (only title + domain + tags + first bullet
+// of the summary, to keep the prompt cheap) plus the context being planned.
+// Returns up to N ids considered relevant, with a reason.
 // ---------------------------------------------------------------------------
-// Recebe o pool de docs conhecidos (só título+domínio+tags+1º bullet pra
-// manter o prompt barato) e o contexto do que está sendo planejado. Retorna
-// até N ids considerados relevantes, com motivo.
 
 export interface PickContext {
-  // O contexto de uso: objetivo do projeto + breadcrumb + opcional nome do nó.
+  // Usage context: project goal + breadcrumb + optional node name.
   label: string;
   extra?: string;
 }
 
-const JUDGE_SYSTEM = `Você escolhe quais documentos de um repositório pessoal são relevantes para um objetivo de planejamento específico.
+function judgeSystem(): string {
+  const lang = currentLocaleAIName();
+  return `You pick which documents from a personal repository are relevant to a specific planning goal.
 
-REGRAS
-- Rigoroso. Prefira vazio a incluir docs tangenciais. "Um pouco relacionado" = não inclua.
-- Justifique em 1 frase direta. Se nenhum doc se aplica, devolva array vazio.
-- Máximo 2 docs. Se mais de 2 parecerem relevantes, escolha os 2 melhores.`;
+RULES
+- Respond in ${lang}.
+- Be strict. Prefer empty over including tangential docs. "Somewhat related" = do not include.
+- Justify in 1 direct sentence. If no doc applies, return an empty array.
+- Maximum 2 docs. If more than 2 seem relevant, pick the 2 best.`;
+}
 
 export async function pickRelevantDocs(
   ctx: PickContext,
@@ -92,10 +100,10 @@ export async function pickRelevantDocs(
     .map(
       (d) =>
         `- docId: ${d.id}
-  título: ${d.summary.titulo}
-  domínio: ${d.summary.dominio}
+  title: ${d.summary.titulo}
+  domain: ${d.summary.dominio}
   tags: ${d.summary.tags.slice(0, 8).join(', ')}
-  resumo: ${d.summary.resumo[0] ?? ''}`,
+  summary: ${d.summary.resumo[0] ?? ''}`,
     )
     .join('\n');
 
@@ -103,26 +111,26 @@ export async function pickRelevantDocs(
     model: kbModel,
     schema: RelevancePickSchema,
     schemaName: 'RelevancePick',
-    system: JUDGE_SYSTEM,
-    prompt: `CONTEXTO DE USO
+    system: judgeSystem(),
+    prompt: `USAGE CONTEXT
 ${ctx.label}
-${ctx.extra ? `\nDetalhe: ${ctx.extra}` : ''}
+${ctx.extra ? `\nDetail: ${ctx.extra}` : ''}
 
-REPOSITÓRIO DISPONÍVEL
+AVAILABLE REPOSITORY
 ${catalog}
 
-TAREFA
-Escolha até ${max} docs cujo conteúdo se aplique diretamente ao contexto. Vazio se nenhum se aplicar.`,
+TASK
+Pick up to ${max} docs whose content directly applies to the context. Empty if none applies.`,
     temperature: 0.2,
   });
 
-  // Filtra ids inválidos defensivamente (o modelo pode inventar).
+  // Defensive filter: drop invalid ids (model may hallucinate).
   const validIds = new Set(docs.map((d) => d.id));
   return object.picks.filter((p) => validIds.has(p.docId)).slice(0, max);
 }
 
 // ---------------------------------------------------------------------------
-// Helper: monta KBContextEntry[] pra injetar em prompts do ai/service.ts
+// Helper: builds KBContextEntry[] to inject into ai/service.ts prompts
 // ---------------------------------------------------------------------------
 
 export function toContextEntries(docs: KBDocument[]): KBContextEntry[] {

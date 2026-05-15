@@ -4,6 +4,8 @@ import { useGraphStore, breadcrumbFor, isBlocked } from '@/store';
 import { decomposeNode, explainNode } from '@/ai/service';
 import { useKBStore } from '@/kb/store';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useT } from '@/i18n';
+import type { Messages } from '@/i18n';
 import type { NodeState, ConceptNodeData } from '@/types';
 import { ExplanationContent } from './TutorMode';
 import { MobileSheet } from './MobileSheet';
@@ -14,16 +16,10 @@ import {
   FailureSection,
 } from './GroundTruth';
 
-const STATE_OPTIONS: { value: NodeState; label: string }[] = [
-  { value: 'concept', label: 'Conceito' },
-  { value: 'validated', label: 'Validado' },
-  { value: 'executing', label: 'Executando' },
-  { value: 'done', label: 'Concluído' },
-  { value: 'problem', label: 'Problema' },
-  { value: 'discarded', label: 'Descartado' },
-];
+const STATE_VALUES: NodeState[] = ['concept', 'validated', 'executing', 'done', 'problem', 'discarded'];
 
 export function DetailPanel() {
+  const tr = useT();
   const project = useGraphStore((s) => s.project);
   const selectedId = useGraphStore((s) => s.selectedNodeId);
   const updateNode = useGraphStore((s) => s.updateNode);
@@ -50,7 +46,7 @@ export function DetailPanel() {
   if (!project || !selectedId) {
     return (
       <aside className="hidden md:flex md:w-[280px] lg:w-[380px] shrink-0 border-l border-border-base bg-bg-secondary p-4 text-text-muted text-sm">
-        Nenhum nó selecionado. Clique em um nó no grafo.
+        {tr.detail.noSelection}
       </aside>
     );
   }
@@ -69,8 +65,8 @@ export function DetailPanel() {
         .filter((n) => n.parentId === node.parentId && n.id !== node.id)
         .map((n) => ({ name: n.name, fx: n.fx }));
       const kbContext = await useKBStore.getState().getContextFor({
-        label: `Objetivo: ${project.objective}`,
-        extra: `Nó: ${node.name} (${node.kind}) — ${node.fx}`,
+        label: tr.notify.objectivePromptLabel(project.objective),
+        extra: tr.notify.objectivePromptExtra(node.name, node.kind, node.fx),
       });
       const result = await decomposeNode(
         {
@@ -165,13 +161,13 @@ export function DetailPanel() {
             {node.kind}
           </span>
           {node.kind === 'passo' && (
-            <span className="text-[10px] font-mono text-text-muted">passo #{node.order + 1}</span>
+            <span className="text-[10px] font-mono text-text-muted">{tr.detail.stepNumber(node.order + 1)}</span>
           )}
           {blocked && (
-            <span className="text-[10px] font-mono text-text-muted ml-auto">⛔ bloqueado</span>
+            <span className="text-[10px] font-mono text-text-muted ml-auto">{tr.detail.blocked}</span>
           )}
           {node.confirmado && (
-            <span className="text-[10px] font-mono text-state-done ml-auto">✓ confirmado</span>
+            <span className="text-[10px] font-mono text-state-done ml-auto">{tr.detail.confirmed}</span>
           )}
         </div>
         <input
@@ -182,27 +178,24 @@ export function DetailPanel() {
       </div>
 
       <div className="flex-1 md:overflow-y-auto">
-        {/* Educacional */}
         <section className="p-3 border-b border-border-base space-y-2">
           <EduField
-            label="O que é"
+            label={tr.detail.whatIs}
             value={node.oQue}
             onChange={(v) => updateNode(node.id, { oQue: v })}
           />
           <EduField
-            label="Por que precisa"
+            label={tr.detail.whyNeeded}
             value={node.porQue}
             onChange={(v) => updateNode(node.id, { porQue: v })}
           />
         </section>
 
-        {/* Ground truth — os quatro mecanismos */}
         <UserCriterionField node={node} />
         <GroundTruthRefsList node={node} />
         <CritiqueSection node={node} project={project} />
         <FailureSection node={node} project={project} />
 
-        {/* Explicação detalhada */}
         <section className="p-3 border-b border-border-base">
           <button
             onClick={handleExplain}
@@ -212,12 +205,12 @@ export function DetailPanel() {
             <span className="flex items-center gap-1.5">
               <span>◆</span>
               {explaining
-                ? 'Gerando…'
+                ? tr.detail.generatingExplain
                 : node.explicacao
                 ? explanationOpen
-                  ? 'Fechar explicação detalhada'
-                  : 'Ver explicação detalhada'
-                : 'Explicar em detalhes'}
+                  ? tr.detail.closeExplain
+                  : tr.detail.viewExplain
+                : tr.detail.explainBtn}
             </span>
             {node.explicacao && (
               <span className="text-[10px]">{explanationOpen ? '▲' : '▼'}</span>
@@ -230,11 +223,10 @@ export function DetailPanel() {
           )}
         </section>
 
-        {/* Decisão */}
         {node.kind === 'decisao' && node.decisionOptions && (
           <section className="p-3 border-b border-border-base">
             <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted mb-2">
-              Opções
+              {tr.detail.options}
             </label>
             <div className="space-y-1.5">
               {node.decisionOptions.map((opt) => (
@@ -255,10 +247,9 @@ export function DetailPanel() {
           </section>
         )}
 
-        {/* Confiança + Estado */}
         <section className="p-3 border-b border-border-base">
           <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-            Confiança
+            {tr.detail.confidence}
           </label>
           <div className="flex items-center gap-2">
             <input
@@ -278,50 +269,48 @@ export function DetailPanel() {
 
         <section className="p-3 border-b border-border-base">
           <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-            Estado
+            {tr.detail.state}
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-            {STATE_OPTIONS.map((opt) => (
+            {STATE_VALUES.map((value) => (
               <button
-                key={opt.value}
-                onClick={() => updateNode(node.id, { state: opt.value })}
+                key={value}
+                onClick={() => updateNode(node.id, { state: value })}
                 className={`text-[10px] font-mono py-1.5 rounded-sm border transition-colors ${
-                  node.state === opt.value
+                  node.state === value
                     ? 'bg-bg-elevated border-text-primary text-text-primary'
                     : 'border-border-base text-text-muted hover:text-text-secondary hover:border-text-muted'
                 }`}
               >
-                {opt.label}
+                {tr.detail.states[value]}
               </button>
             ))}
           </div>
         </section>
 
-        {/* Notas */}
         <section className="p-3 border-b border-border-base">
           <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-            Notas
+            {tr.detail.notes}
           </label>
           <textarea
             value={node.notes}
             onChange={(e) => updateNode(node.id, { notes: e.target.value })}
             rows={3}
             className="w-full bg-bg-elevated border border-border-base rounded-sm px-2 py-1 text-xs resize-none focus:border-ai-accent outline-none"
-            placeholder="Contexto livre, referências..."
+            placeholder={tr.detail.notesPlaceholder}
           />
         </section>
 
-        {/* Histórico */}
         <section className="p-3 border-b border-border-base">
           <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted mb-2">
-            Histórico ({node.history.length})
+            {tr.detail.historyLabel(node.history.length)}
           </label>
           <ul className="space-y-1 max-h-40 overflow-y-auto font-mono text-[10px] leading-snug">
             {[...node.history].reverse().map((h) => (
               <li key={h.id} className="text-text-secondary">
                 <span className="text-text-muted">
                   [
-                  {new Date(h.timestamp).toLocaleString('pt-BR', {
+                  {new Date(h.timestamp).toLocaleString(tr.detail.locale, {
                     day: '2-digit',
                     month: '2-digit',
                     hour: '2-digit',
@@ -338,14 +327,14 @@ export function DetailPanel() {
               value={noteDraft}
               onChange={(e) => setNoteDraft(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && recordNote()}
-              placeholder="Registrar decisão..."
+              placeholder={tr.detail.recordDecision}
               className="flex-1 bg-bg-elevated border border-border-base rounded-sm px-2 py-1 text-[11px] focus:border-ai-accent outline-none"
             />
             <button
               onClick={recordNote}
               className="px-2 bg-bg-elevated border border-border-base rounded-sm text-[11px] hover:border-text-muted"
             >
-              +
+              {tr.detail.addNote}
             </button>
           </div>
         </section>
@@ -357,7 +346,7 @@ export function DetailPanel() {
             onClick={() => confirmNode(node.id)}
             className="w-full bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-sm py-2.5 min-h-[44px] rounded-sm border border-conf-high/40 transition-colors font-medium"
           >
-            ✓ {node.kind === 'recurso' ? 'Já tenho este item' : 'Já executei este passo'}
+            {node.kind === 'recurso' ? tr.detail.alreadyHave : tr.detail.alreadyDid}
           </button>
         )}
         {node.confirmado && (
@@ -365,13 +354,11 @@ export function DetailPanel() {
             onClick={() => unconfirmNode(node.id)}
             className="w-full bg-bg-elevated hover:bg-state-problem/10 text-text-muted hover:text-state-problem text-xs py-1.5 rounded-sm border border-border-base transition-colors"
           >
-            ↶ Desfazer confirmação
+            {tr.detail.undoConfirm}
           </button>
         )}
         {blocked && (
-          <div className="text-[11px] text-text-muted text-center italic">
-            Confirme o passo anterior antes deste.
-          </div>
+          <div className="text-[11px] text-text-muted text-center italic">{tr.detail.blockedHint}</div>
         )}
         <button
           onClick={handleDecompose}
@@ -380,21 +367,21 @@ export function DetailPanel() {
         >
           <span>◆</span>
           {decomposing
-            ? 'Decompondo…'
+            ? tr.detail.decomposing
             : pending
-            ? 'Resolva sugestões pendentes'
-            : 'Detalhar com AI'}
+            ? tr.detail.pendingHint
+            : tr.detail.decompose}
         </button>
         {node.parentId && (
           <button
             onClick={() => {
-              if (confirm(`Deletar "${node.name}" e todos os filhos?`)) {
+              if (confirm(tr.detail.deleteConfirm(node.name))) {
                 deleteNode(node.id);
               }
             }}
             className="w-full text-text-muted hover:text-state-problem text-xs py-1 transition-colors"
           >
-            Deletar nó
+            {tr.detail.deleteNode}
           </button>
         )}
       </div>
@@ -408,7 +395,7 @@ export function DetailPanel() {
         onOpenChange={(o) => {
           if (!o) setDrawerDismissed(true);
         }}
-        title={node.name || 'Detalhes do nó'}
+        title={node.name || tr.detail.sheetFallbackTitle}
       >
         {body}
       </MobileSheet>

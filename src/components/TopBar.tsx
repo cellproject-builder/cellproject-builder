@@ -2,23 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useGraphStore, breadcrumbFor, type Lens, type ViewMode } from '@/store';
 import { useKBStore } from '@/kb/store';
 import { useConfigStore, PROVIDER_LABELS } from '@/config/store';
+import { useT } from '@/i18n';
 import { KnowledgeRepo } from './KnowledgeRepo';
 import { ApiKeyGate } from './ApiKeyGate';
 
-const LENSES: { value: Lens; label: string; key: string }[] = [
-  { value: 'structure', label: 'Estrutura', key: '1' },
-  { value: 'flow', label: 'Fluxo', key: '2' },
-  { value: 'risk', label: 'Risco', key: '3' },
-  { value: 'state', label: 'Estado', key: '4' },
-  { value: 'connections', label: 'Conexões', key: '5' },
-];
-
-const VIEWS: { value: ViewMode; label: string }[] = [
-  { value: 'tutor', label: 'Tutor' },
-  { value: 'graph', label: 'Grafo' },
-];
-
 export function TopBar() {
+  const tr = useT();
   const project = useGraphStore((s) => s.project);
   const selectedId = useGraphStore((s) => s.selectedNodeId);
   const lens = useGraphStore((s) => s.lens);
@@ -34,6 +23,19 @@ export function TopBar() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
   const overflowRef = useRef<HTMLDivElement>(null);
+
+  const LENSES: { value: Lens; label: string; key: string }[] = [
+    { value: 'structure', label: tr.topBar.lensStructure, key: '1' },
+    { value: 'flow', label: tr.topBar.lensFlow, key: '2' },
+    { value: 'risk', label: tr.topBar.lensRisk, key: '3' },
+    { value: 'state', label: tr.topBar.lensState, key: '4' },
+    { value: 'connections', label: tr.topBar.lensConnections, key: '5' },
+  ];
+
+  const VIEWS: { value: ViewMode; label: string }[] = [
+    { value: 'tutor', label: tr.topBar.viewTutor },
+    { value: 'graph', label: tr.topBar.viewGraph },
+  ];
 
   useEffect(() => {
     if (!overflowOpen) return;
@@ -64,7 +66,7 @@ export function TopBar() {
   };
 
   const handleReset = () => {
-    if (confirm('Descartar projeto atual e começar de novo?')) {
+    if (confirm(tr.topBar.resetConfirm)) {
       resetProject();
     }
   };
@@ -120,7 +122,7 @@ export function TopBar() {
           <select
             value={lens}
             onChange={(e) => setLens(e.target.value as Lens)}
-            aria-label="Lente do grafo"
+            aria-label={tr.topBar.lensSelectAria}
             className="md:hidden bg-bg-primary border border-border-base rounded-sm text-text-secondary text-[11px] px-2 py-1 font-mono shrink-0"
           >
             {LENSES.map((l) => (
@@ -134,7 +136,7 @@ export function TopBar() {
               <button
                 key={l.value}
                 onClick={() => setLens(l.value)}
-                title={`Lente ${l.label} (${l.key})`}
+                title={tr.topBar.lensTitle(l.label, l.key)}
                 className={`px-2 py-0.5 text-[11px] font-mono rounded-[2px] transition-colors ${
                   lens === l.value
                     ? 'bg-bg-elevated text-text-primary'
@@ -151,9 +153,9 @@ export function TopBar() {
       <button
         onClick={() => setKbOpen(true)}
         className="px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors flex items-center gap-1.5 shrink-0 min-h-[32px]"
-        title="Repositório de conhecimento (PDFs)"
+        title={tr.topBar.kbTitle}
       >
-        <span>KB</span>
+        <span>{tr.topBar.kb}</span>
         {kbCount > 0 && (
           <span className="font-mono text-[10px] text-ai-accent bg-ai-accent/10 px-1 rounded-[2px]">
             {kbCount}
@@ -165,13 +167,17 @@ export function TopBar() {
         onClick={exportJson}
         className="hidden md:block px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-secondary hover:text-text-primary hover:border-text-muted transition-colors shrink-0"
       >
-        Exportar
+        {tr.topBar.export}
       </button>
 
       <button
         onClick={() => setSettingsOpen(true)}
         className="hidden md:flex px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors items-center gap-1.5 shrink-0"
-        title={activeProvider ? `Provider ativo: ${PROVIDER_LABELS[activeProvider]}` : 'Configurar chave de API'}
+        title={
+          activeProvider
+            ? tr.topBar.settingsTitle(PROVIDER_LABELS[activeProvider])
+            : tr.topBar.settingsTitleEmpty
+        }
       >
         <span>⚙</span>
         {activeProvider && (
@@ -185,13 +191,13 @@ export function TopBar() {
         onClick={handleReset}
         className="hidden md:block px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-muted hover:text-state-problem hover:border-state-problem/40 transition-colors shrink-0"
       >
-        Reset
+        {tr.topBar.reset}
       </button>
 
       <div className="md:hidden relative shrink-0" ref={overflowRef}>
         <button
           onClick={() => setOverflowOpen((o) => !o)}
-          aria-label="Mais ações"
+          aria-label={tr.topBar.moreActions}
           aria-expanded={overflowOpen}
           className="px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-secondary hover:text-text-primary hover:border-text-muted transition-colors min-h-[32px] min-w-[32px]"
         >
@@ -206,7 +212,7 @@ export function TopBar() {
               }}
               className="w-full text-left px-3 py-2.5 text-xs text-text-secondary hover:bg-bg-elevated transition-colors"
             >
-              Exportar JSON
+              {tr.topBar.exportJson}
             </button>
             <button
               onClick={() => {
@@ -215,7 +221,7 @@ export function TopBar() {
               }}
               className="w-full text-left px-3 py-2.5 text-xs text-text-secondary hover:bg-bg-elevated transition-colors flex items-center justify-between"
             >
-              <span>⚙ Configurações</span>
+              <span>{tr.topBar.settingsAction}</span>
               {activeProvider && (
                 <span className="font-mono text-[10px] text-ai-accent uppercase">
                   {activeProvider}
@@ -229,7 +235,7 @@ export function TopBar() {
               }}
               className="w-full text-left px-3 py-2.5 text-xs text-text-muted hover:text-state-problem hover:bg-bg-elevated transition-colors"
             >
-              Reset
+              {tr.topBar.reset}
             </button>
           </div>
         )}

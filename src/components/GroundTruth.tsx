@@ -2,16 +2,18 @@ import { useState } from 'react';
 import type { ConceptNodeData, GroundTruthKind, GroundTruthRef, Project } from '@/types';
 import { useGraphStore, breadcrumbFor } from '@/store';
 import { useKBStore } from '@/kb/store';
+import { useT } from '@/i18n';
 import {
   critiqueNode,
   replanFromFailure,
 } from '@/ai/service';
 
 // ---------------------------------------------------------------------------
-// (a) Critério do usuário — travado antes de ver o da IA
+// (a) User-written criterion — locked before seeing the AI's
 // ---------------------------------------------------------------------------
 
 export function UserCriterionField({ node }: { node: ConceptNodeData }) {
+  const tr = useT();
   const setUserCriterion = useGraphStore((s) => s.setUserCriterion);
   const [draft, setDraft] = useState('');
   const [revealAI, setRevealAI] = useState(false);
@@ -32,13 +34,13 @@ export function UserCriterionField({ node }: { node: ConceptNodeData }) {
   return (
     <section className="p-3 border-b border-border-base space-y-2">
       <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted">
-        Como confirmar
+        {tr.groundTruth.howToConfirm}
       </label>
 
-      {/* Campo do usuário */}
       <div>
         <div className="text-[10px] font-mono uppercase tracking-wider text-ai-accent mb-1">
-          ◆ Seu critério {locked && <span className="text-state-done">(travado ✓)</span>}
+          {tr.groundTruth.yourCriterion}{' '}
+          {locked && <span className="text-state-done">{tr.groundTruth.locked}</span>}
         </div>
         {locked ? (
           <div className="text-xs bg-bg-elevated border border-ai-accent/30 rounded-sm px-2 py-1.5 text-text-primary">
@@ -50,7 +52,7 @@ export function UserCriterionField({ node }: { node: ConceptNodeData }) {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={2}
-              placeholder="Como VOCÊ saberia que este nó está concluído? Escreva antes de ver o da IA."
+              placeholder={tr.groundTruth.criterionPlaceholder}
               className="w-full bg-bg-elevated border border-border-base rounded-sm px-2 py-1 text-xs resize-none focus:border-ai-accent outline-none"
             />
             <div className="flex gap-1.5 mt-1">
@@ -59,15 +61,15 @@ export function UserCriterionField({ node }: { node: ConceptNodeData }) {
                 disabled={!draft.trim()}
                 className="flex-1 text-[11px] bg-ai-accent/15 hover:bg-ai-accent/30 disabled:opacity-40 disabled:cursor-not-allowed text-ai-accent border border-ai-accent/40 rounded-sm py-1 transition-colors"
               >
-                🔒 Travar critério
+                {tr.groundTruth.lockBtn}
               </button>
               {!revealAI && (
                 <button
                   onClick={() => setRevealAI(true)}
                   className="text-[11px] text-text-muted hover:text-text-secondary border border-border-base rounded-sm px-2 py-1 transition-colors"
-                  title="Ver sem travar (não recomendado)"
+                  title={tr.groundTruth.revealAITitle}
                 >
-                  revelar IA
+                  {tr.groundTruth.revealAI}
                 </button>
               )}
             </div>
@@ -75,23 +77,22 @@ export function UserCriterionField({ node }: { node: ConceptNodeData }) {
         )}
       </div>
 
-      {/* Campo da IA */}
       <div>
         <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-          Critério da IA {!showAI && <span className="italic">(oculto até travar o seu)</span>}
+          {tr.groundTruth.aiCriterion}{' '}
+          {!showAI && <span className="italic">{tr.groundTruth.hiddenUntilLock}</span>}
         </div>
         {showAI ? (
           <div className="text-xs bg-bg-elevated border border-border-base rounded-sm px-2 py-1.5 font-mono italic text-text-secondary">
-            {node.comoConfirmar || <span className="text-text-muted">(vazio)</span>}
+            {node.comoConfirmar || <span className="text-text-muted">{tr.groundTruth.emptyAI}</span>}
           </div>
         ) : (
           <div className="text-xs bg-bg-elevated/40 border border-dashed border-border-base rounded-sm px-2 py-1.5 text-text-muted italic">
-            Escreva o seu primeiro pra manter a honestidade do loop.
+            {tr.groundTruth.writeYoursFirst}
           </div>
         )}
       </div>
 
-      {/* Divergência */}
       {locked && node.comoConfirmar && node.comoConfirmarUsuario && (
         <DivergenceHint
           ai={node.comoConfirmar}
@@ -103,7 +104,8 @@ export function UserCriterionField({ node }: { node: ConceptNodeData }) {
 }
 
 function DivergenceHint({ ai, user }: { ai: string; user: string }) {
-  // Heurística leve: tokens comuns / tokens totais.
+  const tr = useT();
+  // Light heuristic: shared tokens / total tokens.
   const tokens = (s: string) =>
     new Set(
       s
@@ -121,19 +123,19 @@ function DivergenceHint({ ai, user }: { ai: string; user: string }) {
   if (overlap > 0.5) {
     return (
       <div className="text-[10px] font-mono text-state-done/80 bg-state-done/5 border border-state-done/20 rounded-sm px-2 py-1">
-        ◇ critérios convergem — sinal de que o plano é robusto nesse nó.
+        {tr.groundTruth.convergenceOk}
       </div>
     );
   }
   return (
     <div className="text-[10px] font-mono text-conf-mid bg-conf-mid/5 border border-conf-mid/30 rounded-sm px-2 py-1">
-      ⚠ critérios divergem — vale conferir por que.
+      {tr.groundTruth.convergenceDiverge}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// (b) Crítica adversarial — botão + resultado
+// (b) Adversarial critique
 // ---------------------------------------------------------------------------
 
 export function CritiqueSection({
@@ -143,6 +145,7 @@ export function CritiqueSection({
   node: ConceptNodeData;
   project: Project;
 }) {
+  const tr = useT();
   const setCritica = useGraphStore((s) => s.setCritica);
   const clearCritica = useGraphStore((s) => s.clearCritica);
   const [running, setRunning] = useState(false);
@@ -178,11 +181,11 @@ export function CritiqueSection({
     <section className="p-3 border-b border-border-base">
       <div className="flex items-center gap-2 mb-2">
         <label className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
-          Crítica adversarial
+          {tr.groundTruth.adversarial}
         </label>
         {node.critica && (
           <span className="text-[10px] font-mono text-conf-mid">
-            ◆ gerada {new Date(node.critica.generatedAt).toLocaleDateString('pt-BR')}
+            {tr.groundTruth.generatedOn(new Date(node.critica.generatedAt).toLocaleDateString(tr.detail.locale))}
           </span>
         )}
       </div>
@@ -193,22 +196,22 @@ export function CritiqueSection({
           disabled={running}
           className="w-full text-[11px] bg-conf-mid/10 hover:bg-conf-mid/25 text-conf-mid border border-conf-mid/30 rounded-sm py-1.5 transition-colors disabled:opacity-50"
         >
-          {running ? 'Gerando crítica…' : '⚠ Pedir segunda opinião cética'}
+          {running ? tr.groundTruth.generatingCritique : tr.groundTruth.askSecondOpinion}
         </button>
       )}
 
       {node.critica && (
         <div className="space-y-2 text-xs">
-          <CritiqueGroup label="Fraquezas" items={node.critica.fraquezas} />
+          <CritiqueGroup label={tr.groundTruth.weaknesses} items={node.critica.fraquezas} />
           {node.critica.premissasOcultas.length > 0 && (
             <CritiqueGroup
-              label="Premissas ocultas"
+              label={tr.groundTruth.hiddenPremises}
               items={node.critica.premissasOcultas}
             />
           )}
           <div>
             <div className="text-[10px] font-mono uppercase tracking-wider text-ai-accent mb-1">
-              Critério alternativo (cético)
+              {tr.groundTruth.altCriterion}
             </div>
             <div className="bg-bg-elevated border border-ai-accent/30 rounded-sm px-2 py-1.5 text-text-primary italic">
               {node.critica.criterioAlternativo}
@@ -220,13 +223,13 @@ export function CritiqueSection({
               disabled={running}
               className="flex-1 text-[10px] font-mono text-text-muted hover:text-text-secondary border border-border-base rounded-sm py-1 transition-colors disabled:opacity-50"
             >
-              {running ? 'Regerando…' : '↻ Regerar'}
+              {running ? tr.groundTruth.regenerating : tr.groundTruth.regenerate}
             </button>
             <button
               onClick={() => clearCritica(node.id)}
               className="text-[10px] font-mono text-text-muted hover:text-state-problem border border-border-base rounded-sm px-2 py-1 transition-colors"
             >
-              descartar
+              {tr.groundTruth.discard}
             </button>
           </div>
         </div>
@@ -261,10 +264,11 @@ function CritiqueGroup({ label, items }: { label: string; items: string[] }) {
 }
 
 // ---------------------------------------------------------------------------
-// (d) Lista de âncoras verificáveis
+// (d) Verifiable anchors list
 // ---------------------------------------------------------------------------
 
 export function GroundTruthRefsList({ node }: { node: ConceptNodeData }) {
+  const tr = useT();
   const addGroundTruthRef = useGraphStore((s) => s.addGroundTruthRef);
   const toggleGroundTruthVerified = useGraphStore((s) => s.toggleGroundTruthVerified);
   const removeGroundTruthRef = useGraphStore((s) => s.removeGroundTruthRef);
@@ -295,20 +299,19 @@ export function GroundTruthRefsList({ node }: { node: ConceptNodeData }) {
     <section className="p-3 border-b border-border-base">
       <div className="flex items-center gap-2 mb-2">
         <label className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
-          Âncoras verificáveis
+          {tr.groundTruth.anchors}
         </label>
         <span className="text-[10px] font-mono text-text-secondary ml-auto">
           <span className={verifiedCount > 0 ? 'text-state-done' : 'text-text-muted'}>
             {verifiedCount}
           </span>
-          <span className="text-text-muted">/{refs.length}</span> verificadas
+          <span className="text-text-muted">/{refs.length}</span>{' '}
+          {tr.groundTruth.verifiedSuffix}
         </span>
       </div>
 
       {refs.length === 0 && !adding && (
-        <div className="text-[11px] text-text-muted italic mb-2">
-          Sem âncoras. Adicione algo que se confirma fora da tela (link, spec, medida).
-        </div>
+        <div className="text-[11px] text-text-muted italic mb-2">{tr.groundTruth.noAnchorsHint}</div>
       )}
 
       {refs.length > 0 && (
@@ -344,19 +347,13 @@ export function GroundTruthRefsList({ node }: { node: ConceptNodeData }) {
           <input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="rótulo (ex: dimensão máxima)"
+            placeholder={tr.groundTruth.anchorLabelPlaceholder}
             className="w-full bg-bg-primary border border-border-base rounded-sm px-2 py-1 text-[11px] focus:border-ai-accent outline-none"
           />
           <input
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder={
-              kind === 'link'
-                ? 'https://...'
-                : kind === 'medida'
-                ? '40cm ± 2cm'
-                : 'especificação com unidade/modelo'
-            }
+            placeholder={tr.groundTruth.anchorValuePlaceholder[kind]}
             className="w-full bg-bg-primary border border-border-base rounded-sm px-2 py-1 text-[11px] font-mono focus:border-ai-accent outline-none"
           />
           <div className="flex gap-1">
@@ -365,7 +362,7 @@ export function GroundTruthRefsList({ node }: { node: ConceptNodeData }) {
               disabled={!label.trim() || !value.trim()}
               className="flex-1 text-[11px] bg-ai-accent/15 hover:bg-ai-accent/30 disabled:opacity-40 text-ai-accent border border-ai-accent/40 rounded-sm py-1 transition-colors"
             >
-              adicionar
+              {tr.groundTruth.anchorAddBtn}
             </button>
             <button
               onClick={() => {
@@ -375,7 +372,7 @@ export function GroundTruthRefsList({ node }: { node: ConceptNodeData }) {
               }}
               className="text-[11px] text-text-muted hover:text-text-secondary border border-border-base rounded-sm px-2 py-1 transition-colors"
             >
-              cancelar
+              {tr.common.cancel.toLowerCase()}
             </button>
           </div>
         </div>
@@ -384,7 +381,7 @@ export function GroundTruthRefsList({ node }: { node: ConceptNodeData }) {
           onClick={() => setAdding(true)}
           className="w-full text-[11px] text-text-muted hover:text-ai-accent border border-dashed border-border-base hover:border-ai-accent/40 rounded-sm py-1 transition-colors"
         >
-          + adicionar âncora
+          {tr.groundTruth.addAnchor}
         </button>
       )}
     </section>
@@ -400,6 +397,7 @@ function RefRow({
   onToggle: () => void;
   onRemove: () => void;
 }) {
+  const tr = useT();
   const isLink = refData.kind === 'link';
   return (
     <li
@@ -416,7 +414,11 @@ function RefRow({
             ? 'bg-state-done/20 border-state-done text-state-done'
             : 'border-border-base hover:border-text-muted'
         }`}
-        title={refData.verificado ? 'Desmarcar como verificada' : 'Marcar como verificada no mundo'}
+        title={
+          refData.verificado
+            ? tr.groundTruth.anchorToggleVerify.unmark
+            : tr.groundTruth.anchorToggleVerify.mark
+        }
       >
         {refData.verificado && <span className="text-[10px]">✓</span>}
       </button>
@@ -427,7 +429,9 @@ function RefRow({
           </span>
           <span className="text-[11px] text-text-primary truncate">{refData.label}</span>
           {refData.addedByAI && (
-            <span className="text-[9px] font-mono text-ai-accent/70 ml-auto shrink-0">IA</span>
+            <span className="text-[9px] font-mono text-ai-accent/70 ml-auto shrink-0">
+              {tr.groundTruth.anchorAIBadge}
+            </span>
           )}
         </div>
         <div className="text-[11px] font-mono text-text-secondary break-all">
@@ -448,7 +452,7 @@ function RefRow({
       <button
         onClick={onRemove}
         className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-state-problem text-[11px] transition-opacity"
-        title="Remover"
+        title={tr.groundTruth.anchorRemoveTitle}
       >
         ×
       </button>
@@ -457,7 +461,7 @@ function RefRow({
 }
 
 // ---------------------------------------------------------------------------
-// (c) Falha reportada + replan a partir do contexto
+// (c) Reported failure + replan from failure context
 // ---------------------------------------------------------------------------
 
 export function FailureSection({
@@ -467,6 +471,7 @@ export function FailureSection({
   node: ConceptNodeData;
   project: Project;
 }) {
+  const tr = useT();
   const reportFailure = useGraphStore((s) => s.reportFailure);
   const clearFailure = useGraphStore((s) => s.clearFailure);
   const stageSuggestions = useGraphStore((s) => s.stageSuggestions);
@@ -497,8 +502,8 @@ export function FailureSection({
         .map((n) => ({ name: n.name, fx: n.fx }));
 
       const kbContext = await useKBStore.getState().getContextFor({
-        label: `Objetivo: ${project.objective}`,
-        extra: `Nó que falhou: ${node.name} — ${node.failureContext}`,
+        label: tr.notify.failurePromptLabel(project.objective),
+        extra: tr.notify.failurePromptExtra(node.name, node.failureContext),
       });
 
       const result = await replanFromFailure(
@@ -546,7 +551,7 @@ export function FailureSection({
           addedByAI: true,
         })),
         state: 'concept' as const,
-        notes: `Gerado a partir de falha reportada: ${node.failureContext?.slice(0, 60)}…`,
+        notes: tr.groundTruth.failureReplanNotes(node.failureContext ?? ''),
         aiSuggested: true,
         position: { x: start + i * spacing, y: basePos.y + 260 },
       }));
@@ -562,10 +567,12 @@ export function FailureSection({
     <section className="p-3 border-b border-border-base">
       <div className="flex items-center gap-2 mb-2">
         <label className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
-          Realidade
+          {tr.groundTruth.reality}
         </label>
         {failed && (
-          <span className="text-[10px] font-mono text-state-problem ml-auto">⚠ falhou</span>
+          <span className="text-[10px] font-mono text-state-problem ml-auto">
+            {tr.groundTruth.failed}
+          </span>
         )}
       </div>
 
@@ -574,7 +581,7 @@ export function FailureSection({
           onClick={() => setOpening(true)}
           className="w-full text-[11px] text-text-muted hover:text-state-problem border border-dashed border-border-base hover:border-state-problem/40 rounded-sm py-1 transition-colors"
         >
-          ⚠ Isto falhou na prática
+          {tr.groundTruth.failedInPractice}
         </button>
       )}
 
@@ -584,7 +591,7 @@ export function FailureSection({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={3}
-            placeholder="O que aconteceu? Seja específico: o que quebrou, medida real, sintoma, etc."
+            placeholder={tr.groundTruth.failurePlaceholder}
             className="w-full bg-bg-primary border border-border-base rounded-sm px-2 py-1 text-xs resize-none focus:border-state-problem outline-none"
           />
           <div className="flex gap-1">
@@ -593,7 +600,7 @@ export function FailureSection({
               disabled={!draft.trim()}
               className="flex-1 text-[11px] bg-state-problem/15 hover:bg-state-problem/30 disabled:opacity-40 text-state-problem border border-state-problem/40 rounded-sm py-1 transition-colors"
             >
-              registrar falha
+              {tr.groundTruth.recordFailure}
             </button>
             <button
               onClick={() => {
@@ -602,7 +609,7 @@ export function FailureSection({
               }}
               className="text-[11px] text-text-muted hover:text-text-secondary border border-border-base rounded-sm px-2 py-1 transition-colors"
             >
-              cancelar
+              {tr.common.cancel.toLowerCase()}
             </button>
           </div>
         </div>
@@ -612,12 +619,12 @@ export function FailureSection({
         <div className="space-y-2">
           <div className="text-xs bg-state-problem/5 border border-state-problem/30 rounded-sm px-2 py-1.5">
             <div className="text-[10px] font-mono uppercase tracking-wider text-state-problem mb-0.5">
-              Contexto da falha
+              {tr.groundTruth.failureContextLabel}
             </div>
             <div className="text-text-primary">{node.failureContext}</div>
             {node.failureReportedAt && (
               <div className="text-[10px] font-mono text-text-muted mt-1">
-                {new Date(node.failureReportedAt).toLocaleString('pt-BR')}
+                {new Date(node.failureReportedAt).toLocaleString(tr.detail.locale)}
               </div>
             )}
           </div>
@@ -629,17 +636,17 @@ export function FailureSection({
           >
             <span>◆</span>
             {replanning
-              ? 'Replanejando com contexto de falha…'
+              ? tr.groundTruth.replanning
               : pending !== null
-              ? 'Resolva sugestões pendentes primeiro'
-              : 'Replanejar sabendo do que falhou'}
+              ? tr.groundTruth.pendingHint
+              : tr.groundTruth.replanWithFailure}
           </button>
 
           <button
             onClick={() => clearFailure(node.id)}
             className="w-full text-[10px] font-mono text-text-muted hover:text-text-secondary border border-border-base rounded-sm py-1 transition-colors"
           >
-            resolvido — limpar falha
+            {tr.groundTruth.clearFailure}
           </button>
 
           {error && (
@@ -654,7 +661,7 @@ export function FailureSection({
 }
 
 // ---------------------------------------------------------------------------
-// Exportado junto: forma compacta usada no TutorMode (inline, sem seção)
+// Compact inline form for TutorMode (no surrounding section)
 // ---------------------------------------------------------------------------
 
 export function GroundTruthInlineTutor({
@@ -664,10 +671,11 @@ export function GroundTruthInlineTutor({
   node: ConceptNodeData;
   project: Project;
 }) {
+  const tr = useT();
   return (
     <div className="mt-6 border-t border-border-base pt-6 space-y-4">
       <div className="text-[10px] font-mono uppercase tracking-widest text-text-muted">
-        ◆ Ground truth
+        ◆ {tr.groundTruth.sectionTitle}
       </div>
       <div className="rounded-sm border border-border-base bg-bg-secondary">
         <UserCriterionField node={node} />

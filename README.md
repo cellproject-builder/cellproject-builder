@@ -1,64 +1,85 @@
 # Cellproject
 
-> Framework visual de planejamento por decomposição. Você declara um objetivo, a IA propõe caminhos completos em árvore, e você valida nó a nó até realizar.
+> Visual planning framework that decomposes objectives into validated trees. Declare a goal, let the AI propose complete paths, and validate node-by-node through a tutor mode that uses the plan itself as didactic material.
 
 **Local-first · BYOK · open-source · MIT**
 
-- 🌳 **Planejamento como árvore tipada.** Nós são `recurso`, `passo`, `decisao`, `categoria` — não lista plana.
-- 📚 **Plano = material didático.** Cada nó traz *o que é*, *por que precisa*, *como confirmar*. Tutor guia execução um passo por vez.
-- 🔒 **Ground truth de verdade.** Quatro mecanismos ortogonais quebram o loop fechado IA→IA: critério travado do usuário, crítica adversarial, replan a partir de falha real, âncoras verificáveis no mundo.
-- 🧠 **Multi-provider BYOK.** Você traz a chave (OpenRouter, OpenAI, Anthropic). Ela mora só no seu navegador.
-- 💾 **Sem backend.** Projetos vivem no IndexedDB do seu navegador. Reload sobrevive, ninguém mais lê.
+> ⚠ **Beta.** Cellproject is under active development. Expect rough edges, breaking changes between versions, and IndexedDB resets between releases. Don't put irreplaceable data in it yet.
+
+- 🌳 **Planning as a typed tree.** Nodes are `recurso` (resource), `passo` (step), `decisao` (decision), `categoria` (category) — not a flat list.
+- 📚 **Plan = teaching material.** Every node ships *what it is*, *why it's needed*, *how to confirm*. Tutor mode walks execution one step at a time.
+- 🔒 **Real ground truth.** Four orthogonal mechanisms break the closed AI→AI loop: locked user-written criterion, adversarial critique, replan from real failure, verifiable real-world anchors.
+- 🧠 **Multi-provider BYOK.** Bring your own key (OpenRouter, OpenAI, Anthropic). It lives only in your browser.
+- 💾 **No backend.** Projects live in your browser's IndexedDB. Reload survives, nobody else reads.
+- 🌍 **Bilingual UI.** English and Brazilian Portuguese, selectable from the API key gate or via the language selector. Defaults to your browser locale.
 
 ---
 
-## Como funciona
+## Project status
 
-1. Você escreve um objetivo concreto.
-2. A IA propõe 1–3 planos alternativos via streaming.
-3. Você escolhe um → vira uma árvore navegável em React Flow.
-4. Detalha cada nó com IA quando precisar (`Detalhar com AI`).
-5. Executa em modo tutor, confirmando passo a passo.
-6. Anexa PDFs ao **repositório de conhecimento** pra IA usar seu material como base.
-
-Conceito completo: [`docs/CONCEITO.md`](docs/CONCEITO.md) · panorama: [`docs/cellproject-overview.html`](docs/cellproject-overview.html).
+| Area | State |
+|------|-------|
+| Multi-provider BYOK (OpenAI · Anthropic · OpenRouter) | ✅ working |
+| Local persistence (IndexedDB) for projects + KB + config | ✅ working |
+| 4 ground-truth mechanisms (user criterion, critique, replan, anchors) | ✅ working |
+| Knowledge base (PDF ingestion + summarization + AI judge) | ✅ working |
+| Graph with 5 lenses + tutor mode | ✅ working |
+| Bilingual UI (en / pt-BR) | ✅ working |
+| Multi-project local management | 🚧 single project for now — `Reset` discards |
+| Mobile polish (drawer, sheet, safe areas) | 🚧 partial |
+| Onboarding tour | ⏳ planned |
+| Public deploy templates beyond Railway | ⏳ planned |
+| Real-time collaboration / multi-user | ❌ explicitly out of scope for v0 |
 
 ---
 
-## Rodando local
+## How it works
+
+1. You write a concrete goal.
+2. The AI proposes 1–3 alternative plans via streaming.
+3. You pick one → it becomes a navigable tree in React Flow.
+4. Detail each node with AI when needed (`Detail with AI`).
+5. Execute in tutor mode, confirming step by step.
+6. Attach PDFs to the **knowledge base** so the AI grounds plans in your own material.
+
+Concept dive: [`docs/CONCEPT.md`](docs/CONCEPT.md) · panorama: [`docs/cellproject-overview.html`](docs/cellproject-overview.html).
+
+---
+
+## Running locally
 
 ```bash
-git clone https://github.com/SEU-USER/cellproject.git
-cd cellproject
+git clone https://github.com/cellproject-builder/cellproject-builder.git
+cd cellproject-builder
 npm install
 npm run dev
 ```
 
-Abre [http://localhost:5173](http://localhost:5173). Na primeira vez, vai aparecer a tela de configuração de API — escolha um provider e cole sua chave. Ela fica salva no IndexedDB deste navegador.
+Open [http://localhost:5173](http://localhost:5173). On first run a setup screen appears — pick a provider, paste your key. It lives in this browser's IndexedDB.
 
-### Providers suportados
+### Supported providers
 
-| Provider | Como obter chave | Modelo padrão |
-|----------|------------------|---------------|
-| **OpenRouter** *(recomendado)* | https://openrouter.ai/keys | `z-ai/glm-5` |
+| Provider | Get a key | Default model |
+|----------|-----------|---------------|
+| **OpenRouter** *(recommended)* | https://openrouter.ai/keys | `z-ai/glm-5` |
 | **OpenAI** | https://platform.openai.com/api-keys | `gpt-4o` |
 | **Anthropic** | https://console.anthropic.com/settings/keys | `claude-sonnet-4-5` |
 
-**Por que OpenRouter é recomendado:** funciona como gateway pra dezenas de modelos sem dor de CORS de browser, e você troca de modelo sem trocar de provider. Anthropic direto do navegador pode dar problema dependendo da política CORS atual deles — se acontecer, use OpenRouter.
+**Why OpenRouter is recommended:** it works as a gateway to dozens of models without browser CORS pain, and you can switch model without switching provider. If Anthropic direct-from-browser fails on your network (CORS policy quirks), fall back to OpenRouter.
 
 ---
 
-## Privacidade
+## Privacy
 
-Cellproject é **local-first**:
+Cellproject is **local-first**:
 
-- ✅ A chave da API é guardada em `IndexedDB` (`cellproject-config`) — só neste navegador.
-- ✅ Seus projetos ficam em `IndexedDB` (`cellproject-graph`) — só neste navegador.
-- ✅ PDFs do repositório de conhecimento são processados localmente via `pdf.js`; só o texto extraído é enviado ao modelo (escolha sua) pra resumir.
-- ✅ Nenhum servidor proprietário entra no meio. Suas requisições vão **direto** do seu navegador ao provider que você configurou.
-- ⚠️ Por ser uma SPA, qualquer XSS no domínio onde você roda o app pode ler a chave. Hospede em domínio confiável e mantenha a árvore de dependências saudável.
+- ✅ Your API key sits in `IndexedDB` (`cellproject-config`) — only in this browser.
+- ✅ Projects live in `IndexedDB` (`cellproject-graph`) — only in this browser.
+- ✅ PDFs in the knowledge base are processed locally via `pdf.js`. Only the extracted text is sent to the model you chose, for summarization.
+- ✅ No proprietary server in the loop. Your requests go **directly** from your browser to the provider you configured.
+- ⚠️ Because this is an SPA, any XSS on the domain hosting it can read the key. Host on a trusted domain and keep dependencies fresh.
 
-Para apagar tudo: F12 → Application → IndexedDB → exclua `cellproject-config` e `cellproject-graph`.
+To wipe everything: DevTools → Application → IndexedDB → delete `cellproject-config`, `cellproject-graph`, `cellproject-kb`, `cellproject-locale`.
 
 ---
 
@@ -67,83 +88,88 @@ Para apagar tudo: F12 → Application → IndexedDB → exclua `cellproject-conf
 ### Railway
 
 ```bash
-# 1. Conecte o repo no painel do Railway
-# 2. Railway detecta automaticamente via railway.json + nixpacks.toml
-# 3. Pronto — Railway expõe a URL pública
+# 1. Connect this repo in the Railway dashboard
+# 2. Railway auto-detects via railway.json + nixpacks.toml
+# 3. Public URL is ready
 ```
 
-A configuração já vem pronta:
+Ready-to-go configuration:
 
-- [`railway.json`](railway.json) — builder e start command
-- [`nixpacks.toml`](nixpacks.toml) — Node 20 + serve estático com SPA fallback
+- [`railway.json`](railway.json) — builder + start command
+- [`nixpacks.toml`](nixpacks.toml) — Node 22 + serve static with SPA fallback
 
-O build roda `npm ci && npm run build` e serve `dist/` via `serve -s` (single-page-app mode com fallback pro `index.html`).
+The build runs `npm ci && npm run build` and serves `dist/` via `serve -s` (single-page-app mode with fallback to `index.html`).
 
-### Outros estáticos (Cloudflare Pages, Netlify, Vercel)
+### Other static hosts (Cloudflare Pages, Netlify, Vercel)
 
-Funciona em qualquer host de SPA estática:
+Works on any static SPA host:
 
 - Build command: `npm run build`
 - Output directory: `dist`
-- Rewrite: `/*` → `/index.html` (modo SPA)
+- Rewrite: `/*` → `/index.html` (SPA mode)
 
-Não há nenhuma env var obrigatória — a chave de API é configurada por usuário no navegador dele.
+No mandatory env var — the API key is configured per user, in their browser.
 
 ---
 
 ## Stack
 
-- **Vite + React 18 + TypeScript** — SPA pura.
-- **@xyflow/react 12** — grafo interativo com lentes (estrutura, fluxo, risco, estado, conexões).
-- **Zustand + idb-keyval** — store persistido em IndexedDB.
+- **Vite + React 18 + TypeScript** — pure SPA.
+- **@xyflow/react 12** — interactive graph with lenses (structure, flow, risk, state, connections).
+- **Zustand + idb-keyval** — store persisted in IndexedDB.
 - **Vercel AI SDK** — `streamObject`, `generateObject`, `generateText`.
-- **@ai-sdk/openai · @ai-sdk/anthropic · @openrouter/ai-sdk-provider** — clients dos três providers.
-- **Zod** — validação rigorosa de toda resposta do modelo antes de hidratar.
-- **Tailwind 3** — paleta própria.
-- **pdfjs-dist** — extração de texto de PDF 100% no navegador.
+- **@ai-sdk/openai · @ai-sdk/anthropic · @openrouter/ai-sdk-provider** — clients for the three providers.
+- **Zod** — strict validation of every model response before hydration.
+- **Tailwind 3** — custom palette.
+- **pdfjs-dist** — 100% in-browser PDF text extraction.
 
 ---
 
-## Estrutura
+## Layout
 
 ```
 src/
 ├── App.tsx                   # ApiKeyGate → ObjectiveScreen → Tutor|Graph
 ├── config/
-│   └── store.ts              # BYOK: provider + chave + modelos em IDB
+│   └── store.ts              # BYOK: provider + key + models in IDB
+├── i18n/
+│   ├── store.ts              # Locale store (en / pt-BR)
+│   ├── messages.ts           # All UI strings, both languages
+│   └── index.ts              # useT hook + helpers
 ├── ai/
 │   ├── client.ts             # Multi-provider (OpenAI/Anthropic/OpenRouter)
 │   ├── schemas.ts            # Zod schemas
 │   └── service.ts            # generatePlans / decomposeNode / explainNode /
 │                             # critiqueNode / replanFromFailure
-├── kb/                       # Repositório de conhecimento (PDFs)
+├── kb/                       # Knowledge base (PDFs)
 ├── store.ts                  # Zustand graph store
 ├── types.ts                  # ConceptNodeData, Project, AIPlan, …
 └── components/               # ObjectiveScreen, TutorMode, GraphCanvas, etc.
 ```
 
-Detalhes em [`docs/cellproject-overview.html`](docs/cellproject-overview.html).
+Architecture details: [`docs/cellproject-overview.html`](docs/cellproject-overview.html).
 
 ---
 
-## Contribuir
+## Contributing
 
-PRs bem-vindas. Por favor:
+PRs welcome. Please:
 
-1. `npm run lint` (TypeScript estrito sem erro).
-2. `npm test` (vitest verde).
-3. Commit mensagens curtas, em português ou inglês — o tom do projeto é direto e prático.
-4. Não adicione backend nem telemetria sem discussão antes. O contrato do produto é local-first.
+1. `npm run lint` (strict TypeScript, no errors).
+2. `npm test` (vitest green).
+3. Short commit messages, in English or Portuguese — the project tone is direct and practical.
+4. Don't add a backend or telemetry without discussion first. The product contract is local-first.
+5. If you add user-facing strings, add them to BOTH `en` and `ptBR` in `src/i18n/messages.ts`. TypeScript will yell at you if you don't.
 
-Áreas com baixo hanging fruit:
+Low-hanging areas:
 
-- Multi-projeto local (hoje o store guarda um projeto por vez).
-- KB em `critiqueNode` e `explainNode` (já está em `generatePlans` / `decomposeNode` / `replanFromFailure`).
-- Onboarding mínimo explicando "escreva seu critério antes de ver o da IA".
-- Templates de domínio (marcenaria, cozinha, etc.).
+- Multi-project local management (today the store keeps a single project at a time).
+- KB context in `critiqueNode` and `explainNode` (already wired in `generatePlans`, `decomposeNode`, `replanFromFailure`).
+- Minimal onboarding explaining "write your criterion before seeing the AI's".
+- Domain templates (woodworking, electronics, cooking, …).
 
 ---
 
-## Licença
+## License
 
-MIT — veja [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

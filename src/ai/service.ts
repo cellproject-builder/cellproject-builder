@@ -10,6 +10,7 @@ import type {
 } from '@/types';
 import type { KBContextEntry } from '@/kb/types';
 import { aiModel, assertAIReady, currentModelIds } from './client';
+import { currentLocaleAIName } from '@/i18n';
 import {
   PlansResponseSchema,
   DecomposeResponseSchema,
@@ -21,15 +22,15 @@ import {
 } from './schemas';
 
 // ---------------------------------------------------------------------------
-// Tipos públicos de progresso — consumidos pela UI para mostrar streaming
+// Public progress types — consumed by the UI to render streaming state
 // ---------------------------------------------------------------------------
 
 export type DeepPartial<T> = T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 
 export type PlanProgressPhase =
-  | 'connecting' // antes do primeiro chunk
-  | 'streaming' // chunks chegando
-  | 'finalizing' // stream fechou, validando schema
+  | 'connecting'
+  | 'streaming'
+  | 'finalizing'
   | 'done'
   | 'error';
 
@@ -45,9 +46,9 @@ export interface PlanProgressEvent {
 export type PlanProgressCallback = (ev: PlanProgressEvent) => void;
 
 // ---------------------------------------------------------------------------
-// AI service — OpenRouter (GLM-5) via Vercel AI SDK
-// Contrato idêntico ao antigo mock: generatePlans / decomposeNode / explainNode.
-// Toda conversa com o modelo é em pt-BR, tom direto, orientada a ação.
+// AI service — multi-provider via Vercel AI SDK.
+// Public contract: generatePlans / decomposeNode / explainNode /
+// critiqueNode / replanFromFailure.
 // ---------------------------------------------------------------------------
 
 interface DecomposeContext {
@@ -81,8 +82,6 @@ interface CritiqueContext {
   oQue: string;
   porQue: string;
   comoConfirmar: string;
-  // Critério escrito pelo próprio usuário (se houver). Passamos ao crítico
-  // para que ele saiba o que NÃO duplicar.
   comoConfirmarUsuario?: string;
 }
 
@@ -94,34 +93,66 @@ interface ReplanContext {
   nodeKind: NodeKind;
   nodeFx: string;
   oQue: string;
-  // Contexto de falha real contado pelo usuário.
   failureContext: string;
   siblings: { name: string; fx: string }[];
 }
 
 // ---------------------------------------------------------------------------
-// System prompt compartilhado — define a persona do modelo
+// Shared system prompt — parameterized by the user's locale so the model
+// answers in the same language as the UI.
 // ---------------------------------------------------------------------------
 
-const BASE_SYSTEM = `Você é o cérebro de um assistente de planejamento visual em grafo chamado Cellproject.
-O usuário descreve um objetivo concreto (construir algo, montar algo, aprender algo) e você quebra o problema em uma árvore de nós que podem ser validados um a um.
+function baseSystem(): string {
+  const lang = currentLocaleAIName();
+  return `You are the brain of a visual planning assistant called Cellproject.
+The user describes a concrete goal (build something, assemble something, learn something) and you break the problem into a tree of nodes that can be validated one by one.
 
-REGRAS DE ESTILO
-- Responda SEMPRE em português do Brasil.
-- Tom direto, prático, de quem faz. Zero rodeio, zero "vamos explorar".
-- Prefira frases curtas. Evite marketing. Não use emoji salvo se fizer parte de conteúdo técnico natural.
-- Seja específico: "2 varetas de bambu de 40cm" é melhor que "alguns materiais".
-- Quando o objetivo for ambíguo, assuma o cenário mais comum e siga — sem perguntas de volta.
+STYLE
+- Always respond in ${lang}.
+- Direct, practical, doer's tone. Zero filler, no marketing speak.
+- Prefer short sentences. Avoid emoji unless they are part of natural technical content.
+- Be specific: "2 bamboo sticks of 40cm" beats "some materials".
+- When the goal is ambiguous, assume the most common scenario and proceed — do not ask the user back.
 
-TAXONOMIA DE NÓS
-- categoria: agrupador (ex: "Recursos", "Execução", "Decisões").
-- recurso: coisa que precisa estar disponível antes da execução (material, ferramenta, dado, acesso).
-- passo: ação concreta em ordem cronológica. Use 'order' numérico.
-- decisao: escolha entre caminhos mutuamente exclusivos. Preencha 'decisionOptions' com 2 ou 3 opções.
-- concept: nó conceitual auxiliar. Evite a menos que seja necessário.`;
+NODE TAXONOMY
+- categoria: grouping container (e.g. "Resources", "Execution", "Decisions").
+- recurso: something that must be available before execution (material, tool, data, access).
+- passo: concrete action in chronological order. Use the 'order' field with an integer.
+- decisao: choice between mutually exclusive paths. Fill 'decisionOptions' with 2 or 3 options.
+- concept: auxiliary conceptual node. Avoid unless necessary.`;
+}
+
+function criticSystem(): string {
+  const lang = currentLocaleAIName();
+  return `You are a skeptical reviewer hired to BREAK a Cellproject plan node.
+Your job is to doubt. Assume the original planner was optimistic, shallow, or made unstated assumptions.
+
+RULES
+- Respond in ${lang}, dry tone, no performative empathy.
+- No "great point, but". Go straight to what's fragile.
+- DO NOT restate what the plan already says. Your value is finding what it does NOT say.
+- 'criterioAlternativo' MUST be different in form from the original comoConfirmar. If the original asks "is it ready?", yours should measure something external — a number, a proof, a third-party observation.
+- If a user-written criterion exists, treat it as MORE trustworthy than the AI's: your alternative should complement it, not duplicate it.
+- Do not propose solutions. Your output is a diagnosis, not a prescription.`;
+}
+
+const TUTOR_GUIDANCE_TEMPLATE = `
+
+YOU ARE IN TUTOR MODE
+Your output is a MARKDOWN EXPLANATION, not JSON. Senior-engineer depth, explaining to someone who has never done this but is capable of learning.
+
+STRUCTURE
+- Section titles in **UPPERCASE BOLD** (e.g. **WHAT IT IS**, **WHY IT MATTERS**, **HOW TO DO IT**, **PITFALLS**, **HOW TO VERIFY**).
+- Bullet lists with dashes. Short sentences.
+- When there are variants or trade-offs, list each one with the name in **bold** followed by a description.
+- Give real numbers (voltages, sizes, commands, known URLs). No "depends on the case".
+- Call out common errors ("pitfalls") and how to diagnose.
+- Finish with a concrete verification criterion.
+
+DO NOT include introductory filler like "of course, I will explain" — go straight to the content.`;
 
 // ---------------------------------------------------------------------------
-// Helpers de transformação
+// Helpers
 // ---------------------------------------------------------------------------
 
 function materializeNode(raw: RawSuggestedNode, idMap: Map<string, string>): AISuggestedNode {
@@ -172,18 +203,18 @@ function clamp(n: number, lo: number, hi: number) {
 }
 
 function formatBreadcrumb(crumbs: string[]) {
-  return crumbs.length > 0 ? crumbs.join(' › ') : '(raiz)';
+  return crumbs.length > 0 ? crumbs.join(' › ') : '(root)';
 }
 
 function formatSiblings(siblings: { name: string; fx: string }[]) {
-  if (siblings.length === 0) return '(nenhum irmão)';
+  if (siblings.length === 0) return '(no siblings)';
   return siblings.map((s) => `- ${s.name} — ${s.fx}`).join('\n');
 }
 
-// Monta o bloco CONHECIMENTO DE BASE que vai no início do user prompt.
-// Enxuto de propósito: 2 docs máximo, resumo em bullets curtos + até 5 fatos.
-// Se kbContext estiver vazio ou ausente, retorna string vazia e o prompt
-// segue idêntico ao fluxo original (zero regressão quando não há KB).
+// Builds the KNOWLEDGE BASE block injected at the start of user prompts.
+// Compact on purpose: at most 2 docs, summary as short bullets + up to 5 facts.
+// If kbContext is empty/missing this returns an empty string and the prompt
+// is unchanged compared to the no-KB flow.
 function formatKBContext(kbContext?: KBContextEntry[]): string {
   if (!kbContext || kbContext.length === 0) return '';
   const blocks = kbContext.map((entry) => {
@@ -193,15 +224,15 @@ function formatKBContext(kbContext?: KBContextEntry[]): string {
       .join('\n');
     const resumo = entry.resumo.slice(0, 4).map((r) => `  • ${r}`).join('\n');
     return `[${entry.docId}] "${entry.titulo}" (${entry.dominio})
-Resumo:
-${resumo}${fatos ? `\nFatos verificáveis:\n${fatos}` : ''}`;
+Summary:
+${resumo}${fatos ? `\nVerifiable facts:\n${fatos}` : ''}`;
   });
-  return `\n\nCONHECIMENTO DE BASE (do repositório pessoal do usuário — use como fonte, cite o docId entre colchetes quando aplicável)
+  return `\n\nKNOWLEDGE BASE (from the user's personal repository — use as a source, cite the docId in brackets when applicable)
 ${blocks.join('\n\n')}\n\n`;
 }
 
 // ---------------------------------------------------------------------------
-// generatePlans — gera 1 a 3 planos alternativos para o objetivo
+// generatePlans — generates 1 to 3 alternative plans for the objective
 // ---------------------------------------------------------------------------
 
 export async function generatePlans(
@@ -211,29 +242,29 @@ export async function generatePlans(
 ): Promise<AIPlan[]> {
   assertAIReady();
 
-  const userPrompt = `OBJETIVO DO USUÁRIO:
+  const userPrompt = `USER GOAL:
 """
 ${objective.trim()}
 """
 ${formatKBContext(kbContext)}
 
-TAREFA
-Gere de 1 a 3 planos alternativos para alcançar esse objetivo. Ordene do mais simples/rápido ao mais ambicioso/completo.
+TASK
+Generate 1 to 3 alternative plans to reach this goal. Order them from the simplest/fastest to the most ambitious/complete.
 
-Cada plano deve ter uma árvore com 2 ou 3 categorias:
-1. "Recursos" (kind: "recursos"): tudo que precisa ser reunido antes de começar.
-2. "Execução" (kind: "execucao"): passos sequenciais, cada um com 'order' começando em 1.
-3. "Decisões" (kind: "decisoes"): APENAS se existir tradeoff real — cada nó filho deve ter 'decisionOptions' (2 ou 3).
+Each plan must have a tree with 2 or 3 categories:
+1. "Resources" (kind: "recursos"): everything that must be gathered before starting.
+2. "Execution" (kind: "execucao"): sequential steps, each with 'order' starting at 1.
+3. "Decisions" (kind: "decisoes"): ONLY if there is a real trade-off — every child must include 'decisionOptions' (2 or 3).
 
-Para cada nó filho: preencha oQue/porQue/comoConfirmar com conteúdo didático concreto.
+For each child node: fill oQue / porQue / comoConfirmar with concrete didactic content.
 
-GROUND TRUTH: quando um nó tiver qualquer âncora verificável no mundo real, preencha 'groundTruthHints'. Prefira especificações concretas a descrições genéricas. Exemplos:
-- recurso "bambu": hint com kind="spec" value="Phyllostachys aurea, 40cm ± 2cm, Ø 5-8mm"
-- passo "amarrar nó de volta": hint com kind="link" value="URL de tutorial conhecido"
-- medida qualquer: kind="medida" value="peso < 15g" (sempre com unidade e tolerância quando aplicável).
-Se não existir âncora natural, omita o campo — NÃO invente links.
+GROUND TRUTH: when a node has any anchor verifiable in the real world, fill 'groundTruthHints'. Prefer concrete specifications over generic descriptions. Examples:
+- resource "bamboo": hint with kind="spec" value="Phyllostachys aurea, 40cm ± 2cm, Ø 5-8mm"
+- step "tie return knot": hint with kind="link" value="URL of a known tutorial"
+- any measurement: kind="medida" value="weight < 15g" (always with unit and tolerance when applicable).
+If no natural anchor exists, omit the field — DO NOT invent links.
 
-Use tempIds curtos e únicos dentro do plano (ex: "p1", "r1", "cat1"). Não gere arestas aqui.`;
+Use short unique tempIds within the plan (e.g. "p1", "r1", "cat1"). Do not generate edges here.`;
 
   const startedAt = performance.now();
   const elapsed = () => Math.round(performance.now() - startedAt);
@@ -244,7 +275,7 @@ Use tempIds curtos e únicos dentro do plano (ex: "p1", "r1", "cat1"). Não gere
     model: aiModel,
     schema: PlansResponseSchema,
     schemaName: 'PlansResponse',
-    system: BASE_SYSTEM,
+    system: baseSystem(),
     prompt: userPrompt,
     temperature: 0.6,
   });
@@ -299,15 +330,18 @@ Use tempIds curtos e únicos dentro do plano (ex: "p1", "r1", "cat1"). Não gere
   }
 }
 
-// OpenRouter devolve reasoning em providerMetadata.openrouter.reasoning (ou similar
-// dependendo da versão do provider). Tenta alguns caminhos conhecidos e devolve
-// string única, ou undefined se o modelo/provider não emitiu reasoning.
+// OpenRouter exposes reasoning under providerMetadata.openrouter.reasoning
+// (or similar keys depending on the provider version). Tries a few known
+// paths and returns a single string, or undefined when the provider did not
+// emit reasoning.
 function extractReasoning(meta: unknown): string | undefined {
   if (!meta || typeof meta !== 'object') return undefined;
   const root = meta as Record<string, unknown>;
   const candidates = [
     root.openrouter,
     root['openrouter-chat'],
+    root.anthropic,
+    root.openai,
     root.reasoning,
   ].filter(Boolean);
 
@@ -350,7 +384,7 @@ function hydratePlan(raw: RawPlan): AIPlan {
 }
 
 // ---------------------------------------------------------------------------
-// decomposeNode — quebra um nó existente em filhos + arestas entre eles
+// decomposeNode — break an existing node into children + edges
 // ---------------------------------------------------------------------------
 
 export async function decomposeNode(
@@ -361,29 +395,29 @@ export async function decomposeNode(
 
   const guidance = decomposeGuidance(ctx.nodeKind, ctx.nodeName);
 
-  const userPrompt = `CONTEXTO DO PROJETO
-- Nome: ${ctx.projectName}
-- Objetivo: ${ctx.projectObjective}
-- Caminho até o nó: ${formatBreadcrumb(ctx.breadcrumb)}
+  const userPrompt = `PROJECT CONTEXT
+- Name: ${ctx.projectName}
+- Goal: ${ctx.projectObjective}
+- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}
 
-NÓ A DECOMPOR
-- Nome: ${ctx.nodeName}
-- Tipo: ${ctx.nodeKind}
-- Função (fx): ${ctx.nodeFx}
+NODE TO DECOMPOSE
+- Name: ${ctx.nodeName}
+- Kind: ${ctx.nodeKind}
+- Function (fx): ${ctx.nodeFx}
 
-IRMÃOS JÁ EXISTENTES (não repita)
+EXISTING SIBLINGS (do not repeat)
 ${formatSiblings(ctx.siblings)}
 ${formatKBContext(kbContext)}
-TAREFA
+TASK
 ${guidance}
 
-Use tempIds curtos e únicos (ex: "a", "b", "c"). Se houver ordem ou dependência entre os novos nós, crie arestas 'direct' entre eles.`;
+Use short unique tempIds (e.g. "a", "b", "c"). If there is order or dependency between the new nodes, create 'direct' edges between them.`;
 
   const { object } = await generateObject({
     model: aiModel,
     schema: DecomposeResponseSchema,
     schemaName: 'DecomposeResponse',
-    system: BASE_SYSTEM,
+    system: baseSystem(),
     prompt: userPrompt,
     temperature: 0.5,
   });
@@ -399,63 +433,50 @@ Use tempIds curtos e únicos (ex: "a", "b", "c"). Se houver ordem ou dependênci
 
 function decomposeGuidance(kind: NodeKind, name: string): string {
   if (kind === 'categoria') {
-    const isExec = /execu|fluxo|passo/i.test(name);
-    const isRec = /recurs|material|ferrament/i.test(name);
+    const isExec = /execu|fluxo|passo|step|flow/i.test(name);
+    const isRec = /recurs|material|ferrament|tool|resource/i.test(name);
     if (isExec) {
-      return `Esta é uma categoria de Execução. Gere 3 a 6 passos sequenciais (kind="passo") com 'order' crescente. Conecte-os com arestas 'direct' do passo N ao N+1.`;
+      return `This is an Execution category. Generate 3 to 6 sequential steps (kind="passo") with increasing 'order'. Connect them with 'direct' edges from step N to step N+1.`;
     }
     if (isRec) {
-      return `Esta é uma categoria de Recursos. Gere 3 a 8 recursos específicos e concretos (kind="recurso"). Não precisa de arestas.`;
+      return `This is a Resources category. Generate 3 to 8 concrete, specific resources (kind="recurso"). Edges are not required.`;
     }
-    return `Gere 3 a 6 filhos apropriados para esta categoria. Não repita os irmãos.`;
+    return `Generate 3 to 6 children appropriate for this category. Do not repeat the siblings.`;
   }
   if (kind === 'passo') {
-    return `Quebre este passo em 2 a 5 sub-passos menores e mais concretos (kind="passo") com 'order' sequencial. Cada sub-passo deve ser uma ação física/lógica única, fácil de verificar. Conecte em cadeia com arestas 'direct'.`;
+    return `Break this step into 2 to 5 smaller and more concrete sub-steps (kind="passo") with sequential 'order'. Each sub-step must be a single physical/logical action, easy to verify. Chain them with 'direct' edges.`;
   }
   if (kind === 'recurso') {
-    return `Quebre este recurso em 2 a 4 sub-recursos ou etapas de aquisição (kind="recurso"). Ex: "onde comprar", "especificação mínima", "alternativa caseira".`;
+    return `Break this resource into 2 to 4 sub-resources or acquisition stages (kind="recurso"). E.g.: "where to buy", "minimum spec", "homemade alternative".`;
   }
   if (kind === 'decisao') {
-    return `Gere 2 a 4 nós concept/passo que detalhem o que acontece DEPOIS da decisão — considerações, trade-offs, ou pré-requisitos de cada caminho.`;
+    return `Generate 2 to 4 concept/step nodes that detail what happens AFTER the decision — considerations, trade-offs, or prerequisites of each path.`;
   }
-  return `Gere 2 a 5 filhos que aprofundem este nó. Use o tipo mais adequado (passo, recurso, decisão).`;
+  return `Generate 2 to 5 children that elaborate this node. Use the most adequate kind (passo, recurso, decisao).`;
 }
 
 // ---------------------------------------------------------------------------
-// explainNode — gera explicação longa em markdown para o modo tutor
+// explainNode — generates a long markdown explanation for tutor mode
 // ---------------------------------------------------------------------------
 
 export async function explainNode(ctx: ExplainContext): Promise<string> {
   assertAIReady();
 
-  const systemTutor = `${BASE_SYSTEM}
+  const systemTutor = `${baseSystem()}${TUTOR_GUIDANCE_TEMPLATE}`;
 
-VOCÊ ESTÁ NO MODO TUTOR
-Sua saída é uma EXPLICAÇÃO EM MARKDOWN, não um JSON. Profundidade de engenheiro sênior explicando para alguém que nunca fez isso mas é capaz de aprender.
+  const userPrompt = `PROJECT
+- Name: ${ctx.projectName}
+- Goal: ${ctx.projectObjective}
+- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}
 
-ESTRUTURA
-- Títulos em **NEGRITO MAIÚSCULO** curtos (ex: **O QUE É**, **POR QUE IMPORTA**, **COMO FAZER**, **ARMADILHAS**, **COMO VERIFICAR**).
-- Listas com travessão. Frases curtas.
-- Quando houver variantes ou trade-offs, liste cada uma com nome em **negrito** seguido de descrição.
-- Dê números reais (tensões, tamanhos, comandos, URLs conhecidos). Nada de "varia conforme o caso".
-- Aponte erros comuns ("armadilhas") e como diagnosticar.
-- Finalize com um critério concreto de verificação.
+NODE
+- Name: ${ctx.nodeName}
+- Kind: ${ctx.nodeKind}
+- What it is (short summary): ${ctx.oQue}
+- Why it matters: ${ctx.porQue}
+- Confirmation criterion: ${ctx.comoConfirmar}
 
-NÃO inclua frases introdutórias tipo "claro, vou explicar" — vá direto ao conteúdo.`;
-
-  const userPrompt = `PROJETO
-- Nome: ${ctx.projectName}
-- Objetivo: ${ctx.projectObjective}
-- Caminho até o nó: ${formatBreadcrumb(ctx.breadcrumb)}
-
-NÓ
-- Nome: ${ctx.nodeName}
-- Tipo: ${ctx.nodeKind}
-- O que é (resumo curto): ${ctx.oQue}
-- Por que importa: ${ctx.porQue}
-- Critério de confirmação: ${ctx.comoConfirmar}
-
-Gere a explicação completa em markdown seguindo a estrutura definida. Foque em deixar o usuário capaz de executar este nó sozinho.`;
+Generate the full markdown explanation following the structure above. Focus on letting the user execute this node alone.`;
 
   const { text } = await generateText({
     model: aiModel,
@@ -468,48 +489,36 @@ Gere a explicação completa em markdown seguindo a estrutura definida. Foque em
 }
 
 // ---------------------------------------------------------------------------
-// critiqueNode — segunda passada adversarial (attack b)
-// Persona distinta do BASE_SYSTEM: cético contratado para quebrar o nó.
-// Retorna um criterioAlternativo independente do comoConfirmar original —
-// é a saída que realmente rompe o loop fechado IA→IA.
+// critiqueNode — adversarial second pass (attack b).
+// Uses a distinct persona from BASE_SYSTEM so the alternative criterion is
+// truly independent — that's what actually breaks the closed AI→AI loop.
 // ---------------------------------------------------------------------------
-
-const CRITIC_SYSTEM = `Você é um revisor cético contratado para QUEBRAR um nó de plano do Cellproject.
-Seu trabalho é desconfiar. Parta do princípio de que o planejador original foi otimista, superficial, ou assumiu coisas que não deveria.
-
-REGRAS
-- Responda em português do Brasil, tom seco, sem simpatia performática.
-- Nada de "é um ótimo ponto, mas". Vá direto ao que está frágil.
-- NÃO reafirme o que o plano já diz. Seu valor é achar o que ele NÃO diz.
-- 'criterioAlternativo' DEVE ser diferente em forma do comoConfirmar original. Se o original pergunta "está pronto?", o seu deve medir algo externo — um número, uma prova, uma observação de terceiro.
-- Se existir um critério escrito pelo usuário, considere-o MAIS confiável que o da IA: seu alternativo deve complementá-lo, não duplicá-lo.
-- Não sugira soluções. Sua saída é diagnóstico, não prescrição.`;
 
 export async function critiqueNode(ctx: CritiqueContext): Promise<AdversarialCritique> {
   assertAIReady();
 
-  const userPrompt = `PROJETO
-- Nome: ${ctx.projectName}
-- Objetivo: ${ctx.projectObjective}
-- Caminho: ${formatBreadcrumb(ctx.breadcrumb)}
+  const userPrompt = `PROJECT
+- Name: ${ctx.projectName}
+- Goal: ${ctx.projectObjective}
+- Path: ${formatBreadcrumb(ctx.breadcrumb)}
 
-NÓ A CRITICAR
-- Nome: ${ctx.nodeName}
-- Tipo: ${ctx.nodeKind}
-- Função: ${ctx.nodeFx}
-- O que é: ${ctx.oQue}
-- Por que importa: ${ctx.porQue}
-- Critério da IA (comoConfirmar): ${ctx.comoConfirmar}
-${ctx.comoConfirmarUsuario ? `- Critério escrito pelo usuário: ${ctx.comoConfirmarUsuario}` : '- Usuário ainda não escreveu critério próprio.'}
+NODE TO CRITIQUE
+- Name: ${ctx.nodeName}
+- Kind: ${ctx.nodeKind}
+- Function: ${ctx.nodeFx}
+- What it is: ${ctx.oQue}
+- Why it matters: ${ctx.porQue}
+- AI criterion (comoConfirmar): ${ctx.comoConfirmar}
+${ctx.comoConfirmarUsuario ? `- User-written criterion: ${ctx.comoConfirmarUsuario}` : '- The user has not written a criterion yet.'}
 
-TAREFA
-Aponte fraquezas, premissas ocultas, e proponha um critério alternativo INDEPENDENTE que um cético usaria.`;
+TASK
+Point out weaknesses, hidden assumptions, and propose an INDEPENDENT alternative criterion that a skeptic would use.`;
 
   const { object } = await generateObject({
     model: aiModel,
     schema: CritiqueResponseSchema,
     schemaName: 'CritiqueResponse',
-    system: CRITIC_SYSTEM,
+    system: criticSystem(),
     prompt: userPrompt,
     temperature: 0.7,
   });
@@ -523,9 +532,9 @@ Aponte fraquezas, premissas ocultas, e proponha um critério alternativo INDEPEN
 }
 
 // ---------------------------------------------------------------------------
-// replanFromFailure — replan com contexto de falha real (attack c)
-// Reutiliza DecomposeResponseSchema: a saída entra no mesmo mecanismo de
-// staging que decomposeNode, pra o usuário aceitar/rejeitar.
+// replanFromFailure — replan using real failure context (attack c).
+// Reuses DecomposeResponseSchema so the output flows through the same
+// staging mechanism that decomposeNode uses.
 // ---------------------------------------------------------------------------
 
 export async function replanFromFailure(
@@ -534,40 +543,40 @@ export async function replanFromFailure(
 ): Promise<{ nodes: AISuggestedNode[]; edges: AISuggestedEdge[] }> {
   assertAIReady();
 
-  const userPrompt = `CONTEXTO DO PROJETO
-- Nome: ${ctx.projectName}
-- Objetivo: ${ctx.projectObjective}
-- Caminho até o nó: ${formatBreadcrumb(ctx.breadcrumb)}
+  const userPrompt = `PROJECT CONTEXT
+- Name: ${ctx.projectName}
+- Goal: ${ctx.projectObjective}
+- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}
 
-NÓ QUE FALHOU NA PRÁTICA
-- Nome: ${ctx.nodeName}
-- Tipo: ${ctx.nodeKind}
-- Função original: ${ctx.nodeFx}
-- O que era: ${ctx.oQue}
+NODE THAT FAILED IN PRACTICE
+- Name: ${ctx.nodeName}
+- Kind: ${ctx.nodeKind}
+- Original function: ${ctx.nodeFx}
+- What it was: ${ctx.oQue}
 
-O QUE DEU ERRADO (relatado pelo usuário)
+WHAT WENT WRONG (reported by the user)
 """
 ${ctx.failureContext.trim()}
 """
 
-IRMÃOS (contexto)
+SIBLINGS (context)
 ${formatSiblings(ctx.siblings)}
 ${formatKBContext(kbContext)}
-TAREFA
-A execução real mostrou que o plano original não funcionou. Re-decomponha este nó SABENDO do que falhou. Regras:
-1. NÃO repita a mesma decomposição. Se o caminho original falhou, assuma que parte da premissa era errada.
-2. Se a falha foi um recurso (quebrou, não existe, está fora de spec), sugira alternativas concretas e/ou uma etapa nova de mitigação.
-3. Se a falha foi um passo, quebre em passos menores cobrindo o ponto onde travou.
-4. Prefira 2–4 nós novos, bem específicos. Arestas 'direct' em cadeia quando houver ordem.
-5. Cada novo nó deve trazer groundTruthHints verificáveis — o usuário acabou de queimar tempo com algo que a IA afirmou sem âncora.
+TASK
+Real execution showed that the original plan didn't work. Re-decompose this node KNOWING what failed. Rules:
+1. DO NOT repeat the same decomposition. If the original path failed, assume part of the premise was wrong.
+2. If the failure was a resource (broken, missing, out of spec), suggest concrete alternatives and/or a new mitigation step.
+3. If the failure was a step, break it into smaller steps covering where it got stuck.
+4. Prefer 2–4 new, highly specific nodes. 'direct' edges in a chain when there is order.
+5. Every new node should bring verifiable groundTruthHints — the user just burned time on something the AI claimed without an anchor.
 
-Use tempIds curtos e únicos (ex: "a", "b", "c").`;
+Use short unique tempIds (e.g. "a", "b", "c").`;
 
   const { object } = await generateObject({
     model: aiModel,
     schema: DecomposeResponseSchema,
     schemaName: 'ReplanResponse',
-    system: BASE_SYSTEM,
+    system: baseSystem(),
     prompt: userPrompt,
     temperature: 0.4,
   });
@@ -581,7 +590,7 @@ Use tempIds curtos e únicos (ex: "a", "b", "c").`;
   return { nodes, edges };
 }
 
-// Exportado para debug no console se necessário. Lê a config ativa em runtime.
+// Exported for console debugging. Reads the active config at runtime.
 export const __AI_META__ = {
   get model() {
     return currentModelIds()?.main ?? null;

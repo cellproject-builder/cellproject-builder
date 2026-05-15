@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Cellproject — Conceito, estado atual e direção</title>
+<title>Cellproject — Concept, current state, and direction</title>
 <style>
   :root {
     --bg-primary: #09090b;
@@ -32,281 +32,105 @@
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
-  code, .mono {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
   a { color: var(--ai-accent); text-decoration: none; border-bottom: 1px dotted rgba(167, 139, 250, 0.4); }
   a:hover { color: #c4b5fd; border-bottom-color: var(--ai-accent); }
 
-  /* Layout */
-  .shell {
-    display: grid;
-    grid-template-columns: 260px minmax(0, 1fr);
-    min-height: 100vh;
-  }
+  .shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 100vh; }
   nav.toc {
     border-right: 1px solid var(--border-base);
     background: var(--bg-secondary);
     padding: 24px 18px;
-    position: sticky;
-    top: 0;
-    max-height: 100vh;
-    overflow-y: auto;
+    position: sticky; top: 0;
+    max-height: 100vh; overflow-y: auto;
   }
   nav.toc h2 {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--ai-accent);
-    margin: 0 0 12px 0;
-    font-weight: 600;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--ai-accent); margin: 0 0 12px 0; font-weight: 600;
   }
-  nav.toc ol {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    counter-reset: section;
-  }
-  nav.toc li {
-    counter-increment: section;
-    margin-bottom: 2px;
-  }
+  nav.toc ol { list-style: none; padding: 0; margin: 0; counter-reset: section; }
+  nav.toc li { counter-increment: section; margin-bottom: 2px; }
   nav.toc li::before {
     content: counter(section, decimal-leading-zero) ".";
-    font-family: ui-monospace, monospace;
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-right: 8px;
+    font-family: ui-monospace, monospace; font-size: 11px;
+    color: var(--text-muted); margin-right: 8px;
   }
-  nav.toc a {
-    color: var(--text-secondary);
-    font-size: 13px;
-    border-bottom: none;
-    display: inline;
-  }
+  nav.toc a { color: var(--text-secondary); font-size: 13px; border-bottom: none; display: inline; }
   nav.toc a:hover { color: var(--text-primary); }
   nav.toc .group {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--text-muted);
-    margin-top: 22px;
-    margin-bottom: 8px;
-    font-weight: 600;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--text-muted); margin-top: 22px; margin-bottom: 8px; font-weight: 600;
   }
 
-  main {
-    padding: 48px 64px 96px;
-    max-width: 920px;
-  }
-  header.hero {
-    border-bottom: 1px solid var(--border-base);
-    padding-bottom: 32px;
-    margin-bottom: 40px;
-  }
+  main { padding: 48px 64px 96px; max-width: 920px; }
+  header.hero { border-bottom: 1px solid var(--border-base); padding-bottom: 32px; margin-bottom: 40px; }
   header.hero .tag {
-    font-family: ui-monospace, monospace;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    color: var(--ai-accent);
-    margin-bottom: 12px;
+    font-family: ui-monospace, monospace; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.2em; color: var(--ai-accent); margin-bottom: 12px;
   }
   header.hero h1 {
-    font-size: 40px;
-    line-height: 1.15;
-    margin: 0 0 16px 0;
-    color: var(--text-primary);
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-size: 40px; line-height: 1.15; margin: 0 0 16px 0;
+    color: var(--text-primary); font-weight: 700; letter-spacing: -0.02em;
   }
   header.hero p.lead {
-    font-size: 17px;
-    color: var(--text-secondary);
-    margin: 0 0 8px 0;
-    max-width: 64ch;
+    font-size: 17px; color: var(--text-secondary); margin: 0 0 8px 0; max-width: 64ch;
   }
   header.hero .meta {
-    margin-top: 18px;
-    font-family: ui-monospace, monospace;
-    font-size: 11px;
-    color: var(--text-muted);
-    display: flex;
-    gap: 18px;
-    flex-wrap: wrap;
+    margin-top: 18px; font-family: ui-monospace, monospace; font-size: 11px;
+    color: var(--text-muted); display: flex; gap: 18px; flex-wrap: wrap;
   }
   header.hero .meta span strong { color: var(--text-secondary); font-weight: 500; }
 
   section { margin-bottom: 56px; scroll-margin-top: 16px; }
   section > h2 {
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--ai-accent);
-    margin: 0 0 8px 0;
-    font-weight: 600;
-  }
-  section > h2 + h3 {
-    margin-top: 0;
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--ai-accent); margin: 0 0 8px 0; font-weight: 600;
   }
   h3 {
-    font-size: 24px;
-    line-height: 1.25;
-    margin: 0 0 18px 0;
-    color: var(--text-primary);
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-size: 24px; line-height: 1.25; margin: 0 0 18px 0;
+    color: var(--text-primary); font-weight: 600; letter-spacing: -0.01em;
   }
-  h4 {
-    font-size: 16px;
-    margin: 28px 0 10px 0;
-    color: var(--text-primary);
-    font-weight: 600;
-  }
+  h4 { font-size: 16px; margin: 28px 0 10px 0; color: var(--text-primary); font-weight: 600; }
   p { margin: 0 0 14px 0; }
 
   ul, ol { padding-left: 22px; margin: 0 0 14px 0; }
   ul li, ol li { margin-bottom: 6px; }
   ul li::marker { color: var(--text-muted); }
 
-  code {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-base);
-    border-radius: 3px;
-    padding: 1px 6px;
-    font-size: 12.5px;
-    color: var(--text-primary);
-  }
-  pre {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-base);
-    border-radius: 4px;
-    padding: 16px 18px;
-    overflow-x: auto;
-    font-size: 12.5px;
-    line-height: 1.55;
-    color: var(--text-secondary);
-    margin: 0 0 18px 0;
-  }
+  code { background: var(--bg-elevated); border: 1px solid var(--border-base); border-radius: 3px; padding: 1px 6px; font-size: 12.5px; color: var(--text-primary); }
+  pre { background: var(--bg-secondary); border: 1px solid var(--border-base); border-radius: 4px; padding: 16px 18px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; color: var(--text-secondary); margin: 0 0 18px 0; }
   pre code { background: none; border: none; padding: 0; color: inherit; }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 0 0 18px 0;
-    font-size: 13.5px;
-  }
-  th, td {
-    text-align: left;
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border-base);
-    vertical-align: top;
-  }
-  th {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--text-muted);
-    font-weight: 600;
-    border-bottom-color: var(--bg-elevated);
-  }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 18px 0; font-size: 13.5px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border-base); vertical-align: top; }
+  th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); font-weight: 600; border-bottom-color: var(--bg-elevated); }
   td code { font-size: 11.5px; }
 
-  .card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-base);
-    border-radius: 4px;
-    padding: 18px 20px;
-    margin: 0 0 16px 0;
-  }
-  .card-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 14px;
-    margin: 0 0 18px 0;
-  }
-  .card .kicker {
-    font-family: ui-monospace, monospace;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--ai-accent);
-    margin-bottom: 6px;
-  }
-  .card h4 {
-    margin: 0 0 8px 0;
-    font-size: 15px;
-  }
+  .card { background: var(--bg-secondary); border: 1px solid var(--border-base); border-radius: 4px; padding: 18px 20px; margin: 0 0 16px 0; }
+  .card-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 0 0 18px 0; }
+  .card .kicker { font-family: ui-monospace, monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--ai-accent); margin-bottom: 6px; }
+  .card h4 { margin: 0 0 8px 0; font-size: 15px; }
   .card p:last-child { margin-bottom: 0; }
 
-  .pill {
-    display: inline-block;
-    font-family: ui-monospace, monospace;
-    font-size: 10.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    padding: 2px 8px;
-    border-radius: 3px;
-    border: 1px solid var(--border-base);
-    color: var(--text-muted);
-    background: var(--bg-elevated);
-    margin-right: 4px;
-  }
+  .pill { display: inline-block; font-family: ui-monospace, monospace; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--border-base); color: var(--text-muted); background: var(--bg-elevated); margin-right: 4px; }
   .pill.ok { color: var(--state-done); border-color: rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.08); }
   .pill.wip { color: var(--conf-mid); border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.08); }
   .pill.plan { color: var(--ai-accent); border-color: rgba(167, 139, 250, 0.4); background: var(--ai-accent-dim); }
   .pill.risk { color: var(--state-problem); border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08); }
+  .pill.beta { color: var(--conf-mid); border-color: rgba(251, 191, 36, 0.5); background: rgba(251, 191, 36, 0.15); }
 
-  .quote {
-    border-left: 2px solid var(--ai-accent);
-    padding: 4px 16px;
-    background: var(--ai-accent-dim);
-    color: var(--text-primary);
-    margin: 0 0 18px 0;
-    font-size: 15px;
-  }
+  .quote { border-left: 2px solid var(--ai-accent); padding: 4px 16px; background: var(--ai-accent-dim); color: var(--text-primary); margin: 0 0 18px 0; font-size: 15px; }
 
-  .ascii-tree {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-base);
-    border-radius: 4px;
-    padding: 18px 22px;
-    font-family: ui-monospace, monospace;
-    font-size: 12.5px;
-    line-height: 1.65;
-    color: var(--text-secondary);
-    white-space: pre;
-    overflow-x: auto;
-    margin: 0 0 18px 0;
-  }
+  .ascii-tree { background: var(--bg-secondary); border: 1px solid var(--border-base); border-radius: 4px; padding: 18px 22px; font-family: ui-monospace, monospace; font-size: 12.5px; line-height: 1.65; color: var(--text-secondary); white-space: pre; overflow-x: auto; margin: 0 0 18px 0; }
 
   .status-list { list-style: none; padding: 0; margin: 0 0 18px 0; }
-  .status-list li {
-    display: grid;
-    grid-template-columns: 100px 1fr;
-    align-items: baseline;
-    gap: 12px;
-    padding: 6px 0;
-    border-bottom: 1px dashed var(--bg-elevated);
-  }
+  .status-list li { display: grid; grid-template-columns: 100px 1fr; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--bg-elevated); }
   .status-list li:last-child { border-bottom: none; }
 
-  hr.sep {
-    border: none;
-    border-top: 1px solid var(--bg-elevated);
-    margin: 28px 0;
-  }
+  hr.sep { border: none; border-top: 1px solid var(--bg-elevated); margin: 28px 0; }
 
-  footer {
-    border-top: 1px solid var(--border-base);
-    padding-top: 24px;
-    margin-top: 64px;
-    font-size: 12px;
-    color: var(--text-muted);
-    font-family: ui-monospace, monospace;
-  }
+  footer { border-top: 1px solid var(--border-base); padding-top: 24px; margin-top: 64px; font-size: 12px; color: var(--text-muted); font-family: ui-monospace, monospace; }
 
-  /* responsivo */
   @media (max-width: 900px) {
     .shell { grid-template-columns: 1fr; }
     nav.toc { position: static; max-height: none; border-right: none; border-bottom: 1px solid var(--border-base); }
@@ -320,572 +144,549 @@
 
 <nav class="toc">
   <h2>◆ Cellproject</h2>
-  <div class="group">Conceito</div>
+  <div class="group">Concept</div>
   <ol>
-    <li><a href="#pitch">Pitch e problema</a></li>
-    <li><a href="#principios">Princípios</a></li>
-    <li><a href="#modelo">Modelo mental</a></li>
-    <li><a href="#tipos">Taxonomia de nós</a></li>
-    <li><a href="#estado-no">Estado e arestas</a></li>
+    <li><a href="#pitch">Pitch and problem</a></li>
+    <li><a href="#principles">Principles</a></li>
+    <li><a href="#model">Mental model</a></li>
+    <li><a href="#kinds">Node taxonomy</a></li>
+    <li><a href="#edges">State and edges</a></li>
   </ol>
-  <div class="group">Funcionamento</div>
+  <div class="group">How it works</div>
   <ol start="6">
-    <li><a href="#fluxos">Fluxos principais</a></li>
-    <li><a href="#ground-truth">Ground truth (4 mecanismos)</a></li>
-    <li><a href="#arquitetura">Arquitetura atual</a></li>
-    <li><a href="#ai-service">Contrato com o modelo</a></li>
-    <li><a href="#kb">Repositório de conhecimento</a></li>
+    <li><a href="#flows">Main flows</a></li>
+    <li><a href="#ground-truth">Ground truth (4 mechanisms)</a></li>
+    <li><a href="#architecture">Current architecture</a></li>
+    <li><a href="#ai-service">Model contract</a></li>
+    <li><a href="#kb">Knowledge base</a></li>
+    <li><a href="#i18n">Localization (i18n)</a></li>
   </ol>
-  <div class="group">Estado atual</div>
-  <ol start="11">
-    <li><a href="#feito">O que funciona hoje</a></li>
-    <li><a href="#nao-feito">O que ainda não existe</a></li>
-    <li><a href="#riscos">Riscos abertos</a></li>
+  <div class="group">Status</div>
+  <ol start="12">
+    <li><a href="#done">What works today</a></li>
+    <li><a href="#todo">What's not there yet</a></li>
+    <li><a href="#risks">Open risks</a></li>
   </ol>
-  <div class="group">Direção</div>
-  <ol start="14">
-    <li><a href="#supabase">Backend Supabase</a></li>
-    <li><a href="#caminhos">Caminhos prováveis</a></li>
-    <li><a href="#possibilidades">Possibilidades futuras</a></li>
-    <li><a href="#decisoes">Decisões que ficam abertas</a></li>
+  <div class="group">Direction</div>
+  <ol start="15">
+    <li><a href="#paths">Likely next moves</a></li>
+    <li><a href="#possibilities">Future possibilities</a></li>
+    <li><a href="#decisions">Open decisions</a></li>
   </ol>
 </nav>
 
 <main>
 
 <header class="hero">
-  <div class="tag">◆ Cellproject · panorama vivo</div>
-  <h1>Planejar e aprender, na mesma árvore.</h1>
+  <div class="tag">◆ Cellproject · living overview</div>
+  <h1>Planning and learning, on the same tree.</h1>
   <p class="lead">
-    Cellproject é um framework visual de planejamento por decomposição.
-    O usuário declara um objetivo concreto, a IA propõe caminhos completos em forma de árvore,
-    e o usuário valida nó a nó até realizar — usando o próprio plano como material didático.
+    Cellproject is a visual planning framework based on decomposition.
+    The user declares a concrete goal, the AI proposes complete paths shaped as a tree,
+    and the user validates node by node until it ships — using the plan itself as didactic material.
   </p>
   <div class="meta">
-    <span><strong>Versão atual:</strong> 0.1.0</span>
+    <span><span class="pill beta">Beta</span></span>
+    <span><strong>Current version:</strong> 0.1.0</span>
     <span><strong>Stack:</strong> Vite + React 18 + TypeScript</span>
-    <span><strong>Branch ativo:</strong> feat/supabase-db-backend-architecture</span>
-    <span><strong>Persistência local:</strong> Zustand + IndexedDB</span>
+    <span><strong>Persistence:</strong> Zustand + IndexedDB</span>
+    <span><strong>UI:</strong> bilingual (en / pt-BR)</span>
   </div>
 </header>
 
-<!-- ============================================================ -->
 <section id="pitch">
-<h2>01 · Pitch e problema</h2>
-<h3>O que Cellproject resolve</h3>
-<p>Planejar algo novo (construir, montar, aprender) trava em dois pontos clássicos:</p>
+<h2>01 · Pitch and problem</h2>
+<h3>What Cellproject solves</h3>
+<p>Planning something new (building, assembling, learning) stalls at two classic points:</p>
 <ol>
-  <li><strong>Paralisia inicial</strong> — não sei por onde começar, não sei o que existe, não sei o que vem antes do quê.</li>
-  <li><strong>Perda de contexto durante a execução</strong> — o plano vira lista opaca, cada item vira tarefa cega, a razão de cada passo se perde.</li>
+  <li><strong>Cold-start paralysis</strong> — I don't know where to start, what exists, or what comes before what.</li>
+  <li><strong>Context loss during execution</strong> — the plan becomes an opaque list, each item becomes a blind task, the rationale for each step disappears.</li>
 </ol>
 <p>
-  To-do lists, kanbans e mapas mentais livres resolvem só metade do problema: ou estruturam mal, ou estruturam sem ensinar.
-  Cellproject assume que <em>planejar</em> e <em>aprender</em> são a mesma atividade — a árvore que guia a execução é também o material didático.
+  To-do lists, kanbans, and free-form mind maps only solve half the problem: they either structure poorly or structure without teaching.
+  Cellproject assumes that <em>planning</em> and <em>learning</em> are the same activity — the tree that guides execution is also the didactic material.
 </p>
 <div class="quote">
-  Nada começa sem um <code>f(X) = ?</code> escrito. O objetivo é a raiz; tudo abaixo só existe pra contribuir com ele.
+  Nothing starts without a written <code>f(X) = ?</code>. The goal is the root; everything below only exists to contribute to it.
 </div>
 </section>
 
-<!-- ============================================================ -->
-<section id="principios">
-<h2>02 · Princípios</h2>
-<h3>O que mantém o framework coerente</h3>
+<section id="principles">
+<h2>02 · Principles</h2>
+<h3>What keeps the framework coherent</h3>
 <div class="card-row">
   <div class="card">
-    <div class="kicker">◆ Objetivo primeiro</div>
-    <h4>Sempre uma raiz</h4>
-    <p>Não existe nó solto. Toda decomposição puxa um <code>f(X)</code> declarado pelo usuário no topo.</p>
+    <div class="kicker">◆ Goal first</div>
+    <h4>Always a root</h4>
+    <p>No floating node. Every decomposition pulls a <code>f(X)</code> declared by the user at the top.</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Decomposição tipada</div>
-    <h4>5 papéis fixos</h4>
-    <p>Cada nó é <code>recurso</code>, <code>passo</code>, <code>decisao</code>, <code>categoria</code> ou <code>concept</code>. O tipo determina como a IA o decompõe.</p>
+    <div class="kicker">◆ Typed decomposition</div>
+    <h4>5 fixed roles</h4>
+    <p>Every node is <code>recurso</code>, <code>passo</code>, <code>decisao</code>, <code>categoria</code>, or <code>concept</code>. The kind drives how the AI decomposes it.</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Validável isoladamente</div>
-    <h4>oQue / porQue / como confirmar</h4>
-    <p>Se o usuário consegue confirmar pelo critério, avança. Se não, decompõe mais.</p>
+    <div class="kicker">◆ Validatable in isolation</div>
+    <h4>oQue / porQue / how to confirm</h4>
+    <p>If the user can confirm via the criterion, they advance. If not, they decompose further.</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ IA é co-autora</div>
-    <h4>Aceite por nó</h4>
-    <p>A IA propõe planos e sub-árvores em streaming. Sugestões ficam em <em>staging</em> até confirmação humana.</p>
+    <div class="kicker">◆ AI is co-author</div>
+    <h4>Per-node acceptance</h4>
+    <p>The AI proposes plans and sub-trees via streaming. Suggestions sit in <em>staging</em> until a human confirms.</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Loop nunca fechado em IA</div>
-    <h4>Toda validação precisa de âncora externa</h4>
-    <p>Critério gerado pela mesma IA que gerou o plano é teatro. Existem 4 mecanismos pra forçar ground truth — ver seção 07.</p>
+    <div class="kicker">◆ Loop never closes inside AI</div>
+    <h4>Every validation needs an external anchor</h4>
+    <p>A criterion generated by the same AI that wrote the plan is theater. Four mechanisms exist to force ground truth — see section 07.</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Tom direto, pt-BR</div>
-    <h4>“2 varetas de 40cm”, não “alguns materiais”</h4>
-    <p>Específico vence genérico. Sem rodeio, sem marketing. Vale tanto pra UI quanto pro prompt do modelo.</p>
+    <div class="kicker">◆ Direct tone, bilingual</div>
+    <h4>"2 sticks 40cm", not "some materials"</h4>
+    <p>Specific beats generic. Applies to UI and to the model's system prompts. UI is available in English and Brazilian Portuguese.</p>
   </div>
 </div>
 </section>
 
-<!-- ============================================================ -->
-<section id="modelo">
-<h2>03 · Modelo mental</h2>
-<h3>Um projeto é uma árvore com metadados</h3>
-<p>A forma canônica é esta:</p>
-<div class="ascii-tree">Projeto (objetivo)
+<section id="model">
+<h2>03 · Mental model</h2>
+<h3>A project is a tree with metadata</h3>
+<p>The canonical shape is this:</p>
+<div class="ascii-tree">Project (goal)
 └── root (f(X) = ?)
-    ├── categoria: Recursos
-    │   ├── recurso A
-    │   └── recurso B
-    ├── categoria: Execução
-    │   ├── passo 1
-    │   ├── passo 2
-    │   └── passo 3
-    └── categoria: Decisões            (opcional, só se houver tradeoff real)
-        └── decisão X (opção A | B | C)</div>
+    ├── category: Resources
+    │   ├── resource A
+    │   └── resource B
+    ├── category: Execution
+    │   ├── step 1
+    │   ├── step 2
+    │   └── step 3
+    └── category: Decisions            (optional, only when there is a real trade-off)
+        └── decision X (option A | B | C)</div>
 <p>
-  Cada nó carrega <strong>conceito</strong>, <strong>didática</strong>, <strong>ground truth</strong>, <strong>execução</strong>, <strong>auditoria</strong>.
-  Todos os campos vivem em <code>ConceptNodeData</code> (<code>src/types.ts</code>) e são alimentados ou pela IA, ou pelo usuário, ou por ambos com travamento claro.
+  Each node carries <strong>concept</strong>, <strong>didactic</strong>, <strong>ground truth</strong>, <strong>execution</strong>, and <strong>audit</strong> data.
+  All fields live in <code>ConceptNodeData</code> (<code>src/types.ts</code>) and are populated either by the AI, by the user, or by both with clear locking semantics.
+</p>
+<p>
+  <em>Naming note:</em> some field names are still in Portuguese (<code>oQue</code>, <code>porQue</code>, <code>comoConfirmar</code>, <code>confirmado</code>, <code>recurso</code>, <code>passo</code>, <code>decisao</code>, <code>categoria</code>). They predate the bilingual UI and remain as domain identifiers — renaming them would force a data migration.
 </p>
 </section>
 
-<!-- ============================================================ -->
-<section id="tipos">
-<h2>04 · Taxonomia de nós</h2>
-<h3>NodeKind — 6 papéis</h3>
+<section id="kinds">
+<h2>04 · Node taxonomy</h2>
+<h3>NodeKind — 6 roles</h3>
 <table>
-  <thead>
-    <tr><th>kind</th><th>Papel</th><th>Decomposto pela IA como…</th></tr>
-  </thead>
+  <thead><tr><th>kind</th><th>Role</th><th>AI decomposition</th></tr></thead>
   <tbody>
-    <tr><td><code>root</code></td><td>O objetivo em si.</td><td>Não decompõe — é a raiz.</td></tr>
-    <tr><td><code>categoria</code></td><td>Agrupador (Recursos / Execução / Decisões).</td><td>3–8 filhos do tipo natural da categoria.</td></tr>
-    <tr><td><code>recurso</code></td><td>Algo disponível antes da execução.</td><td>2–4 sub-recursos ou etapas de aquisição.</td></tr>
-    <tr><td><code>passo</code></td><td>Ação concreta, ordenada (<code>order</code>).</td><td>2–5 sub-passos em cadeia com arestas <code>direct</code>.</td></tr>
-    <tr><td><code>decisao</code></td><td>Escolha entre caminhos mutuamente exclusivos.</td><td>2–4 nós que detalham o pós-decisão.</td></tr>
-    <tr><td><code>concept</code></td><td>Nó auxiliar — usar só quando os outros não cabem.</td><td>2–5 filhos do tipo mais adequado.</td></tr>
+    <tr><td><code>root</code></td><td>The goal itself.</td><td>Not decomposed — it is the root.</td></tr>
+    <tr><td><code>categoria</code></td><td>Container (Resources / Execution / Decisions).</td><td>3–8 children of the natural kind for the category.</td></tr>
+    <tr><td><code>recurso</code></td><td>Something available before execution.</td><td>2–4 sub-resources or acquisition stages.</td></tr>
+    <tr><td><code>passo</code></td><td>Concrete action, ordered (<code>order</code>).</td><td>2–5 sub-steps chained with <code>direct</code> edges.</td></tr>
+    <tr><td><code>decisao</code></td><td>Choice between mutually exclusive paths.</td><td>2–4 nodes detailing the post-decision path.</td></tr>
+    <tr><td><code>concept</code></td><td>Auxiliary node — use only when others don't fit.</td><td>2–5 children of the most adequate kind.</td></tr>
   </tbody>
 </table>
 </section>
 
-<!-- ============================================================ -->
-<section id="estado-no">
-<h2>05 · Estado e arestas</h2>
-<h3>NodeState e EdgeKind</h3>
-<p><strong>Ciclo de vida:</strong> <code>concept</code> → <code>validated</code> → <code>executing</code> → <code>done</code>. Em qualquer momento pode virar <code>problem</code> ou <code>discarded</code>. O booleano <code>confirmado</code> é ortogonal e marca se o usuário passou pelo <code>comoConfirmar</code>.</p>
+<section id="edges">
+<h2>05 · State and edges</h2>
+<h3>NodeState and EdgeKind</h3>
+<p><strong>Lifecycle:</strong> <code>concept</code> → <code>validated</code> → <code>executing</code> → <code>done</code>. At any moment it can become <code>problem</code> or <code>discarded</code>. The boolean <code>confirmado</code> is orthogonal and marks whether the user has cleared the <code>comoConfirmar</code> check.</p>
 <table>
-  <thead>
-    <tr><th>EdgeKind</th><th>Significado</th></tr>
-  </thead>
+  <thead><tr><th>EdgeKind</th><th>Meaning</th></tr></thead>
   <tbody>
-    <tr><td><code>direct</code></td><td>A precede B diretamente (passo N → passo N+1).</td></tr>
-    <tr><td><code>middleware</code></td><td>A influencia B via um nó intermediário.</td></tr>
-    <tr><td><code>independent</code></td><td>Ligação informativa, sem dependência.</td></tr>
-    <tr><td><code>optional</code></td><td>Caminho alternativo.</td></tr>
+    <tr><td><code>direct</code></td><td>A directly precedes B (step N → step N+1).</td></tr>
+    <tr><td><code>middleware</code></td><td>A influences B through an intermediary node.</td></tr>
+    <tr><td><code>independent</code></td><td>Informational link, no dependency.</td></tr>
+    <tr><td><code>optional</code></td><td>Alternative path.</td></tr>
   </tbody>
 </table>
 <p>
-  No grafo (<code>GraphCanvas</code>) cada <code>EdgeKind</code> tem cor e dasharray próprios:
-  <code>direct</code> verde animado, <code>middleware</code> âmbar tracejado, <code>independent</code> índigo pontilhado, <code>optional</code> cinza-claro.
+  In the graph (<code>GraphCanvas</code>) each <code>EdgeKind</code> has its own color and dasharray:
+  <code>direct</code> animated green, <code>middleware</code> dashed amber, <code>independent</code> dotted indigo, <code>optional</code> light gray.
 </p>
 </section>
 
-<!-- ============================================================ -->
-<section id="fluxos">
-<h2>06 · Fluxos principais</h2>
-<h3>Três jornadas, um projeto</h3>
+<section id="flows">
+<h2>06 · Main flows</h2>
+<h3>Three journeys, one project</h3>
 
-<h4>1. Criação — <code>ObjectiveScreen</code></h4>
+<h4>1. Creation — <code>ObjectiveScreen</code></h4>
 <ol>
-  <li>Usuário escreve nome e <code>f(X)</code> (objetivo).</li>
-  <li><code>generatePlans(objective)</code> pede 1–3 planos do mais simples ao mais ambicioso, com streaming via <code>streamObject</code>.</li>
-  <li>A tela mostra o plano se montando ao vivo (<code>connecting → streaming → finalizing → done</code>).</li>
-  <li>Usuário escolhe um plano → <code>createProjectFromPlan</code> materializa a árvore no Zustand.</li>
+  <li>User types a name and the <code>f(X)</code> (goal).</li>
+  <li><code>generatePlans(objective)</code> requests 1–3 plans from simplest to most ambitious, via streaming <code>streamObject</code>.</li>
+  <li>The screen shows the plan assembling live (<code>connecting → streaming → finalizing → done</code>).</li>
+  <li>User picks a plan → <code>createProjectFromPlan</code> materializes the tree in Zustand.</li>
 </ol>
 
-<h4>2. Exploração e expansão — <code>GraphCanvas</code> + <code>DetailPanel</code></h4>
+<h4>2. Exploration and expansion — <code>GraphCanvas</code> + <code>DetailPanel</code></h4>
 <ol>
-  <li>Grafo em React Flow com 5 lentes (teclas 1–5): <code>structure</code>, <code>flow</code>, <code>risk</code>, <code>state</code>, <code>connections</code>.</li>
-  <li>Clique num nó → <code>DetailPanel</code> abre com metadados, notas, histórico.</li>
-  <li>Botão “Detalhar com AI” → <code>decomposeNode(ctx)</code> gera filhos + arestas conforme o tipo.</li>
-  <li>Sugestões caem em <strong>staging</strong> (<code>pendingSuggestions</code>). Cada uma vira um nó tracejado no grafo com botões aceitar / rejeitar.</li>
+  <li>Graph in React Flow with 5 lenses (keys 1–5): <code>structure</code>, <code>flow</code>, <code>risk</code>, <code>state</code>, <code>connections</code>.</li>
+  <li>Click a node → <code>DetailPanel</code> opens with metadata, notes, history.</li>
+  <li>"Detail with AI" button → <code>decomposeNode(ctx)</code> generates children + edges based on the kind.</li>
+  <li>Suggestions fall into <strong>staging</strong> (<code>pendingSuggestions</code>). Each becomes a dashed node in the graph with accept / reject buttons.</li>
 </ol>
 
-<h4>3. Execução guiada — <code>TutorMode</code></h4>
+<h4>3. Guided execution — <code>TutorMode</code></h4>
 <ol>
-  <li>Tecla <code>t</code> entra no modo tutor; <code>g</code> volta ao grafo.</li>
-  <li><code>nextPendingForTutor()</code> seleciona o próximo nó: primeiro recursos não confirmados, depois passos respeitando <code>order</code> dentro da categoria de Execução.</li>
-  <li><code>explainNode(ctx)</code> gera, sob demanda, uma explicação longa em markdown (estrutura com títulos em <strong>NEGRITO MAIÚSCULO</strong>).</li>
-  <li>Usuário confirma → <code>confirmNode(id)</code> avança para o próximo.</li>
+  <li>Key <code>t</code> enters tutor mode; <code>g</code> returns to graph.</li>
+  <li><code>nextPendingForTutor()</code> picks the next node: unconfirmed resources first, then steps respecting <code>order</code> within each Execution category.</li>
+  <li><code>explainNode(ctx)</code> generates, on demand, a long markdown explanation (structured with <strong>UPPERCASE BOLD</strong> headings).</li>
+  <li>User confirms → <code>confirmNode(id)</code> advances to the next.</li>
 </ol>
 
-<h4>4. Decisões</h4>
+<h4>4. Decisions</h4>
 <p>
-  Quando um nó é <code>decisao</code>, o usuário escolhe uma das <code>decisionOptions</code>. A escolha vira histórico (<code>kind: 'decision'</code>) e define <code>decisionPickedId</code>, que pode condicionar próximos passos.
+  When a node is <code>decisao</code>, the user picks one of <code>decisionOptions</code>. The pick becomes history (<code>kind: 'decision'</code>) and sets <code>decisionPickedId</code>, which can condition the next steps.
 </p>
 </section>
 
-<!-- ============================================================ -->
 <section id="ground-truth">
 <h2>07 · Ground truth</h2>
-<h3>Os 4 mecanismos que rompem o loop IA→IA</h3>
+<h3>The 4 mechanisms that break the AI→AI loop</h3>
 <div class="quote">
-  O maior risco conceitual do Cellproject é a mesma IA gerar o plano <em>e</em> o critério de confirmação, o usuário confirmar, e nenhum sinal da realidade entrar. Quatro mecanismos ortogonais garantem que cada nó possa ser ancorado fora da IA.
+  The biggest conceptual risk in Cellproject is the same AI generating the plan <em>and</em> the confirmation criterion, the user confirming, and no signal from reality entering. Four orthogonal mechanisms ensure that every node can be anchored outside the AI.
 </div>
 
 <table>
-  <thead>
-    <tr><th>Mecanismo</th><th>Quem inicia</th><th>Quando roda</th><th>Quebra o loop porque…</th></tr>
-  </thead>
+  <thead><tr><th>Mechanism</th><th>Who starts</th><th>When</th><th>Why it breaks the loop</th></tr></thead>
   <tbody>
     <tr>
-      <td><strong>(a)</strong> Critério do usuário</td>
-      <td>Usuário</td>
-      <td>Antes de ver o da IA</td>
-      <td>A pessoa não valida — ela <em>afirma</em>. Campo <code>comoConfirmarUsuario</code> trava após <code>setUserCriterion</code>.</td>
+      <td><strong>(a)</strong> User criterion</td>
+      <td>User</td>
+      <td>Before seeing the AI's</td>
+      <td>The person doesn't just validate — they <em>assert</em>. Field <code>comoConfirmarUsuario</code> locks after <code>setUserCriterion</code>.</td>
     </tr>
     <tr>
-      <td><strong>(b)</strong> Crítica adversarial</td>
-      <td>Usuário → IA</td>
-      <td>Sob demanda, por nó</td>
-      <td>Persona <code>CRITIC_SYSTEM</code> distinta do <code>BASE_SYSTEM</code> gera um <code>criterioAlternativo</code> independente.</td>
+      <td><strong>(b)</strong> Adversarial critique</td>
+      <td>User → AI</td>
+      <td>On demand, per node</td>
+      <td>A <code>criticSystem()</code> persona, distinct from <code>baseSystem()</code>, generates an independent <code>criterioAlternativo</code>.</td>
     </tr>
     <tr>
-      <td><strong>(c)</strong> Replan por falha</td>
-      <td>Usuário → IA</td>
-      <td>Quando a realidade recusa</td>
-      <td><code>reportFailure(id, contexto)</code> alimenta <code>replanFromFailure</code> com o que o mundo provou errado.</td>
+      <td><strong>(c)</strong> Replan from failure</td>
+      <td>User → AI</td>
+      <td>When reality refuses</td>
+      <td><code>reportFailure(id, context)</code> feeds <code>replanFromFailure</code> with what the world proved wrong.</td>
     </tr>
     <tr>
-      <td><strong>(d)</strong> Âncoras verificáveis</td>
-      <td>IA + Usuário</td>
-      <td>No plano, continuamente</td>
-      <td><code>groundTruthRefs</code> (<code>link</code>/<code>spec</code>/<code>medida</code>). Cada <code>verificado: true</code> é 1 bit de realidade entrando.</td>
+      <td><strong>(d)</strong> Verifiable anchors</td>
+      <td>AI + User</td>
+      <td>In the plan, continuously</td>
+      <td><code>groundTruthRefs</code> (<code>link</code> / <code>spec</code> / <code>medida</code>). Each <code>verificado: true</code> is one bit of reality entering.</td>
     </tr>
   </tbody>
 </table>
 
-<h4>Detalhe importante de (a)</h4>
+<h4>Important detail of (a)</h4>
 <p>
-  <code>setUserCriterion</code> em <code>store.ts</code> recusa sobrescrita quando <code>comoConfirmarUsuarioAt</code> já existe.
-  E o <code>UserCriterionField</code> esconde o <code>comoConfirmar</code> da IA até o usuário travar o seu — impedindo cópia retroativa.
+  <code>setUserCriterion</code> in <code>store.ts</code> refuses overwrite once <code>comoConfirmarUsuarioAt</code> is set.
+  And <code>UserCriterionField</code> hides the AI's <code>comoConfirmar</code> until the user locks theirs — preventing retroactive copy.
 </p>
-<h4>Detalhe importante de (d)</h4>
+<h4>Important detail of (d)</h4>
 <p>
-  A IA já sugere âncoras via <code>groundTruthHints</code>. Mas elas entram com <code>verificado: false</code> e <code>addedByAI: true</code>.
-  Só viram verdade depois que o usuário confere no mundo e chama <code>toggleGroundTruthVerified</code>.
+  The AI already suggests anchors via <code>groundTruthHints</code>. But they enter with <code>verificado: false</code> and <code>addedByAI: true</code>.
+  They become truth only after the user checks in the world and calls <code>toggleGroundTruthVerified</code>.
 </p>
 </section>
 
-<!-- ============================================================ -->
-<section id="arquitetura">
-<h2>08 · Arquitetura atual</h2>
-<h3>Stack hoje (branch principal main vs. branch ativo)</h3>
+<section id="architecture">
+<h2>08 · Current architecture</h2>
+<h3>Stack today</h3>
 
 <div class="card-row">
   <div class="card">
     <div class="kicker">Frontend</div>
     <h4>Vite + React 18 + TS</h4>
-    <p>SPA pura, sem SSR. Tailwind 3 com paleta própria (<code>bg-primary</code>, <code>ai-accent</code>, <code>conf-high</code>…).</p>
+    <p>Pure SPA, no SSR. Tailwind 3 with a custom palette (<code>bg-primary</code>, <code>ai-accent</code>, <code>conf-high</code>…).</p>
   </div>
   <div class="card">
-    <div class="kicker">Grafo</div>
+    <div class="kicker">Graph</div>
     <h4>@xyflow/react 12</h4>
-    <p>Layout próprio em <code>layoutFromPlan</code>; 5 lentes recomputam posições em <code>lensPositions</code>.</p>
+    <p>Custom layout in <code>layoutFromPlan</code>; 5 lenses recompute positions in <code>lensPositions</code>.</p>
   </div>
   <div class="card">
-    <div class="kicker">Estado</div>
+    <div class="kicker">State</div>
     <h4>Zustand + IndexedDB</h4>
-    <p><code>persist</code> + <code>idb-keyval</code>. Migração com <code>version: 3</code> (ground-truth fields).</p>
+    <p><code>persist</code> + <code>idb-keyval</code>. Migration with versioned store keys.</p>
   </div>
   <div class="card">
-    <div class="kicker">IA</div>
-    <h4>Vercel AI SDK + OpenRouter</h4>
-    <p>Modelo principal <code>z-ai/glm-5</code>; modelo do KB <code>google/gemini-2.0-flash-001</code> (mais barato).</p>
+    <div class="kicker">AI</div>
+    <h4>Multi-provider BYOK</h4>
+    <p>Vercel AI SDK + <code>@ai-sdk/openai</code> · <code>@ai-sdk/anthropic</code> · <code>@openrouter/ai-sdk-provider</code>. User chooses provider and pastes a key — it lives in IndexedDB.</p>
   </div>
   <div class="card">
-    <div class="kicker">Validação</div>
+    <div class="kicker">Validation</div>
     <h4>Zod schemas</h4>
-    <p><code>PlansResponseSchema</code>, <code>DecomposeResponseSchema</code>, <code>CritiqueResponseSchema</code>. Modelo nunca recebe ids reais — usa <code>tempId</code>s mapeados via <code>idMap</code>.</p>
+    <p><code>PlansResponseSchema</code>, <code>DecomposeResponseSchema</code>, <code>CritiqueResponseSchema</code>. The model never receives real ids — uses <code>tempId</code>s mapped via <code>idMap</code>.</p>
   </div>
   <div class="card">
-    <div class="kicker">PDF local</div>
-    <h4>pdfjs-dist no browser</h4>
-    <p><code>extractPdfText</code> roda 100% no cliente. O binário não sai do dispositivo; só o texto extraído é enviado pra IA.</p>
+    <div class="kicker">Local PDF</div>
+    <h4>pdfjs-dist in browser</h4>
+    <p><code>extractPdfText</code> runs 100% on the client. The binary never leaves the device; only the extracted text is sent for summarization.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">i18n</div>
+    <h4>Handcrafted en / pt-BR</h4>
+    <p>Single <code>messages.ts</code> with both bundles, switched via locale store. System prompts include "respond in {language}" so model output follows the UI locale.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">Deploy</div>
+    <h4>Railway-ready</h4>
+    <p><code>railway.json</code> + <code>nixpacks.toml</code> serve <code>dist/</code> via <code>serve -s</code> on Node 22. No mandatory env vars — BYOK lives client-side.</p>
   </div>
 </div>
 
-<h4>Estrutura de pastas (src/)</h4>
+<h4>Folder layout (src/)</h4>
 <pre><code>src/
-├── App.tsx                  // top-level: ObjectiveScreen | Tutor | Graph
+├── App.tsx                  // ApiKeyGate → ObjectiveScreen → Tutor|Graph
 ├── main.tsx
 ├── store.ts                 // Zustand store + selectors + idb persist
 ├── types.ts                 // ConceptNodeData, Project, AIPlan, …
+├── config/
+│   └── store.ts             // BYOK config (provider, key, models) in IDB
+├── i18n/
+│   ├── store.ts             // Locale store
+│   ├── messages.ts          // en + pt-BR bundles
+│   └── index.ts             // useT hook
 ├── ai/
-│   ├── client.ts            // OpenRouter providers (aiModel + kbModel)
-│   ├── schemas.ts           // Zod schemas para resposta do modelo
-│   └── service.ts           // 5 funções: generatePlans / decomposeNode /
-│                            // explainNode / critiqueNode / replanFromFailure
+│   ├── client.ts            // Multi-provider via Proxy lazy
+│   ├── schemas.ts           // Zod schemas
+│   └── service.ts           // generatePlans / decomposeNode / explainNode /
+│                            // critiqueNode / replanFromFailure
 ├── kb/
 │   ├── types.ts             // KBDocument, KBSummary, KBFato, KBContextEntry
 │   ├── schemas.ts           // KBSummarySchema, RelevancePickSchema
 │   ├── extract.ts           // pdf.js extraction + fingerprint djb2
-│   ├── service.ts           // summarizeDocument + pickRelevantDocs (AI-judge)
-│   └── store.ts             // KB store (PDFs + cache de picks por contexto)
+│   ├── service.ts           // summarizeDocument + pickRelevantDocs (AI judge)
+│   └── store.ts             // KB store (PDFs + per-context pick cache)
 ├── components/
-│   ├── ObjectiveScreen.tsx  // tela inicial, streaming de planos
-│   ├── TopBar.tsx           // breadcrumb + lentes + view mode + KB
-│   ├── StatusBar.tsx        // métricas: % done, nós, edges, confiança
+│   ├── ApiKeyGate.tsx       // BYOK setup, locale selector
+│   ├── ObjectiveScreen.tsx  // initial screen, plan streaming
+│   ├── TopBar.tsx           // breadcrumb + lenses + view mode + settings + KB
+│   ├── StatusBar.tsx        // metrics
 │   ├── GraphCanvas.tsx      // React Flow + lensPositions
-│   ├── ConceptNode.tsx      // 3 níveis de zoom (far/mid/near) + suggestion preview
-│   ├── DetailPanel.tsx      // edição lateral do nó selecionado
-│   ├── TutorMode.tsx        // execução guiada, próximo nó
-│   ├── GroundTruth.tsx      // 4 mecanismos (a–d) renderizados
-│   └── KnowledgeRepo.tsx    // modal de upload + listagem de PDFs
+│   ├── ConceptNode.tsx      // 3 zoom levels + suggestion preview
+│   ├── DetailPanel.tsx      // side panel for the selected node
+│   ├── TutorMode.tsx        // guided execution
+│   ├── GroundTruth.tsx      // 4 mechanisms (a–d)
+│   ├── KnowledgeRepo.tsx    // PDF upload + listing modal
+│   └── MobileSheet.tsx      // bottom sheet for mobile views
+├── hooks/
+│   └── useMediaQuery.ts     // mobile detection
 └── test/
-    └── setup.ts             // fake-indexeddb pro vitest</code></pre>
+    └── setup.ts             // fake-indexeddb for vitest</code></pre>
 </section>
 
-<!-- ============================================================ -->
 <section id="ai-service">
-<h2>09 · Contrato com o modelo</h2>
-<h3>Cinco funções em <code>src/ai/service.ts</code></h3>
+<h2>09 · Model contract</h2>
+<h3>Five functions in <code>src/ai/service.ts</code></h3>
 <table>
-  <thead>
-    <tr><th>Função</th><th>System</th><th>Retorno</th><th>Uso</th></tr>
-  </thead>
+  <thead><tr><th>Function</th><th>System</th><th>Return</th><th>Use</th></tr></thead>
   <tbody>
-    <tr><td><code>generatePlans</code></td><td>BASE</td><td><code>AIPlan[]</code> via streaming</td><td>Tela inicial — 1 a 3 planos</td></tr>
-    <tr><td><code>decomposeNode</code></td><td>BASE</td><td><code>{ nodes, edges }</code> validados</td><td>Expandir um nó</td></tr>
-    <tr><td><code>explainNode</code></td><td>BASE + tutor</td><td>markdown string</td><td>Conteúdo do tutor</td></tr>
+    <tr><td><code>generatePlans</code></td><td>BASE</td><td><code>AIPlan[]</code> via streaming</td><td>Initial screen — 1 to 3 plans</td></tr>
+    <tr><td><code>decomposeNode</code></td><td>BASE</td><td><code>{ nodes, edges }</code> validated</td><td>Expand a node</td></tr>
+    <tr><td><code>explainNode</code></td><td>BASE + tutor</td><td>markdown string</td><td>Tutor content</td></tr>
     <tr><td><code>critiqueNode</code></td><td><strong>CRITIC</strong></td><td><code>AdversarialCritique</code></td><td>Ground truth (b)</td></tr>
-    <tr><td><code>replanFromFailure</code></td><td>BASE</td><td><code>{ nodes, edges }</code> validados</td><td>Ground truth (c)</td></tr>
+    <tr><td><code>replanFromFailure</code></td><td>BASE</td><td><code>{ nodes, edges }</code> validated</td><td>Ground truth (c)</td></tr>
   </tbody>
 </table>
 <p>
-  Todas em pt-BR, tom direto. O <code>CRITIC_SYSTEM</code> é deliberadamente cético — “nada de ‘é um ótimo ponto, mas’”.
-  O modelo <strong>nunca</strong> vê ids reais do projeto: usa <code>tempId</code>s curtos mapeados a <code>nanoid</code>s na hidratação.
+  All in the user's active language (driven by "respond in {language}" in the system prompt).
+  <code>criticSystem()</code> is deliberately skeptical — "no 'great point, but'".
+  The model <strong>never</strong> sees real project ids: it uses short <code>tempId</code>s mapped to <code>nanoid</code>s during hydration.
 </p>
 </section>
 
-<!-- ============================================================ -->
 <section id="kb">
-<h2>10 · Repositório de conhecimento</h2>
-<h3>PDFs do usuário viram contexto barato pro planejador</h3>
-<p>
-  O KB é o vetor mais novo de poder do framework e ainda subutilizado. Funciona em 3 etapas:
-</p>
+<h2>10 · Knowledge base</h2>
+<h3>User PDFs become cheap context for the planner</h3>
+<p>The KB is the framework's newest leverage point. It works in 3 stages:</p>
 <ol>
-  <li><strong>Upload</strong> — <code>KnowledgeRepo</code> recebe PDFs. <code>extractPdfText</code> roda via pdf.js no browser; <code>fingerprintText</code> (djb2) deduplica.</li>
-  <li><strong>Resumo</strong> — <code>summarizeDocument</code> chama o <code>kbModel</code> barato (Gemini Flash) e devolve <code>KBSummary</code>: <code>titulo</code>, <code>dominio</code>, <code>tags</code>, <code>resumo</code> (3–6 bullets), <code>fatos</code> (medidas/specs/regras/links verificáveis), <code>nivel</code>.</li>
-  <li><strong>Pick</strong> — antes de qualquer prompt grande, <code>getContextFor({ label, extra })</code> chama <code>pickRelevantDocs</code> (AI-judge rigoroso, máximo 2 docs). O resultado é cacheado por hash do contexto em <code>pickCache</code>.</li>
+  <li><strong>Upload</strong> — <code>KnowledgeRepo</code> receives PDFs. <code>extractPdfText</code> runs via pdf.js in the browser; <code>fingerprintText</code> (djb2) deduplicates.</li>
+  <li><strong>Summarize</strong> — <code>summarizeDocument</code> calls the cheaper <code>kbModel</code> and returns <code>KBSummary</code>: <code>titulo</code>, <code>dominio</code>, <code>tags</code>, <code>resumo</code> (3–6 bullets), <code>fatos</code> (verifiable measurements / specs / rules / links), <code>nivel</code>.</li>
+  <li><strong>Pick</strong> — before any large prompt, <code>getContextFor({ label, extra })</code> calls <code>pickRelevantDocs</code> (strict AI judge, up to 2 docs). The result is cached by context hash in <code>pickCache</code>.</li>
 </ol>
 <p>
-  Cada doc injetado no prompt pesa ~400–800 tokens — bullets de resumo + até 5 fatos. <code>formatKBContext</code> em <code>ai/service.ts</code> monta o bloco <strong>CONHECIMENTO DE BASE</strong> no início do user prompt e instrui o modelo a citar <code>[docId]</code>.
+  Each injected doc weighs ~400–800 tokens — summary bullets + up to 5 facts. <code>formatKBContext</code> in <code>ai/service.ts</code> assembles the <strong>KNOWLEDGE BASE</strong> block at the start of the user prompt and instructs the model to cite <code>[docId]</code>.
 </p>
 <p>
-  Onde o KB já é usado: <code>generatePlans</code>, <code>decomposeNode</code> e <code>replanFromFailure</code>. <strong>Ainda não usado</strong>: <code>critiqueNode</code> (poderia melhorar a contra-âncora) e <code>explainNode</code> (poderia fundamentar o tutor).
+  Where KB is wired today: <code>generatePlans</code>, <code>decomposeNode</code>, <code>replanFromFailure</code>. <strong>Not wired yet:</strong> <code>critiqueNode</code> (could strengthen the counter-anchor) and <code>explainNode</code> (could ground the tutor's prose).
 </p>
 </section>
 
-<!-- ============================================================ -->
-<section id="feito">
-<h2>11 · O que funciona hoje</h2>
-<h3>Inventário objetivo do estado atual</h3>
-<ul class="status-list">
-  <li><span class="pill ok">pronto</span><span><strong>Geração de planos com streaming</strong> — 1–3 planos via <code>streamObject</code>, com preview parcial dos chunks na tela inicial.</span></li>
-  <li><span class="pill ok">pronto</span><span><strong>Materialização do plano</strong> em <code>Project</code> com nós, edges e <code>history</code> auditável.</span></li>
-  <li><span class="pill ok">pronto</span><span><strong>5 lentes de grafo</strong> — structure, flow (por depth), risk (por banda de confiança), state, connections (radial por grau).</span></li>
-  <li><span class="pill ok">pronto</span><span><strong>3 níveis de zoom no <code>ConceptNode</code></strong> — far / mid / near, com botão de confirmação inline.</span></li>
-  <li><span class="pill ok">pronto</span><span><strong>Decompose + staging</strong> — sugestões aparecem como nós tracejados; aceite por nó ou em lote, com edges entre aceitos materializadas só quando ambos endpoints têm id real (corrige a cadeia passo→passo).</span></li>
-  <li><span class="pill ok">pronto</span><span><strong>Modo tutor com explicação sob demanda</strong> — <code>nextPendingForTutor</code> respeita ordem; <code>explainNode</code> entrega markdown com seções em NEGRITO MAIÚSCULO.</span></li>
-  <li><span class="pill ok">pronto</span><span><strong>Os 4 mecanismos de ground truth completos</strong> — critério travado, crítica adversarial, replan por falha, âncoras verificáveis com toggle.</span></li>
-  <li><span class="pill ok">pronto</span><span><strong>KB local de PDFs</strong> — extração no browser, resumo via modelo barato, AI-judge de relevância, cache por contexto.</span></li>
-  <li><span class="pill ok">pronto</span><span><strong>Bloqueio de passos fora de ordem</strong> — <code>isBlocked</code> impede confirmar passo N+1 se N não estiver confirmado.</span></li>
-  <li><span class="pill ok">pronto</span><span><strong>Export JSON</strong> e persistência IndexedDB com migração versionada.</span></li>
-  <li><span class="pill ok">pronto</span><span><strong>Atalhos de teclado</strong> — <code>t</code>/<code>g</code> entre tutor e grafo, <code>1</code>–<code>5</code> entre lentes.</span></li>
+<section id="i18n">
+<h2>11 · Localization (i18n)</h2>
+<h3>Single bundle, two languages, runtime switch</h3>
+<p>
+  The i18n is intentionally simple: no library, no fetched JSON, no key-by-key lookup at runtime.
+  Both bundles live in <code>src/i18n/messages.ts</code> as plain TypeScript objects. The shape is enforced by TypeScript (<code>type Messages = typeof en</code>), so adding a string to <code>en</code> without a counterpart in <code>ptBR</code> is a compile error.
+</p>
+<ul>
+  <li><strong>Default locale</strong>: detected from <code>navigator.language</code> on first run (anything starting with <code>pt</code> picks pt-BR, otherwise <code>en</code>).</li>
+  <li><strong>Switching</strong>: <code>LanguageSelector</code> in <code>ApiKeyGate</code> persists the choice in IndexedDB (<code>cellproject-locale</code>).</li>
+  <li><strong>AI integration</strong>: <code>currentLocaleAIName()</code> returns "English" or "Brazilian Portuguese"; <code>baseSystem()</code> and <code>criticSystem()</code> inject that string into "Always respond in {lang}". The user sees plans, decompositions, and tutor explanations in the chosen language.</li>
+  <li><strong>Domain identifiers stay in Portuguese</strong> (<code>recurso</code>, <code>passo</code>, <code>oQue</code>, …). The UI labels them via <code>tr.conceptNode[kind]</code> so users never see the raw identifier.</li>
 </ul>
 </section>
 
-<!-- ============================================================ -->
-<section id="nao-feito">
-<h2>12 · O que ainda não existe</h2>
-<h3>Lacunas concretas — não promessas</h3>
+<section id="done">
+<h2>12 · What works today</h2>
+<h3>Objective inventory of the current state</h3>
 <ul class="status-list">
-  <li><span class="pill wip">parcial</span><span><strong>Persistência de múltiplos projetos</strong>. Hoje o store guarda <em>um</em> projeto (<code>project | null</code>) — “Reset” descarta. Sem lista, sem switch.</span></li>
-  <li><span class="pill wip">parcial</span><span><strong>KB integrado em mais lugares</strong>. <code>critiqueNode</code> e <code>explainNode</code> ainda não recebem <code>kbContext</code>. Citação de <code>[docId]</code> também não vira link clicável em nenhum lugar da UI.</span></li>
-  <li><span class="pill plan">planejado</span><span><strong>Backend Supabase</strong>. A branch <code>feat/supabase-db-backend-architecture</code> teve um spike (commit <code>f1e9f50</code>) com schema de projetos, RLS, Edge Functions e SSR no <code>apps/web</code>. <em>Foi desfeito</em> nas mudanças não comitadas — ver seção 14.</span></li>
-  <li><span class="pill plan">planejado</span><span><strong>Multi-usuário e auth.</strong> Inexistente. Hoje cada navegador é uma cápsula isolada via IndexedDB.</span></li>
-  <li><span class="pill plan">planejado</span><span><strong>Colaboração em tempo real.</strong> Não há canal, não há cursor remoto, não há merge de árvore.</span></li>
-  <li><span class="pill plan">planejado</span><span><strong>Reasoning visível por nó.</strong> <code>extractReasoning</code> já capta o reasoning do modelo no <code>generatePlans</code>, mas o <code>decomposeNode</code> não expõe nada parecido na UI.</span></li>
-  <li><span class="pill plan">planejado</span><span><strong>Crítica adversarial em lote.</strong> Hoje é por nó. Faria sentido um “critique all leaves” varrendo tudo abaixo de uma categoria.</span></li>
-  <li><span class="pill plan">planejado</span><span><strong>Import / sincronização entre dispositivos.</strong> Existe export JSON, mas não há fluxo de import nem reconciliação com o store local.</span></li>
-  <li><span class="pill plan">planejado</span><span><strong>Templates de domínio.</strong> Hoje todo plano é gerado do zero. Um “começar a partir de X” pré-carregado evitaria fome do KB para domínios populares.</span></li>
-  <li><span class="pill plan">planejado</span><span><strong>Mobile / touch.</strong> Layout funciona em desktop. Tutor poderia ser uma PWA standalone.</span></li>
+  <li><span class="pill ok">ready</span><span><strong>Plan generation with streaming</strong> — 1–3 plans via <code>streamObject</code>, with chunk-by-chunk preview on the initial screen.</span></li>
+  <li><span class="pill ok">ready</span><span><strong>Plan materialization</strong> into a <code>Project</code> with nodes, edges, and auditable <code>history</code>.</span></li>
+  <li><span class="pill ok">ready</span><span><strong>5 graph lenses</strong> — structure, flow (by depth), risk (by confidence band), state, connections (radial by degree).</span></li>
+  <li><span class="pill ok">ready</span><span><strong>3 zoom levels in <code>ConceptNode</code></strong> — far / mid / near, with inline confirm button.</span></li>
+  <li><span class="pill ok">ready</span><span><strong>Decompose + staging</strong> — suggestions appear as dashed nodes; accept per node or in batch, with cross-node edges materialized only when both endpoints have real ids.</span></li>
+  <li><span class="pill ok">ready</span><span><strong>Tutor mode with on-demand explanation</strong> — <code>nextPendingForTutor</code> respects ordering; <code>explainNode</code> returns markdown with UPPERCASE BOLD sections.</span></li>
+  <li><span class="pill ok">ready</span><span><strong>All 4 ground-truth mechanisms</strong> — locked user criterion, adversarial critique, replan from failure, verifiable anchors with toggle.</span></li>
+  <li><span class="pill ok">ready</span><span><strong>Local PDF knowledge base</strong> — in-browser extraction, cheap-model summarization, AI relevance judge, per-context cache.</span></li>
+  <li><span class="pill ok">ready</span><span><strong>Out-of-order step blocking</strong> — <code>isBlocked</code> prevents confirming step N+1 if N is not done.</span></li>
+  <li><span class="pill ok">ready</span><span><strong>JSON export</strong> and versioned IndexedDB persistence.</span></li>
+  <li><span class="pill ok">ready</span><span><strong>Keyboard shortcuts</strong> — <code>t</code>/<code>g</code> between tutor and graph, <code>1</code>–<code>5</code> between lenses.</span></li>
+  <li><span class="pill ok">ready</span><span><strong>Multi-provider BYOK</strong> — OpenAI, Anthropic, OpenRouter with per-provider config saved.</span></li>
+  <li><span class="pill ok">ready</span><span><strong>Bilingual UI</strong> — English and Brazilian Portuguese with runtime switch.</span></li>
+  <li><span class="pill ok">ready</span><span><strong>Mobile baseline</strong> — drawer / sheet / safe areas in top and bottom bars.</span></li>
 </ul>
 </section>
 
-<!-- ============================================================ -->
-<section id="riscos">
-<h2>13 · Riscos abertos</h2>
-<h3>Coisas que podem morder se não forem decididas a tempo</h3>
+<section id="todo">
+<h2>13 · What's not there yet</h2>
+<h3>Concrete gaps — not promises</h3>
+<ul class="status-list">
+  <li><span class="pill wip">partial</span><span><strong>Multiple local projects</strong>. Today the store keeps <em>one</em> project (<code>project | null</code>) — "Reset" discards. No list, no switch.</span></li>
+  <li><span class="pill wip">partial</span><span><strong>KB wired everywhere</strong>. <code>critiqueNode</code> and <code>explainNode</code> still don't receive <code>kbContext</code>. Cited <code>[docId]</code>s aren't clickable yet.</span></li>
+  <li><span class="pill plan">planned</span><span><strong>Per-node reasoning UI.</strong> <code>extractReasoning</code> already captures provider reasoning in <code>generatePlans</code>, but <code>decomposeNode</code> doesn't surface it.</span></li>
+  <li><span class="pill plan">planned</span><span><strong>Batch adversarial critique.</strong> Today it's per node. A "critique all leaves" sweep would surface weak spots across a category.</span></li>
+  <li><span class="pill plan">planned</span><span><strong>Import / device sync.</strong> JSON export exists, but no import flow or reconciliation with the local store.</span></li>
+  <li><span class="pill plan">planned</span><span><strong>Domain templates.</strong> Today every plan starts from scratch. A "start from X" template would beat KB hunger for popular domains.</span></li>
+  <li><span class="pill plan">planned</span><span><strong>Mobile / PWA tutor</strong> standalone.</span></li>
+  <li><span class="pill plan">planned</span><span><strong>Onboarding</strong> teaching "write your criterion before seeing the AI's" on first session.</span></li>
+</ul>
+</section>
+
+<section id="risks">
+<h2>14 · Open risks</h2>
+<h3>Things that bite if left undecided</h3>
 <div class="card-row">
   <div class="card">
-    <div class="kicker">◆ Risco conceitual</div>
-    <h4>Loop IA→IA reaparecendo</h4>
-    <p>Os 4 mecanismos existem, mas hoje <em>nada</em> obriga o usuário a usar pelo menos um. Um nó marcado <code>done</code> sem critério travado nem âncora verificada continua sendo teatro. <strong>Decisão pendente:</strong> exigir 1 dos 4 antes de permitir <code>confirmado: true</code>?</p>
+    <div class="kicker">◆ Conceptual</div>
+    <h4>AI→AI loop creeping back</h4>
+    <p>The 4 mechanisms exist, but today <em>nothing</em> forces the user to use any of them. A node marked <code>done</code> with no locked criterion or verified anchor is still theater. <strong>Open call:</strong> require 1 of the 4 before allowing <code>confirmado: true</code>?</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Risco técnico</div>
-    <h4>Persistência única</h4>
-    <p>“Reset” descarta o projeto. Quem clica por acidente perde tudo. <strong>Mitigação curta:</strong> versionar o último projeto descartado em IndexedDB com TTL.</p>
+    <div class="kicker">◆ Technical</div>
+    <h4>Single-project persistence</h4>
+    <p>"Reset" discards the project. An accidental click loses everything. <strong>Short mitigation:</strong> archive last discarded project with a TTL in IndexedDB.</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Risco de custo</div>
-    <h4>Re-decompose libera prompts longos</h4>
-    <p><code>decomposeNode</code> sempre gera contexto novo. Sem cache de decomposições anteriores, o usuário paga toda vez que volta num nó já expandido.</p>
+    <div class="kicker">◆ Cost</div>
+    <h4>Re-decompose burns prompts</h4>
+    <p><code>decomposeNode</code> always generates fresh context. Without a cache of prior decompositions, the user pays every time they revisit an already-expanded node.</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Risco de UX</div>
-    <h4>Staging sem timeout</h4>
-    <p>Se o usuário não aceita nem rejeita um <code>pendingSuggestions</code>, fica preso no estado e o botão “Detalhar” trava. Não há TTL nem dismiss automático.</p>
+    <div class="kicker">◆ UX</div>
+    <h4>Staging with no timeout</h4>
+    <p>If the user neither accepts nor rejects a <code>pendingSuggestions</code> batch, the "Detail" button stays locked. No TTL, no auto-dismiss.</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Risco de produto</div>
-    <h4>Curva inicial alta</h4>
-    <p>O conceito de “escreva seu critério antes de ver o da IA” é poderoso, mas pede que o usuário entenda <em>por que</em>. Sem onboarding, é fácil pular essa fricção e perder o ponto inteiro.</p>
+    <div class="kicker">◆ Product</div>
+    <h4>High first-time curve</h4>
+    <p>"Write your criterion before seeing the AI's" is powerful but requires the user to grasp <em>why</em>. Without onboarding it's easy to skip the friction and miss the whole point.</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Risco de modelo</div>
-    <h4>Acoplamento ao OpenRouter + GLM-5</h4>
-    <p>Mudança de modelo padrão é configurável (env), mas a qualidade dos planos é claramente sensível. Sem regressão automática, é fácil deteriorar sem perceber.</p>
+    <div class="kicker">◆ Security</div>
+    <h4>BYOK on XSS-prone domain</h4>
+    <p>The API key lives in IndexedDB. Any XSS reads it. Hosting on a clean domain and keeping deps fresh is mandatory — and worth documenting clearly for users.</p>
   </div>
 </div>
 </section>
 
-<!-- ============================================================ -->
-<section id="supabase">
-<h2>14 · Backend Supabase</h2>
-<h3>O que existia, o que foi desfeito, o que faz sentido voltar</h3>
-<p>
-  O branch ativo se chama <code>feat/supabase-db-backend-architecture</code>. O commit <code>f1e9f50</code> introduziu um spike completo:
-</p>
-<ul>
-  <li><code>apps/web</code> — Next.js (App Router) com SSR + middleware Supabase.</li>
-  <li><code>packages/graph-contract</code> — contrato Zod compartilhado entre cliente, server e Edge Functions.</li>
-  <li><code>supabase/migrations</code> — <code>20260409120000_init_projects.sql</code> e <code>20260409120001_projects_rls.sql</code>.</li>
-  <li><code>supabase/functions</code> — <code>ai-decompose</code>, <code>ai-health</code>, <code>ai-suggest-connections</code>.</li>
-</ul>
-<p>
-  No commit <code>52c26b5</code>, a UX de env foi consertada para ler do root do monorepo.
-  <strong>Mas o working tree atual tem todo esse trabalho marcado como deletado</strong> (<code>D apps/web/...</code>, <code>D packages/graph-contract/...</code>, <code>D supabase/...</code>),
-  e a raiz voltou a ser uma SPA Vite (<code>index.html</code>, <code>src/</code>, <code>vite.config.ts</code> no root, sem workspaces).
-</p>
-<p>
-  Pelos artefatos no MCP, há <strong>3 projetos Supabase</strong> ativos na org <em>MEGA VALE</em>:
-  <code>[apps]</code> (us-east-1), <code>[data]</code> (us-west-2), <code>[app] checklists</code> (us-east-2). O <code>.env.example</code> já tem
-  <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>, mas o <code>src/</code> atual não importa nada de Supabase.
-</p>
-<div class="quote">
-  Tradução prática: o trabalho do monorepo foi pra fora do tree antes de virar commit. A decisão de voltar (ou não) ao Next.js + Edge Functions está aberta. Hoje, do ponto de vista do app que roda, <strong>não há backend</strong>.
-</div>
+<section id="paths">
+<h2>15 · Likely next moves</h2>
+<h3>Next jumps in impact order</h3>
 
-<h4>Quando voltar a fazer sentido</h4>
-<ul>
-  <li><strong>Quando o usuário tiver mais de um projeto</strong> — IndexedDB local não escala pra dezenas.</li>
-  <li><strong>Quando custo de IA virar problema</strong> — Edge Functions com cache e <em>rate limit</em> economizam mais que chamadas direto do cliente.</li>
-  <li><strong>Quando entrar colaboração</strong> — Realtime do Supabase resolve broadcast de mudanças sem reinventar.</li>
-  <li><strong>Quando o KB virar coletivo</strong> — docs compartilhados entre usuários precisam de Storage + pgvector pra busca semântica.</li>
-</ul>
-<p>
-  Até lá, o atalho honesto é: SPA local + chamadas diretas ao OpenRouter + IndexedDB. É exatamente o que o tree atual entrega.
-</p>
-</section>
-
-<!-- ============================================================ -->
-<section id="caminhos">
-<h2>15 · Caminhos prováveis</h2>
-<h3>Próximos saltos em ordem de impacto</h3>
-
-<h4>Curto prazo (1–2 semanas)</h4>
+<h4>Short term (1–2 weeks)</h4>
 <ol>
-  <li><strong>Multi-projeto local.</strong> Trocar <code>project: Project | null</code> por <code>projects: Record&lt;id, Project&gt;</code> + <code>currentId</code>. Sem backend ainda — só tirar o pé do precipício do reset.</li>
-  <li><strong>KB em <code>critiqueNode</code> e <code>explainNode</code>.</strong> Já temos <code>getContextFor</code>. Só plugar.</li>
-  <li><strong>Onboarding mínimo</strong> que ensine “escreva seu critério antes da IA” na primeira sessão.</li>
-  <li><strong>Soft-undo do reset</strong> — guardar o último projeto descartado por N dias.</li>
+  <li><strong>Multi-project local.</strong> Swap <code>project: Project | null</code> for <code>projects: Record&lt;id, Project&gt;</code> + <code>currentId</code>. No backend yet — just stop the foot-on-precipice of Reset.</li>
+  <li><strong>KB in <code>critiqueNode</code> and <code>explainNode</code>.</strong> <code>getContextFor</code> already exists. Just wire it in.</li>
+  <li><strong>Minimal onboarding</strong> teaching "criterion first" on first session.</li>
+  <li><strong>Soft-undo for Reset</strong> — keep the last discarded project for N days.</li>
+  <li><strong>Test API key on save</strong> — small cheap call validating provider connectivity before unlocking the app.</li>
 </ol>
 
-<h4>Médio prazo (1–2 meses)</h4>
+<h4>Medium term (1–2 months)</h4>
 <ol>
-  <li><strong>Decidir Supabase sim/não.</strong> Se sim, restaurar <code>apps/web</code> + <code>packages/graph-contract</code> do commit <code>f1e9f50</code> e iterar a partir dali. Se não, formalizar a SPA local como produto final por agora.</li>
-  <li><strong>Edge Functions como proxy de IA</strong> com cache de decomposições por <code>(parentId, kind, breadcrumb hash)</code> — reduz custo e padroniza o contrato.</li>
-  <li><strong>Critique-all-leaves</strong> em uma categoria, com sumarização agregada do que está frágil.</li>
-  <li><strong>Reasoning capturado nó-a-nó</strong>, salvo no <code>history</code> com kind próprio.</li>
+  <li><strong>Optional backend, behind a flag.</strong> If we add it, restore the monorepo Supabase shape (auth + Edge Functions + Realtime) and gate features per build mode.</li>
+  <li><strong>Batch critique across leaves</strong> in a category, summarized.</li>
+  <li><strong>Reasoning captured node-by-node</strong> in <code>history</code>.</li>
+  <li><strong>Per-domain templates</strong> (woodworking, electronics, cooking).</li>
 </ol>
 
-<h4>Longo prazo (3+ meses)</h4>
+<h4>Long term (3+ months)</h4>
 <ol>
-  <li><strong>Compartilhamento de projetos</strong> read-only via link — bom pra mostrar tutoriais.</li>
-  <li><strong>Colaboração viva</strong> com Realtime + CRDT simples sobre <code>history</code>.</li>
-  <li><strong>Bibliotecas de templates</strong> por domínio (marcenaria, eletrônica, culinária).</li>
-  <li><strong>App mobile (PWA tutor-only)</strong> — execução cabe melhor no celular que no laptop.</li>
+  <li><strong>Read-only sharing</strong> of completed projects — good for showing reproducible tutorials.</li>
+  <li><strong>Live collaboration</strong> via Realtime + a small CRDT over <code>history</code>.</li>
+  <li><strong>Mobile PWA tutor</strong> — execution fits a phone better than a laptop.</li>
+  <li><strong>Public template library</strong> per domain.</li>
 </ol>
 </section>
 
-<!-- ============================================================ -->
-<section id="possibilidades">
-<h2>16 · Possibilidades futuras</h2>
-<h3>Vetores que extrapolam a thesis original</h3>
+<section id="possibilities">
+<h2>16 · Future possibilities</h2>
+<h3>Vectors that go beyond the original thesis</h3>
 
 <div class="card-row">
   <div class="card">
-    <div class="kicker">◆ Vetor pedagógico</div>
-    <h4>Cellproject como livro vivo</h4>
-    <p>Um projeto pronto vira tutorial reproduzível. Com âncoras verificadas, ele é melhor que um post de blog — porque ensina e permite ao próximo aprendiz <em>quebrar</em> o nó onde ele falhar, com replan.</p>
+    <div class="kicker">◆ Educational</div>
+    <h4>Cellproject as a living book</h4>
+    <p>A finished project becomes a reproducible tutorial. With verified anchors, it beats a blog post — because it teaches and lets the next learner <em>break</em> the node where they fail, with replan.</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Vetor de pesquisa</div>
-    <h4>Logs como dataset</h4>
-    <p>O <code>history</code> de cada nó é um traço fino do que humanos e IA propuseram, criticaram, validaram. Em escala, vira um corpus rico pra estudar onde modelos erram em planejamento.</p>
+    <div class="kicker">◆ Research</div>
+    <h4>Logs as dataset</h4>
+    <p>Each node's <code>history</code> is a fine trace of what humans and AI proposed, critiqued, and validated. At scale, it's rich material to study where models fail at planning.</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Vetor de produto</div>
-    <h4>Verticais (maker, cozinha, código)</h4>
-    <p>A taxonomia <code>recurso/passo/decisao</code> cobre bem domínios físicos. Um “Cellproject pra cozinha” seria o mesmo núcleo com âncoras pré-cadastradas (medidas em gramas, tempos).</p>
+    <div class="kicker">◆ Product</div>
+    <h4>Verticals (maker, kitchen, code)</h4>
+    <p>The <code>recurso/passo/decisao</code> taxonomy covers physical domains well. A "Cellproject for cooking" would be the same core with pre-loaded anchors (measurements in grams, times).</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Vetor de integração</div>
-    <h4>KB com fontes externas</h4>
-    <p>Hoje o KB só ingere PDF. Estender pra ingerir vídeos transcritos, repositórios de código, ou bookmarks com extrator próprio amplia a base verificável sem mexer no contrato.</p>
+    <div class="kicker">◆ Integration</div>
+    <h4>KB beyond PDFs</h4>
+    <p>Today the KB ingests only PDFs. Extending to video transcripts, code repos, or bookmarks with their own extractors widens the verifiable base without changing the contract.</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Vetor de modelos</div>
-    <h4>Multi-modelo orquestrado</h4>
-    <p>GLM-5 pra planejar, Gemini Flash pro KB já é o início. Próximo passo: usar um modelo de raciocínio (o3, Claude Opus) só pra <code>critiqueNode</code>, onde o custo extra paga em qualidade do diagnóstico.</p>
+    <div class="kicker">◆ Model orchestration</div>
+    <h4>Multi-model by role</h4>
+    <p>One model for planning, a cheaper one for the KB. Next: a reasoning model (o3, Opus) reserved for <code>critiqueNode</code>, where extra cost pays in diagnosis quality.</p>
   </div>
   <div class="card">
-    <div class="kicker">◆ Vetor de UX</div>
-    <h4>Modo “planeja sozinho”</h4>
-    <p>Loop automático que critica, replans e converge até estabilidade — útil pra ver onde o modelo capricha e onde ele se contradiz. Vira ferramenta de estresse do próprio plano.</p>
+    <div class="kicker">◆ UX</div>
+    <h4>"Plans itself" mode</h4>
+    <p>Auto-loop critiquing, replanning, and converging — useful to see where the model is consistent and where it contradicts itself. Turns the tool into a plan stress-tester.</p>
   </div>
 </div>
 </section>
 
-<!-- ============================================================ -->
-<section id="decisoes">
-<h2>17 · Decisões que ficam abertas</h2>
-<h3>Não responda agora — só não as esqueça</h3>
+<section id="decisions">
+<h2>17 · Open decisions</h2>
+<h3>Not to be answered now — just not forgotten</h3>
 <ol>
-  <li><strong>Multi-projeto antes ou depois do Supabase?</strong> Multi-projeto local é fácil; Supabase resolve isso “de graça” se for entrar. Fazer os dois em sequência é desperdício.</li>
-  <li><strong>Confirmar exige ground truth?</strong> Forçar pelo menos 1 dos 4 mecanismos antes de marcar <code>done</code> defende a thesis, mas pode irritar o usuário no nó óbvio (“peguei a fita métrica”).</li>
-  <li><strong>Reasoning é cidadão de primeira ou debug?</strong> Hoje aparece no <code>ObjectiveScreen</code> como “pensamento do modelo”. Pode virar histórico permanente do nó.</li>
-  <li><strong>Privacidade do KB quando virar coletivo.</strong> PDFs pessoais com PII viajam pro modelo no resumo. Em multi-usuário, isso vira problema rápido.</li>
-  <li><strong>Tema/branding.</strong> A paleta atual é forte e funcional, mas o produto não tem nome público nem identidade — “Cellproject” aparece só no README interno.</li>
+  <li><strong>Multi-project before or after a real backend?</strong> Local multi-project is easy; a backend solves it "for free" if we add one. Doing both sequentially is wasteful.</li>
+  <li><strong>Confirm requires ground truth?</strong> Forcing at least 1 of the 4 mechanisms before marking <code>done</code> defends the thesis, but can irritate the user on obvious nodes ("picked up the measuring tape").</li>
+  <li><strong>Reasoning as a first-class citizen or debug-only?</strong> Today it appears in <code>ObjectiveScreen</code> as "model thinking". Could become permanent per-node history.</li>
+  <li><strong>KB privacy when shared.</strong> Personal PDFs with PII flow to the model in the summary. In a multi-user world, that becomes a problem fast.</li>
+  <li><strong>Naming and branding.</strong> The current palette is strong and functional, but the product has no public name beyond the repo. Branding is open.</li>
 </ol>
 </section>
 
 <footer>
-  Documento gerado a partir do tree em <code>main</code> e <code>feat/supabase-db-backend-architecture</code>.<br/>
-  Última varredura: planos, store, AI service, KB, todos os componentes em <code>src/</code>, <code>docs/CONCEITO.md</code>, <code>.env.example</code>, histórico git, MCP Supabase.<br/>
-  Quando alguma parte aqui ficar desencontrada do código, o código vence.
+  Document generated from the current <code>main</code> tree.<br/>
+  Last sweep: plans, store, AI service, KB, i18n, all components in <code>src/</code>, <code>docs/CONCEPT.md</code>, deploy configs, git history.<br/>
+  When this drifts from the code, the code wins.
 </footer>
 
 </main>

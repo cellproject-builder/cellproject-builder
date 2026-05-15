@@ -7,11 +7,14 @@ import {
 } from '@/store';
 import { explainNode } from '@/ai/service';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useT } from '@/i18n';
+import type { Messages } from '@/i18n';
 import type { ConceptNodeData } from '@/types';
 import { GroundTruthInlineTutor } from './GroundTruth';
 import { MobileSheet } from './MobileSheet';
 
 export function TutorMode() {
+  const tr = useT();
   const project = useGraphStore((s) => s.project);
   const confirmNode = useGraphStore((s) => s.confirmNode);
   const unconfirmNode = useGraphStore((s) => s.unconfirmNode);
@@ -43,7 +46,7 @@ export function TutorMode() {
 
   const sidebarBody = (
     <>
-      <Section title="Recursos" count={recursos.length} done={resourcesConfirmed}>
+      <Section title={tr.tutor.sectionResources} count={recursos.length} done={resourcesConfirmed}>
         {recursos.map((r) => (
           <Row
             key={r.id}
@@ -54,14 +57,15 @@ export function TutorMode() {
               setSidebarOpen(false);
             }}
             onToggle={() => (r.confirmado ? unconfirmNode(r.id) : confirmNode(r.id))}
+            tr={tr}
           />
         ))}
         {recursos.length === 0 && (
-          <div className="text-xs text-text-muted italic px-2 py-1">Sem recursos</div>
+          <div className="text-xs text-text-muted italic px-2 py-1">{tr.tutor.emptyResources}</div>
         )}
       </Section>
       <Section
-        title="Execução"
+        title={tr.tutor.sectionExecution}
         count={passos.length}
         done={passos.filter((p) => p.confirmado).length}
       >
@@ -76,10 +80,11 @@ export function TutorMode() {
             }}
             onToggle={() => (p.confirmado ? unconfirmNode(p.id) : confirmNode(p.id))}
             project={project}
+            tr={tr}
           />
         ))}
         {passos.length === 0 && (
-          <div className="text-xs text-text-muted italic px-2 py-1">Sem passos</div>
+          <div className="text-xs text-text-muted italic px-2 py-1">{tr.tutor.emptySteps}</div>
         )}
       </Section>
     </>
@@ -91,27 +96,30 @@ export function TutorMode() {
         <div className="border-b border-border-base bg-bg-secondary px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <div className="text-[10px] font-mono uppercase tracking-widest text-ai-accent">
-              ◆ Modo Tutor
+              {tr.tutor.modeKicker}
             </div>
-            <div className="hidden md:block text-text-muted text-xs">
-              Foque em um passo por vez. Clique em confirmar quando terminar.
-            </div>
+            <div className="hidden md:block text-text-muted text-xs">{tr.tutor.focusHint}</div>
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={() => setSidebarOpen(true)}
                 className="md:hidden text-xs text-text-secondary hover:text-text-primary border border-border-base rounded-sm px-2.5 py-1 transition-colors min-h-[32px] font-mono"
               >
-                Passos {progress.done}/{progress.total}
+                {tr.tutor.mobileStepsBtn(progress.done, progress.total)}
               </button>
               <button
                 onClick={() => setViewMode('graph')}
                 className="text-xs text-text-muted hover:text-text-primary transition-colors"
               >
-                Ver grafo →
+                {tr.tutor.viewGraphShort}
               </button>
             </div>
           </div>
-          <ProgressBar percent={progress.percent} done={progress.done} total={progress.total} />
+          <ProgressBar
+            percent={progress.percent}
+            done={progress.done}
+            total={progress.total}
+            tr={tr}
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
@@ -124,19 +132,19 @@ export function TutorMode() {
                 selectNode(next.id);
                 setViewMode('graph');
               }}
+              tr={tr}
             />
           ) : (
-            <DoneCard projectName={project.name} />
+            <DoneCard projectName={project.name} tr={tr} />
           )}
 
           {next && next.kind === 'passo' && !allResourcesDone && (
             <div className="max-w-2xl mx-auto mt-6 p-4 bg-conf-mid/5 border border-conf-mid/30 rounded-sm">
               <div className="text-conf-mid text-xs font-mono uppercase tracking-wider mb-1">
-                ⚠ Atenção
+                {tr.tutor.resourcesLeftWarning}
               </div>
               <div className="text-sm text-text-secondary">
-                Ainda faltam recursos por confirmar ({recursos.length - resourcesConfirmed}). Tu
-                pode seguir mesmo assim, mas idealmente junta tudo antes de começar a execução.
+                {tr.tutor.resourcesLeftBody(recursos.length - resourcesConfirmed)}
               </div>
             </div>
           )}
@@ -151,7 +159,7 @@ export function TutorMode() {
         <MobileSheet
           open={sidebarOpen}
           onOpenChange={setSidebarOpen}
-          title="Recursos e passos"
+          title={tr.tutor.sheetTitle}
         >
           {sidebarBody}
         </MobileSheet>
@@ -160,13 +168,21 @@ export function TutorMode() {
   );
 }
 
-function ProgressBar({ percent, done, total }: { percent: number; done: number; total: number }) {
+function ProgressBar({
+  percent,
+  done,
+  total,
+  tr,
+}: {
+  percent: number;
+  done: number;
+  total: number;
+  tr: Messages;
+}) {
   return (
     <div className="mt-3">
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-text-secondary text-xs font-mono">
-          {done}/{total} confirmados
-        </span>
+        <span className="text-text-secondary text-xs font-mono">{tr.tutor.confirmedOf(done, total)}</span>
         <span className="ml-auto font-mono text-lg font-semibold">
           <span className={percent === 100 ? 'text-state-done' : 'text-text-primary'}>
             {percent}%
@@ -188,12 +204,13 @@ interface TutorCardProps {
   project: NonNullable<ReturnType<typeof useGraphStore.getState>['project']>;
   onConfirm: () => void;
   onViewInGraph: () => void;
+  tr: Messages;
 }
 
-function TutorCard({ node, project, onConfirm, onViewInGraph }: TutorCardProps) {
+function TutorCard({ node, project, onConfirm, onViewInGraph, tr }: TutorCardProps) {
   const crumbs = breadcrumbFor(project, node.id);
-  const kindLabel = node.kind === 'recurso' ? 'Próximo recurso' : 'Próximo passo';
-  const verb = node.kind === 'recurso' ? 'consegui este item' : 'fiz este passo';
+  const kindLabel = node.kind === 'recurso' ? tr.tutor.nextResource : tr.tutor.nextStep;
+  const verb = node.kind === 'recurso' ? tr.tutor.iGotItVerbResource : tr.tutor.iGotItVerbStep;
   const setNodeExplanation = useGraphStore((s) => s.setNodeExplanation);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -235,7 +252,7 @@ function TutorCard({ node, project, onConfirm, onViewInGraph }: TutorCardProps) 
           ◆ {kindLabel}
         </span>
         {node.kind === 'passo' && (
-          <span className="text-text-muted text-xs font-mono">passo #{node.order + 1}</span>
+          <span className="text-text-muted text-xs font-mono">{tr.tutor.stepNumber(node.order + 1)}</span>
         )}
       </div>
       <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary leading-tight mb-4 sm:mb-6">
@@ -243,12 +260,12 @@ function TutorCard({ node, project, onConfirm, onViewInGraph }: TutorCardProps) 
       </h1>
 
       {node.oQue && (
-        <TutorBlock label="O que é">
+        <TutorBlock label={tr.tutor.whatIs}>
           <p className="text-text-secondary leading-relaxed">{node.oQue}</p>
         </TutorBlock>
       )}
       {node.porQue && (
-        <TutorBlock label="Por que precisa">
+        <TutorBlock label={tr.tutor.whyNeeded}>
           <p className="text-text-secondary leading-relaxed">{node.porQue}</p>
         </TutorBlock>
       )}
@@ -262,12 +279,12 @@ function TutorCard({ node, project, onConfirm, onViewInGraph }: TutorCardProps) 
           <span className="flex items-center gap-2 text-left">
             <span>◆</span>
             {loading
-              ? 'Gerando explicação detalhada…'
+              ? tr.tutor.generatingExplain
               : node.explicacao
               ? open
-                ? 'Fechar explicação detalhada'
-                : 'Ver explicação detalhada'
-              : 'Explicar em detalhes'}
+                ? tr.tutor.closeExplain
+                : tr.tutor.viewExplain
+              : tr.tutor.explain}
           </span>
           {node.explicacao && <span className="text-xs">{open ? '▲' : '▼'}</span>}
         </button>
@@ -285,13 +302,13 @@ function TutorCard({ node, project, onConfirm, onViewInGraph }: TutorCardProps) 
           onClick={onConfirm}
           className="flex-1 bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-base py-3 min-h-[48px] rounded-sm border-2 border-conf-high/40 transition-colors font-medium"
         >
-          ✓ Já {verb}
+          {tr.tutor.alreadyVerb(verb)}
         </button>
         <button
           onClick={onViewInGraph}
           className="px-4 py-3 min-h-[44px] text-xs text-text-muted hover:text-text-primary border border-border-base rounded-sm transition-colors"
         >
-          Ver no grafo
+          {tr.tutor.viewInGraph}
         </button>
       </div>
     </div>
@@ -366,17 +383,14 @@ function TutorBlock({ label, children }: { label: string; children: React.ReactN
   );
 }
 
-function DoneCard({ projectName }: { projectName: string }) {
+function DoneCard({ projectName, tr }: { projectName: string; tr: Messages }) {
   return (
     <div className="max-w-xl mx-auto text-center py-12 sm:py-20">
       <div className="text-state-done text-5xl sm:text-6xl mb-4">✓</div>
       <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary mb-3">
-        Projeto concluído
+        {tr.tutor.projectDoneTitle}
       </h1>
-      <p className="text-text-secondary">
-        Todas as etapas de <span className="text-text-primary">{projectName}</span> foram
-        confirmadas. Olha o grafo pra ver o histórico completo.
-      </p>
+      <p className="text-text-secondary">{tr.tutor.projectDoneBody(projectName)}</p>
     </div>
   );
 }
@@ -411,9 +425,10 @@ interface RowProps {
   onClick: () => void;
   onToggle: () => void;
   project?: ReturnType<typeof useGraphStore.getState>['project'];
+  tr: Messages;
 }
 
-function Row({ node, isNext, onClick, onToggle, project }: RowProps) {
+function Row({ node, isNext, onClick, onToggle, project, tr }: RowProps) {
   const blocked =
     node.kind === 'passo' && !node.confirmado && project
       ? isBlockedLocal(project, node.id)
@@ -432,7 +447,7 @@ function Row({ node, isNext, onClick, onToggle, project }: RowProps) {
           if (!blocked) onToggle();
         }}
         disabled={blocked}
-        aria-label={node.confirmado ? 'Desfazer confirmação' : 'Confirmar'}
+        aria-label={node.confirmado ? tr.tutor.ariaUnconfirm : tr.tutor.ariaConfirm}
         className={`w-5 h-5 rounded-sm border flex items-center justify-center transition-colors shrink-0 ${
           node.confirmado
             ? 'bg-state-done/20 border-state-done text-state-done'

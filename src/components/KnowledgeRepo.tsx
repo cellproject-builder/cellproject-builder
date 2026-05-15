@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useKBStore, type IngestProgress } from '@/kb/store';
+import { useT } from '@/i18n';
+import type { Messages } from '@/i18n';
 
 interface Props {
   open: boolean;
@@ -7,9 +9,10 @@ interface Props {
 }
 
 export function KnowledgeRepo({ open, onClose }: Props) {
-  // Selecionamos o Record bruto (referência estável) e derivamos a lista via
-  // useMemo. Chamar s.list() direto no seletor cria um array novo a cada render
-  // e quebra a igualdade estrutural do Zustand → loop infinito → tela preta.
+  const tr = useT();
+  // We subscribe to the raw Record (stable reference) and derive the list via
+  // useMemo. Calling s.list() directly inside the selector creates a new array
+  // every render and breaks Zustand's structural equality → infinite loop.
   const docsMap = useKBStore((s) => s.docs);
   const addFromPdf = useKBStore((s) => s.addFromPdf);
   const removeDoc = useKBStore((s) => s.removeDoc);
@@ -41,12 +44,11 @@ export function KnowledgeRepo({ open, onClose }: Props) {
     if (!files || files.length === 0) return;
     for (const file of Array.from(files)) {
       if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-        setProgress({ phase: 'error', filename: file.name, error: 'Apenas PDF por enquanto.' });
+        setProgress({ phase: 'error', filename: file.name, error: tr.kbModal.pdfOnlyError });
         continue;
       }
       await addFromPdf(file, (p) => setProgress(p));
     }
-    // Limpa depois de um instante, sem travar o usuário pra ver o último estado.
     setTimeout(() => setProgress(null), 2000);
     if (inputRef.current) inputRef.current.value = '';
   };
@@ -63,14 +65,11 @@ export function KnowledgeRepo({ open, onClose }: Props) {
         className="w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl bg-bg-primary border-0 sm:border border-border-base rounded-none sm:rounded-sm shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="p-4 border-b border-border-base flex items-baseline gap-3">
           <div className="text-ai-accent font-mono text-xs uppercase tracking-widest">
-            ◆ Repositório de conhecimento
+            {tr.kbModal.title}
           </div>
-          <div className="text-text-muted text-xs">
-            {docs.length} documento{docs.length === 1 ? '' : 's'}
-          </div>
+          <div className="text-text-muted text-xs">{tr.kbModal.docCount(docs.length)}</div>
           <button
             onClick={onClose}
             className="ml-auto text-text-muted hover:text-text-primary text-lg leading-none"
@@ -79,7 +78,6 @@ export function KnowledgeRepo({ open, onClose }: Props) {
           </button>
         </div>
 
-        {/* Upload */}
         <div className="p-4 border-b border-border-base">
           <label
             className={`block border border-dashed rounded-sm p-4 text-center transition-colors cursor-pointer ${
@@ -99,22 +97,18 @@ export function KnowledgeRepo({ open, onClose }: Props) {
             />
             {!progress && (
               <div className="text-sm text-text-secondary">
-                <span className="text-ai-accent">+</span> Solte ou clique pra adicionar PDFs
-                <div className="text-[11px] text-text-muted mt-1">
-                  O PDF fica no seu disco. Só o texto extraído é processado.
-                </div>
+                <span className="text-ai-accent">+</span> {tr.kbModal.dropOrClick}
+                <div className="text-[11px] text-text-muted mt-1">{tr.kbModal.dropHint}</div>
               </div>
             )}
-            {progress && <IngestStatus p={progress} />}
+            {progress && <IngestStatus p={progress} tr={tr} />}
           </label>
         </div>
 
-        {/* Lista */}
         <div className="flex-1 overflow-y-auto">
           {docs.length === 0 && (
             <div className="p-8 text-center text-text-muted text-sm italic">
-              Nenhum documento ainda. Adicione PDFs acima e eles viram contexto que a IA pode usar
-              ao planejar.
+              {tr.kbModal.emptyState}
             </div>
           )}
           {docs.map((d) => {
@@ -138,7 +132,7 @@ export function KnowledgeRepo({ open, onClose }: Props) {
                     <div className="text-[11px] text-text-muted flex items-center gap-2">
                       <span>{d.dominio}</span>
                       <span className="text-border-base">·</span>
-                      <span className="font-mono">{d.pageCount}p</span>
+                      <span className="font-mono">{tr.kbModal.pageCount(d.pageCount)}</span>
                       <span className="text-border-base">·</span>
                       <span className="truncate">{d.filename}</span>
                     </div>
@@ -161,14 +155,14 @@ export function KnowledgeRepo({ open, onClose }: Props) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (confirm(`Remover "${d.titulo}" do repositório?`)) {
+                      if (confirm(tr.kbModal.removeConfirm(d.titulo))) {
                         removeDoc(d.id);
                         if (expandedId === d.id) setExpandedId(null);
                       }
                     }}
                     className="text-text-muted hover:text-state-problem text-xs px-1 py-0.5"
                   >
-                    remover
+                    {tr.kbModal.removeBtn}
                   </button>
                 </div>
 
@@ -176,7 +170,7 @@ export function KnowledgeRepo({ open, onClose }: Props) {
                   <div className="p-3 bg-bg-secondary/30 border-t border-border-base space-y-2 text-xs">
                     <div>
                       <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-                        Resumo
+                        {tr.kbModal.summary}
                       </div>
                       <ul className="space-y-0.5 pl-3">
                         {full.summary.resumo.map((b, i) => (
@@ -190,7 +184,7 @@ export function KnowledgeRepo({ open, onClose }: Props) {
                     {full.summary.fatos.length > 0 && (
                       <div>
                         <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-                          Fatos verificáveis
+                          {tr.kbModal.facts}
                         </div>
                         <ul className="space-y-0.5 pl-3">
                           {full.summary.fatos.map((f, i) => (
@@ -223,22 +217,22 @@ export function KnowledgeRepo({ open, onClose }: Props) {
   );
 }
 
-function IngestStatus({ p }: { p: IngestProgress }) {
+function IngestStatus({ p, tr }: { p: IngestProgress; tr: Messages }) {
   if (p.phase === 'error') {
     return (
       <div className="text-xs text-state-problem">
-        ⚠ {p.filename}: {p.error}
+        {tr.kbModal.fileError} {p.filename}: {p.error}
       </div>
     );
   }
   if (p.phase === 'done') {
     return (
       <div className="text-xs text-state-done">
-        ✓ {p.filename} pronto.
+        ✓ {p.filename} {tr.kbModal.fileReady}
       </div>
     );
   }
-  const label = p.phase === 'extracting' ? 'Extraindo texto' : 'Resumindo';
+  const label = p.phase === 'extracting' ? tr.kbModal.extracting : tr.kbModal.summarizing;
   const pageInfo =
     p.phase === 'extracting' && p.totalPages
       ? ` ${p.pagesDone ?? 0}/${p.totalPages}`

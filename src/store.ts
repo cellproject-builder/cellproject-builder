@@ -51,8 +51,8 @@ interface GraphState {
   pickDecisionOption: (nodeId: string, optionId: string) => void;
   setNodeExplanation: (id: string, text: string) => void;
 
-  // Ground truth — rompe o loop IA→IA
-  setUserCriterion: (id: string, text: string) => void; // attack (a) — trava após setar
+  // Ground truth — breaks the AI→AI loop
+  setUserCriterion: (id: string, text: string) => void; // attack (a) — locks after setting
   setCritica: (id: string, critica: AdversarialCritique) => void; // attack (b)
   clearCritica: (id: string) => void;
   addGroundTruthRef: (
@@ -105,8 +105,8 @@ const addHistory = (
   history: [...node.history, historyEntry(kind, message)],
 });
 
-// Converte hints da IA em refs verificáveis (addedByAI=true, verificado=false).
-// O usuário passa cada uma para `verificado=true` manualmente via toggle.
+// Converts AI hints into verifiable refs (addedByAI=true, verificado=false).
+// The user flips each one to `verificado=true` manually via toggle.
 function hintsToRefs(
   hints: { kind: GroundTruthRef['kind']; label: string; value: string }[] | undefined,
 ): GroundTruthRef[] | undefined {
@@ -132,9 +132,9 @@ const LEAF_Y = 440;
 const COL_W = 280;
 
 function layoutFromPlan(plan: AIPlan, rootId: string) {
-  // Positions for categorias + leaves.
-  // Categorias distribuídas horizontalmente abaixo do root.
-  // Leaves de cada categoria distribuídas em coluna vertical abaixo da própria categoria.
+  // Positions for categories + leaves.
+  // Categories spread horizontally below the root.
+  // Each category's leaves stack vertically below the category itself.
   const categoriaCount = plan.tree.categorias.length;
   const totalW = (categoriaCount - 1) * 480;
 
@@ -467,9 +467,9 @@ export const useGraphStore = create<GraphState>()(
           if (!prev) return state;
           const trimmed = text.trim();
           if (!trimmed) return state;
-          // Trava: se o usuário já escreveu e travou, não permite sobrescrever.
-          // Esse é o ponto inteiro do attack (a) — impedir que o usuário copie
-          // o comoConfirmar da IA retroativamente.
+          // Lock: if the user already wrote and locked, do not allow overwrite.
+          // This is the whole point of attack (a) — prevent the user from
+          // retroactively copying the AI's comoConfirmar.
           if (prev.comoConfirmarUsuarioAt) return state;
           let next: ConceptNodeData = {
             ...prev,
@@ -616,7 +616,7 @@ export const useGraphStore = create<GraphState>()(
             state: 'problem',
             failureContext: trimmed,
             failureReportedAt: now(),
-            // Uma falha real invalida qualquer confirmação anterior.
+            // A real failure invalidates any prior confirmation.
             confirmado: false,
           };
           next = addHistory(next, 'failure', `Falha reportada: ${trimmed}`);
@@ -698,10 +698,10 @@ export const useGraphStore = create<GraphState>()(
           kind: 'direct',
         };
 
-        // Edges entre nós já aceitos: materializar agora que os dois endpoints
-        // têm id real. Edges com o outro endpoint ainda pendente ficam no
-        // staging — é o que conserta o B1 (cadeia passo→passo perdida ao
-        // aceitar um a um).
+        // Edges between already-accepted nodes: materialize now that both
+        // endpoints have real ids. Edges with the other endpoint still
+        // pending stay in staging — that's what fixes the step→step chain
+        // being lost when accepting one at a time.
         const remainingPendingEdges: typeof pending.edges = [];
         for (const e of pending.edges) {
           const involvesThis = e.sourceTempId === tempId || e.targetTempId === tempId;
