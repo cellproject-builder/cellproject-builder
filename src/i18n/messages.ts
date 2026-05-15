@@ -291,7 +291,7 @@ export const en = {
     failurePromptExtra: (name: string, ctx: string) =>
       `Node that failed: ${name} — ${ctx}`,
   },
-} as const;
+};
 
 export type Messages = typeof en;
 

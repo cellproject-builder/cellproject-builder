@@ -5,7 +5,6 @@ import { decomposeNode, explainNode } from '@/ai/service';
 import { useKBStore } from '@/kb/store';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useT } from '@/i18n';
-import type { Messages } from '@/i18n';
 import type { NodeState, ConceptNodeData } from '@/types';
 import { ExplanationContent } from './TutorMode';
 import { MobileSheet } from './MobileSheet';
