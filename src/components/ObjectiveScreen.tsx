@@ -63,8 +63,12 @@ export function ObjectiveScreen() {
   return (
     <div className="fixed inset-0 bg-bg-primary flex items-start justify-center overflow-y-auto">
       <div className="w-full max-w-5xl px-4 sm:px-8 pt-[max(env(safe-area-inset-top),1rem)] pb-[max(env(safe-area-inset-bottom),1rem)] sm:pt-[max(env(safe-area-inset-top),2rem)] sm:pb-[max(env(safe-area-inset-bottom),2rem)]">
+        {/* Utility row — language picker stays out of the content header */}
+        <div className="flex justify-end mb-3 sm:mb-4">
+          <LanguageToggle />
+        </div>
         <div className="mb-8 sm:mb-10 flex items-start gap-3">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="text-ai-accent text-xs font-mono uppercase tracking-widest mb-2">
               {tr.objective.kicker}
             </div>
@@ -73,21 +77,18 @@ export function ObjectiveScreen() {
             </h1>
             <p className="text-text-secondary text-sm">{tr.objective.lead}</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <LanguageToggle />
-            <button
-              onClick={() => setKbOpen(true)}
-              className="h-[30px] px-3 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors flex items-center gap-2"
-              title={tr.objective.kbTitle}
-            >
-              <span>{tr.objective.kbBadge}</span>
-              {kbCount > 0 && (
-                <span className="font-mono text-[10px] text-ai-accent bg-ai-accent/10 px-1.5 py-0.5 rounded-[2px]">
-                  {kbCount}
-                </span>
-              )}
-            </button>
-          </div>
+          <button
+            onClick={() => setKbOpen(true)}
+            className="shrink-0 px-3 py-1.5 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors flex items-center gap-2"
+            title={tr.objective.kbTitle}
+          >
+            <span>{tr.objective.kbBadge}</span>
+            {kbCount > 0 && (
+              <span className="font-mono text-[10px] text-ai-accent bg-ai-accent/10 px-1.5 py-0.5 rounded-[2px]">
+                {kbCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {kbUsed.length > 0 && (

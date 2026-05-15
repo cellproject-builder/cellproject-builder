@@ -91,10 +91,10 @@ export const en = {
     title: 'Start with the objective.',
     lead: 'The AI proposes complete paths. You pick one and follow it step by step.',
     projectNameLabel: 'Project name',
-    projectNamePlaceholder: 'e.g. Auth migration',
+    projectNamePlaceholder: 'e.g. Mini drone build',
     objectiveLabel: 'What is the objective? (f(X) = ?)',
     objectivePlaceholder:
-      'e.g. migrate auth from session cookies to JWT in 2 weeks without breaking existing logins',
+      'e.g. build a 130mm-class mini drone that hovers stably for 5 minutes on a 850mAh 3S battery — FPV-ready frame, BetaFlight tuned',
     exampleRust: 'example: learn Rust in 30 days',
     exampleRustName: 'Rust in 30 days',
     exampleRustObjective:
@@ -402,10 +402,10 @@ export const ptBR: Messages = {
     title: 'Comece pelo objetivo.',
     lead: 'A AI propõe caminhos completos. Você escolhe um e vai seguindo passo a passo.',
     projectNameLabel: 'Nome do projeto',
-    projectNamePlaceholder: 'ex: Migrar auth',
+    projectNamePlaceholder: 'ex: Mini drone',
     objectiveLabel: 'Qual o objetivo? (f(X) = ?)',
     objectivePlaceholder:
-      'ex: migrar auth de cookies de sessão pra JWT em 2 semanas sem quebrar logins existentes',
+      'ex: construir um mini drone classe 130mm que paira estável por 5 minutos com bateria 850mAh 3S — frame FPV, BetaFlight tunado',
     exampleRust: 'exemplo: aprender Rust em 30 dias',
     exampleRustName: 'Rust em 30 dias',
     exampleRustObjective:

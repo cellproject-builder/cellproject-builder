@@ -77,14 +77,15 @@ export function ApiKeyGate({ onClose }: Props) {
         className="min-h-full flex items-center justify-center px-4 sm:px-6 pt-[max(env(safe-area-inset-top),1rem)] pb-[max(env(safe-area-inset-bottom),1rem)] sm:pt-[max(env(safe-area-inset-top),1.5rem)] sm:pb-[max(env(safe-area-inset-bottom),1.5rem)]"
       >
         <div className="w-full max-w-2xl py-4 sm:py-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Logo size={22} className="text-text-primary shrink-0" />
-            <div className="text-ai-accent text-xs font-mono uppercase tracking-widest truncate">
-              {tr.apiKey.kicker}
-            </div>
+        {/* Utility row — language picker stays out of the brand line */}
+        <div className="flex justify-end mb-2">
+          <LanguageToggle />
+        </div>
+        <div className="flex items-center gap-2.5 mb-3 min-w-0">
+          <Logo size={22} className="text-text-primary shrink-0" />
+          <div className="text-ai-accent text-xs font-mono uppercase tracking-widest truncate">
+            {tr.apiKey.kicker}
           </div>
-          <LanguageToggle className="shrink-0" />
         </div>
         <h1 className="text-2xl font-semibold text-text-primary mb-2">{tr.apiKey.title}</h1>
         <p className="text-sm text-text-secondary mb-5 leading-relaxed">{tr.apiKey.subtitle}</p>
