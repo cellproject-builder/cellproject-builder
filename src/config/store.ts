@@ -31,7 +31,7 @@ export const PROVIDER_KEY_HINTS: Record<Provider, string> = {
 export const PROVIDER_DEFAULTS: Record<Provider, { mainModel: string; kbModel: string }> = {
   openai: { mainModel: 'gpt-4o', kbModel: 'gpt-4o-mini' },
   anthropic: { mainModel: 'claude-sonnet-4-5', kbModel: 'claude-haiku-4-5' },
-  openrouter: { mainModel: 'z-ai/glm-5', kbModel: 'google/gemini-2.0-flash-001' },
+  openrouter: { mainModel: 'x-ai/grok-4.3-high', kbModel: 'google/gemini-2.0-flash-001' },
 };
 
 interface ConfigState {

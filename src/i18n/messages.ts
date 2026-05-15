@@ -95,12 +95,14 @@ export const en = {
     objectiveLabel: 'What is the objective? (f(X) = ?)',
     objectivePlaceholder:
       'e.g. build a kite — paper + sticks → toy that flies',
-    examplePipa: 'example: kite',
-    examplePipaName: 'My kid’s kite',
-    examplePipaObjective: 'build a simple kite to fly at the park',
-    exampleSpeaker: 'example: bluetooth speaker',
-    exampleSpeakerName: 'Portable bluetooth speaker',
-    exampleSpeakerObjective: 'build a portable bluetooth speaker',
+    exampleRust: 'example: learn Rust in 30 days',
+    exampleRustName: 'Rust in 30 days',
+    exampleRustObjective:
+      'learn enough Rust in 30 days to ship a real CLI tool (not a tutorial) with passing tests and a binary published on GitHub Releases',
+    exampleSaas: 'example: ship a SaaS MVP',
+    exampleSaasName: 'SaaS MVP — 6 weeks',
+    exampleSaasObjective:
+      'ship a paid SaaS MVP in 6 weeks with auth, Stripe billing and a landing page that converts the first 10 customers',
     generate: '◆ Generate plans with AI',
     generating: (phase: string, elapsed: string) =>
       `Generating plans — ${phase} ${elapsed}`,
@@ -404,12 +406,14 @@ export const ptBR: Messages = {
     objectiveLabel: 'Qual o objetivo? (f(X) = ?)',
     objectivePlaceholder:
       'ex: construir uma pipa — papel + gravetos → brinquedo que voa',
-    examplePipa: 'exemplo: pipa',
-    examplePipaName: 'Pipa do meu filho',
-    examplePipaObjective: 'construir uma pipa simples para voar na praça',
-    exampleSpeaker: 'exemplo: caixa de som',
-    exampleSpeakerName: 'Caixa de som portátil',
-    exampleSpeakerObjective: 'construir uma caixa de som bluetooth portátil',
+    exampleRust: 'exemplo: aprender Rust em 30 dias',
+    exampleRustName: 'Rust em 30 dias',
+    exampleRustObjective:
+      'aprender Rust em 30 dias o suficiente pra entregar uma CLI real (não tutorial) com testes passando e binário publicado no GitHub Releases',
+    exampleSaas: 'exemplo: lançar MVP de SaaS',
+    exampleSaasName: 'MVP de SaaS — 6 semanas',
+    exampleSaasObjective:
+      'lançar um MVP de SaaS pago em 6 semanas com auth, billing Stripe e landing page que converta os primeiros 10 clientes',
     generate: '◆ Gerar planos com AI',
     generating: (phase: string, elapsed: string) =>
       `Gerando planos — ${phase} ${elapsed}`,

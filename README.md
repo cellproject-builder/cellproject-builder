@@ -61,7 +61,7 @@ Open [http://localhost:5173](http://localhost:5173). On first run a setup screen
 
 | Provider | Get a key | Default model |
 |----------|-----------|---------------|
-| **OpenRouter** *(recommended)* | https://openrouter.ai/keys | `z-ai/glm-5` |
+| **OpenRouter** *(recommended)* | https://openrouter.ai/keys | `x-ai/grok-4.3-high` |
 | **OpenAI** | https://platform.openai.com/api-keys | `gpt-4o` |
 | **Anthropic** | https://console.anthropic.com/settings/keys | `claude-sonnet-4-5` |
 
