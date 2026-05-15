@@ -6,6 +6,7 @@ import { useT } from '@/i18n';
 import type { AIPlan } from '@/types';
 import type { Messages } from '@/i18n';
 import { KnowledgeRepo } from './KnowledgeRepo';
+import { LanguageToggle } from './LanguageToggle';
 
 export function ObjectiveScreen() {
   const tr = useT();
@@ -72,18 +73,21 @@ export function ObjectiveScreen() {
             </h1>
             <p className="text-text-secondary text-sm">{tr.objective.lead}</p>
           </div>
-          <button
-            onClick={() => setKbOpen(true)}
-            className="px-3 py-1.5 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors flex items-center gap-2"
-            title={tr.objective.kbTitle}
-          >
-            <span>{tr.objective.kbBadge}</span>
-            {kbCount > 0 && (
-              <span className="font-mono text-[10px] text-ai-accent bg-ai-accent/10 px-1.5 py-0.5 rounded-[2px]">
-                {kbCount}
-              </span>
-            )}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <LanguageToggle variant="compact" />
+            <button
+              onClick={() => setKbOpen(true)}
+              className="px-3 py-1.5 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors flex items-center gap-2"
+              title={tr.objective.kbTitle}
+            >
+              <span>{tr.objective.kbBadge}</span>
+              {kbCount > 0 && (
+                <span className="font-mono text-[10px] text-ai-accent bg-ai-accent/10 px-1.5 py-0.5 rounded-[2px]">
+                  {kbCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {kbUsed.length > 0 && (

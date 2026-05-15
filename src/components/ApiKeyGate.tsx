@@ -7,12 +7,12 @@ import {
   type Provider,
   type ProviderConfig,
 } from '@/config/store';
-import { useT, useLocaleStore, LOCALE_LABELS, type Locale } from '@/i18n';
+import { useT } from '@/i18n';
 import { useGraphStore } from '@/store';
 import { Logo } from './Logo';
+import { LanguageToggle } from './LanguageToggle';
 
 const PROVIDERS: Provider[] = ['openrouter', 'openai', 'anthropic'];
-const LOCALES: Locale[] = ['en', 'pt-BR'];
 
 interface Props {
   onClose?: () => void;
@@ -20,9 +20,6 @@ interface Props {
 
 export function ApiKeyGate({ onClose }: Props) {
   const tr = useT();
-  const locale = useLocaleStore((s) => s.locale);
-  const setLocale = useLocaleStore((s) => s.setLocale);
-
   const activeProvider = useConfigStore((s) => s.activeProvider);
   const providers = useConfigStore((s) => s.providers);
   const saveProviderConfig = useConfigStore((s) => s.saveProviderConfig);
@@ -87,7 +84,7 @@ export function ApiKeyGate({ onClose }: Props) {
               {tr.apiKey.kicker}
             </div>
           </div>
-          <LanguageSelector locale={locale} onChange={setLocale} />
+          <LanguageToggle />
         </div>
         <h1 className="text-2xl font-semibold text-text-primary mb-2">{tr.apiKey.title}</h1>
         <p className="text-sm text-text-secondary mb-5 leading-relaxed">{tr.apiKey.subtitle}</p>
@@ -269,25 +266,3 @@ function Field({
   );
 }
 
-function LanguageSelector({
-  locale,
-  onChange,
-}: {
-  locale: Locale;
-  onChange: (l: Locale) => void;
-}) {
-  return (
-    <select
-      value={locale}
-      onChange={(e) => onChange(e.target.value as Locale)}
-      className="bg-bg-secondary border border-border-base rounded-sm text-text-secondary text-xs px-2 py-1 font-mono outline-none focus:border-ai-accent"
-      aria-label="Language"
-    >
-      {LOCALES.map((l) => (
-        <option key={l} value={l}>
-          {LOCALE_LABELS[l]}
-        </option>
-      ))}
-    </select>
-  );
-}
