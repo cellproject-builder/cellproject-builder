@@ -1,0 +1,129 @@
+import { z } from 'zod';
+
+const NodeKindSchema = z.enum(['categoria', 'recurso', 'passo', 'decisao', 'concept']);
+const EdgeKindSchema = z.enum(['direct', 'middleware', 'independent', 'optional']);
+const CategoryKindSchema = z.enum(['recursos', 'execucao', 'decisoes']);
+const GroundTruthKindSchema = z.enum(['link', 'spec', 'medida']);
+
+const DecisionOptionSchema = z.object({
+  label: z.string().describe('Título curto da opção.'),
+  pitch: z.string().describe('1–2 frases explicando essa opção.'),
+  consequences: z.string().optional().describe('O que muda se escolher esta opção.'),
+});
+
+const GroundTruthHintSchema = z.object({
+  kind: GroundTruthKindSchema.describe(
+    '"link" (URL verificável), "spec" (especificação textual com unidade/modelo), "medida" (número com unidade e tolerância).',
+  ),
+  label: z.string().describe('Rótulo curto do que esta âncora representa.'),
+  value: z
+    .string()
+    .describe(
+      'URL, especificação ou medida concreta — algo que o usuário pode conferir no mundo real. Ex: "40cm ± 2cm", "bambu Phyllostachys aurea", "https://pt.wikipedia.org/wiki/Pipa".',
+    ),
+});
+
+export const SuggestedNodeSchema = z.object({
+  tempId: z
+    .string()
+    .describe('Identificador curto e único dentro deste plano. Ex: "n1", "r2", "p3".'),
+  kind: NodeKindSchema,
+  name: z.string().describe('Nome curto e específico do nó (2–6 palavras).'),
+  fx: z
+    .string()
+    .describe(
+      'Função do nó descrita como transformação "estado antes → estado depois". Frase curta.',
+    ),
+  problem: z.string().describe('Problema que este nó resolve. 1 frase.'),
+  confidence: z.number().min(0).max(100).describe('Confiança de 0 a 100.'),
+  confidenceReason: z.string().describe('Motivo curto da confiança.'),
+  pros: z.array(z.string()).describe('Prós curtos. Pode ser vazio.'),
+  cons: z.array(z.string()).describe('Contras curtos. Pode ser vazio.'),
+  oQue: z.string().describe('Explicação didática do que é este nó (2–4 frases).'),
+  porQue: z.string().describe('Por que ele é necessário (1–3 frases).'),
+  comoConfirmar: z
+    .string()
+    .describe('Pergunta concreta que o usuário possa responder sim/não para confirmar.'),
+  order: z
+    .number()
+    .int()
+    .optional()
+    .describe('Ordem entre irmãos — obrigatório se kind="passo".'),
+  decisionOptions: z
+    .array(DecisionOptionSchema)
+    .optional()
+    .describe('Opções — obrigatório se kind="decisao".'),
+  groundTruthHints: z
+    .array(GroundTruthHintSchema)
+    .optional()
+    .describe(
+      'Âncoras verificáveis no mundo real: links, specs, medidas com unidade. Prefira concreto sobre genérico. Vazio é aceitável quando não existe âncora natural.',
+    ),
+});
+
+export const SuggestedEdgeSchema = z.object({
+  sourceTempId: z.string(),
+  targetTempId: z.string(),
+  kind: EdgeKindSchema,
+  note: z.string().optional(),
+});
+
+export const PlanCategorySchema = z.object({
+  tempId: z.string().describe('Id único da categoria, ex: "cat1".'),
+  name: z.string().describe('Nome legível: "Recursos", "Execução" ou "Decisões".'),
+  kind: CategoryKindSchema,
+  oQue: z.string(),
+  porQue: z.string(),
+  children: z.array(SuggestedNodeSchema).describe('Nós filhos diretos desta categoria.'),
+});
+
+export const PlanSchema = z.object({
+  title: z.string().describe('Título curto e memorável do plano (2–6 palavras).'),
+  pitch: z.string().describe('1–2 frases resumindo a abordagem.'),
+  approach: z.string().describe('Parágrafo descrevendo a abordagem geral.'),
+  tree: z.object({
+    categorias: z
+      .array(PlanCategorySchema)
+      .min(1)
+      .max(3)
+      .describe('1 a 3 categorias. Sempre inclua "recursos" e "execucao". "decisoes" só se houver tradeoff real.'),
+  }),
+});
+
+export const PlansResponseSchema = z.object({
+  plans: z
+    .array(PlanSchema)
+    .min(1)
+    .max(3)
+    .describe('1 a 3 planos alternativos, ordenados do mais simples ao mais ambicioso.'),
+});
+
+export const DecomposeResponseSchema = z.object({
+  nodes: z.array(SuggestedNodeSchema).min(1),
+  edges: z.array(SuggestedEdgeSchema).describe('Arestas entre os novos nós. Pode ser vazio.'),
+});
+
+// Revisor adversarial — prompt distinto do planejador.
+// Objetivo: fornecer um critério de verificação INDEPENDENTE do que a IA
+// originalmente gerou, quebrando o loop IA→IA.
+export const CritiqueResponseSchema = z.object({
+  fraquezas: z
+    .array(z.string())
+    .min(1)
+    .describe('Pontos onde este nó pode estar errado, incompleto, ou depender de premissa frágil.'),
+  premissasOcultas: z
+    .array(z.string())
+    .describe('Coisas que o plano assume em silêncio e que o usuário pode não perceber.'),
+  criterioAlternativo: z
+    .string()
+    .describe(
+      'Critério INDEPENDENTE de confirmação, escrito como cético. Deve ser diferente em forma e foco do comoConfirmar original. Concreto e verificável no mundo real.',
+    ),
+});
+
+export type PlansResponse = z.infer<typeof PlansResponseSchema>;
+export type DecomposeResponse = z.infer<typeof DecomposeResponseSchema>;
+export type CritiqueResponse = z.infer<typeof CritiqueResponseSchema>;
+export type RawPlan = z.infer<typeof PlanSchema>;
+export type RawSuggestedNode = z.infer<typeof SuggestedNodeSchema>;
+export type RawSuggestedEdge = z.infer<typeof SuggestedEdgeSchema>;

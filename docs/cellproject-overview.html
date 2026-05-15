@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cellproject — Conceito, estado atual e direção</title>
+<style>
+  :root {
+    --bg-primary: #09090b;
+    --bg-secondary: #18181b;
+    --bg-elevated: #27272a;
+    --border-base: #3f3f46;
+    --text-primary: #fafafa;
+    --text-secondary: #d4d4d8;
+    --text-muted: #71717a;
+    --ai-accent: #a78bfa;
+    --ai-accent-dim: rgba(167, 139, 250, 0.15);
+    --conf-high: #22c55e;
+    --conf-mid: #fbbf24;
+    --conf-low: #f87171;
+    --state-done: #22c55e;
+    --state-problem: #ef4444;
+    --state-executing: #06b6d4;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  a { color: var(--ai-accent); text-decoration: none; border-bottom: 1px dotted rgba(167, 139, 250, 0.4); }
+  a:hover { color: #c4b5fd; border-bottom-color: var(--ai-accent); }
+
+  /* Layout */
+  .shell {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+  nav.toc {
+    border-right: 1px solid var(--border-base);
+    background: var(--bg-secondary);
+    padding: 24px 18px;
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+  nav.toc h2 {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ai-accent);
+    margin: 0 0 12px 0;
+    font-weight: 600;
+  }
+  nav.toc ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: section;
+  }
+  nav.toc li {
+    counter-increment: section;
+    margin-bottom: 2px;
+  }
+  nav.toc li::before {
+    content: counter(section, decimal-leading-zero) ".";
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-right: 8px;
+  }
+  nav.toc a {
+    color: var(--text-secondary);
+    font-size: 13px;
+    border-bottom: none;
+    display: inline;
+  }
+  nav.toc a:hover { color: var(--text-primary); }
+  nav.toc .group {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    margin-top: 22px;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  main {
+    padding: 48px 64px 96px;
+    max-width: 920px;
+  }
+  header.hero {
+    border-bottom: 1px solid var(--border-base);
+    padding-bottom: 32px;
+    margin-bottom: 40px;
+  }
+  header.hero .tag {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--ai-accent);
+    margin-bottom: 12px;
+  }
+  header.hero h1 {
+    font-size: 40px;
+    line-height: 1.15;
+    margin: 0 0 16px 0;
+    color: var(--text-primary);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  header.hero p.lead {
+    font-size: 17px;
+    color: var(--text-secondary);
+    margin: 0 0 8px 0;
+    max-width: 64ch;
+  }
+  header.hero .meta {
+    margin-top: 18px;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  header.hero .meta span strong { color: var(--text-secondary); font-weight: 500; }
+
+  section { margin-bottom: 56px; scroll-margin-top: 16px; }
+  section > h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ai-accent);
+    margin: 0 0 8px 0;
+    font-weight: 600;
+  }
+  section > h2 + h3 {
+    margin-top: 0;
+  }
+  h3 {
+    font-size: 24px;
+    line-height: 1.25;
+    margin: 0 0 18px 0;
+    color: var(--text-primary);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  h4 {
+    font-size: 16px;
+    margin: 28px 0 10px 0;
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  p { margin: 0 0 14px 0; }
+
+  ul, ol { padding-left: 22px; margin: 0 0 14px 0; }
+  ul li, ol li { margin-bottom: 6px; }
+  ul li::marker { color: var(--text-muted); }
+
+  code {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-base);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 12.5px;
+    color: var(--text-primary);
+  }
+  pre {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-base);
+    border-radius: 4px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    margin: 0 0 18px 0;
+  }
+  pre code { background: none; border: none; padding: 0; color: inherit; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 18px 0;
+    font-size: 13.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-base);
+    vertical-align: top;
+  }
+  th {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    font-weight: 600;
+    border-bottom-color: var(--bg-elevated);
+  }
+  td code { font-size: 11.5px; }
+
+  .card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-base);
+    border-radius: 4px;
+    padding: 18px 20px;
+    margin: 0 0 16px 0;
+  }
+  .card-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+    margin: 0 0 18px 0;
+  }
+  .card .kicker {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ai-accent);
+    margin-bottom: 6px;
+  }
+  .card h4 {
+    margin: 0 0 8px 0;
+    font-size: 15px;
+  }
+  .card p:last-child { margin-bottom: 0; }
+
+  .pill {
+    display: inline-block;
+    font-family: ui-monospace, monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 2px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--border-base);
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+    margin-right: 4px;
+  }
+  .pill.ok { color: var(--state-done); border-color: rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.08); }
+  .pill.wip { color: var(--conf-mid); border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.08); }
+  .pill.plan { color: var(--ai-accent); border-color: rgba(167, 139, 250, 0.4); background: var(--ai-accent-dim); }
+  .pill.risk { color: var(--state-problem); border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08); }
+
+  .quote {
+    border-left: 2px solid var(--ai-accent);
+    padding: 4px 16px;
+    background: var(--ai-accent-dim);
+    color: var(--text-primary);
+    margin: 0 0 18px 0;
+    font-size: 15px;
+  }
+
+  .ascii-tree {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-base);
+    border-radius: 4px;
+    padding: 18px 22px;
+    font-family: ui-monospace, monospace;
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--text-secondary);
+    white-space: pre;
+    overflow-x: auto;
+    margin: 0 0 18px 0;
+  }
+
+  .status-list { list-style: none; padding: 0; margin: 0 0 18px 0; }
+  .status-list li {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    align-items: baseline;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--bg-elevated);
+  }
+  .status-list li:last-child { border-bottom: none; }
+
+  hr.sep {
+    border: none;
+    border-top: 1px solid var(--bg-elevated);
+    margin: 28px 0;
+  }
+
+  footer {
+    border-top: 1px solid var(--border-base);
+    padding-top: 24px;
+    margin-top: 64px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: ui-monospace, monospace;
+  }
+
+  /* responsivo */
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    nav.toc { position: static; max-height: none; border-right: none; border-bottom: 1px solid var(--border-base); }
+    main { padding: 32px 22px 60px; }
+    header.hero h1 { font-size: 30px; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<nav class="toc">
+  <h2>◆ Cellproject</h2>
+  <div class="group">Conceito</div>
+  <ol>
+    <li><a href="#pitch">Pitch e problema</a></li>
+    <li><a href="#principios">Princípios</a></li>
+    <li><a href="#modelo">Modelo mental</a></li>
+    <li><a href="#tipos">Taxonomia de nós</a></li>
+    <li><a href="#estado-no">Estado e arestas</a></li>
+  </ol>
+  <div class="group">Funcionamento</div>
+  <ol start="6">
+    <li><a href="#fluxos">Fluxos principais</a></li>
+    <li><a href="#ground-truth">Ground truth (4 mecanismos)</a></li>
+    <li><a href="#arquitetura">Arquitetura atual</a></li>
+    <li><a href="#ai-service">Contrato com o modelo</a></li>
+    <li><a href="#kb">Repositório de conhecimento</a></li>
+  </ol>
+  <div class="group">Estado atual</div>
+  <ol start="11">
+    <li><a href="#feito">O que funciona hoje</a></li>
+    <li><a href="#nao-feito">O que ainda não existe</a></li>
+    <li><a href="#riscos">Riscos abertos</a></li>
+  </ol>
+  <div class="group">Direção</div>
+  <ol start="14">
+    <li><a href="#supabase">Backend Supabase</a></li>
+    <li><a href="#caminhos">Caminhos prováveis</a></li>
+    <li><a href="#possibilidades">Possibilidades futuras</a></li>
+    <li><a href="#decisoes">Decisões que ficam abertas</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="hero">
+  <div class="tag">◆ Cellproject · panorama vivo</div>
+  <h1>Planejar e aprender, na mesma árvore.</h1>
+  <p class="lead">
+    Cellproject é um framework visual de planejamento por decomposição.
+    O usuário declara um objetivo concreto, a IA propõe caminhos completos em forma de árvore,
+    e o usuário valida nó a nó até realizar — usando o próprio plano como material didático.
+  </p>
+  <div class="meta">
+    <span><strong>Versão atual:</strong> 0.1.0</span>
+    <span><strong>Stack:</strong> Vite + React 18 + TypeScript</span>
+    <span><strong>Branch ativo:</strong> feat/supabase-db-backend-architecture</span>
+    <span><strong>Persistência local:</strong> Zustand + IndexedDB</span>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<section id="pitch">
+<h2>01 · Pitch e problema</h2>
+<h3>O que Cellproject resolve</h3>
+<p>Planejar algo novo (construir, montar, aprender) trava em dois pontos clássicos:</p>
+<ol>
+  <li><strong>Paralisia inicial</strong> — não sei por onde começar, não sei o que existe, não sei o que vem antes do quê.</li>
+  <li><strong>Perda de contexto durante a execução</strong> — o plano vira lista opaca, cada item vira tarefa cega, a razão de cada passo se perde.</li>
+</ol>
+<p>
+  To-do lists, kanbans e mapas mentais livres resolvem só metade do problema: ou estruturam mal, ou estruturam sem ensinar.
+  Cellproject assume que <em>planejar</em> e <em>aprender</em> são a mesma atividade — a árvore que guia a execução é também o material didático.
+</p>
+<div class="quote">
+  Nada começa sem um <code>f(X) = ?</code> escrito. O objetivo é a raiz; tudo abaixo só existe pra contribuir com ele.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="principios">
+<h2>02 · Princípios</h2>
+<h3>O que mantém o framework coerente</h3>
+<div class="card-row">
+  <div class="card">
+    <div class="kicker">◆ Objetivo primeiro</div>
+    <h4>Sempre uma raiz</h4>
+    <p>Não existe nó solto. Toda decomposição puxa um <code>f(X)</code> declarado pelo usuário no topo.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Decomposição tipada</div>
+    <h4>5 papéis fixos</h4>
+    <p>Cada nó é <code>recurso</code>, <code>passo</code>, <code>decisao</code>, <code>categoria</code> ou <code>concept</code>. O tipo determina como a IA o decompõe.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Validável isoladamente</div>
+    <h4>oQue / porQue / como confirmar</h4>
+    <p>Se o usuário consegue confirmar pelo critério, avança. Se não, decompõe mais.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ IA é co-autora</div>
+    <h4>Aceite por nó</h4>
+    <p>A IA propõe planos e sub-árvores em streaming. Sugestões ficam em <em>staging</em> até confirmação humana.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Loop nunca fechado em IA</div>
+    <h4>Toda validação precisa de âncora externa</h4>
+    <p>Critério gerado pela mesma IA que gerou o plano é teatro. Existem 4 mecanismos pra forçar ground truth — ver seção 07.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Tom direto, pt-BR</div>
+    <h4>“2 varetas de 40cm”, não “alguns materiais”</h4>
+    <p>Específico vence genérico. Sem rodeio, sem marketing. Vale tanto pra UI quanto pro prompt do modelo.</p>
+  </div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="modelo">
+<h2>03 · Modelo mental</h2>
+<h3>Um projeto é uma árvore com metadados</h3>
+<p>A forma canônica é esta:</p>
+<div class="ascii-tree">Projeto (objetivo)
+└── root (f(X) = ?)
+    ├── categoria: Recursos
+    │   ├── recurso A
+    │   └── recurso B
+    ├── categoria: Execução
+    │   ├── passo 1
+    │   ├── passo 2
+    │   └── passo 3
+    └── categoria: Decisões            (opcional, só se houver tradeoff real)
+        └── decisão X (opção A | B | C)</div>
+<p>
+  Cada nó carrega <strong>conceito</strong>, <strong>didática</strong>, <strong>ground truth</strong>, <strong>execução</strong>, <strong>auditoria</strong>.
+  Todos os campos vivem em <code>ConceptNodeData</code> (<code>src/types.ts</code>) e são alimentados ou pela IA, ou pelo usuário, ou por ambos com travamento claro.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="tipos">
+<h2>04 · Taxonomia de nós</h2>
+<h3>NodeKind — 6 papéis</h3>
+<table>
+  <thead>
+    <tr><th>kind</th><th>Papel</th><th>Decomposto pela IA como…</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>root</code></td><td>O objetivo em si.</td><td>Não decompõe — é a raiz.</td></tr>
+    <tr><td><code>categoria</code></td><td>Agrupador (Recursos / Execução / Decisões).</td><td>3–8 filhos do tipo natural da categoria.</td></tr>
+    <tr><td><code>recurso</code></td><td>Algo disponível antes da execução.</td><td>2–4 sub-recursos ou etapas de aquisição.</td></tr>
+    <tr><td><code>passo</code></td><td>Ação concreta, ordenada (<code>order</code>).</td><td>2–5 sub-passos em cadeia com arestas <code>direct</code>.</td></tr>
+    <tr><td><code>decisao</code></td><td>Escolha entre caminhos mutuamente exclusivos.</td><td>2–4 nós que detalham o pós-decisão.</td></tr>
+    <tr><td><code>concept</code></td><td>Nó auxiliar — usar só quando os outros não cabem.</td><td>2–5 filhos do tipo mais adequado.</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ============================================================ -->
+<section id="estado-no">
+<h2>05 · Estado e arestas</h2>
+<h3>NodeState e EdgeKind</h3>
+<p><strong>Ciclo de vida:</strong> <code>concept</code> → <code>validated</code> → <code>executing</code> → <code>done</code>. Em qualquer momento pode virar <code>problem</code> ou <code>discarded</code>. O booleano <code>confirmado</code> é ortogonal e marca se o usuário passou pelo <code>comoConfirmar</code>.</p>
+<table>
+  <thead>
+    <tr><th>EdgeKind</th><th>Significado</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>direct</code></td><td>A precede B diretamente (passo N → passo N+1).</td></tr>
+    <tr><td><code>middleware</code></td><td>A influencia B via um nó intermediário.</td></tr>
+    <tr><td><code>independent</code></td><td>Ligação informativa, sem dependência.</td></tr>
+    <tr><td><code>optional</code></td><td>Caminho alternativo.</td></tr>
+  </tbody>
+</table>
+<p>
+  No grafo (<code>GraphCanvas</code>) cada <code>EdgeKind</code> tem cor e dasharray próprios:
+  <code>direct</code> verde animado, <code>middleware</code> âmbar tracejado, <code>independent</code> índigo pontilhado, <code>optional</code> cinza-claro.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="fluxos">
+<h2>06 · Fluxos principais</h2>
+<h3>Três jornadas, um projeto</h3>
+
+<h4>1. Criação — <code>ObjectiveScreen</code></h4>
+<ol>
+  <li>Usuário escreve nome e <code>f(X)</code> (objetivo).</li>
+  <li><code>generatePlans(objective)</code> pede 1–3 planos do mais simples ao mais ambicioso, com streaming via <code>streamObject</code>.</li>
+  <li>A tela mostra o plano se montando ao vivo (<code>connecting → streaming → finalizing → done</code>).</li>
+  <li>Usuário escolhe um plano → <code>createProjectFromPlan</code> materializa a árvore no Zustand.</li>
+</ol>
+
+<h4>2. Exploração e expansão — <code>GraphCanvas</code> + <code>DetailPanel</code></h4>
+<ol>
+  <li>Grafo em React Flow com 5 lentes (teclas 1–5): <code>structure</code>, <code>flow</code>, <code>risk</code>, <code>state</code>, <code>connections</code>.</li>
+  <li>Clique num nó → <code>DetailPanel</code> abre com metadados, notas, histórico.</li>
+  <li>Botão “Detalhar com AI” → <code>decomposeNode(ctx)</code> gera filhos + arestas conforme o tipo.</li>
+  <li>Sugestões caem em <strong>staging</strong> (<code>pendingSuggestions</code>). Cada uma vira um nó tracejado no grafo com botões aceitar / rejeitar.</li>
+</ol>
+
+<h4>3. Execução guiada — <code>TutorMode</code></h4>
+<ol>
+  <li>Tecla <code>t</code> entra no modo tutor; <code>g</code> volta ao grafo.</li>
+  <li><code>nextPendingForTutor()</code> seleciona o próximo nó: primeiro recursos não confirmados, depois passos respeitando <code>order</code> dentro da categoria de Execução.</li>
+  <li><code>explainNode(ctx)</code> gera, sob demanda, uma explicação longa em markdown (estrutura com títulos em <strong>NEGRITO MAIÚSCULO</strong>).</li>
+  <li>Usuário confirma → <code>confirmNode(id)</code> avança para o próximo.</li>
+</ol>
+
+<h4>4. Decisões</h4>
+<p>
+  Quando um nó é <code>decisao</code>, o usuário escolhe uma das <code>decisionOptions</code>. A escolha vira histórico (<code>kind: 'decision'</code>) e define <code>decisionPickedId</code>, que pode condicionar próximos passos.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="ground-truth">
+<h2>07 · Ground truth</h2>
+<h3>Os 4 mecanismos que rompem o loop IA→IA</h3>
+<div class="quote">
+  O maior risco conceitual do Cellproject é a mesma IA gerar o plano <em>e</em> o critério de confirmação, o usuário confirmar, e nenhum sinal da realidade entrar. Quatro mecanismos ortogonais garantem que cada nó possa ser ancorado fora da IA.
+</div>
+
+<table>
+  <thead>
+    <tr><th>Mecanismo</th><th>Quem inicia</th><th>Quando roda</th><th>Quebra o loop porque…</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>(a)</strong> Critério do usuário</td>
+      <td>Usuário</td>
+      <td>Antes de ver o da IA</td>
+      <td>A pessoa não valida — ela <em>afirma</em>. Campo <code>comoConfirmarUsuario</code> trava após <code>setUserCriterion</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>(b)</strong> Crítica adversarial</td>
+      <td>Usuário → IA</td>
+      <td>Sob demanda, por nó</td>
+      <td>Persona <code>CRITIC_SYSTEM</code> distinta do <code>BASE_SYSTEM</code> gera um <code>criterioAlternativo</code> independente.</td>
+    </tr>
+    <tr>
+      <td><strong>(c)</strong> Replan por falha</td>
+      <td>Usuário → IA</td>
+      <td>Quando a realidade recusa</td>
+      <td><code>reportFailure(id, contexto)</code> alimenta <code>replanFromFailure</code> com o que o mundo provou errado.</td>
+    </tr>
+    <tr>
+      <td><strong>(d)</strong> Âncoras verificáveis</td>
+      <td>IA + Usuário</td>
+      <td>No plano, continuamente</td>
+      <td><code>groundTruthRefs</code> (<code>link</code>/<code>spec</code>/<code>medida</code>). Cada <code>verificado: true</code> é 1 bit de realidade entrando.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4>Detalhe importante de (a)</h4>
+<p>
+  <code>setUserCriterion</code> em <code>store.ts</code> recusa sobrescrita quando <code>comoConfirmarUsuarioAt</code> já existe.
+  E o <code>UserCriterionField</code> esconde o <code>comoConfirmar</code> da IA até o usuário travar o seu — impedindo cópia retroativa.
+</p>
+<h4>Detalhe importante de (d)</h4>
+<p>
+  A IA já sugere âncoras via <code>groundTruthHints</code>. Mas elas entram com <code>verificado: false</code> e <code>addedByAI: true</code>.
+  Só viram verdade depois que o usuário confere no mundo e chama <code>toggleGroundTruthVerified</code>.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="arquitetura">
+<h2>08 · Arquitetura atual</h2>
+<h3>Stack hoje (branch principal main vs. branch ativo)</h3>
+
+<div class="card-row">
+  <div class="card">
+    <div class="kicker">Frontend</div>
+    <h4>Vite + React 18 + TS</h4>
+    <p>SPA pura, sem SSR. Tailwind 3 com paleta própria (<code>bg-primary</code>, <code>ai-accent</code>, <code>conf-high</code>…).</p>
+  </div>
+  <div class="card">
+    <div class="kicker">Grafo</div>
+    <h4>@xyflow/react 12</h4>
+    <p>Layout próprio em <code>layoutFromPlan</code>; 5 lentes recomputam posições em <code>lensPositions</code>.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">Estado</div>
+    <h4>Zustand + IndexedDB</h4>
+    <p><code>persist</code> + <code>idb-keyval</code>. Migração com <code>version: 3</code> (ground-truth fields).</p>
+  </div>
+  <div class="card">
+    <div class="kicker">IA</div>
+    <h4>Vercel AI SDK + OpenRouter</h4>
+    <p>Modelo principal <code>z-ai/glm-5</code>; modelo do KB <code>google/gemini-2.0-flash-001</code> (mais barato).</p>
+  </div>
+  <div class="card">
+    <div class="kicker">Validação</div>
+    <h4>Zod schemas</h4>
+    <p><code>PlansResponseSchema</code>, <code>DecomposeResponseSchema</code>, <code>CritiqueResponseSchema</code>. Modelo nunca recebe ids reais — usa <code>tempId</code>s mapeados via <code>idMap</code>.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">PDF local</div>
+    <h4>pdfjs-dist no browser</h4>
+    <p><code>extractPdfText</code> roda 100% no cliente. O binário não sai do dispositivo; só o texto extraído é enviado pra IA.</p>
+  </div>
+</div>
+
+<h4>Estrutura de pastas (src/)</h4>
+<pre><code>src/
+├── App.tsx                  // top-level: ObjectiveScreen | Tutor | Graph
+├── main.tsx
+├── store.ts                 // Zustand store + selectors + idb persist
+├── types.ts                 // ConceptNodeData, Project, AIPlan, …
+├── ai/
+│   ├── client.ts            // OpenRouter providers (aiModel + kbModel)
+│   ├── schemas.ts           // Zod schemas para resposta do modelo
+│   └── service.ts           // 5 funções: generatePlans / decomposeNode /
+│                            // explainNode / critiqueNode / replanFromFailure
+├── kb/
+│   ├── types.ts             // KBDocument, KBSummary, KBFato, KBContextEntry
+│   ├── schemas.ts           // KBSummarySchema, RelevancePickSchema
+│   ├── extract.ts           // pdf.js extraction + fingerprint djb2
+│   ├── service.ts           // summarizeDocument + pickRelevantDocs (AI-judge)
+│   └── store.ts             // KB store (PDFs + cache de picks por contexto)
+├── components/
+│   ├── ObjectiveScreen.tsx  // tela inicial, streaming de planos
+│   ├── TopBar.tsx           // breadcrumb + lentes + view mode + KB
+│   ├── StatusBar.tsx        // métricas: % done, nós, edges, confiança
+│   ├── GraphCanvas.tsx      // React Flow + lensPositions
+│   ├── ConceptNode.tsx      // 3 níveis de zoom (far/mid/near) + suggestion preview
+│   ├── DetailPanel.tsx      // edição lateral do nó selecionado
+│   ├── TutorMode.tsx        // execução guiada, próximo nó
+│   ├── GroundTruth.tsx      // 4 mecanismos (a–d) renderizados
+│   └── KnowledgeRepo.tsx    // modal de upload + listagem de PDFs
+└── test/
+    └── setup.ts             // fake-indexeddb pro vitest</code></pre>
+</section>
+
+<!-- ============================================================ -->
+<section id="ai-service">
+<h2>09 · Contrato com o modelo</h2>
+<h3>Cinco funções em <code>src/ai/service.ts</code></h3>
+<table>
+  <thead>
+    <tr><th>Função</th><th>System</th><th>Retorno</th><th>Uso</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>generatePlans</code></td><td>BASE</td><td><code>AIPlan[]</code> via streaming</td><td>Tela inicial — 1 a 3 planos</td></tr>
+    <tr><td><code>decomposeNode</code></td><td>BASE</td><td><code>{ nodes, edges }</code> validados</td><td>Expandir um nó</td></tr>
+    <tr><td><code>explainNode</code></td><td>BASE + tutor</td><td>markdown string</td><td>Conteúdo do tutor</td></tr>
+    <tr><td><code>critiqueNode</code></td><td><strong>CRITIC</strong></td><td><code>AdversarialCritique</code></td><td>Ground truth (b)</td></tr>
+    <tr><td><code>replanFromFailure</code></td><td>BASE</td><td><code>{ nodes, edges }</code> validados</td><td>Ground truth (c)</td></tr>
+  </tbody>
+</table>
+<p>
+  Todas em pt-BR, tom direto. O <code>CRITIC_SYSTEM</code> é deliberadamente cético — “nada de ‘é um ótimo ponto, mas’”.
+  O modelo <strong>nunca</strong> vê ids reais do projeto: usa <code>tempId</code>s curtos mapeados a <code>nanoid</code>s na hidratação.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="kb">
+<h2>10 · Repositório de conhecimento</h2>
+<h3>PDFs do usuário viram contexto barato pro planejador</h3>
+<p>
+  O KB é o vetor mais novo de poder do framework e ainda subutilizado. Funciona em 3 etapas:
+</p>
+<ol>
+  <li><strong>Upload</strong> — <code>KnowledgeRepo</code> recebe PDFs. <code>extractPdfText</code> roda via pdf.js no browser; <code>fingerprintText</code> (djb2) deduplica.</li>
+  <li><strong>Resumo</strong> — <code>summarizeDocument</code> chama o <code>kbModel</code> barato (Gemini Flash) e devolve <code>KBSummary</code>: <code>titulo</code>, <code>dominio</code>, <code>tags</code>, <code>resumo</code> (3–6 bullets), <code>fatos</code> (medidas/specs/regras/links verificáveis), <code>nivel</code>.</li>
+  <li><strong>Pick</strong> — antes de qualquer prompt grande, <code>getContextFor({ label, extra })</code> chama <code>pickRelevantDocs</code> (AI-judge rigoroso, máximo 2 docs). O resultado é cacheado por hash do contexto em <code>pickCache</code>.</li>
+</ol>
+<p>
+  Cada doc injetado no prompt pesa ~400–800 tokens — bullets de resumo + até 5 fatos. <code>formatKBContext</code> em <code>ai/service.ts</code> monta o bloco <strong>CONHECIMENTO DE BASE</strong> no início do user prompt e instrui o modelo a citar <code>[docId]</code>.
+</p>
+<p>
+  Onde o KB já é usado: <code>generatePlans</code>, <code>decomposeNode</code> e <code>replanFromFailure</code>. <strong>Ainda não usado</strong>: <code>critiqueNode</code> (poderia melhorar a contra-âncora) e <code>explainNode</code> (poderia fundamentar o tutor).
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="feito">
+<h2>11 · O que funciona hoje</h2>
+<h3>Inventário objetivo do estado atual</h3>
+<ul class="status-list">
+  <li><span class="pill ok">pronto</span><span><strong>Geração de planos com streaming</strong> — 1–3 planos via <code>streamObject</code>, com preview parcial dos chunks na tela inicial.</span></li>
+  <li><span class="pill ok">pronto</span><span><strong>Materialização do plano</strong> em <code>Project</code> com nós, edges e <code>history</code> auditável.</span></li>
+  <li><span class="pill ok">pronto</span><span><strong>5 lentes de grafo</strong> — structure, flow (por depth), risk (por banda de confiança), state, connections (radial por grau).</span></li>
+  <li><span class="pill ok">pronto</span><span><strong>3 níveis de zoom no <code>ConceptNode</code></strong> — far / mid / near, com botão de confirmação inline.</span></li>
+  <li><span class="pill ok">pronto</span><span><strong>Decompose + staging</strong> — sugestões aparecem como nós tracejados; aceite por nó ou em lote, com edges entre aceitos materializadas só quando ambos endpoints têm id real (corrige a cadeia passo→passo).</span></li>
+  <li><span class="pill ok">pronto</span><span><strong>Modo tutor com explicação sob demanda</strong> — <code>nextPendingForTutor</code> respeita ordem; <code>explainNode</code> entrega markdown com seções em NEGRITO MAIÚSCULO.</span></li>
+  <li><span class="pill ok">pronto</span><span><strong>Os 4 mecanismos de ground truth completos</strong> — critério travado, crítica adversarial, replan por falha, âncoras verificáveis com toggle.</span></li>
+  <li><span class="pill ok">pronto</span><span><strong>KB local de PDFs</strong> — extração no browser, resumo via modelo barato, AI-judge de relevância, cache por contexto.</span></li>
+  <li><span class="pill ok">pronto</span><span><strong>Bloqueio de passos fora de ordem</strong> — <code>isBlocked</code> impede confirmar passo N+1 se N não estiver confirmado.</span></li>
+  <li><span class="pill ok">pronto</span><span><strong>Export JSON</strong> e persistência IndexedDB com migração versionada.</span></li>
+  <li><span class="pill ok">pronto</span><span><strong>Atalhos de teclado</strong> — <code>t</code>/<code>g</code> entre tutor e grafo, <code>1</code>–<code>5</code> entre lentes.</span></li>
+</ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="nao-feito">
+<h2>12 · O que ainda não existe</h2>
+<h3>Lacunas concretas — não promessas</h3>
+<ul class="status-list">
+  <li><span class="pill wip">parcial</span><span><strong>Persistência de múltiplos projetos</strong>. Hoje o store guarda <em>um</em> projeto (<code>project | null</code>) — “Reset” descarta. Sem lista, sem switch.</span></li>
+  <li><span class="pill wip">parcial</span><span><strong>KB integrado em mais lugares</strong>. <code>critiqueNode</code> e <code>explainNode</code> ainda não recebem <code>kbContext</code>. Citação de <code>[docId]</code> também não vira link clicável em nenhum lugar da UI.</span></li>
+  <li><span class="pill plan">planejado</span><span><strong>Backend Supabase</strong>. A branch <code>feat/supabase-db-backend-architecture</code> teve um spike (commit <code>f1e9f50</code>) com schema de projetos, RLS, Edge Functions e SSR no <code>apps/web</code>. <em>Foi desfeito</em> nas mudanças não comitadas — ver seção 14.</span></li>
+  <li><span class="pill plan">planejado</span><span><strong>Multi-usuário e auth.</strong> Inexistente. Hoje cada navegador é uma cápsula isolada via IndexedDB.</span></li>
+  <li><span class="pill plan">planejado</span><span><strong>Colaboração em tempo real.</strong> Não há canal, não há cursor remoto, não há merge de árvore.</span></li>
+  <li><span class="pill plan">planejado</span><span><strong>Reasoning visível por nó.</strong> <code>extractReasoning</code> já capta o reasoning do modelo no <code>generatePlans</code>, mas o <code>decomposeNode</code> não expõe nada parecido na UI.</span></li>
+  <li><span class="pill plan">planejado</span><span><strong>Crítica adversarial em lote.</strong> Hoje é por nó. Faria sentido um “critique all leaves” varrendo tudo abaixo de uma categoria.</span></li>
+  <li><span class="pill plan">planejado</span><span><strong>Import / sincronização entre dispositivos.</strong> Existe export JSON, mas não há fluxo de import nem reconciliação com o store local.</span></li>
+  <li><span class="pill plan">planejado</span><span><strong>Templates de domínio.</strong> Hoje todo plano é gerado do zero. Um “começar a partir de X” pré-carregado evitaria fome do KB para domínios populares.</span></li>
+  <li><span class="pill plan">planejado</span><span><strong>Mobile / touch.</strong> Layout funciona em desktop. Tutor poderia ser uma PWA standalone.</span></li>
+</ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="riscos">
+<h2>13 · Riscos abertos</h2>
+<h3>Coisas que podem morder se não forem decididas a tempo</h3>
+<div class="card-row">
+  <div class="card">
+    <div class="kicker">◆ Risco conceitual</div>
+    <h4>Loop IA→IA reaparecendo</h4>
+    <p>Os 4 mecanismos existem, mas hoje <em>nada</em> obriga o usuário a usar pelo menos um. Um nó marcado <code>done</code> sem critério travado nem âncora verificada continua sendo teatro. <strong>Decisão pendente:</strong> exigir 1 dos 4 antes de permitir <code>confirmado: true</code>?</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Risco técnico</div>
+    <h4>Persistência única</h4>
+    <p>“Reset” descarta o projeto. Quem clica por acidente perde tudo. <strong>Mitigação curta:</strong> versionar o último projeto descartado em IndexedDB com TTL.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Risco de custo</div>
+    <h4>Re-decompose libera prompts longos</h4>
+    <p><code>decomposeNode</code> sempre gera contexto novo. Sem cache de decomposições anteriores, o usuário paga toda vez que volta num nó já expandido.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Risco de UX</div>
+    <h4>Staging sem timeout</h4>
+    <p>Se o usuário não aceita nem rejeita um <code>pendingSuggestions</code>, fica preso no estado e o botão “Detalhar” trava. Não há TTL nem dismiss automático.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Risco de produto</div>
+    <h4>Curva inicial alta</h4>
+    <p>O conceito de “escreva seu critério antes de ver o da IA” é poderoso, mas pede que o usuário entenda <em>por que</em>. Sem onboarding, é fácil pular essa fricção e perder o ponto inteiro.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Risco de modelo</div>
+    <h4>Acoplamento ao OpenRouter + GLM-5</h4>
+    <p>Mudança de modelo padrão é configurável (env), mas a qualidade dos planos é claramente sensível. Sem regressão automática, é fácil deteriorar sem perceber.</p>
+  </div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="supabase">
+<h2>14 · Backend Supabase</h2>
+<h3>O que existia, o que foi desfeito, o que faz sentido voltar</h3>
+<p>
+  O branch ativo se chama <code>feat/supabase-db-backend-architecture</code>. O commit <code>f1e9f50</code> introduziu um spike completo:
+</p>
+<ul>
+  <li><code>apps/web</code> — Next.js (App Router) com SSR + middleware Supabase.</li>
+  <li><code>packages/graph-contract</code> — contrato Zod compartilhado entre cliente, server e Edge Functions.</li>
+  <li><code>supabase/migrations</code> — <code>20260409120000_init_projects.sql</code> e <code>20260409120001_projects_rls.sql</code>.</li>
+  <li><code>supabase/functions</code> — <code>ai-decompose</code>, <code>ai-health</code>, <code>ai-suggest-connections</code>.</li>
+</ul>
+<p>
+  No commit <code>52c26b5</code>, a UX de env foi consertada para ler do root do monorepo.
+  <strong>Mas o working tree atual tem todo esse trabalho marcado como deletado</strong> (<code>D apps/web/...</code>, <code>D packages/graph-contract/...</code>, <code>D supabase/...</code>),
+  e a raiz voltou a ser uma SPA Vite (<code>index.html</code>, <code>src/</code>, <code>vite.config.ts</code> no root, sem workspaces).
+</p>
+<p>
+  Pelos artefatos no MCP, há <strong>3 projetos Supabase</strong> ativos na org <em>MEGA VALE</em>:
+  <code>[apps]</code> (us-east-1), <code>[data]</code> (us-west-2), <code>[app] checklists</code> (us-east-2). O <code>.env.example</code> já tem
+  <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>, mas o <code>src/</code> atual não importa nada de Supabase.
+</p>
+<div class="quote">
+  Tradução prática: o trabalho do monorepo foi pra fora do tree antes de virar commit. A decisão de voltar (ou não) ao Next.js + Edge Functions está aberta. Hoje, do ponto de vista do app que roda, <strong>não há backend</strong>.
+</div>
+
+<h4>Quando voltar a fazer sentido</h4>
+<ul>
+  <li><strong>Quando o usuário tiver mais de um projeto</strong> — IndexedDB local não escala pra dezenas.</li>
+  <li><strong>Quando custo de IA virar problema</strong> — Edge Functions com cache e <em>rate limit</em> economizam mais que chamadas direto do cliente.</li>
+  <li><strong>Quando entrar colaboração</strong> — Realtime do Supabase resolve broadcast de mudanças sem reinventar.</li>
+  <li><strong>Quando o KB virar coletivo</strong> — docs compartilhados entre usuários precisam de Storage + pgvector pra busca semântica.</li>
+</ul>
+<p>
+  Até lá, o atalho honesto é: SPA local + chamadas diretas ao OpenRouter + IndexedDB. É exatamente o que o tree atual entrega.
+</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="caminhos">
+<h2>15 · Caminhos prováveis</h2>
+<h3>Próximos saltos em ordem de impacto</h3>
+
+<h4>Curto prazo (1–2 semanas)</h4>
+<ol>
+  <li><strong>Multi-projeto local.</strong> Trocar <code>project: Project | null</code> por <code>projects: Record&lt;id, Project&gt;</code> + <code>currentId</code>. Sem backend ainda — só tirar o pé do precipício do reset.</li>
+  <li><strong>KB em <code>critiqueNode</code> e <code>explainNode</code>.</strong> Já temos <code>getContextFor</code>. Só plugar.</li>
+  <li><strong>Onboarding mínimo</strong> que ensine “escreva seu critério antes da IA” na primeira sessão.</li>
+  <li><strong>Soft-undo do reset</strong> — guardar o último projeto descartado por N dias.</li>
+</ol>
+
+<h4>Médio prazo (1–2 meses)</h4>
+<ol>
+  <li><strong>Decidir Supabase sim/não.</strong> Se sim, restaurar <code>apps/web</code> + <code>packages/graph-contract</code> do commit <code>f1e9f50</code> e iterar a partir dali. Se não, formalizar a SPA local como produto final por agora.</li>
+  <li><strong>Edge Functions como proxy de IA</strong> com cache de decomposições por <code>(parentId, kind, breadcrumb hash)</code> — reduz custo e padroniza o contrato.</li>
+  <li><strong>Critique-all-leaves</strong> em uma categoria, com sumarização agregada do que está frágil.</li>
+  <li><strong>Reasoning capturado nó-a-nó</strong>, salvo no <code>history</code> com kind próprio.</li>
+</ol>
+
+<h4>Longo prazo (3+ meses)</h4>
+<ol>
+  <li><strong>Compartilhamento de projetos</strong> read-only via link — bom pra mostrar tutoriais.</li>
+  <li><strong>Colaboração viva</strong> com Realtime + CRDT simples sobre <code>history</code>.</li>
+  <li><strong>Bibliotecas de templates</strong> por domínio (marcenaria, eletrônica, culinária).</li>
+  <li><strong>App mobile (PWA tutor-only)</strong> — execução cabe melhor no celular que no laptop.</li>
+</ol>
+</section>
+
+<!-- ============================================================ -->
+<section id="possibilidades">
+<h2>16 · Possibilidades futuras</h2>
+<h3>Vetores que extrapolam a thesis original</h3>
+
+<div class="card-row">
+  <div class="card">
+    <div class="kicker">◆ Vetor pedagógico</div>
+    <h4>Cellproject como livro vivo</h4>
+    <p>Um projeto pronto vira tutorial reproduzível. Com âncoras verificadas, ele é melhor que um post de blog — porque ensina e permite ao próximo aprendiz <em>quebrar</em> o nó onde ele falhar, com replan.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Vetor de pesquisa</div>
+    <h4>Logs como dataset</h4>
+    <p>O <code>history</code> de cada nó é um traço fino do que humanos e IA propuseram, criticaram, validaram. Em escala, vira um corpus rico pra estudar onde modelos erram em planejamento.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Vetor de produto</div>
+    <h4>Verticais (maker, cozinha, código)</h4>
+    <p>A taxonomia <code>recurso/passo/decisao</code> cobre bem domínios físicos. Um “Cellproject pra cozinha” seria o mesmo núcleo com âncoras pré-cadastradas (medidas em gramas, tempos).</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Vetor de integração</div>
+    <h4>KB com fontes externas</h4>
+    <p>Hoje o KB só ingere PDF. Estender pra ingerir vídeos transcritos, repositórios de código, ou bookmarks com extrator próprio amplia a base verificável sem mexer no contrato.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Vetor de modelos</div>
+    <h4>Multi-modelo orquestrado</h4>
+    <p>GLM-5 pra planejar, Gemini Flash pro KB já é o início. Próximo passo: usar um modelo de raciocínio (o3, Claude Opus) só pra <code>critiqueNode</code>, onde o custo extra paga em qualidade do diagnóstico.</p>
+  </div>
+  <div class="card">
+    <div class="kicker">◆ Vetor de UX</div>
+    <h4>Modo “planeja sozinho”</h4>
+    <p>Loop automático que critica, replans e converge até estabilidade — útil pra ver onde o modelo capricha e onde ele se contradiz. Vira ferramenta de estresse do próprio plano.</p>
+  </div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="decisoes">
+<h2>17 · Decisões que ficam abertas</h2>
+<h3>Não responda agora — só não as esqueça</h3>
+<ol>
+  <li><strong>Multi-projeto antes ou depois do Supabase?</strong> Multi-projeto local é fácil; Supabase resolve isso “de graça” se for entrar. Fazer os dois em sequência é desperdício.</li>
+  <li><strong>Confirmar exige ground truth?</strong> Forçar pelo menos 1 dos 4 mecanismos antes de marcar <code>done</code> defende a thesis, mas pode irritar o usuário no nó óbvio (“peguei a fita métrica”).</li>
+  <li><strong>Reasoning é cidadão de primeira ou debug?</strong> Hoje aparece no <code>ObjectiveScreen</code> como “pensamento do modelo”. Pode virar histórico permanente do nó.</li>
+  <li><strong>Privacidade do KB quando virar coletivo.</strong> PDFs pessoais com PII viajam pro modelo no resumo. Em multi-usuário, isso vira problema rápido.</li>
+  <li><strong>Tema/branding.</strong> A paleta atual é forte e funcional, mas o produto não tem nome público nem identidade — “Cellproject” aparece só no README interno.</li>
+</ol>
+</section>
+
+<footer>
+  Documento gerado a partir do tree em <code>main</code> e <code>feat/supabase-db-backend-architecture</code>.<br/>
+  Última varredura: planos, store, AI service, KB, todos os componentes em <code>src/</code>, <code>docs/CONCEITO.md</code>, <code>.env.example</code>, histórico git, MCP Supabase.<br/>
+  Quando alguma parte aqui ficar desencontrada do código, o código vence.
+</footer>
+
+</main>
+</div>
+</body>
+</html>

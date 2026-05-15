@@ -1,0 +1,680 @@
+import { useState } from 'react';
+import type { ConceptNodeData, GroundTruthKind, GroundTruthRef, Project } from '@/types';
+import { useGraphStore, breadcrumbFor } from '@/store';
+import { useKBStore } from '@/kb/store';
+import {
+  critiqueNode,
+  replanFromFailure,
+} from '@/ai/service';
+
+// ---------------------------------------------------------------------------
+// (a) Critério do usuário — travado antes de ver o da IA
+// ---------------------------------------------------------------------------
+
+export function UserCriterionField({ node }: { node: ConceptNodeData }) {
+  const setUserCriterion = useGraphStore((s) => s.setUserCriterion);
+  const [draft, setDraft] = useState('');
+  const [revealAI, setRevealAI] = useState(false);
+
+  const locked = Boolean(node.comoConfirmarUsuarioAt);
+  const showAI = locked || revealAI;
+
+  if (node.kind !== 'recurso' && node.kind !== 'passo' && node.kind !== 'decisao') {
+    return null;
+  }
+
+  const handleLock = () => {
+    if (!draft.trim()) return;
+    setUserCriterion(node.id, draft.trim());
+    setDraft('');
+  };
+
+  return (
+    <section className="p-3 border-b border-border-base space-y-2">
+      <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted">
+        Como confirmar
+      </label>
+
+      {/* Campo do usuário */}
+      <div>
+        <div className="text-[10px] font-mono uppercase tracking-wider text-ai-accent mb-1">
+          ◆ Seu critério {locked && <span className="text-state-done">(travado ✓)</span>}
+        </div>
+        {locked ? (
+          <div className="text-xs bg-bg-elevated border border-ai-accent/30 rounded-sm px-2 py-1.5 text-text-primary">
+            {node.comoConfirmarUsuario}
+          </div>
+        ) : (
+          <>
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={2}
+              placeholder="Como VOCÊ saberia que este nó está concluído? Escreva antes de ver o da IA."
+              className="w-full bg-bg-elevated border border-border-base rounded-sm px-2 py-1 text-xs resize-none focus:border-ai-accent outline-none"
+            />
+            <div className="flex gap-1.5 mt-1">
+              <button
+                onClick={handleLock}
+                disabled={!draft.trim()}
+                className="flex-1 text-[11px] bg-ai-accent/15 hover:bg-ai-accent/30 disabled:opacity-40 disabled:cursor-not-allowed text-ai-accent border border-ai-accent/40 rounded-sm py-1 transition-colors"
+              >
+                🔒 Travar critério
+              </button>
+              {!revealAI && (
+                <button
+                  onClick={() => setRevealAI(true)}
+                  className="text-[11px] text-text-muted hover:text-text-secondary border border-border-base rounded-sm px-2 py-1 transition-colors"
+                  title="Ver sem travar (não recomendado)"
+                >
+                  revelar IA
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Campo da IA */}
+      <div>
+        <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
+          Critério da IA {!showAI && <span className="italic">(oculto até travar o seu)</span>}
+        </div>
+        {showAI ? (
+          <div className="text-xs bg-bg-elevated border border-border-base rounded-sm px-2 py-1.5 font-mono italic text-text-secondary">
+            {node.comoConfirmar || <span className="text-text-muted">(vazio)</span>}
+          </div>
+        ) : (
+          <div className="text-xs bg-bg-elevated/40 border border-dashed border-border-base rounded-sm px-2 py-1.5 text-text-muted italic">
+            Escreva o seu primeiro pra manter a honestidade do loop.
+          </div>
+        )}
+      </div>
+
+      {/* Divergência */}
+      {locked && node.comoConfirmar && node.comoConfirmarUsuario && (
+        <DivergenceHint
+          ai={node.comoConfirmar}
+          user={node.comoConfirmarUsuario}
+        />
+      )}
+    </section>
+  );
+}
+
+function DivergenceHint({ ai, user }: { ai: string; user: string }) {
+  // Heurística leve: tokens comuns / tokens totais.
+  const tokens = (s: string) =>
+    new Set(
+      s
+        .toLowerCase()
+        .replace(/[^a-zà-ú0-9\s]/gi, ' ')
+        .split(/\s+/)
+        .filter((t) => t.length > 3),
+    );
+  const a = tokens(ai);
+  const b = tokens(user);
+  const inter = [...a].filter((t) => b.has(t)).length;
+  const uni = new Set([...a, ...b]).size;
+  const overlap = uni === 0 ? 0 : inter / uni;
+
+  if (overlap > 0.5) {
+    return (
+      <div className="text-[10px] font-mono text-state-done/80 bg-state-done/5 border border-state-done/20 rounded-sm px-2 py-1">
+        ◇ critérios convergem — sinal de que o plano é robusto nesse nó.
+      </div>
+    );
+  }
+  return (
+    <div className="text-[10px] font-mono text-conf-mid bg-conf-mid/5 border border-conf-mid/30 rounded-sm px-2 py-1">
+      ⚠ critérios divergem — vale conferir por que.
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// (b) Crítica adversarial — botão + resultado
+// ---------------------------------------------------------------------------
+
+export function CritiqueSection({
+  node,
+  project,
+}: {
+  node: ConceptNodeData;
+  project: Project;
+}) {
+  const setCritica = useGraphStore((s) => s.setCritica);
+  const clearCritica = useGraphStore((s) => s.clearCritica);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const crumbs = breadcrumbFor(project, node.id);
+
+  const run = async () => {
+    setRunning(true);
+    setError(null);
+    try {
+      const result = await critiqueNode({
+        projectName: project.name,
+        projectObjective: project.objective,
+        breadcrumb: crumbs.map((c) => c.name),
+        nodeName: node.name,
+        nodeKind: node.kind,
+        nodeFx: node.fx,
+        oQue: node.oQue,
+        porQue: node.porQue,
+        comoConfirmar: node.comoConfirmar,
+        comoConfirmarUsuario: node.comoConfirmarUsuario,
+      });
+      setCritica(node.id, result);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <section className="p-3 border-b border-border-base">
+      <div className="flex items-center gap-2 mb-2">
+        <label className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
+          Crítica adversarial
+        </label>
+        {node.critica && (
+          <span className="text-[10px] font-mono text-conf-mid">
+            ◆ gerada {new Date(node.critica.generatedAt).toLocaleDateString('pt-BR')}
+          </span>
+        )}
+      </div>
+
+      {!node.critica && (
+        <button
+          onClick={run}
+          disabled={running}
+          className="w-full text-[11px] bg-conf-mid/10 hover:bg-conf-mid/25 text-conf-mid border border-conf-mid/30 rounded-sm py-1.5 transition-colors disabled:opacity-50"
+        >
+          {running ? 'Gerando crítica…' : '⚠ Pedir segunda opinião cética'}
+        </button>
+      )}
+
+      {node.critica && (
+        <div className="space-y-2 text-xs">
+          <CritiqueGroup label="Fraquezas" items={node.critica.fraquezas} />
+          {node.critica.premissasOcultas.length > 0 && (
+            <CritiqueGroup
+              label="Premissas ocultas"
+              items={node.critica.premissasOcultas}
+            />
+          )}
+          <div>
+            <div className="text-[10px] font-mono uppercase tracking-wider text-ai-accent mb-1">
+              Critério alternativo (cético)
+            </div>
+            <div className="bg-bg-elevated border border-ai-accent/30 rounded-sm px-2 py-1.5 text-text-primary italic">
+              {node.critica.criterioAlternativo}
+            </div>
+          </div>
+          <div className="flex gap-1.5">
+            <button
+              onClick={run}
+              disabled={running}
+              className="flex-1 text-[10px] font-mono text-text-muted hover:text-text-secondary border border-border-base rounded-sm py-1 transition-colors disabled:opacity-50"
+            >
+              {running ? 'Regerando…' : '↻ Regerar'}
+            </button>
+            <button
+              onClick={() => clearCritica(node.id)}
+              className="text-[10px] font-mono text-text-muted hover:text-state-problem border border-border-base rounded-sm px-2 py-1 transition-colors"
+            >
+              descartar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-2 text-[11px] text-state-problem bg-state-problem/5 border border-state-problem/30 rounded-sm px-2 py-1">
+          {error}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CritiqueGroup({ label, items }: { label: string; items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
+        {label}
+      </div>
+      <ul className="space-y-0.5 pl-3">
+        {items.map((item, i) => (
+          <li key={i} className="relative text-text-secondary leading-relaxed">
+            <span className="absolute -left-3 text-conf-mid">·</span>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// (d) Lista de âncoras verificáveis
+// ---------------------------------------------------------------------------
+
+export function GroundTruthRefsList({ node }: { node: ConceptNodeData }) {
+  const addGroundTruthRef = useGraphStore((s) => s.addGroundTruthRef);
+  const toggleGroundTruthVerified = useGraphStore((s) => s.toggleGroundTruthVerified);
+  const removeGroundTruthRef = useGraphStore((s) => s.removeGroundTruthRef);
+
+  const [kind, setKind] = useState<GroundTruthKind>('spec');
+  const [label, setLabel] = useState('');
+  const [value, setValue] = useState('');
+  const [adding, setAdding] = useState(false);
+
+  const refs = node.groundTruthRefs ?? [];
+  const verifiedCount = refs.filter((r) => r.verificado).length;
+
+  const handleAdd = () => {
+    if (!label.trim() || !value.trim()) return;
+    addGroundTruthRef(node.id, {
+      kind,
+      label: label.trim(),
+      value: value.trim(),
+      verificado: false,
+      addedByAI: false,
+    });
+    setLabel('');
+    setValue('');
+    setAdding(false);
+  };
+
+  return (
+    <section className="p-3 border-b border-border-base">
+      <div className="flex items-center gap-2 mb-2">
+        <label className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
+          Âncoras verificáveis
+        </label>
+        <span className="text-[10px] font-mono text-text-secondary ml-auto">
+          <span className={verifiedCount > 0 ? 'text-state-done' : 'text-text-muted'}>
+            {verifiedCount}
+          </span>
+          <span className="text-text-muted">/{refs.length}</span> verificadas
+        </span>
+      </div>
+
+      {refs.length === 0 && !adding && (
+        <div className="text-[11px] text-text-muted italic mb-2">
+          Sem âncoras. Adicione algo que se confirma fora da tela (link, spec, medida).
+        </div>
+      )}
+
+      {refs.length > 0 && (
+        <ul className="space-y-1 mb-2">
+          {refs.map((r) => (
+            <RefRow
+              key={r.id}
+              refData={r}
+              onToggle={() => toggleGroundTruthVerified(node.id, r.id)}
+              onRemove={() => removeGroundTruthRef(node.id, r.id)}
+            />
+          ))}
+        </ul>
+      )}
+
+      {adding ? (
+        <div className="space-y-1.5 border border-ai-accent/30 rounded-sm p-2 bg-bg-elevated">
+          <div className="flex gap-1">
+            {(['link', 'spec', 'medida'] as const).map((k) => (
+              <button
+                key={k}
+                onClick={() => setKind(k)}
+                className={`text-[10px] font-mono px-2 py-0.5 rounded-sm border transition-colors ${
+                  kind === k
+                    ? 'bg-ai-accent/20 border-ai-accent text-ai-accent'
+                    : 'border-border-base text-text-muted hover:text-text-secondary'
+                }`}
+              >
+                {k}
+              </button>
+            ))}
+          </div>
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="rótulo (ex: dimensão máxima)"
+            className="w-full bg-bg-primary border border-border-base rounded-sm px-2 py-1 text-[11px] focus:border-ai-accent outline-none"
+          />
+          <input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={
+              kind === 'link'
+                ? 'https://...'
+                : kind === 'medida'
+                ? '40cm ± 2cm'
+                : 'especificação com unidade/modelo'
+            }
+            className="w-full bg-bg-primary border border-border-base rounded-sm px-2 py-1 text-[11px] font-mono focus:border-ai-accent outline-none"
+          />
+          <div className="flex gap-1">
+            <button
+              onClick={handleAdd}
+              disabled={!label.trim() || !value.trim()}
+              className="flex-1 text-[11px] bg-ai-accent/15 hover:bg-ai-accent/30 disabled:opacity-40 text-ai-accent border border-ai-accent/40 rounded-sm py-1 transition-colors"
+            >
+              adicionar
+            </button>
+            <button
+              onClick={() => {
+                setAdding(false);
+                setLabel('');
+                setValue('');
+              }}
+              className="text-[11px] text-text-muted hover:text-text-secondary border border-border-base rounded-sm px-2 py-1 transition-colors"
+            >
+              cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          className="w-full text-[11px] text-text-muted hover:text-ai-accent border border-dashed border-border-base hover:border-ai-accent/40 rounded-sm py-1 transition-colors"
+        >
+          + adicionar âncora
+        </button>
+      )}
+    </section>
+  );
+}
+
+function RefRow({
+  refData,
+  onToggle,
+  onRemove,
+}: {
+  refData: GroundTruthRef;
+  onToggle: () => void;
+  onRemove: () => void;
+}) {
+  const isLink = refData.kind === 'link';
+  return (
+    <li
+      className={`group flex items-start gap-2 px-2 py-1.5 rounded-sm border transition-colors ${
+        refData.verificado
+          ? 'border-state-done/40 bg-state-done/5'
+          : 'border-border-base bg-bg-elevated/40'
+      }`}
+    >
+      <button
+        onClick={onToggle}
+        className={`mt-0.5 w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 transition-colors ${
+          refData.verificado
+            ? 'bg-state-done/20 border-state-done text-state-done'
+            : 'border-border-base hover:border-text-muted'
+        }`}
+        title={refData.verificado ? 'Desmarcar como verificada' : 'Marcar como verificada no mundo'}
+      >
+        {refData.verificado && <span className="text-[10px]">✓</span>}
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[9px] font-mono uppercase tracking-wider text-text-muted">
+            {refData.kind}
+          </span>
+          <span className="text-[11px] text-text-primary truncate">{refData.label}</span>
+          {refData.addedByAI && (
+            <span className="text-[9px] font-mono text-ai-accent/70 ml-auto shrink-0">IA</span>
+          )}
+        </div>
+        <div className="text-[11px] font-mono text-text-secondary break-all">
+          {isLink ? (
+            <a
+              href={refData.value}
+              target="_blank"
+              rel="noreferrer"
+              className="text-ai-accent hover:underline"
+            >
+              {refData.value}
+            </a>
+          ) : (
+            refData.value
+          )}
+        </div>
+      </div>
+      <button
+        onClick={onRemove}
+        className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-state-problem text-[11px] transition-opacity"
+        title="Remover"
+      >
+        ×
+      </button>
+    </li>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// (c) Falha reportada + replan a partir do contexto
+// ---------------------------------------------------------------------------
+
+export function FailureSection({
+  node,
+  project,
+}: {
+  node: ConceptNodeData;
+  project: Project;
+}) {
+  const reportFailure = useGraphStore((s) => s.reportFailure);
+  const clearFailure = useGraphStore((s) => s.clearFailure);
+  const stageSuggestions = useGraphStore((s) => s.stageSuggestions);
+  const pending = useGraphStore((s) => s.pendingSuggestions);
+
+  const [opening, setOpening] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [replanning, setReplanning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const failed = Boolean(node.failureContext);
+  const crumbs = breadcrumbFor(project, node.id);
+
+  const handleReport = () => {
+    if (!draft.trim()) return;
+    reportFailure(node.id, draft.trim());
+    setDraft('');
+    setOpening(false);
+  };
+
+  const handleReplan = async () => {
+    if (!node.failureContext) return;
+    setReplanning(true);
+    setError(null);
+    try {
+      const siblings = Object.values(project.nodes)
+        .filter((n) => n.parentId === node.parentId && n.id !== node.id)
+        .map((n) => ({ name: n.name, fx: n.fx }));
+
+      const kbContext = await useKBStore.getState().getContextFor({
+        label: `Objetivo: ${project.objective}`,
+        extra: `Nó que falhou: ${node.name} — ${node.failureContext}`,
+      });
+
+      const result = await replanFromFailure(
+        {
+          projectName: project.name,
+          projectObjective: project.objective,
+          breadcrumb: crumbs.map((c) => c.name),
+          nodeName: node.name,
+          nodeKind: node.kind,
+          nodeFx: node.fx,
+          oQue: node.oQue,
+          failureContext: node.failureContext,
+          siblings,
+        },
+        kbContext,
+      );
+
+      const basePos = node.position;
+      const spacing = 260;
+      const start = basePos.x - ((result.nodes.length - 1) * spacing) / 2;
+      const staged = result.nodes.map((n, i) => ({
+        tempId: n.tempId,
+        kind: n.kind,
+        name: n.name,
+        fx: n.fx,
+        problem: n.problem,
+        confidence: n.confidence,
+        confidenceSource: 'ai' as const,
+        confidenceReason: n.confidenceReason,
+        pros: n.pros,
+        cons: n.cons,
+        oQue: n.oQue,
+        porQue: n.porQue,
+        comoConfirmar: n.comoConfirmar,
+        confirmado: false,
+        order: n.order ?? i,
+        decisionOptions: n.decisionOptions,
+        groundTruthRefs: n.groundTruthHints?.map((h, hi) => ({
+          id: `${n.tempId}-gt-${hi}`,
+          kind: h.kind,
+          label: h.label,
+          value: h.value,
+          verificado: false,
+          addedAt: Date.now(),
+          addedByAI: true,
+        })),
+        state: 'concept' as const,
+        notes: `Gerado a partir de falha reportada: ${node.failureContext?.slice(0, 60)}…`,
+        aiSuggested: true,
+        position: { x: start + i * spacing, y: basePos.y + 260 },
+      }));
+      stageSuggestions(node.id, staged, result.edges);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReplanning(false);
+    }
+  };
+
+  return (
+    <section className="p-3 border-b border-border-base">
+      <div className="flex items-center gap-2 mb-2">
+        <label className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
+          Realidade
+        </label>
+        {failed && (
+          <span className="text-[10px] font-mono text-state-problem ml-auto">⚠ falhou</span>
+        )}
+      </div>
+
+      {!failed && !opening && (
+        <button
+          onClick={() => setOpening(true)}
+          className="w-full text-[11px] text-text-muted hover:text-state-problem border border-dashed border-border-base hover:border-state-problem/40 rounded-sm py-1 transition-colors"
+        >
+          ⚠ Isto falhou na prática
+        </button>
+      )}
+
+      {!failed && opening && (
+        <div className="space-y-1.5 border border-state-problem/30 rounded-sm p-2 bg-state-problem/5">
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={3}
+            placeholder="O que aconteceu? Seja específico: o que quebrou, medida real, sintoma, etc."
+            className="w-full bg-bg-primary border border-border-base rounded-sm px-2 py-1 text-xs resize-none focus:border-state-problem outline-none"
+          />
+          <div className="flex gap-1">
+            <button
+              onClick={handleReport}
+              disabled={!draft.trim()}
+              className="flex-1 text-[11px] bg-state-problem/15 hover:bg-state-problem/30 disabled:opacity-40 text-state-problem border border-state-problem/40 rounded-sm py-1 transition-colors"
+            >
+              registrar falha
+            </button>
+            <button
+              onClick={() => {
+                setOpening(false);
+                setDraft('');
+              }}
+              className="text-[11px] text-text-muted hover:text-text-secondary border border-border-base rounded-sm px-2 py-1 transition-colors"
+            >
+              cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {failed && (
+        <div className="space-y-2">
+          <div className="text-xs bg-state-problem/5 border border-state-problem/30 rounded-sm px-2 py-1.5">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-state-problem mb-0.5">
+              Contexto da falha
+            </div>
+            <div className="text-text-primary">{node.failureContext}</div>
+            {node.failureReportedAt && (
+              <div className="text-[10px] font-mono text-text-muted mt-1">
+                {new Date(node.failureReportedAt).toLocaleString('pt-BR')}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleReplan}
+            disabled={replanning || pending !== null}
+            className="w-full text-[11px] bg-ai-accent/15 hover:bg-ai-accent/30 disabled:opacity-40 disabled:cursor-not-allowed text-ai-accent border border-ai-accent/40 rounded-sm py-1.5 transition-colors flex items-center justify-center gap-2"
+          >
+            <span>◆</span>
+            {replanning
+              ? 'Replanejando com contexto de falha…'
+              : pending !== null
+              ? 'Resolva sugestões pendentes primeiro'
+              : 'Replanejar sabendo do que falhou'}
+          </button>
+
+          <button
+            onClick={() => clearFailure(node.id)}
+            className="w-full text-[10px] font-mono text-text-muted hover:text-text-secondary border border-border-base rounded-sm py-1 transition-colors"
+          >
+            resolvido — limpar falha
+          </button>
+
+          {error && (
+            <div className="text-[11px] text-state-problem bg-state-problem/5 border border-state-problem/30 rounded-sm px-2 py-1">
+              {error}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Exportado junto: forma compacta usada no TutorMode (inline, sem seção)
+// ---------------------------------------------------------------------------
+
+export function GroundTruthInlineTutor({
+  node,
+  project,
+}: {
+  node: ConceptNodeData;
+  project: Project;
+}) {
+  return (
+    <div className="mt-6 border-t border-border-base pt-6 space-y-4">
+      <div className="text-[10px] font-mono uppercase tracking-widest text-text-muted">
+        ◆ Ground truth
+      </div>
+      <div className="rounded-sm border border-border-base bg-bg-secondary">
+        <UserCriterionField node={node} />
+        <GroundTruthRefsList node={node} />
+        <CritiqueSection node={node} project={project} />
+        <FailureSection node={node} project={project} />
+      </div>
+    </div>
+  );
+}
