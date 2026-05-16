@@ -95,14 +95,14 @@ export const en = {
     objectiveLabel: 'What is the objective? (f(X) = ?)',
     objectivePlaceholder:
       'e.g. build a 130mm-class mini drone that hovers stably for 5 minutes on a 850mAh 3S battery — FPV-ready frame, BetaFlight tuned',
-    exampleRust: 'example: learn Rust in 30 days',
-    exampleRustName: 'Rust in 30 days',
-    exampleRustObjective:
-      'learn enough Rust in 30 days to ship a real CLI tool (not a tutorial) with passing tests and a binary published on GitHub Releases',
-    exampleSaas: 'example: ship a SaaS MVP',
-    exampleSaasName: 'SaaS MVP — 6 weeks',
-    exampleSaasObjective:
-      'ship a paid SaaS MVP in 6 weeks with auth, Stripe billing and a landing page that converts the first 10 customers',
+    exampleGreenhouse: 'example: automated mini greenhouse',
+    exampleGreenhouseName: 'Automated mini greenhouse',
+    exampleGreenhouseObjective:
+      'build a 50×30cm mini greenhouse with a DHT22 humidity sensor, ESP32 and peristaltic pump — auto-irrigates when humidity drops below 60%',
+    exampleServer: 'example: home Linux server',
+    exampleServerName: 'Home Linux server',
+    exampleServerObjective:
+      'spin up an Ubuntu Server 24.04 box with SSH key-only auth, UFW firewall and Nextcloud running in Docker accessible on the LAN',
     generate: '◆ Generate plans with AI',
     generating: (phase: string, elapsed: string) =>
       `Generating plans — ${phase} ${elapsed}`,
@@ -406,14 +406,14 @@ export const ptBR: Messages = {
     objectiveLabel: 'Qual o objetivo? (f(X) = ?)',
     objectivePlaceholder:
       'ex: construir um mini drone classe 130mm que paira estável por 5 minutos com bateria 850mAh 3S — frame FPV, BetaFlight tunado',
-    exampleRust: 'exemplo: aprender Rust em 30 dias',
-    exampleRustName: 'Rust em 30 dias',
-    exampleRustObjective:
-      'aprender Rust em 30 dias o suficiente pra entregar uma CLI real (não tutorial) com testes passando e binário publicado no GitHub Releases',
-    exampleSaas: 'exemplo: lançar MVP de SaaS',
-    exampleSaasName: 'MVP de SaaS — 6 semanas',
-    exampleSaasObjective:
-      'lançar um MVP de SaaS pago em 6 semanas com auth, billing Stripe e landing page que converta os primeiros 10 clientes',
+    exampleGreenhouse: 'exemplo: mini estufa automatizada',
+    exampleGreenhouseName: 'Mini estufa automatizada',
+    exampleGreenhouseObjective:
+      'construir uma mini estufa 50×30cm com sensor DHT22 de umidade, ESP32 e bomba peristáltica — irriga automaticamente quando umidade cai abaixo de 60%',
+    exampleServer: 'exemplo: servidor Linux local',
+    exampleServerName: 'Servidor Linux local',
+    exampleServerObjective:
+      'subir um Ubuntu Server 24.04 com SSH só por chave pública, firewall UFW e Nextcloud rodando em Docker acessível na LAN',
     generate: '◆ Gerar planos com AI',
     generating: (phase: string, elapsed: string) =>
       `Gerando planos — ${phase} ${elapsed}`,

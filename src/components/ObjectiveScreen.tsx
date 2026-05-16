@@ -133,23 +133,23 @@ export function ObjectiveScreen() {
               <div className="mt-2 flex gap-2 flex-wrap">
                 <button
                   onClick={() => {
-                    setName(tr.objective.exampleRustName);
-                    setObjective(tr.objective.exampleRustObjective);
+                    setName(tr.objective.exampleGreenhouseName);
+                    setObjective(tr.objective.exampleGreenhouseObjective);
                   }}
                   disabled={loading}
                   className="text-[11px] font-mono text-text-muted hover:text-text-primary border border-border-base rounded-sm px-2 py-0.5 transition-colors disabled:opacity-50"
                 >
-                  {tr.objective.exampleRust}
+                  {tr.objective.exampleGreenhouse}
                 </button>
                 <button
                   onClick={() => {
-                    setName(tr.objective.exampleSaasName);
-                    setObjective(tr.objective.exampleSaasObjective);
+                    setName(tr.objective.exampleServerName);
+                    setObjective(tr.objective.exampleServerObjective);
                   }}
                   disabled={loading}
                   className="text-[11px] font-mono text-text-muted hover:text-text-primary border border-border-base rounded-sm px-2 py-0.5 transition-colors disabled:opacity-50"
                 >
-                  {tr.objective.exampleSaas}
+                  {tr.objective.exampleServer}
                 </button>
               </div>
             </div>
