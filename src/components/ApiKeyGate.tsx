@@ -112,6 +112,14 @@ export function ApiKeyGate({ onClose }: Props) {
             <div className="mt-3 text-[10px] font-mono text-text-muted">
               {tr.apiKey.demoCtaHint}
             </div>
+            <div className="mt-2">
+              <a
+                href="/landing"
+                className="text-[11px] font-mono text-text-muted hover:text-ai-accent transition-colors"
+              >
+                {tr.apiKey.learnMore}
+              </a>
+            </div>
           </div>
         )}
 

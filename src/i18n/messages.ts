@@ -50,6 +50,7 @@ export const en = {
       'Open a fully-built example (RC car project) — graph, lenses, ground truth, decisions — without setting up any key. AI actions stay disabled until you configure a provider.',
     demoCta: '▶ See live demo',
     demoCtaHint: 'no key needed · read-only navigation · everything you see is real',
+    learnMore: 'Learn more about the project →',
   },
   topBar: {
     viewTutor: 'Tutor',
@@ -360,6 +361,7 @@ export const ptBR: Messages = {
       'Abre um exemplo pronto (carrinho de controle remoto) — grafo, lentes, ground truth, decisões — sem configurar nenhuma chave. Ações de IA ficam desativadas até você adicionar um provider.',
     demoCta: '▶ Ver demonstração',
     demoCtaHint: 'sem chave · navegação livre · tudo que aparece é de verdade',
+    learnMore: 'Saiba mais sobre o projeto →',
   },
   topBar: {
     viewTutor: 'Tutor',

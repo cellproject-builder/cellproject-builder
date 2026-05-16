@@ -9,6 +9,7 @@ import { GraphCanvas } from '@/components/GraphCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
 import { TutorMode } from '@/components/TutorMode';
 import { ApiKeyGate } from '@/components/ApiKeyGate';
+import { LandingPage } from '@/landing/LandingPage';
 
 export default function App() {
   const project = useGraphStore((s) => s.project);
@@ -34,6 +35,10 @@ export default function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [setLens, setViewMode]);
+
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/landing')) {
+    return <LandingPage />;
+  }
 
   // Demo projects bypass the API key gate — user explicitly chose "try without a key".
   // AI actions are blocked separately at the call sites.
