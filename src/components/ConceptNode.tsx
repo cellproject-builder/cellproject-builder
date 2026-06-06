@@ -119,9 +119,7 @@ function ConceptNodeImpl({ data, selected }: Props) {
   // must be confirmed through the detail/tutor friction step instead, so the
   // unfaithful path is never the easiest click.
   const nodeHasSignal =
-    !!data.comoConfirmarUsuarioAt ||
-    !!data.critica ||
-    data.history.some((h) => h.kind === 'failure') ||
+    !!data.comoConfirmarAtendido ||
     (data.groundTruthRefs ?? []).some((r) => r.verificado);
   const canQuickConfirm =
     !blocked &&

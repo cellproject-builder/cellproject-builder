@@ -207,9 +207,18 @@ describe('confirmNode — guarded conclusion (E2 fidelity gate)', () => {
     expect(n.confirmedWithoutSignal).toBe(true);
   });
 
-  it('confirm WITH a locked user criterion (attack a) reaches state done', () => {
+  it('a locked criterion ALONE does not earn done — it must be attested met', () => {
     const id = singlePasso();
-    useGraphStore.getState().setUserCriterion(id, 'meu critério independente');
+    useGraphStore.getState().setUserCriterion(id, 'meu critério');
+    useGraphStore.getState().confirmNode(id);
+    // Reality must confirm: a written-but-unmet criterion is not enough.
+    expect(node(id).state).toBe('validated');
+  });
+
+  it('a criterion attested MET (attack a) reaches state done', () => {
+    const id = singlePasso();
+    useGraphStore.getState().setUserCriterion(id, 'meu critério');
+    useGraphStore.getState().attestCriterion(id, 'medi e atende');
     useGraphStore.getState().confirmNode(id);
     const n = node(id);
     expect(n.state).toBe('done');
@@ -314,9 +323,10 @@ describe('confirmNode — guarded conclusion (E2 fidelity gate)', () => {
     expect(n.confirmedWithoutSignal).toBe(true);
   });
 
-  it('pickDecisionOption WITH a locked criterion reaches done', () => {
+  it('pickDecisionOption WITH an attested criterion reaches done', () => {
     const id = stageDecisao();
     useGraphStore.getState().setUserCriterion(id, 'porque medi a carga');
+    useGraphStore.getState().attestCriterion(id, 'a carga bate');
     useGraphStore.getState().pickDecisionOption(id, 'opt2');
     expect(node(id).state).toBe('done');
   });

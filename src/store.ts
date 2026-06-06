@@ -56,6 +56,7 @@ interface GraphState {
 
   // Ground truth — breaks the AI→AI loop
   setUserCriterion: (id: string, text: string) => void; // attack (a) — locks after setting
+  attestCriterion: (id: string, observacao: string) => void; // attack (a) — attest the criterion is MET
   setCritica: (id: string, critica: AdversarialCritique) => void; // attack (b)
   clearCritica: (id: string) => void;
   addGroundTruthRef: (
@@ -551,6 +552,30 @@ export const useGraphStore = create<GraphState>()(
           };
         }),
 
+      attestCriterion: (id, observacao) =>
+        set((state) => {
+          if (!state.project) return state;
+          const prev = state.project.nodes[id];
+          if (!prev) return state;
+          const obs = observacao.trim();
+          // Reality confirms the node: requires a locked criterion first, plus
+          // the user's observation of how they know it is MET. This — not a bare
+          // locked criterion — is what earns 'done'.
+          if (!prev.comoConfirmarUsuarioAt || !obs) return state;
+          const next = addHistory(
+            { ...prev, comoConfirmarAtendido: { observacao: obs, at: now() } },
+            'criterio_usuario',
+            `Critério aferido como atendido: ${obs}`,
+          );
+          return {
+            project: {
+              ...state.project,
+              updatedAt: now(),
+              nodes: { ...state.project.nodes, [id]: next },
+            },
+          };
+        }),
+
       setCritica: (id, critica) =>
         set((state) => {
           if (!state.project) return state;
@@ -980,11 +1005,11 @@ export const canConcludeNode = (
   // or a verified anchor (d) is signal; a bare critique (b) or a bare
   // failure-report (c) is process, not confirmation, so neither earns 'done' on
   // its own (that was a real gate-loosening — reverted).
-  const hasLockedCriterion = Boolean(node.comoConfirmarUsuarioAt);
-  const hasVerifiedAnchor = (node.groundTruthRefs ?? []).some((r) => r.verificado);
-  const hasSignal = hasLockedCriterion || hasVerifiedAnchor;
+  const hasMetCriterion = Boolean(node.comoConfirmarAtendido); // (a) attested MET
+  const hasVerifiedAnchor = (node.groundTruthRefs ?? []).some((r) => r.verificado); // (d)
+  const hasSignal = hasMetCriterion || hasVerifiedAnchor;
   if (!hasSignal) {
-    missing.push('trave seu critério ou verifique uma âncora real');
+    missing.push('afira que o critério foi atendido, ou verifique uma âncora real');
   }
   const ready = !blocked && hasSignal;
   return { ready, missing };
