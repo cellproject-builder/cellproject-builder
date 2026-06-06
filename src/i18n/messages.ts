@@ -184,6 +184,8 @@ export const en = {
     axiomBadge: '⊢ axiom / known',
     confirmHintNoSignal:
       'Will confirm without an anchor — lock a criterion or verify an anchor to earn a real "done".',
+    confirmAnyway: '✓ Confirm without anchor',
+    cancel: 'Cancel',
     stepNumber: (n: number) => `step #${n}`,
     whatIs: 'What it is',
     whyNeeded: 'Why it matters',
@@ -526,6 +528,8 @@ export const ptBR: Messages = {
     axiomBadge: '⊢ axioma / sabido',
     confirmHintNoSignal:
       'Vai confirmar sem âncora — trave um critério ou verifique uma âncora pra ganhar um "concluído" de verdade.',
+    confirmAnyway: '✓ Confirmar sem âncora',
+    cancel: 'Cancelar',
     stepNumber: (n: number) => `passo #${n}`,
     whatIs: 'O que é',
     whyNeeded: 'Por que precisa',

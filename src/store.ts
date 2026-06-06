@@ -960,10 +960,14 @@ export const isBlocked = (project: Project | null, nodeId: string): boolean => {
 };
 
 /**
- * A node may only be CONCLUDED (state 'done') when it carries real signal:
- * attack (a) a locked user criterion (comoConfirmarUsuarioAt), or attack (d) a
- * verified real-world anchor — and is not blocked by an earlier sibling. Absent
- * any signal a node can still be confirmed (it advances), but it does not earn
+ * A node may only be CONCLUDED (state 'done') when reality has entered through
+ * at least ONE of the four anti-AI-loop mechanisms — and it isn't blocked by an
+ * earlier sibling:
+ *   (a) a locked user criterion (comoConfirmarUsuarioAt),
+ *   (b) an adversarial critique was run (node.critica),
+ *   (c) a real failure was reported (a 'failure' history entry), or
+ *   (d) a verified real-world anchor.
+ * Absent all four a node can still be confirmed (it advances) but does not earn
  * 'done'. `missing` lists, in pt-BR, what is needed to earn it.
  */
 export const canConcludeNode = (
@@ -976,12 +980,15 @@ export const canConcludeNode = (
   const missing: string[] = [];
   const blocked = isBlocked(project, nodeId);
   if (blocked) missing.push('confirme os passos anteriores primeiro');
-  const hasLockedCriterion = Boolean(node.comoConfirmarUsuarioAt);
-  const hasVerifiedAnchor = (node.groundTruthRefs ?? []).some((r) => r.verificado);
-  if (!hasLockedCriterion && !hasVerifiedAnchor) {
-    missing.push('trave seu critério ou verifique uma âncora real');
+  const hasLockedCriterion = Boolean(node.comoConfirmarUsuarioAt); // (a)
+  const hasCritique = Boolean(node.critica); // (b)
+  const hadRealFailure = node.history.some((h) => h.kind === 'failure'); // (c)
+  const hasVerifiedAnchor = (node.groundTruthRefs ?? []).some((r) => r.verificado); // (d)
+  const hasSignal = hasLockedCriterion || hasCritique || hadRealFailure || hasVerifiedAnchor;
+  if (!hasSignal) {
+    missing.push('trave um critério, verifique uma âncora, rode a crítica cética, ou reporte uma falha real');
   }
-  const ready = !blocked && (hasLockedCriterion || hasVerifiedAnchor);
+  const ready = !blocked && hasSignal;
   return { ready, missing };
 };
 

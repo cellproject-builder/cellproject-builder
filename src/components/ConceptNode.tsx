@@ -114,8 +114,20 @@ function ConceptNodeImpl({ data, selected }: Props) {
     );
   }
 
+  // The fast one-click confirm on the canvas is reserved for nodes that already
+  // carry real signal (one of the four anti-loop mechanisms). An unanchored node
+  // must be confirmed through the detail/tutor friction step instead, so the
+  // unfaithful path is never the easiest click.
+  const nodeHasSignal =
+    !!data.comoConfirmarUsuarioAt ||
+    !!data.critica ||
+    data.history.some((h) => h.kind === 'failure') ||
+    (data.groundTruthRefs ?? []).some((r) => r.verificado);
   const canQuickConfirm =
-    !blocked && !data.confirmado && (data.kind === 'recurso' || data.kind === 'passo');
+    !blocked &&
+    !data.confirmado &&
+    nodeHasSignal &&
+    (data.kind === 'recurso' || data.kind === 'passo');
 
   if (level === 'far') {
     return (

@@ -5,6 +5,7 @@ import {
   projectProgress,
   breadcrumbFor,
   hintsToRefs,
+  canConcludeNode,
 } from '@/store';
 import { explainNode, decomposeNode } from '@/ai/service';
 import { useKBStore } from '@/kb/store';
@@ -243,7 +244,9 @@ function TutorCard({ node, project, onConfirm, onViewInGraph, tr }: TutorCardPro
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [decomposing, setDecomposing] = useState(false);
+  const [confirmingNoSignal, setConfirmingNoSignal] = useState(false);
   const pendingHere = !!pending && pending.parentId === node.id;
+  const ready = canConcludeNode(project, node.id).ready;
 
   const handleExplain = async () => {
     if (node.explicacao) {
@@ -438,12 +441,44 @@ function TutorCard({ node, project, onConfirm, onViewInGraph, tr }: TutorCardPro
       <GroundTruthInlineTutor node={node} project={project} />
 
       <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-        <button
-          onClick={onConfirm}
-          className="flex-1 bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-base py-3 min-h-[48px] rounded-sm border-2 border-conf-high/40 transition-colors font-medium"
-        >
-          {tr.tutor.alreadyVerb(verb)}
-        </button>
+        {ready ? (
+          <button
+            onClick={onConfirm}
+            className="flex-1 bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-base py-3 min-h-[48px] rounded-sm border-2 border-conf-high/40 transition-colors font-medium"
+          >
+            {tr.tutor.alreadyVerb(verb)}
+          </button>
+        ) : confirmingNoSignal ? (
+          <div className="flex-1 space-y-1.5">
+            <div className="text-[11px] text-conf-mid text-center leading-snug">
+              {tr.detail.confirmHintNoSignal}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  onConfirm();
+                  setConfirmingNoSignal(false);
+                }}
+                className="flex-1 bg-conf-mid/15 hover:bg-conf-mid/30 text-conf-mid text-sm py-2.5 min-h-[44px] rounded-sm border border-conf-mid/40 transition-colors"
+              >
+                {tr.detail.confirmAnyway}
+              </button>
+              <button
+                onClick={() => setConfirmingNoSignal(false)}
+                className="px-4 text-xs text-text-muted hover:text-text-secondary border border-border-base rounded-sm transition-colors"
+              >
+                {tr.detail.cancel}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmingNoSignal(true)}
+            className="flex-1 bg-bg-elevated hover:bg-conf-mid/10 text-text-secondary hover:text-conf-mid text-base py-3 min-h-[48px] rounded-sm border-2 border-border-base hover:border-conf-mid/40 transition-colors font-medium"
+          >
+            {tr.tutor.alreadyVerb(verb)}
+          </button>
+        )}
         <button
           onClick={onViewInGraph}
           className="px-4 py-3 min-h-[44px] text-xs text-text-muted hover:text-text-primary border border-border-base rounded-sm transition-colors"

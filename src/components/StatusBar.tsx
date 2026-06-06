@@ -15,8 +15,10 @@ export function StatusBar() {
         {tr.statusBar.progress}:{' '}
         <span
           className={
-            m.progress.percent === 100
+            m.progress.percent === 100 && m.progress.doneWithoutSignal === 0
               ? 'text-state-done'
+              : m.progress.percent === 100
+              ? 'text-conf-mid'
               : m.progress.percent >= 50
               ? 'text-conf-high'
               : 'text-conf-mid'
