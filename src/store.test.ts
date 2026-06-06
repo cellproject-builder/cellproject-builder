@@ -231,7 +231,9 @@ describe('confirmNode — guarded conclusion (E2 fidelity gate)', () => {
     expect(node(id).state).toBe('done');
   });
 
-  it('a critique (attack b) earns done', () => {
+  // Process != confirmation: a bare critique or failure-report must NOT earn
+  // 'done' (that would reward engaging a mechanism, not reality confirming it).
+  it('a critique alone does NOT earn done', () => {
     const id = singlePasso();
     useGraphStore.getState().setCritica(id, {
       fraquezas: ['premissa frágil'],
@@ -240,14 +242,14 @@ describe('confirmNode — guarded conclusion (E2 fidelity gate)', () => {
       generatedAt: 1,
     });
     useGraphStore.getState().confirmNode(id);
-    expect(node(id).state).toBe('done');
+    expect(node(id).state).toBe('validated');
   });
 
-  it('a reported real failure (attack c) earns done', () => {
+  it('a reported failure alone does NOT earn done', () => {
     const id = singlePasso();
     useGraphStore.getState().reportFailure(id, 'quebrou na prática');
     useGraphStore.getState().confirmNode(id);
-    expect(node(id).state).toBe('done');
+    expect(node(id).state).not.toBe('done');
   });
 
   it('force:true concludes without signal (explicit opt-out)', () => {
