@@ -110,6 +110,10 @@ export interface ConceptNodeData {
   // copie o comoConfirmar da IA retroativamente.
   comoConfirmarUsuario?: string;
   comoConfirmarUsuarioAt?: number;
+  // Ground truth (attack a, part 2 — reality CONFIRMED): the user attested the
+  // locked criterion is MET, with an observation of HOW they know. 'done'
+  // requires this, not merely that a criterion was written.
+  comoConfirmarAtendido?: { observacao: string; at: number };
 
   // Ground truth (attack b): crítica adversarial — segunda passada cética.
   critica?: AdversarialCritique;

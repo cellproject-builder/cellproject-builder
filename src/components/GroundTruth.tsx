@@ -16,7 +16,9 @@ import { requireAI } from '@/ai/availability';
 export function UserCriterionField({ node }: { node: ConceptNodeData }) {
   const tr = useT();
   const setUserCriterion = useGraphStore((s) => s.setUserCriterion);
+  const attestCriterion = useGraphStore((s) => s.attestCriterion);
   const [draft, setDraft] = useState('');
+  const [metDraft, setMetDraft] = useState('');
 
   const locked = Boolean(node.comoConfirmarUsuarioAt);
   // The AI's criterion is revealed ONLY after the user locks theirs — no peek
@@ -45,8 +47,41 @@ export function UserCriterionField({ node }: { node: ConceptNodeData }) {
           {locked && <span className="text-state-done">{tr.groundTruth.locked}</span>}
         </div>
         {locked ? (
-          <div className="text-xs bg-bg-elevated border border-ai-accent/30 rounded-sm px-2 py-1.5 text-text-primary">
-            {node.comoConfirmarUsuario}
+          <div className="space-y-1.5">
+            <div className="text-xs bg-bg-elevated border border-ai-accent/30 rounded-sm px-2 py-1.5 text-text-primary">
+              {node.comoConfirmarUsuario}
+            </div>
+            {node.comoConfirmarAtendido ? (
+              <div className="text-[11px] text-state-done bg-state-done/5 border border-state-done/20 rounded-sm px-2 py-1">
+                ✓ {tr.groundTruth.criterionMet}:{' '}
+                <span className="text-text-secondary">{node.comoConfirmarAtendido.observacao}</span>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-conf-mid">
+                  {tr.groundTruth.criterionMetPrompt}
+                </div>
+                <textarea
+                  value={metDraft}
+                  onChange={(e) => setMetDraft(e.target.value)}
+                  rows={2}
+                  placeholder={tr.groundTruth.criterionMetPlaceholder}
+                  className="w-full bg-bg-elevated border border-border-base rounded-sm px-2 py-1 text-xs resize-none focus:border-state-done outline-none"
+                />
+                <button
+                  onClick={() => {
+                    if (metDraft.trim()) {
+                      attestCriterion(node.id, metDraft.trim());
+                      setMetDraft('');
+                    }
+                  }}
+                  disabled={!metDraft.trim()}
+                  className="w-full text-[11px] bg-state-done/15 hover:bg-state-done/30 disabled:opacity-40 disabled:cursor-not-allowed text-state-done border border-state-done/40 rounded-sm py-1 transition-colors"
+                >
+                  {tr.groundTruth.criterionMetBtn}
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <>

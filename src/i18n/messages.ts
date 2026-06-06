@@ -250,6 +250,10 @@ export const en = {
     criterionPlaceholder:
       'How would YOU know this node is done? Write yours before seeing the AI’s.',
     lockBtn: '🔒 Lock criterion',
+    criterionMet: 'Met',
+    criterionMetPrompt: 'Does it meet the criterion? Note how you know',
+    criterionMetPlaceholder: 'e.g. measured 178g, matches the spec',
+    criterionMetBtn: '✓ Yes — criterion met',
     revealAI: 'reveal AI',
     revealAITitle: 'View without locking (not recommended)',
     aiCriterion: 'AI criterion',
@@ -594,6 +598,10 @@ export const ptBR: Messages = {
     criterionPlaceholder:
       'Como VOCÊ saberia que este nó está concluído? Escreva antes de ver o da IA.',
     lockBtn: '🔒 Travar critério',
+    criterionMet: 'Atendido',
+    criterionMetPrompt: 'Atende ao critério? Anote como você sabe',
+    criterionMetPlaceholder: 'ex: medi 178g, bate com a spec',
+    criterionMetBtn: '✓ Sim — critério atendido',
     revealAI: 'revelar IA',
     revealAITitle: 'Ver sem travar (não recomendado)',
     aiCriterion: 'Critério da IA',
