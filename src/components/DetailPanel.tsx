@@ -78,6 +78,7 @@ export function DetailPanel() {
           nodeKind: node.kind,
           nodeFx: node.fx,
           siblings,
+          strategy: project.constructionStrategy,
         },
         kbContext,
       );

@@ -17,10 +17,11 @@ export function UserCriterionField({ node }: { node: ConceptNodeData }) {
   const tr = useT();
   const setUserCriterion = useGraphStore((s) => s.setUserCriterion);
   const [draft, setDraft] = useState('');
-  const [revealAI, setRevealAI] = useState(false);
 
   const locked = Boolean(node.comoConfirmarUsuarioAt);
-  const showAI = locked || revealAI;
+  // The AI's criterion is revealed ONLY after the user locks theirs — no peek
+  // before lock, so the user cannot copy it. Closes the attack-(a) bypass.
+  const showAI = locked;
 
   if (node.kind !== 'recurso' && node.kind !== 'passo' && node.kind !== 'decisao') {
     return null;
@@ -56,23 +57,14 @@ export function UserCriterionField({ node }: { node: ConceptNodeData }) {
               placeholder={tr.groundTruth.criterionPlaceholder}
               className="w-full bg-bg-elevated border border-border-base rounded-sm px-2 py-1 text-xs resize-none focus:border-ai-accent outline-none"
             />
-            <div className="flex gap-1.5 mt-1">
+            <div className="mt-1">
               <button
                 onClick={handleLock}
                 disabled={!draft.trim()}
-                className="flex-1 text-[11px] bg-ai-accent/15 hover:bg-ai-accent/30 disabled:opacity-40 disabled:cursor-not-allowed text-ai-accent border border-ai-accent/40 rounded-sm py-1 transition-colors"
+                className="w-full text-[11px] bg-ai-accent/15 hover:bg-ai-accent/30 disabled:opacity-40 disabled:cursor-not-allowed text-ai-accent border border-ai-accent/40 rounded-sm py-1 transition-colors"
               >
                 {tr.groundTruth.lockBtn}
               </button>
-              {!revealAI && (
-                <button
-                  onClick={() => setRevealAI(true)}
-                  className="text-[11px] text-text-muted hover:text-text-secondary border border-border-base rounded-sm px-2 py-1 transition-colors"
-                  title={tr.groundTruth.revealAITitle}
-                >
-                  {tr.groundTruth.revealAI}
-                </button>
-              )}
             </div>
           </>
         )}
@@ -121,16 +113,19 @@ function DivergenceHint({ ai, user }: { ai: string; user: string }) {
   const uni = new Set([...a, ...b]).size;
   const overlap = uni === 0 ? 0 : inter / uni;
 
+  // High lexical overlap = the user echoed the AI's wording → NOT an independent
+  // check (the contamination attack (a) exists to prevent). Warn on it; reward
+  // genuinely independent wording instead.
   if (overlap > 0.5) {
     return (
-      <div className="text-[10px] font-mono text-state-done/80 bg-state-done/5 border border-state-done/20 rounded-sm px-2 py-1">
-        {tr.groundTruth.convergenceOk}
+      <div className="text-[10px] font-mono text-conf-mid bg-conf-mid/5 border border-conf-mid/30 rounded-sm px-2 py-1">
+        {tr.groundTruth.convergenceCopy}
       </div>
     );
   }
   return (
-    <div className="text-[10px] font-mono text-conf-mid bg-conf-mid/5 border border-conf-mid/30 rounded-sm px-2 py-1">
-      {tr.groundTruth.convergenceDiverge}
+    <div className="text-[10px] font-mono text-state-done/80 bg-state-done/5 border border-state-done/20 rounded-sm px-2 py-1">
+      {tr.groundTruth.convergenceIndependent}
     </div>
   );
 }
@@ -520,6 +515,7 @@ export function FailureSection({
           oQue: node.oQue,
           failureContext: node.failureContext,
           siblings,
+          strategy: project.constructionStrategy,
         },
         kbContext,
       );

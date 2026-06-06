@@ -6,6 +6,7 @@ import type {
   AIPlanCategory,
   AISuggestedNode,
   AISuggestedEdge,
+  ConstructionStrategy,
   NodeKind,
 } from '@/types';
 import type { KBContextEntry } from '@/kb/types';
@@ -59,6 +60,7 @@ interface DecomposeContext {
   nodeKind: NodeKind;
   nodeFx: string;
   siblings: { name: string; fx: string }[];
+  strategy?: ConstructionStrategy;
 }
 
 interface ExplainContext {
@@ -95,6 +97,7 @@ interface ReplanContext {
   oQue: string;
   failureContext: string;
   siblings: { name: string; fx: string }[];
+  strategy?: ConstructionStrategy;
 }
 
 // ---------------------------------------------------------------------------
@@ -106,6 +109,13 @@ function baseSystem(): string {
   const lang = currentLocaleAIName();
   return `You are the brain of a visual planning assistant called Cellproject.
 The user describes a concrete goal (build something, assemble something, learn something) and you break the problem into a tree of nodes that can be validated one by one.
+
+STANCE — REUSE FIRST
+- Think like a resourceful, creative maker, not a textbook engineer building from zero.
+- Default to reaching the goal by ADAPTING, repurposing, cannibalizing, and RECOMBINING things that already exist: off-the-shelf parts, second-hand/salvaged components, donor systems, existing tools, services, standards, kits, and templates.
+- For every resource or step, ask FIRST "does this already exist somewhere I can reuse or adapt?" before "how do I build this?". Prefer "find/adapt an existing X" over "manufacture X from scratch".
+- Building from scratch ("forging the steel yourself") is the expensive last resort — propose it only when reuse genuinely cannot deliver the result, or when the user EXPLICITLY asks to build it from zero. When you do fall back to from-scratch, briefly say why reuse was ruled out.
+- Concrete reuse beats generic advice: "a used 50cc scooter engine from a scrapyard" beats "an engine".
 
 STYLE
 - Always respond in ${lang}.
@@ -249,7 +259,11 @@ ${objective.trim()}
 ${formatKBContext(kbContext)}
 
 TASK
-Generate 1 to 3 alternative plans to reach this goal. Order them from the simplest/fastest to the most ambitious/complete.
+Generate 1 to 3 plans, each a DIFFERENT CONSTRUCTION STRATEGY for reaching this goal. Tag each plan with its 'strategy':
+- "reaproveitar" — reach the result by maximally reusing, adapting and recombining what already exists (off-the-shelf parts, second-hand/salvaged components, donor systems, existing tools/services/templates/channels). The resourceful, fastest route.
+- "hibrido" — reuse/adapt the expensive or complex parts, build by hand the simple or cheap ones.
+- "do_zero" — build or forge each part from scratch (full control, learning, or when reuse genuinely cannot deliver).
+Lead with "reaproveitar" as the RECOMMENDED default, and include "do_zero" as a real, selectable alternative whenever the goal could reasonably be built from scratch. Don't force strategies that don't fit — 1 plan is fine if only one makes sense. The USER chooses the strategy by picking a plan, so each plan's 'approach' must state clearly HOW it builds (reuse vs from scratch).
 
 Each plan must have a tree with 2 or 3 categories:
 1. "Resources" (kind: "recursos"): everything that must be gathered before starting.
@@ -379,6 +393,7 @@ function hydratePlan(raw: RawPlan): AIPlan {
     title: raw.title,
     pitch: raw.pitch,
     approach: raw.approach,
+    strategy: raw.strategy,
     tree: { categorias },
   };
 }
@@ -393,12 +408,12 @@ export async function decomposeNode(
 ): Promise<{ nodes: AISuggestedNode[]; edges: AISuggestedEdge[] }> {
   assertAIReady();
 
-  const guidance = decomposeGuidance(ctx.nodeKind, ctx.nodeName);
+  const guidance = decomposeGuidance(ctx.nodeKind, ctx.nodeName, ctx.strategy);
 
   const userPrompt = `PROJECT CONTEXT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
-- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}
+- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${strategyDirective(ctx.strategy)}
 
 NODE TO DECOMPOSE
 - Name: ${ctx.nodeName}
@@ -431,7 +446,23 @@ Use short unique tempIds (e.g. "a", "b", "c"). If there is order or dependency b
   return { nodes, edges };
 }
 
-function decomposeGuidance(kind: NodeKind, name: string): string {
+// Per-project construction strategy chosen by the user at plan selection.
+// It conditions how every later decomposition / replan is framed.
+function strategyDirective(strategy?: ConstructionStrategy): string {
+  switch (strategy) {
+    case 'reaproveitar':
+      return `\nCONSTRUCTION STRATEGY (chosen by the user): REUSE / ADAPT. Reach this by reusing, repurposing and recombining what already exists — off-the-shelf parts, second-hand/salvaged components, donor systems, existing tools, services, templates, channels. Name the concrete existing thing to adapt before any from-scratch work.`;
+    case 'hibrido':
+      return `\nCONSTRUCTION STRATEGY (chosen by the user): HYBRID. Reuse/adapt the expensive or complex parts; build by hand only the simple or cheap ones. For each child, make the reuse-vs-build choice explicit.`;
+    case 'do_zero':
+      return `\nCONSTRUCTION STRATEGY (chosen by the user): FROM SCRATCH. The user EXPLICITLY chose to build/forge each part themselves — do NOT push reuse. Focus on fabrication/build steps, the skills, tools and quality checks involved, and learning.`;
+    default:
+      return '';
+  }
+}
+
+function decomposeGuidance(kind: NodeKind, name: string, strategy?: ConstructionStrategy): string {
+  const fromScratch = strategy === 'do_zero';
   if (kind === 'categoria') {
     const isExec = /execu|fluxo|passo|step|flow/i.test(name);
     const isRec = /recurs|material|ferrament|tool|resource/i.test(name);
@@ -444,10 +475,15 @@ function decomposeGuidance(kind: NodeKind, name: string): string {
     return `Generate 3 to 6 children appropriate for this category. Do not repeat the siblings.`;
   }
   if (kind === 'passo') {
-    return `Break this step into 2 to 5 smaller and more concrete sub-steps (kind="passo") with sequential 'order'. Each sub-step must be a single physical/logical action, easy to verify. Chain them with 'direct' edges.`;
+    const reuseLine = fromScratch
+      ? ''
+      : ` When a sub-step could be handled by an existing tool, service, kit, or template instead of done by hand from scratch, prefer that.`;
+    return `Break this step into 2 to 5 smaller and more concrete sub-steps (kind="passo") with sequential 'order'. Each sub-step must be a single physical/logical action, easy to verify.${reuseLine} Chain them with 'direct' edges.`;
   }
   if (kind === 'recurso') {
-    return `Break this resource into 2 to 4 sub-resources or acquisition stages (kind="recurso"). E.g.: "where to buy", "minimum spec", "homemade alternative".`;
+    return fromScratch
+      ? `Break this resource into 2 to 4 sub-resources or build stages (kind="recurso") for MAKING it yourself: raw materials, the spec/dimensions to hit, the fabrication/build step, and how to check quality. The user chose to build from scratch — don't suggest reusing a ready-made one.`
+      : `Break this resource into 2 to 4 sub-resources or acquisition stages (kind="recurso"), REUSE-FIRST: prefer reusing/adapting something that already exists before building it. Good sub-resources: "existing item to repurpose or adapt", "donor system to cannibalize for the part", "off-the-shelf / second-hand source", "minimum spec to match", and only as a last resort "build from scratch".`;
   }
   if (kind === 'decisao') {
     return `Generate 2 to 4 concept/step nodes that detail what happens AFTER the decision — considerations, trade-offs, or prerequisites of each path.`;
@@ -546,7 +582,7 @@ export async function replanFromFailure(
   const userPrompt = `PROJECT CONTEXT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
-- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}
+- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${strategyDirective(ctx.strategy)}
 
 NODE THAT FAILED IN PRACTICE
 - Name: ${ctx.nodeName}

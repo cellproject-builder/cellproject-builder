@@ -48,7 +48,7 @@ interface GraphState {
   deleteNode: (id: string) => void;
   addManualHistory: (id: string, message: string) => void;
 
-  confirmNode: (id: string) => void;
+  confirmNode: (id: string, opts?: { force?: boolean }) => void;
   unconfirmNode: (id: string) => void;
   pickDecisionOption: (nodeId: string, optionId: string) => void;
   setNodeExplanation: (id: string, text: string) => void;
@@ -283,6 +283,7 @@ export const useGraphStore = create<GraphState>()(
           nodes,
           edges,
           rootId,
+          constructionStrategy: plan.strategy,
         };
 
         set({
@@ -393,17 +394,31 @@ export const useGraphStore = create<GraphState>()(
           };
         }),
 
-      confirmNode: (id) =>
+      confirmNode: (id, opts) =>
         set((state) => {
           if (!state.project) return state;
           const prev = state.project.nodes[id];
           if (!prev) return state;
-          let next = {
+          // E2 gate: a node only earns state 'done' against REAL signal — a
+          // locked user criterion (attack a) or a verified anchor (attack d).
+          // Without signal it still advances (confirmado:true — never a hard
+          // block) but stays 'validated' and is flagged, so the green 'done'
+          // badge is reserved for nodes backed by ground truth. force:true is
+          // the explicit, audited opt-out for "I'm sure, no anchor".
+          const { ready, missing } = canConcludeNode(state.project, id);
+          const earnsDone = ready || opts?.force === true;
+          let next: ConceptNodeData = {
             ...prev,
             confirmado: true,
-            state: 'done' as NodeState,
+            state: earnsDone ? ('done' as NodeState) : ('validated' as NodeState),
+            confirmedWithoutSignal: !earnsDone,
           };
-          next = addHistory(next, 'confirmed', `Confirmado: "${prev.name}"`);
+          const message = ready
+            ? `Confirmado: "${prev.name}"`
+            : earnsDone
+              ? `Confirmado sem âncora real (assumido pelo usuário): "${prev.name}"`
+              : `Confirmado sem sinal real — falta: ${missing.join('; ')}: "${prev.name}"`;
+          next = addHistory(next, 'confirmed', message);
           return {
             project: {
               ...state.project,
@@ -418,10 +433,11 @@ export const useGraphStore = create<GraphState>()(
           if (!state.project) return state;
           const prev = state.project.nodes[id];
           if (!prev) return state;
-          let next = {
+          let next: ConceptNodeData = {
             ...prev,
             confirmado: false,
             state: 'concept' as NodeState,
+            confirmedWithoutSignal: false,
           };
           next = addHistory(next, 'unconfirmed', `Desconfirmado: "${prev.name}"`);
           return {
@@ -440,15 +456,19 @@ export const useGraphStore = create<GraphState>()(
           if (!prev) return state;
           const opt = prev.decisionOptions?.find((o) => o.id === optionId);
           if (!opt) return state;
+          // A decision is a leaf too — earn 'done' only against real signal,
+          // same gate as confirmNode. The pick is always recorded and advances.
+          const { ready } = canConcludeNode(state.project, nodeId);
           const next: ConceptNodeData = addHistory(
             {
               ...prev,
               decisionPickedId: optionId,
               confirmado: true,
-              state: 'done',
+              state: ready ? ('done' as NodeState) : ('validated' as NodeState),
+              confirmedWithoutSignal: !ready,
             },
             'decision',
-            `Escolha: "${opt.label}"`,
+            ready ? `Escolha: "${opt.label}"` : `Escolha (sem sinal real): "${opt.label}"`,
           );
           return {
             project: {
@@ -900,10 +920,36 @@ export const isBlocked = (project: Project | null, nodeId: string): boolean => {
   return false;
 };
 
+/**
+ * A node may only be CONCLUDED (state 'done') when it carries real signal:
+ * attack (a) a locked user criterion (comoConfirmarUsuarioAt), or attack (d) a
+ * verified real-world anchor — and is not blocked by an earlier sibling. Absent
+ * any signal a node can still be confirmed (it advances), but it does not earn
+ * 'done'. `missing` lists, in pt-BR, what is needed to earn it.
+ */
+export const canConcludeNode = (
+  project: Project | null,
+  nodeId: string,
+): { ready: boolean; missing: string[] } => {
+  if (!project) return { ready: false, missing: ['sem projeto'] };
+  const node = project.nodes[nodeId];
+  if (!node) return { ready: false, missing: ['nó inexistente'] };
+  const missing: string[] = [];
+  const blocked = isBlocked(project, nodeId);
+  if (blocked) missing.push('confirme os passos anteriores primeiro');
+  const hasLockedCriterion = Boolean(node.comoConfirmarUsuarioAt);
+  const hasVerifiedAnchor = (node.groundTruthRefs ?? []).some((r) => r.verificado);
+  if (!hasLockedCriterion && !hasVerifiedAnchor) {
+    missing.push('trave seu critério ou verifique uma âncora real');
+  }
+  const ready = !blocked && (hasLockedCriterion || hasVerifiedAnchor);
+  return { ready, missing };
+};
+
 export const projectProgress = (project: Project | null) => {
   if (!project) return { total: 0, done: 0, percent: 0 };
   const leaves = Object.values(project.nodes).filter(
-    (n) => n.kind === 'recurso' || n.kind === 'passo',
+    (n) => n.kind === 'recurso' || n.kind === 'passo' || n.kind === 'decisao',
   );
   const total = leaves.length;
   const done = leaves.filter((n) => n.confirmado).length;
@@ -941,6 +987,12 @@ export const nextPendingForTutor = (project: Project | null): ConceptNodeData | 
     const next = arr.find((p) => !p.confirmado);
     if (next) return next;
   }
+
+  // Decisions are leaves too — surface any unresolved fork so the tutor doesn't
+  // show "done" while a decision is still open.
+  const unconfirmedDecisao = nodes.find((n) => n.kind === 'decisao' && !n.confirmado);
+  if (unconfirmedDecisao) return unconfirmedDecisao;
+
   return null;
 };
 
