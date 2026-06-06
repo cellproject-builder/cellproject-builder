@@ -231,6 +231,25 @@ describe('confirmNode — guarded conclusion (E2 fidelity gate)', () => {
     expect(node(id).state).toBe('done');
   });
 
+  it('a critique (attack b) earns done', () => {
+    const id = singlePasso();
+    useGraphStore.getState().setCritica(id, {
+      fraquezas: ['premissa frágil'],
+      premissasOcultas: [],
+      criterioAlternativo: 'meça y de forma externa',
+      generatedAt: 1,
+    });
+    useGraphStore.getState().confirmNode(id);
+    expect(node(id).state).toBe('done');
+  });
+
+  it('a reported real failure (attack c) earns done', () => {
+    const id = singlePasso();
+    useGraphStore.getState().reportFailure(id, 'quebrou na prática');
+    useGraphStore.getState().confirmNode(id);
+    expect(node(id).state).toBe('done');
+  });
+
   it('force:true concludes without signal (explicit opt-out)', () => {
     const id = singlePasso();
     useGraphStore.getState().confirmNode(id, { force: true });

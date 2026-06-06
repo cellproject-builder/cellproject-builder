@@ -39,8 +39,10 @@ export function DetailPanel() {
 
   const isMobile = useIsMobile();
   const [drawerDismissed, setDrawerDismissed] = useState(false);
+  const [confirmingNoSignal, setConfirmingNoSignal] = useState(false);
   useEffect(() => {
     setDrawerDismissed(false);
+    setConfirmingNoSignal(false);
   }, [selectedId]);
 
   if (!project || !selectedId) {
@@ -58,6 +60,13 @@ export function DetailPanel() {
   const blocked = isBlocked(project, node.id);
   const canConfirm =
     (node.kind === 'recurso' || node.kind === 'passo' || node.kind === 'concept') && !blocked;
+  const ready = canConcludeNode(project, node.id).ready;
+  const confirmLabel =
+    node.kind === 'recurso'
+      ? tr.detail.alreadyHave
+      : node.kind === 'concept'
+      ? tr.detail.understood
+      : tr.detail.alreadyDid;
 
   const handleDecompose = async () => {
     if (!requireAI()) return;
@@ -344,23 +353,49 @@ export function DetailPanel() {
       </div>
 
       <div className="p-3 border-t border-border-base bg-bg-secondary space-y-2">
-        {canConfirm && !node.confirmado && (
-          <button
-            onClick={() => confirmNode(node.id)}
-            className="w-full bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-sm py-2.5 min-h-[44px] rounded-sm border border-conf-high/40 transition-colors font-medium"
-          >
-            {node.kind === 'recurso'
-              ? tr.detail.alreadyHave
-              : node.kind === 'concept'
-              ? tr.detail.understood
-              : tr.detail.alreadyDid}
-          </button>
-        )}
-        {canConfirm && !node.confirmado && !canConcludeNode(project, node.id).ready && (
-          <div className="text-[10px] text-conf-mid text-center leading-snug -mt-1">
-            {tr.detail.confirmHintNoSignal}
-          </div>
-        )}
+        {canConfirm &&
+          !node.confirmado &&
+          (ready ? (
+            // Faithful fast path: real signal present → one click earns 'done'.
+            <button
+              onClick={() => confirmNode(node.id)}
+              className="w-full bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-sm py-2.5 min-h-[44px] rounded-sm border border-conf-high/40 transition-colors font-medium"
+            >
+              {confirmLabel}
+            </button>
+          ) : confirmingNoSignal ? (
+            // Friction-ful acknowledgement: confirming without an anchor is a
+            // deliberate two-step, and it lands amber (not green), never 'done'.
+            <div className="space-y-1.5">
+              <div className="text-[11px] text-conf-mid text-center leading-snug">
+                {tr.detail.confirmHintNoSignal}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    confirmNode(node.id);
+                    setConfirmingNoSignal(false);
+                  }}
+                  className="flex-1 bg-conf-mid/15 hover:bg-conf-mid/30 text-conf-mid text-xs py-2 min-h-[40px] rounded-sm border border-conf-mid/40 transition-colors"
+                >
+                  {tr.detail.confirmAnyway}
+                </button>
+                <button
+                  onClick={() => setConfirmingNoSignal(false)}
+                  className="px-3 text-xs text-text-muted hover:text-text-secondary border border-border-base rounded-sm transition-colors"
+                >
+                  {tr.detail.cancel}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmingNoSignal(true)}
+              className="w-full bg-bg-elevated hover:bg-conf-mid/10 text-text-secondary hover:text-conf-mid text-sm py-2.5 min-h-[44px] rounded-sm border border-border-base hover:border-conf-mid/40 transition-colors font-medium"
+            >
+              {confirmLabel}
+            </button>
+          ))}
         {node.confirmado && (
           <button
             onClick={() => unconfirmNode(node.id)}
