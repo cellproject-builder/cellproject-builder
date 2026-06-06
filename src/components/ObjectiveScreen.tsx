@@ -207,7 +207,9 @@ export function ObjectiveScreen() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-text-primary text-sm font-semibold">
-                  {tr.objective.pickStrategyTitle}
+                  {plans[0]?.archetype === 'entender'
+                    ? tr.objective.pickStrategyTitleUnderstand
+                    : tr.objective.pickStrategyTitle}
                 </div>
                 <div className="text-text-secondary text-xs mt-0.5">
                   {tr.objective.pickStrategyHint}

@@ -3,7 +3,6 @@ import { persist, createJSONStorage, type StateStorage } from 'zustand/middlewar
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
 import { nanoid } from 'nanoid';
 import type { KBDocSummaryView, KBDocument, KBContextEntry } from './types';
-import { extractPdfText, fingerprintText } from './extract';
 import { pickRelevantDocs, summarizeDocument, toContextEntries, type PickContext } from './service';
 
 type IngestPhase = 'extracting' | 'summarizing' | 'done' | 'error';
@@ -60,6 +59,9 @@ export const useKBStore = create<KBState>()(
 
       addFromPdf: async (file, onProgress) => {
         onProgress?.({ phase: 'extracting', filename: file.name });
+        // Lazy-load pdfjs (~1 MB) only when a PDF is actually ingested, so it
+        // never lands in the eager main bundle for the common visitor.
+        const { extractPdfText, fingerprintText } = await import('./extract');
         let extracted;
         try {
           extracted = await extractPdfText(file, (done, total) => {

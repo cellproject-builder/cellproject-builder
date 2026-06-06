@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Handle, Position, useStore as useRfStore, type NodeProps } from '@xyflow/react';
 import type { ConceptNodeData, NodeKind } from '@/types';
-import { useGraphStore, confidenceBand, isBlocked } from '@/store';
+import { useGraphStore, confidenceBand } from '@/store';
 import { useT } from '@/i18n';
 
 const confidenceDot = (band: 'high' | 'mid' | 'low') => {
@@ -29,25 +29,37 @@ interface NodeExtras {
 
 type Props = NodeProps & { data: ConceptNodeData & NodeExtras };
 
-function ConceptNodeImpl({ id, data, selected }: Props) {
+function ConceptNodeImpl({ data, selected }: Props) {
   const tr = useT();
-  const zoom = useRfStore((s) => s.transform[2]);
-  const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
-  const project = useGraphStore((s) => s.project);
+  // Subscribe only to the discrete zoom bucket (re-render on crossing, not on
+  // every zoom frame), and read `blocked` from precomputed data instead of
+  // subscribing to the whole project — so memo() actually holds.
+  const level = useRfStore<'far' | 'mid' | 'near'>((s) =>
+    s.transform[2] < 0.6 ? 'far' : s.transform[2] < 1.1 ? 'mid' : 'near',
+  );
   const acceptSuggestion = useGraphStore((s) => s.acceptSuggestion);
   const rejectSuggestion = useGraphStore((s) => s.rejectSuggestion);
   const confirmNode = useGraphStore((s) => s.confirmNode);
 
   const kindLabel = tr.conceptNode[data.kind];
   const band = confidenceBand(data.confidence);
-  const isFocused = selected || selectedNodeId === id;
-  const blocked = data.kind === 'passo' && !data.confirmado && isBlocked(project, data.id);
-
-  const level: 'far' | 'mid' | 'near' = zoom < 0.6 ? 'far' : zoom < 1.1 ? 'mid' : 'near';
+  const isFocused = selected;
+  const blocked = !data.confirmado && !!data.blocked;
 
   const kindStyle = kindAccent[data.kind] ?? kindAccent.concept;
-  const confirmedStyle = data.confirmado
+  // Signal-gated resolution made visible (the ground-truth gate): 'done' =
+  // anchored against real signal (green); confirmado-but-not-done = confirmed
+  // WITHOUT an anchor (amber — a hunch must not look verified); takenAsKnown =
+  // a deliberate axiom / known floor (accent).
+  const anchored = data.state === 'done';
+  const known = !!data.takenAsKnown;
+  const hunch = data.confirmado && !anchored && !known;
+  const confirmedStyle = anchored
     ? 'opacity-80 border-state-done'
+    : known
+    ? 'opacity-80 border-ai-accent/40'
+    : hunch
+    ? 'opacity-80 border-conf-mid'
     : blocked
     ? 'opacity-40 grayscale'
     : '';
@@ -109,8 +121,12 @@ function ConceptNodeImpl({ id, data, selected }: Props) {
     return (
       <div className={`${baseClass} w-[200px] px-3 py-2 flex items-center gap-2`}>
         <Handle type="target" position={Position.Top} className="!bg-border-base !border-none" />
-        {data.confirmado ? (
+        {anchored ? (
           <span className="w-2 h-2 rounded-full bg-state-done" />
+        ) : known ? (
+          <span className="text-ai-accent text-[11px] leading-none" title={tr.conceptNode.axiom}>⊢</span>
+        ) : hunch ? (
+          <span className="w-2 h-2 rounded-full bg-conf-mid" title={tr.conceptNode.noAnchor} />
         ) : (
           <span className={`w-2 h-2 rounded-full ${confidenceDot(band)}`} />
         )}
@@ -137,7 +153,9 @@ function ConceptNodeImpl({ id, data, selected }: Props) {
             <span className="font-mono text-[10px] text-text-muted">#{data.order + 1}</span>
           )}
           <span className="ml-auto flex items-center gap-1.5">
-            {data.confirmado && <span className="text-state-done text-xs">✓</span>}
+            {anchored && <span className="text-state-done text-xs">✓</span>}
+            {known && <span className="text-ai-accent text-xs" title={tr.conceptNode.axiom}>⊢</span>}
+            {hunch && <span className="text-conf-mid text-xs" title={tr.conceptNode.noAnchor}>✓</span>}
             {blocked && <span className="text-text-muted text-[10px]">{tr.conceptNode.blocked}</span>}
             <span className="font-mono text-[11px] text-text-secondary">{data.confidence}%</span>
           </span>
@@ -197,7 +215,8 @@ function ConceptNodeImpl({ id, data, selected }: Props) {
             <span className="text-text-secondary">{data.porQue}</span>
           </div>
         )}
-        {data.comoConfirmar && (data.kind === 'recurso' || data.kind === 'passo') && (
+        {data.comoConfirmar &&
+          (data.kind === 'recurso' || data.kind === 'passo' || data.kind === 'concept') && (
           <div className="text-[11px] leading-snug">
             <span className="text-text-muted font-mono text-[10px] uppercase">
               {tr.conceptNode.checkPrefix}

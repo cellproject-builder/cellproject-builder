@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useGraphStore, isDemoProject } from '@/store';
 import { useConfigStore } from '@/config/store';
@@ -9,7 +9,11 @@ import { GraphCanvas } from '@/components/GraphCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
 import { TutorMode } from '@/components/TutorMode';
 import { ApiKeyGate } from '@/components/ApiKeyGate';
-import { LandingPage } from '@/landing/LandingPage';
+// Route-split: the marketing page is only shown on /landing, so app users
+// never download it and /landing visitors don't pull the whole app.
+const LandingPage = lazy(() =>
+  import('@/landing/LandingPage').then((m) => ({ default: m.LandingPage })),
+);
 
 export default function App() {
   const project = useGraphStore((s) => s.project);
@@ -37,7 +41,11 @@ export default function App() {
   }, [setLens, setViewMode]);
 
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/landing')) {
-    return <LandingPage />;
+    return (
+      <Suspense fallback={null}>
+        <LandingPage />
+      </Suspense>
+    );
   }
 
   // Demo projects bypass the API key gate — user explicitly chose "try without a key".

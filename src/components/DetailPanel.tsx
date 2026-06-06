@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { nanoid } from 'nanoid';
-import { useGraphStore, breadcrumbFor, isBlocked } from '@/store';
+import { useGraphStore, breadcrumbFor, isBlocked, canConcludeNode, hintsToRefs } from '@/store';
 import { decomposeNode, explainNode } from '@/ai/service';
 import { requireAI } from '@/ai/availability';
 import { useKBStore } from '@/kb/store';
@@ -28,6 +27,7 @@ export function DetailPanel() {
   const stageSuggestions = useGraphStore((s) => s.stageSuggestions);
   const confirmNode = useGraphStore((s) => s.confirmNode);
   const unconfirmNode = useGraphStore((s) => s.unconfirmNode);
+  const toggleTakenAsKnown = useGraphStore((s) => s.toggleTakenAsKnown);
   const pickDecisionOption = useGraphStore((s) => s.pickDecisionOption);
   const setNodeExplanation = useGraphStore((s) => s.setNodeExplanation);
   const pending = useGraphStore((s) => s.pendingSuggestions);
@@ -56,7 +56,8 @@ export function DetailPanel() {
 
   const crumbs = breadcrumbFor(project, selectedId);
   const blocked = isBlocked(project, node.id);
-  const canConfirm = (node.kind === 'recurso' || node.kind === 'passo') && !blocked;
+  const canConfirm =
+    (node.kind === 'recurso' || node.kind === 'passo' || node.kind === 'concept') && !blocked;
 
   const handleDecompose = async () => {
     if (!requireAI()) return;
@@ -79,6 +80,7 @@ export function DetailPanel() {
           nodeFx: node.fx,
           siblings,
           strategy: project.constructionStrategy,
+          archetype: project.archetype,
         },
         kbContext,
       );
@@ -103,15 +105,7 @@ export function DetailPanel() {
           confirmado: false,
           order: n.order ?? i,
           decisionOptions: n.decisionOptions,
-          groundTruthRefs: n.groundTruthHints?.map((h) => ({
-            id: nanoid(8),
-            kind: h.kind,
-            label: h.label,
-            value: h.value,
-            verificado: false,
-            addedAt: Date.now(),
-            addedByAI: true,
-          })),
+          groundTruthRefs: hintsToRefs(n.groundTruthHints),
           state: 'concept',
           notes: '',
           aiSuggested: true,
@@ -169,9 +163,13 @@ export function DetailPanel() {
           {blocked && (
             <span className="text-[10px] font-mono text-text-muted ml-auto">{tr.detail.blocked}</span>
           )}
-          {node.confirmado && (
+          {node.state === 'done' ? (
             <span className="text-[10px] font-mono text-state-done ml-auto">{tr.detail.confirmed}</span>
-          )}
+          ) : node.confirmado ? (
+            <span className="text-[10px] font-mono text-conf-mid ml-auto">{tr.detail.confirmedNoSignal}</span>
+          ) : node.takenAsKnown ? (
+            <span className="text-[10px] font-mono text-ai-accent ml-auto">{tr.detail.axiomBadge}</span>
+          ) : null}
         </div>
         <input
           value={node.name}
@@ -275,7 +273,9 @@ export function DetailPanel() {
             {tr.detail.state}
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-            {STATE_VALUES.map((value) => (
+            {/* 'done' is gate-owned: it can only be earned through the confirm
+                flow (canConcludeNode), never set directly here. */}
+            {STATE_VALUES.filter((value) => value !== 'done').map((value) => (
               <button
                 key={value}
                 onClick={() => updateNode(node.id, { state: value })}
@@ -349,8 +349,17 @@ export function DetailPanel() {
             onClick={() => confirmNode(node.id)}
             className="w-full bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-sm py-2.5 min-h-[44px] rounded-sm border border-conf-high/40 transition-colors font-medium"
           >
-            {node.kind === 'recurso' ? tr.detail.alreadyHave : tr.detail.alreadyDid}
+            {node.kind === 'recurso'
+              ? tr.detail.alreadyHave
+              : node.kind === 'concept'
+              ? tr.detail.understood
+              : tr.detail.alreadyDid}
           </button>
+        )}
+        {canConfirm && !node.confirmado && !canConcludeNode(project, node.id).ready && (
+          <div className="text-[10px] text-conf-mid text-center leading-snug -mt-1">
+            {tr.detail.confirmHintNoSignal}
+          </div>
         )}
         {node.confirmado && (
           <button
@@ -375,6 +384,18 @@ export function DetailPanel() {
             ? tr.detail.pendingHint
             : tr.detail.decompose}
         </button>
+        {!node.confirmado && node.parentId && (
+          <button
+            onClick={() => toggleTakenAsKnown(node.id)}
+            className={`w-full text-xs py-1.5 rounded-sm border transition-colors ${
+              node.takenAsKnown
+                ? 'bg-ai-accent/10 text-ai-accent border-ai-accent/40'
+                : 'bg-bg-elevated text-text-muted hover:text-text-secondary border-border-base'
+            }`}
+          >
+            {node.takenAsKnown ? tr.detail.knownUndo : tr.detail.markKnown}
+          </button>
+        )}
         {node.parentId && (
           <button
             onClick={() => {
