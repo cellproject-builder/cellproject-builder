@@ -960,15 +960,11 @@ export const isBlocked = (project: Project | null, nodeId: string): boolean => {
 };
 
 /**
- * A node may only be CONCLUDED (state 'done') when reality has entered through
- * at least ONE of the four anti-AI-loop mechanisms — and it isn't blocked by an
- * earlier sibling:
- *   (a) a locked user criterion (comoConfirmarUsuarioAt),
- *   (b) an adversarial critique was run (node.critica),
- *   (c) a real failure was reported (a 'failure' history entry), or
- *   (d) a verified real-world anchor.
- * Absent all four a node can still be confirmed (it advances) but does not earn
- * 'done'. `missing` lists, in pt-BR, what is needed to earn it.
+ * A node may only be CONCLUDED (state 'done') when reality CONFIRMED it: a locked
+ * user criterion (a) or a verified real-world anchor (d), and it isn't blocked by
+ * an earlier sibling. A bare critique (b) or failure-report (c) is process, not
+ * confirmation, and does NOT earn 'done'. Absent signal a node can still be
+ * confirmed (it advances) but stays 'validated'. `missing` lists what's needed.
  */
 export const canConcludeNode = (
   project: Project | null,
@@ -980,13 +976,15 @@ export const canConcludeNode = (
   const missing: string[] = [];
   const blocked = isBlocked(project, nodeId);
   if (blocked) missing.push('confirme os passos anteriores primeiro');
-  const hasLockedCriterion = Boolean(node.comoConfirmarUsuarioAt); // (a)
-  const hasCritique = Boolean(node.critica); // (b)
-  const hadRealFailure = node.history.some((h) => h.kind === 'failure'); // (c)
-  const hasVerifiedAnchor = (node.groundTruthRefs ?? []).some((r) => r.verificado); // (d)
-  const hasSignal = hasLockedCriterion || hasCritique || hadRealFailure || hasVerifiedAnchor;
+  // Reality must CONFIRM the node, not merely be engaged. A locked criterion (a)
+  // or a verified anchor (d) is signal; a bare critique (b) or a bare
+  // failure-report (c) is process, not confirmation, so neither earns 'done' on
+  // its own (that was a real gate-loosening — reverted).
+  const hasLockedCriterion = Boolean(node.comoConfirmarUsuarioAt);
+  const hasVerifiedAnchor = (node.groundTruthRefs ?? []).some((r) => r.verificado);
+  const hasSignal = hasLockedCriterion || hasVerifiedAnchor;
   if (!hasSignal) {
-    missing.push('trave um critério, verifique uma âncora, rode a crítica cética, ou reporte uma falha real');
+    missing.push('trave seu critério ou verifique uma âncora real');
   }
   const ready = !blocked && hasSignal;
   return { ready, missing };
@@ -1014,9 +1012,12 @@ export const projectProgress = (project: Project | null) => {
   const total = leaves.length;
   const resolved = leaves.filter((n) => n.confirmado || n.takenAsKnown);
   const done = resolved.length;
-  // "Without signal" = confirmed on a hunch (confirmedWithoutSignal). A
-  // takenAsKnown floor is a deliberate decision, so it counts as signal.
-  const doneWithoutSignal = resolved.filter((n) => n.confirmedWithoutSignal).length;
+  // "Without signal" = confirmed on a hunch, OR a takenAsKnown floor on a BUILD
+  // project — "já sabido" is a legit axiom only in an understand project, so it
+  // must not drive a build project to celebratory green with zero ground truth.
+  const doneWithoutSignal = resolved.filter(
+    (n) => n.confirmedWithoutSignal || (n.takenAsKnown && !understand),
+  ).length;
   const doneWithSignal = done - doneWithoutSignal;
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);
   return { total, done, doneWithSignal, doneWithoutSignal, percent };
