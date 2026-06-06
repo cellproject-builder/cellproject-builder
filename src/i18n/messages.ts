@@ -117,6 +117,11 @@ export const en = {
     baseUsed: '◆ Base used:',
     errorLabel: 'error',
     pickPlanHint: 'Pick one plan. Each one already has resources + execution covered.',
+    pickStrategyTitle: 'How do you want to build this?',
+    pickStrategyHint:
+      'Each plan is a different construction strategy — pick the one that matches how you want to make it.',
+    strategyLabel: (s: 'reaproveitar' | 'hibrido' | 'do_zero'): string =>
+      s === 'reaproveitar' ? 'Reuse' : s === 'hibrido' ? 'Hybrid' : 'From scratch',
     chunks: (n: number) => `${n} chunk${n === 1 ? '' : 's'}`,
     phaseLabel: 'phase:',
     elapsedSecs: (s: number) => `${s.toFixed(1)}s`,
@@ -228,8 +233,9 @@ export const en = {
     hiddenUntilLock: '(hidden until you lock yours)',
     emptyAI: '(empty)',
     writeYoursFirst: 'Write yours first to keep the loop honest.',
-    convergenceOk: '◇ criteria converge — signal that the plan is solid here.',
-    convergenceDiverge: '⚠ criteria diverge — worth checking why.',
+    convergenceCopy:
+      "⚠ your criterion is nearly identical to the AI's — that is not an independent check.",
+    convergenceIndependent: '◇ independent criteria — a real second check.',
     adversarial: 'Adversarial critique',
     generatedOn: (date: string) => `◆ generated ${date}`,
     askSecondOpinion: '⚠ Ask for a skeptical second opinion',
@@ -430,6 +436,11 @@ export const ptBR: Messages = {
     errorLabel: 'erro',
     pickPlanHint:
       'Escolha 1 plano. Cada um já vem com recursos + execução completos.',
+    pickStrategyTitle: 'Como você quer construir?',
+    pickStrategyHint:
+      'Cada plano é uma estratégia de confecção diferente — escolha a que combina com como você quer fazer.',
+    strategyLabel: (s: 'reaproveitar' | 'hibrido' | 'do_zero'): string =>
+      s === 'reaproveitar' ? 'Reaproveitar' : s === 'hibrido' ? 'Híbrido' : 'Do zero',
     chunks: (n: number) => `${n} chunk${n === 1 ? '' : 's'}`,
     phaseLabel: 'fase:',
     elapsedSecs: (s: number) => `${s.toFixed(1)}s`,
@@ -543,9 +554,9 @@ export const ptBR: Messages = {
     hiddenUntilLock: '(oculto até travar o seu)',
     emptyAI: '(vazio)',
     writeYoursFirst: 'Escreva o seu primeiro pra manter a honestidade do loop.',
-    convergenceOk:
-      '◇ critérios convergem — sinal de que o plano é robusto nesse nó.',
-    convergenceDiverge: '⚠ critérios divergem — vale conferir por que.',
+    convergenceCopy:
+      '⚠ teu critério ficou quase igual ao da IA — isso não é checagem independente.',
+    convergenceIndependent: '◇ critérios independentes — checagem de verdade.',
     adversarial: 'Crítica adversarial',
     generatedOn: (date: string) => `◆ gerada ${date}`,
     askSecondOpinion: '⚠ Pedir segunda opinião cética',

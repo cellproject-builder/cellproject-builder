@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useGraphStore } from './store';
+import { useGraphStore, projectProgress } from './store';
 import type { AIPlan, ConceptNodeData } from './types';
 
 const minimalPlan: AIPlan = {
@@ -7,6 +7,7 @@ const minimalPlan: AIPlan = {
   title: 'Plano teste',
   pitch: 'pitch',
   approach: 'approach',
+  strategy: 'reaproveitar',
   tree: {
     categorias: [
       {
@@ -170,5 +171,140 @@ describe('staging suggestions — accept/reject preserves chain edges', () => {
 
     expect(useGraphStore.getState().pendingSuggestions).toBeNull();
     expect(chainEdges()).toHaveLength(2);
+  });
+});
+
+describe('confirmNode — guarded conclusion (E2 fidelity gate)', () => {
+  beforeEach(() => {
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().createProjectFromPlan('obj', 'Test', minimalPlan);
+  });
+
+  // Single first passo: not blocked, no signal yet.
+  function singlePasso(): string {
+    const catId = categoryId();
+    useGraphStore
+      .getState()
+      .stageSuggestions(catId, [makeSuggestionNode('a', 'passo 1', 0)], []);
+    useGraphStore.getState().acceptSuggestion('a');
+    return passosOrdered()[0].id;
+  }
+
+  function node(id: string): ConceptNodeData {
+    return useGraphStore.getState().project!.nodes[id];
+  }
+
+  // This is the live H2 regression: a node MUST NOT reach 'done' on a bare
+  // confirm with no locked criterion and no verified anchor.
+  it('confirm WITHOUT signal advances but does NOT reach state done', () => {
+    const id = singlePasso();
+    useGraphStore.getState().confirmNode(id);
+    const n = node(id);
+    expect(n.confirmado).toBe(true); // flow advances — never a hard block
+    expect(n.state).not.toBe('done');
+    expect(n.state).toBe('validated');
+    expect(n.confirmedWithoutSignal).toBe(true);
+  });
+
+  it('confirm WITH a locked user criterion (attack a) reaches state done', () => {
+    const id = singlePasso();
+    useGraphStore.getState().setUserCriterion(id, 'meu critério independente');
+    useGraphStore.getState().confirmNode(id);
+    const n = node(id);
+    expect(n.state).toBe('done');
+    expect(n.confirmedWithoutSignal).toBe(false);
+  });
+
+  it('confirm WITH a verified anchor (attack d) reaches state done', () => {
+    const id = singlePasso();
+    useGraphStore.getState().addGroundTruthRef(id, {
+      kind: 'medida',
+      label: 'massa',
+      value: '178g',
+      verificado: false,
+      addedByAI: false,
+    });
+    const refId = node(id).groundTruthRefs![0].id;
+    useGraphStore.getState().toggleGroundTruthVerified(id, refId);
+    useGraphStore.getState().confirmNode(id);
+    expect(node(id).state).toBe('done');
+  });
+
+  it('force:true concludes without signal (explicit opt-out)', () => {
+    const id = singlePasso();
+    useGraphStore.getState().confirmNode(id, { force: true });
+    const n = node(id);
+    expect(n.state).toBe('done');
+    expect(n.confirmedWithoutSignal).toBe(false);
+  });
+
+  it('unconfirmNode clears the without-signal flag', () => {
+    const id = singlePasso();
+    useGraphStore.getState().confirmNode(id);
+    expect(node(id).confirmedWithoutSignal).toBe(true);
+    useGraphStore.getState().unconfirmNode(id);
+    const n = node(id);
+    expect(n.confirmado).toBe(false);
+    expect(n.confirmedWithoutSignal).toBe(false);
+  });
+
+  function stageDecisao(): string {
+    const catId = categoryId();
+    const dec: StagedNode = {
+      tempId: 'd',
+      kind: 'decisao',
+      name: 'qual material',
+      fx: 'fx',
+      problem: '',
+      confidence: 70,
+      confidenceSource: 'ai',
+      confidenceReason: 'r',
+      pros: [],
+      cons: [],
+      oQue: 'o',
+      porQue: 'p',
+      comoConfirmar: 'c',
+      confirmado: false,
+      order: 0,
+      decisionOptions: [
+        { id: 'opt1', label: 'A', pitch: 'a' },
+        { id: 'opt2', label: 'B', pitch: 'b' },
+      ],
+      state: 'concept',
+      notes: '',
+      aiSuggested: true,
+      position: { x: 0, y: 0 },
+    };
+    useGraphStore.getState().stageSuggestions(catId, [dec], []);
+    useGraphStore.getState().acceptSuggestion('d');
+    return Object.values(useGraphStore.getState().project!.nodes).find(
+      (n) => n.kind === 'decisao',
+    )!.id;
+  }
+
+  it('pickDecisionOption WITHOUT signal records the pick but does NOT reach done', () => {
+    const id = stageDecisao();
+    useGraphStore.getState().pickDecisionOption(id, 'opt1');
+    const n = node(id);
+    expect(n.confirmado).toBe(true);
+    expect(n.decisionPickedId).toBe('opt1');
+    expect(n.state).toBe('validated');
+    expect(n.confirmedWithoutSignal).toBe(true);
+  });
+
+  it('pickDecisionOption WITH a locked criterion reaches done', () => {
+    const id = stageDecisao();
+    useGraphStore.getState().setUserCriterion(id, 'porque medi a carga');
+    useGraphStore.getState().pickDecisionOption(id, 'opt2');
+    expect(node(id).state).toBe('done');
+  });
+
+  it('projectProgress counts a decisao as a leaf', () => {
+    const id = stageDecisao();
+    const before = projectProgress(useGraphStore.getState().project);
+    expect(before.total).toBe(1); // the decisao is the only leaf
+    expect(before.done).toBe(0);
+    useGraphStore.getState().pickDecisionOption(id, 'opt1');
+    expect(projectProgress(useGraphStore.getState().project).done).toBe(1);
   });
 });

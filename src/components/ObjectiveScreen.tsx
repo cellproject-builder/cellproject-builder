@@ -45,7 +45,9 @@ export function ObjectiveScreen() {
         kbContext,
       );
       setPlans(generated);
-      setSelectedId(generated[0]?.id ?? null);
+      // Do NOT auto-select — the user must consciously choose a construction
+      // strategy (reuse / hybrid / from scratch) by picking a plan.
+      setSelectedId(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -202,14 +204,21 @@ export function ObjectiveScreen() {
 
         {plans && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="text-text-secondary text-sm">{tr.objective.pickPlanHint}</div>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-text-primary text-sm font-semibold">
+                  {tr.objective.pickStrategyTitle}
+                </div>
+                <div className="text-text-secondary text-xs mt-0.5">
+                  {tr.objective.pickStrategyHint}
+                </div>
+              </div>
               <button
                 onClick={() => {
                   setPlans(null);
                   setProgress(null);
                 }}
-                className="text-text-muted hover:text-text-secondary text-xs"
+                className="shrink-0 text-text-muted hover:text-text-secondary text-xs"
               >
                 ← {tr.common.back}
               </button>
@@ -229,10 +238,18 @@ export function ObjectiveScreen() {
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-ai-accent text-xs font-mono">◆</span>
                     <span className="text-sm font-semibold">{p.title}</span>
+                    <span className="ml-auto shrink-0 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] bg-ai-accent/10 text-ai-accent border border-ai-accent/30">
+                      {tr.objective.strategyLabel(p.strategy)}
+                    </span>
                   </div>
-                  <div className="text-[11px] text-text-secondary mb-3 leading-snug">
+                  <div className="text-[11px] text-text-secondary mb-2 leading-snug">
                     {p.pitch}
                   </div>
+                  {p.approach && (
+                    <div className="text-[10px] text-text-muted mb-3 leading-snug italic">
+                      {p.approach}
+                    </div>
+                  )}
 
                   {p.tree.categorias.map((cat) => (
                     <div key={cat.tempId} className="mt-2 border-t border-border-base pt-2">

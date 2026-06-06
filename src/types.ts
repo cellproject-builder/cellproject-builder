@@ -18,6 +18,12 @@ export type EdgeKind = 'direct' | 'middleware' | 'independent' | 'optional';
 
 export type ConfidenceSource = 'data' | 'experience' | 'intuition' | 'ai';
 
+// How the user wants to MAKE the product — chosen explicitly when they pick a
+// plan, then carried on the project to condition every later decomposition.
+// reaproveitar: reuse/adapt what exists · hibrido: reuse the costly parts,
+// build the simple ones · do_zero: build/forge each part from scratch.
+export type ConstructionStrategy = 'reaproveitar' | 'hibrido' | 'do_zero';
+
 export interface HistoryEntry {
   id: string;
   timestamp: number;
@@ -112,6 +118,10 @@ export interface ConceptNodeData {
 
   // Execução
   confirmado: boolean;
+  // Set true when the node was confirmed WITHOUT real signal (no locked user
+  // criterion and no verified anchor). The node still advances (confirmado),
+  // but it has NOT earned the 'done' state / green badge. See canConcludeNode.
+  confirmedWithoutSignal?: boolean;
   order: number; // ordem entre irmãos (importante para passos)
 
   // Decisão
@@ -144,6 +154,9 @@ export interface Project {
   nodes: Record<string, ConceptNodeData>;
   edges: Record<string, ConceptEdgeData>;
   rootId: string;
+  // The construction strategy the user picked at plan selection (optional for
+  // back-compat with projects created before this existed).
+  constructionStrategy?: ConstructionStrategy;
 }
 
 // ---- AI contract ----------------------------------------------------------
@@ -185,6 +198,7 @@ export interface AIPlan {
   title: string;
   pitch: string;
   approach: string;
+  strategy: ConstructionStrategy;
   tree: AIPlanTree;
 }
 
