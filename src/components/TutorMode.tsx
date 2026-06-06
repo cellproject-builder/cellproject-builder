@@ -4,8 +4,10 @@ import {
   nextPendingForTutor,
   projectProgress,
   breadcrumbFor,
+  hintsToRefs,
 } from '@/store';
-import { explainNode } from '@/ai/service';
+import { explainNode, decomposeNode } from '@/ai/service';
+import { useKBStore } from '@/kb/store';
 import { requireAI } from '@/ai/availability';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useT } from '@/i18n';
@@ -233,8 +235,15 @@ function TutorCard({ node, project, onConfirm, onViewInGraph, tr }: TutorCardPro
   const kindLabel = node.kind === 'recurso' ? tr.tutor.nextResource : tr.tutor.nextStep;
   const verb = node.kind === 'recurso' ? tr.tutor.iGotItVerbResource : tr.tutor.iGotItVerbStep;
   const setNodeExplanation = useGraphStore((s) => s.setNodeExplanation);
+  const stageSuggestions = useGraphStore((s) => s.stageSuggestions);
+  const acceptSuggestion = useGraphStore((s) => s.acceptSuggestion);
+  const rejectSuggestion = useGraphStore((s) => s.rejectSuggestion);
+  const acceptAllSuggestions = useGraphStore((s) => s.acceptAllSuggestions);
+  const pending = useGraphStore((s) => s.pendingSuggestions);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [decomposing, setDecomposing] = useState(false);
+  const pendingHere = !!pending && pending.parentId === node.id;
 
   const handleExplain = async () => {
     if (node.explicacao) {
@@ -258,6 +267,67 @@ function TutorCard({ node, project, onConfirm, onViewInGraph, tr }: TutorCardPro
       setOpen(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Recursive decompose, right in the guided flow — break the current node into
+  // sub-nodes (staged for accept/reject inline). After accepting, this node
+  // gains children, so nextPendingForTutor advances to a child and the user can
+  // keep decomposing "down to the atom" without leaving the tutor.
+  const handleDecompose = async () => {
+    if (!requireAI()) return;
+    setDecomposing(true);
+    try {
+      const siblings = Object.values(project.nodes)
+        .filter((n) => n.parentId === node.parentId && n.id !== node.id)
+        .map((n) => ({ name: n.name, fx: n.fx }));
+      const kbContext = await useKBStore.getState().getContextFor({
+        label: tr.notify.objectivePromptLabel(project.objective),
+        extra: tr.notify.objectivePromptExtra(node.name, node.kind, node.fx),
+      });
+      const result = await decomposeNode(
+        {
+          projectName: project.name,
+          projectObjective: project.objective,
+          breadcrumb: crumbs.map((c) => c.name),
+          nodeName: node.name,
+          nodeKind: node.kind,
+          nodeFx: node.fx,
+          siblings,
+          strategy: project.constructionStrategy,
+          archetype: project.archetype,
+        },
+        kbContext,
+      );
+      const basePos = node.position;
+      const spacing = 260;
+      const start = basePos.x - ((result.nodes.length - 1) * spacing) / 2;
+      const staged = result.nodes.map((n, i) => ({
+        tempId: n.tempId,
+        kind: n.kind,
+        name: n.name,
+        fx: n.fx,
+        problem: n.problem,
+        confidence: n.confidence,
+        confidenceSource: 'ai' as const,
+        confidenceReason: n.confidenceReason,
+        pros: n.pros,
+        cons: n.cons,
+        oQue: n.oQue,
+        porQue: n.porQue,
+        comoConfirmar: n.comoConfirmar,
+        confirmado: false,
+        order: n.order ?? i,
+        decisionOptions: n.decisionOptions,
+        groundTruthRefs: hintsToRefs(n.groundTruthHints),
+        state: 'concept' as const,
+        notes: '',
+        aiSuggested: true,
+        position: { x: start + i * spacing, y: basePos.y + 260 },
+      }));
+      stageSuggestions(node.id, staged, result.edges);
+    } finally {
+      setDecomposing(false);
     }
   };
 
@@ -313,6 +383,54 @@ function TutorCard({ node, project, onConfirm, onViewInGraph, tr }: TutorCardPro
         {open && node.explicacao && (
           <div className="mt-3 p-4 sm:p-5 bg-bg-secondary border border-border-base rounded-sm">
             <ExplanationContent text={node.explicacao} />
+          </div>
+        )}
+      </div>
+
+      {/* Recursive decompose, right in the guided flow */}
+      <div className="mt-3">
+        {!pendingHere ? (
+          <button
+            onClick={handleDecompose}
+            disabled={decomposing || (!!pending && !pendingHere)}
+            className="w-full px-4 py-2.5 min-h-[44px] bg-bg-secondary hover:bg-bg-elevated border border-border-base hover:border-ai-accent/40 rounded-sm text-text-secondary hover:text-ai-accent text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <span>⌥</span>
+            {decomposing ? tr.tutor.decomposing : tr.tutor.decompose}
+          </button>
+        ) : (
+          <div className="space-y-2 p-3 border border-ai-accent/30 rounded-sm bg-ai-accent/5">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-ai-accent">
+              {tr.tutor.decomposeReview}
+            </div>
+            {pending!.nodes.map((s) => (
+              <div key={s.tempId} className="p-2 bg-bg-secondary border border-border-base rounded-sm">
+                <div className="text-sm font-medium text-text-primary leading-tight">{s.data.name}</div>
+                <div className="text-[11px] text-text-secondary leading-snug mb-1.5">
+                  {s.data.oQue || s.data.fx}
+                </div>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => acceptSuggestion(s.tempId)}
+                    className="flex-1 text-[11px] bg-conf-high/15 hover:bg-conf-high/30 text-conf-high border border-conf-high/40 rounded-sm py-1 transition-colors"
+                  >
+                    {tr.tutor.acceptOne}
+                  </button>
+                  <button
+                    onClick={() => rejectSuggestion(s.tempId)}
+                    className="text-[11px] text-text-muted hover:text-state-problem border border-border-base rounded-sm px-2.5 py-1 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={acceptAllSuggestions}
+              className="w-full text-[11px] bg-ai-accent/15 hover:bg-ai-accent/30 text-ai-accent border border-ai-accent/40 rounded-sm py-1.5 transition-colors"
+            >
+              {tr.tutor.acceptAll}
+            </button>
           </div>
         )}
       </div>

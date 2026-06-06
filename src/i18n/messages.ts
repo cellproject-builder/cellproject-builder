@@ -159,6 +159,11 @@ export const en = {
     projectWalkedBody: (n: number) =>
       `You confirmed ${n} ${n === 1 ? 'node' : 'nodes'} without an anchor. Revisit them to lock a criterion or verify a real anchor.`,
     confirmedNoAnchor: (n: number) => `${n} confirmed without anchor`,
+    decompose: 'Break into parts (decompose)',
+    decomposing: 'Decomposing…',
+    decomposeReview: 'AI suggestions — accept to keep going deeper',
+    acceptOne: '✓ Accept',
+    acceptAll: '✓ Accept all',
     projectDoneBody: (name: string) =>
       `Every step of ${name} has been confirmed. Check the graph to see the full history.`,
     sectionResources: 'Resources',
@@ -496,6 +501,11 @@ export const ptBR: Messages = {
     projectWalkedBody: (n: number) =>
       `Você confirmou ${n} nó${n === 1 ? '' : 's'} sem âncora. Volte neles pra travar um critério ou verificar uma âncora real.`,
     confirmedNoAnchor: (n: number) => `${n} confirmado${n === 1 ? '' : 's'} sem âncora`,
+    decompose: 'Decompor em partes',
+    decomposing: 'Decompondo…',
+    decomposeReview: 'Sugestões da IA — aceite pra continuar descendo',
+    acceptOne: '✓ Aceitar',
+    acceptAll: '✓ Aceitar todas',
     projectDoneBody: (name: string) =>
       `Todas as etapas de ${name} foram confirmadas. Olha o grafo pra ver o histórico completo.`,
     sectionResources: 'Recursos',
