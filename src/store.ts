@@ -50,6 +50,7 @@ interface GraphState {
 
   confirmNode: (id: string, opts?: { force?: boolean }) => void;
   unconfirmNode: (id: string) => void;
+  toggleTakenAsKnown: (id: string) => void; // recursion floor: axiom / "already known"
   pickDecisionOption: (nodeId: string, optionId: string) => void;
   setNodeExplanation: (id: string, text: string) => void;
 
@@ -109,7 +110,7 @@ const addHistory = (
 
 // Converts AI hints into verifiable refs (addedByAI=true, verificado=false).
 // The user flips each one to `verificado=true` manually via toggle.
-function hintsToRefs(
+export function hintsToRefs(
   hints: { kind: GroundTruthRef['kind']; label: string; value: string }[] | undefined,
 ): GroundTruthRef[] | undefined {
   if (!hints || hints.length === 0) return undefined;
@@ -284,6 +285,7 @@ export const useGraphStore = create<GraphState>()(
           edges,
           rootId,
           constructionStrategy: plan.strategy,
+          archetype: plan.archetype,
         };
 
         set({
@@ -440,6 +442,31 @@ export const useGraphStore = create<GraphState>()(
             confirmedWithoutSignal: false,
           };
           next = addHistory(next, 'unconfirmed', `Desconfirmado: "${prev.name}"`);
+          return {
+            project: {
+              ...state.project,
+              updatedAt: now(),
+              nodes: { ...state.project.nodes, [id]: next },
+            },
+          };
+        }),
+
+      // Recursion floor: mark a node as a primitive/axiom or "already known" so
+      // it stops being a thing to decompose. Counts as resolved (like
+      // confirmado) for progress and sequencing. Toggle to reopen.
+      toggleTakenAsKnown: (id) =>
+        set((state) => {
+          if (!state.project) return state;
+          const prev = state.project.nodes[id];
+          if (!prev) return state;
+          const nowKnown = !prev.takenAsKnown;
+          const next = addHistory(
+            { ...prev, takenAsKnown: nowKnown },
+            'manual',
+            nowKnown
+              ? `Marcado como axioma / já sabido: "${prev.name}"`
+              : `Reaberto para decompor: "${prev.name}"`,
+          );
           return {
             project: {
               ...state.project,
@@ -652,6 +679,7 @@ export const useGraphStore = create<GraphState>()(
             failureReportedAt: now(),
             // A real failure invalidates any prior confirmation.
             confirmado: false,
+            confirmedWithoutSignal: false,
           };
           next = addHistory(next, 'failure', `Falha reportada: ${trimmed}`);
           if (prev.state !== 'problem') {
@@ -674,11 +702,15 @@ export const useGraphStore = create<GraphState>()(
           const { failureContext: _c, failureReportedAt: _a, ...rest } = prev;
           void _c;
           void _a;
-          const next = addHistory(
-            { ...rest, state: 'concept' } as ConceptNodeData,
-            'replan',
-            'Falha marcada como resolvida.',
-          );
+          // Restore the state the node legitimately earned instead of always
+          // dropping to 'concept' (which silently discarded a prior anchored
+          // 'done' even though its locked criterion / verified anchor survived).
+          const cleared = { ...rest } as ConceptNodeData;
+          const { ready } = canConcludeNode(state.project, id);
+          const restored: ConceptNodeData = ready
+            ? { ...cleared, state: 'done', confirmado: true, confirmedWithoutSignal: false }
+            : { ...cleared, state: 'concept', confirmado: false };
+          const next = addHistory(restored, 'replan', 'Falha marcada como resolvida.');
           return {
             project: {
               ...state.project,
@@ -864,6 +896,11 @@ export const useGraphStore = create<GraphState>()(
       name: 'cellproject-graph',
       version: 3, // v3: ground-truth fields (userCriterion, critica, refs, failure)
       storage: createJSONStorage(() => idbStorage),
+      // Pass-through migrate: NEVER drop a user's project on a version bump.
+      // zustand discards persisted state on version mismatch when no migrate is
+      // provided; all newer fields are optional, so old snapshots rehydrate fine
+      // and the UI's `?? []` / archetype defaults cover the missing ones.
+      migrate: (persisted) => persisted as GraphState,
       partialize: (state) => ({
         project: state.project,
         selectedNodeId: state.selectedNodeId,
@@ -888,8 +925,10 @@ export const breadcrumbFor = (
 ): ConceptNodeData[] => {
   if (!project || !nodeId) return [];
   const chain: ConceptNodeData[] = [];
+  const seen = new Set<string>();
   let cur: ConceptNodeData | undefined = project.nodes[nodeId];
-  while (cur) {
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id); // guard against a cyclic parentId in corrupted data
     chain.unshift(cur);
     cur = cur.parentId ? project.nodes[cur.parentId] : undefined;
   }
@@ -915,7 +954,7 @@ export const isBlocked = (project: Project | null, nodeId: string): boolean => {
     .sort((a, b) => a.order - b.order);
   for (const s of siblings) {
     if (s.id === node.id) return false;
-    if (!s.confirmado) return true;
+    if (!s.confirmado && !s.takenAsKnown) return true;
   }
   return false;
 };
@@ -947,14 +986,33 @@ export const canConcludeNode = (
 };
 
 export const projectProgress = (project: Project | null) => {
-  if (!project) return { total: 0, done: 0, percent: 0 };
-  const leaves = Object.values(project.nodes).filter(
-    (n) => n.kind === 'recurso' || n.kind === 'passo' || n.kind === 'decisao',
-  );
+  if (!project) {
+    return { total: 0, done: 0, doneWithSignal: 0, doneWithoutSignal: 0, percent: 0 };
+  }
+  const understand = project.archetype === 'entender';
+  // Single O(n) pass: which ids have children (a decomposed parent is a
+  // container, resolved through its children — not a leaf to count).
+  const hasChildren = new Set<string>();
+  for (const n of Object.values(project.nodes)) {
+    if (n.parentId) hasChildren.add(n.parentId);
+  }
+  const leaves = Object.values(project.nodes).filter((n) => {
+    const leafKind =
+      n.kind === 'recurso' ||
+      n.kind === 'passo' ||
+      n.kind === 'decisao' ||
+      (understand && n.kind === 'concept');
+    return leafKind && !hasChildren.has(n.id);
+  });
   const total = leaves.length;
-  const done = leaves.filter((n) => n.confirmado).length;
+  const resolved = leaves.filter((n) => n.confirmado || n.takenAsKnown);
+  const done = resolved.length;
+  // "Without signal" = confirmed on a hunch (confirmedWithoutSignal). A
+  // takenAsKnown floor is a deliberate decision, so it counts as signal.
+  const doneWithoutSignal = resolved.filter((n) => n.confirmedWithoutSignal).length;
+  const doneWithSignal = done - doneWithoutSignal;
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);
-  return { total, done, percent };
+  return { total, done, doneWithSignal, doneWithoutSignal, percent };
 };
 
 /**
@@ -967,15 +1025,25 @@ export const projectProgress = (project: Project | null) => {
 export const nextPendingForTutor = (project: Project | null): ConceptNodeData | null => {
   if (!project) return null;
   const nodes = Object.values(project.nodes);
-  const unconfirmedRecurso = nodes.find(
-    (n) => n.kind === 'recurso' && !n.confirmado,
-  );
+  // One O(n) pass: a node with children is a container, not a thing to act on.
+  const hasChildren = new Set<string>();
+  for (const n of nodes) if (n.parentId) hasChildren.add(n.parentId);
+  const pending = (n: ConceptNodeData) =>
+    !n.confirmado && !n.takenAsKnown && !hasChildren.has(n.id);
+
+  const unconfirmedRecurso = nodes.find((n) => n.kind === 'recurso' && pending(n));
   if (unconfirmedRecurso) return unconfirmedRecurso;
 
-  // Group passos by parent, pick first unconfirmed from each in order
+  // Understand projects: surface a terminal foundation concept to grasp next.
+  if (project.archetype === 'entender') {
+    const pendingConcept = nodes.find((n) => n.kind === 'concept' && pending(n));
+    if (pendingConcept) return pendingConcept;
+  }
+
+  // Group terminal passos by parent, pick first unconfirmed from each in order.
   const passosByParent = new Map<string, ConceptNodeData[]>();
   nodes
-    .filter((n) => n.kind === 'passo')
+    .filter((n) => n.kind === 'passo' && !hasChildren.has(n.id))
     .forEach((n) => {
       const arr = passosByParent.get(n.parentId!) ?? [];
       arr.push(n);
@@ -984,13 +1052,13 @@ export const nextPendingForTutor = (project: Project | null): ConceptNodeData | 
 
   for (const [, arr] of passosByParent) {
     arr.sort((a, b) => a.order - b.order);
-    const next = arr.find((p) => !p.confirmado);
+    const next = arr.find((p) => !p.confirmado && !p.takenAsKnown);
     if (next) return next;
   }
 
   // Decisions are leaves too — surface any unresolved fork so the tutor doesn't
   // show "done" while a decision is still open.
-  const unconfirmedDecisao = nodes.find((n) => n.kind === 'decisao' && !n.confirmado);
+  const unconfirmedDecisao = nodes.find((n) => n.kind === 'decisao' && pending(n));
   if (unconfirmedDecisao) return unconfirmedDecisao;
 
   return null;

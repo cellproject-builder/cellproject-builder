@@ -24,6 +24,12 @@ export type ConfidenceSource = 'data' | 'experience' | 'intuition' | 'ai';
 // build the simple ones · do_zero: build/forge each part from scratch.
 export type ConstructionStrategy = 'reaproveitar' | 'hibrido' | 'do_zero';
 
+// What kind of goal this is. `construir` = make/achieve something concrete;
+// `entender` = understand WHY/HOW, decomposing toward first principles. The
+// archetype is inferred by the AI from the objective and conditions the whole
+// tree's vocabulary and decomposition.
+export type ProjectArchetype = 'construir' | 'entender';
+
 export interface HistoryEntry {
   id: string;
   timestamp: number;
@@ -122,6 +128,11 @@ export interface ConceptNodeData {
   // criterion and no verified anchor). The node still advances (confirmado),
   // but it has NOT earned the 'done' state / green badge. See canConcludeNode.
   confirmedWithoutSignal?: boolean;
+  // Recursion floor: the user marked this node as a primitive/axiom or
+  // "already known" — stop decomposing it. Counts as resolved (like
+  // confirmado) for progress and sequencing. Used mainly by the `entender`
+  // archetype but available to any node.
+  takenAsKnown?: boolean;
   order: number; // ordem entre irmãos (importante para passos)
 
   // Decisão
@@ -157,6 +168,9 @@ export interface Project {
   // The construction strategy the user picked at plan selection (optional for
   // back-compat with projects created before this existed).
   constructionStrategy?: ConstructionStrategy;
+  // Build vs understand. Conditions decomposition vocabulary. Optional for
+  // back-compat; treated as 'construir' when absent.
+  archetype?: ProjectArchetype;
 }
 
 // ---- AI contract ----------------------------------------------------------
@@ -199,6 +213,7 @@ export interface AIPlan {
   pitch: string;
   approach: string;
   strategy: ConstructionStrategy;
+  archetype: ProjectArchetype;
   tree: AIPlanTree;
 }
 

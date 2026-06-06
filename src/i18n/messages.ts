@@ -85,6 +85,8 @@ export const en = {
     confidence: 'Confidence',
     atRisk: (n: number) => `${n} at risk`,
     atRiskSuffix: 'at risk',
+    noAnchor: (n: number) => `${n} no anchor`,
+    noAnchorTitle: 'Confirmed without a locked criterion or a verified anchor',
     pendingSuggestions: (n: number) => `${n} pending AI suggestion${n === 1 ? '' : 's'}`,
   },
   objective: {
@@ -118,6 +120,7 @@ export const en = {
     errorLabel: 'error',
     pickPlanHint: 'Pick one plan. Each one already has resources + execution covered.',
     pickStrategyTitle: 'How do you want to build this?',
+    pickStrategyTitleUnderstand: 'How do you want to understand this?',
     pickStrategyHint:
       'Each plan is a different construction strategy — pick the one that matches how you want to make it.',
     strategyLabel: (s: 'reaproveitar' | 'hibrido' | 'do_zero'): string =>
@@ -152,6 +155,10 @@ export const en = {
     resourcesLeftBody: (remaining: number) =>
       `${remaining} resource${remaining === 1 ? '' : 's'} still unconfirmed. You can move on, but ideally gather everything before starting execution.`,
     projectDoneTitle: 'Project complete',
+    projectWalkedTitle: 'Plan walked through',
+    projectWalkedBody: (n: number) =>
+      `You confirmed ${n} ${n === 1 ? 'node' : 'nodes'} without an anchor. Revisit them to lock a criterion or verify a real anchor.`,
+    confirmedNoAnchor: (n: number) => `${n} confirmed without anchor`,
     projectDoneBody: (name: string) =>
       `Every step of ${name} has been confirmed. Check the graph to see the full history.`,
     sectionResources: 'Resources',
@@ -168,6 +175,10 @@ export const en = {
     noSelection: 'No node selected. Click a node in the graph.',
     blocked: '⛔ blocked',
     confirmed: '✓ confirmed',
+    confirmedNoSignal: '✓ confirmed (no anchor)',
+    axiomBadge: '⊢ axiom / known',
+    confirmHintNoSignal:
+      'Will confirm without an anchor — lock a criterion or verify an anchor to earn a real "done".',
     stepNumber: (n: number) => `step #${n}`,
     whatIs: 'What it is',
     whyNeeded: 'Why it matters',
@@ -181,8 +192,11 @@ export const en = {
     addNote: '+',
     alreadyHave: '✓ I already have this item',
     alreadyDid: '✓ I already did this step',
+    understood: '✓ I understand this',
     undoConfirm: '↶ Undo confirmation',
     blockedHint: 'Confirm the previous step before this one.',
+    markKnown: '⊢ Mark as axiom / already known',
+    knownUndo: '⊢ Known — reopen to decompose',
     decompose: 'Detail with AI',
     decomposing: 'Decomposing…',
     pendingHint: 'Resolve pending suggestions first',
@@ -213,6 +227,8 @@ export const en = {
     blocked: 'blocked',
     quickHaveResource: '✓ Already have',
     quickHaveStep: '✓ Already did',
+    axiom: 'Axiom / already known (recursion floor)',
+    noAnchor: 'Confirmed without a verified anchor',
     accept: '✓ Accept',
     reject: '✕',
     whatPrefix: 'what:',
@@ -402,6 +418,8 @@ export const ptBR: Messages = {
     confidence: 'Confiança',
     atRisk: (n: number) => `${n} em risco`,
     atRiskSuffix: 'em risco',
+    noAnchor: (n: number) => `${n} sem âncora`,
+    noAnchorTitle: 'Confirmado sem critério travado nem âncora verificada',
     pendingSuggestions: (n: number) =>
       `${n} sugestão${n === 1 ? '' : 'es'} AI pendente${n === 1 ? '' : 's'}`,
   },
@@ -437,6 +455,7 @@ export const ptBR: Messages = {
     pickPlanHint:
       'Escolha 1 plano. Cada um já vem com recursos + execução completos.',
     pickStrategyTitle: 'Como você quer construir?',
+    pickStrategyTitleUnderstand: 'Como você quer entender?',
     pickStrategyHint:
       'Cada plano é uma estratégia de confecção diferente — escolha a que combina com como você quer fazer.',
     strategyLabel: (s: 'reaproveitar' | 'hibrido' | 'do_zero'): string =>
@@ -473,6 +492,10 @@ export const ptBR: Messages = {
     resourcesLeftBody: (remaining: number) =>
       `Ainda faltam ${remaining} recurso${remaining === 1 ? '' : 's'} por confirmar. Tu pode seguir mesmo assim, mas idealmente junta tudo antes de começar a execução.`,
     projectDoneTitle: 'Projeto concluído',
+    projectWalkedTitle: 'Plano percorrido',
+    projectWalkedBody: (n: number) =>
+      `Você confirmou ${n} nó${n === 1 ? '' : 's'} sem âncora. Volte neles pra travar um critério ou verificar uma âncora real.`,
+    confirmedNoAnchor: (n: number) => `${n} confirmado${n === 1 ? '' : 's'} sem âncora`,
     projectDoneBody: (name: string) =>
       `Todas as etapas de ${name} foram confirmadas. Olha o grafo pra ver o histórico completo.`,
     sectionResources: 'Recursos',
@@ -489,6 +512,10 @@ export const ptBR: Messages = {
     noSelection: 'Nenhum nó selecionado. Clique em um nó no grafo.',
     blocked: '⛔ bloqueado',
     confirmed: '✓ confirmado',
+    confirmedNoSignal: '✓ confirmado (sem âncora)',
+    axiomBadge: '⊢ axioma / sabido',
+    confirmHintNoSignal:
+      'Vai confirmar sem âncora — trave um critério ou verifique uma âncora pra ganhar um "concluído" de verdade.',
     stepNumber: (n: number) => `passo #${n}`,
     whatIs: 'O que é',
     whyNeeded: 'Por que precisa',
@@ -502,8 +529,11 @@ export const ptBR: Messages = {
     addNote: '+',
     alreadyHave: '✓ Já tenho este item',
     alreadyDid: '✓ Já executei este passo',
+    understood: '✓ Já entendi isto',
     undoConfirm: '↶ Desfazer confirmação',
     blockedHint: 'Confirme o passo anterior antes deste.',
+    markKnown: '⊢ Marcar como axioma / já sei',
+    knownUndo: '⊢ Sabido — reabrir pra decompor',
     decompose: 'Detalhar com AI',
     decomposing: 'Decompondo…',
     pendingHint: 'Resolva sugestões pendentes',
@@ -534,6 +564,8 @@ export const ptBR: Messages = {
     blocked: 'bloqueado',
     quickHaveResource: '✓ Já tenho',
     quickHaveStep: '✓ Já fiz',
+    axiom: 'Axioma / já sabido (chão da recursão)',
+    noAnchor: 'Confirmado sem âncora verificada',
     accept: '✓ Aceitar',
     reject: '✕',
     whatPrefix: 'o que:',

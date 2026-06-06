@@ -10,7 +10,7 @@ import {
   applyNodeChanges,
   type EdgeTypes,
 } from '@xyflow/react';
-import { useGraphStore, confidenceBand, type Lens } from '@/store';
+import { useGraphStore, confidenceBand, isBlocked, type Lens } from '@/store';
 import { ConceptNode } from './ConceptNode';
 import type { ConceptEdgeData, ConceptNodeData } from '@/types';
 
@@ -154,6 +154,10 @@ export function GraphCanvas() {
         ...n,
         childCount: childCountByParent[n.id] || 0,
         edgeCount: edgeCountByNode[n.id] || 0,
+        // Precompute blocked here (once per project change) so each ConceptNode
+        // doesn't subscribe to the whole project and rescan siblings on every
+        // mutation — collapses an O(n) re-render storm.
+        blocked: n.kind === 'passo' && isBlocked(project, n.id),
       },
       selected: n.id === selectedId,
       draggable: lens === 'structure',

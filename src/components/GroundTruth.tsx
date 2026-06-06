@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ConceptNodeData, GroundTruthKind, GroundTruthRef, Project } from '@/types';
-import { useGraphStore, breadcrumbFor } from '@/store';
+import { useGraphStore, breadcrumbFor, hintsToRefs } from '@/store';
 import { useKBStore } from '@/kb/store';
 import { useT } from '@/i18n';
 import {
@@ -516,6 +516,7 @@ export function FailureSection({
           failureContext: node.failureContext,
           siblings,
           strategy: project.constructionStrategy,
+          archetype: project.archetype,
         },
         kbContext,
       );
@@ -540,15 +541,7 @@ export function FailureSection({
         confirmado: false,
         order: n.order ?? i,
         decisionOptions: n.decisionOptions,
-        groundTruthRefs: n.groundTruthHints?.map((h, hi) => ({
-          id: `${n.tempId}-gt-${hi}`,
-          kind: h.kind,
-          label: h.label,
-          value: h.value,
-          verificado: false,
-          addedAt: Date.now(),
-          addedByAI: true,
-        })),
+        groundTruthRefs: hintsToRefs(n.groundTruthHints),
         state: 'concept' as const,
         notes: tr.groundTruth.failureReplanNotes(node.failureContext ?? ''),
         aiSuggested: true,

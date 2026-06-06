@@ -28,6 +28,11 @@ export function StatusBar() {
           ({m.progress.done}/{m.progress.total})
         </span>
       </span>
+      {m.progress.doneWithoutSignal > 0 && (
+        <span className="text-conf-mid" title={tr.statusBar.noAnchorTitle}>
+          {tr.statusBar.noAnchor(m.progress.doneWithoutSignal)}
+        </span>
+      )}
       <span className="hidden sm:inline text-text-muted">|</span>
       <span>{tr.statusBar.nodes(m.nodeCount)}</span>
       <span className="hidden md:inline text-text-muted">|</span>

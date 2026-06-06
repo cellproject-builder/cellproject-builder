@@ -7,6 +7,7 @@ import type {
   AISuggestedNode,
   AISuggestedEdge,
   ConstructionStrategy,
+  ProjectArchetype,
   NodeKind,
 } from '@/types';
 import type { KBContextEntry } from '@/kb/types';
@@ -61,6 +62,7 @@ interface DecomposeContext {
   nodeFx: string;
   siblings: { name: string; fx: string }[];
   strategy?: ConstructionStrategy;
+  archetype?: ProjectArchetype;
 }
 
 interface ExplainContext {
@@ -98,6 +100,7 @@ interface ReplanContext {
   failureContext: string;
   siblings: { name: string; fx: string }[];
   strategy?: ConstructionStrategy;
+  archetype?: ProjectArchetype;
 }
 
 // ---------------------------------------------------------------------------
@@ -259,18 +262,20 @@ ${objective.trim()}
 ${formatKBContext(kbContext)}
 
 TASK
-Generate 1 to 3 plans, each a DIFFERENT CONSTRUCTION STRATEGY for reaching this goal. Tag each plan with its 'strategy':
-- "reaproveitar" — reach the result by maximally reusing, adapting and recombining what already exists (off-the-shelf parts, second-hand/salvaged components, donor systems, existing tools/services/templates/channels). The resourceful, fastest route.
-- "hibrido" — reuse/adapt the expensive or complex parts, build by hand the simple or cheap ones.
-- "do_zero" — build or forge each part from scratch (full control, learning, or when reuse genuinely cannot deliver).
-Lead with "reaproveitar" as the RECOMMENDED default, and include "do_zero" as a real, selectable alternative whenever the goal could reasonably be built from scratch. Don't force strategies that don't fit — 1 plan is fine if only one makes sense. The USER chooses the strategy by picking a plan, so each plan's 'approach' must state clearly HOW it builds (reuse vs from scratch).
+First, classify the goal's ARCHETYPE and tag EVERY plan with it (all plans share the same archetype):
+- "construir" — the goal is to MAKE / BUILD / achieve something concrete.
+- "entender" — the goal is to UNDERSTAND why something is true or how it works, decomposing toward first principles.
 
-Each plan must have a tree with 2 or 3 categories:
-1. "Resources" (kind: "recursos"): everything that must be gathered before starting.
-2. "Execution" (kind: "execucao"): sequential steps, each with 'order' starting at 1.
-3. "Decisions" (kind: "decisoes"): ONLY if there is a real trade-off — every child must include 'decisionOptions' (2 or 3).
+Then generate 1 to 3 plans, each tagged with a 'strategy':
+- For "construir": "reaproveitar" (reuse/adapt what already exists — the recommended default) · "hibrido" · "do_zero" (build from scratch).
+- For "entender": "reaproveitar" (lean on existing explanations — books, courses, worked derivations) · "do_zero" (derive it yourself from first principles) · "hibrido" (mix). Use the SAME enum values.
+The user picks the strategy by choosing a plan, so each 'approach' must state clearly HOW (reuse-vs-build, or read-vs-derive). Don't force variants that don't fit — 1 plan is fine if only one makes sense.
 
-For each child node: fill oQue / porQue / comoConfirmar with concrete didactic content.
+Shape the tree by archetype (2 or 3 categories):
+- "construir": "Recursos" (kind "recursos") · "Execução" (kind "execucao", sequential passos with 'order' from 1) · "Decisões" (kind "decisoes") ONLY on a real trade-off — its children include 'decisionOptions' (2 or 3).
+- "entender": "Fundamentos" (kind "recursos" — concepts/prerequisites to grasp first; children kind="concept") · "Derivação" (kind "execucao" — the ordered chain of reasoning; use kind="concept" for ideas/definitions/premises and kind="passo" with 'order' only for genuinely sequential derivation steps) · optional "Abordagens" (kind "decisoes") only on a real choice of approach.
+
+For each child node fill oQue / porQue / comoConfirmar with concrete didactic content. For "construir", comoConfirmar is a yes/no question about having or finishing the thing; for "entender", it is how the user would know they TRULY understand — "can you re-derive it yourself?", "does the proof close?", "can you explain it without the source?".
 
 GROUND TRUTH: when a node has any anchor verifiable in the real world, fill 'groundTruthHints'. Prefer concrete specifications over generic descriptions. Examples:
 - resource "bamboo": hint with kind="spec" value="Phyllostachys aurea, 40cm ± 2cm, Ø 5-8mm"
@@ -394,6 +399,7 @@ function hydratePlan(raw: RawPlan): AIPlan {
     pitch: raw.pitch,
     approach: raw.approach,
     strategy: raw.strategy,
+    archetype: raw.archetype,
     tree: { categorias },
   };
 }
@@ -408,12 +414,12 @@ export async function decomposeNode(
 ): Promise<{ nodes: AISuggestedNode[]; edges: AISuggestedEdge[] }> {
   assertAIReady();
 
-  const guidance = decomposeGuidance(ctx.nodeKind, ctx.nodeName, ctx.strategy);
+  const guidance = decomposeGuidance(ctx.nodeKind, ctx.nodeName, ctx.strategy, ctx.archetype);
 
   const userPrompt = `PROJECT CONTEXT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
-- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${strategyDirective(ctx.strategy)}
+- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${archetypeDirective(ctx.archetype)}${strategyDirective(ctx.strategy)}
 
 NODE TO DECOMPOSE
 - Name: ${ctx.nodeName}
@@ -461,7 +467,27 @@ function strategyDirective(strategy?: ConstructionStrategy): string {
   }
 }
 
-function decomposeGuidance(kind: NodeKind, name: string, strategy?: ConstructionStrategy): string {
+// Whether this project is a build ('construir') or an understanding ('entender')
+// project — conditions decomposition vocabulary.
+function archetypeDirective(archetype?: ProjectArchetype): string {
+  if (archetype === 'entender') {
+    return `\nARCHETYPE: UNDERSTAND. The goal is to understand WHY/HOW by decomposing toward first principles. Break this node into the sub-CONCEPTS, definitions, premises and (only when truly sequential) derivation steps one must grasp to understand it — ask "what must one understand BEFORE this?". Prefer kind="concept" for ideas/definitions/premises; use kind="passo" only for ordered derivation steps. If a child is a foundational primitive/axiom (taken as given, not derived), make that explicit in its name so the user can mark it as a floor. comoConfirmar = "can you re-derive / explain this yourself?", never "did you build it".`;
+  }
+  return '';
+}
+
+function decomposeGuidance(
+  kind: NodeKind,
+  name: string,
+  strategy?: ConstructionStrategy,
+  archetype?: ProjectArchetype,
+): string {
+  if (archetype === 'entender') {
+    if (kind === 'categoria') {
+      return `Generate 3 to 6 children that build understanding of this area: sub-concepts, definitions or premises (kind="concept"), and ordered derivation steps (kind="passo") only when the reasoning is genuinely sequential. Do not repeat the siblings.`;
+    }
+    return `Break "${name}" down toward first principles: 2 to 5 sub-concepts, definitions or premises (kind="concept") — and ordered derivation steps (kind="passo") only when sequential — that one must understand to understand it. Ask "what comes BEFORE this?". If a child is a foundational primitive/axiom taken as given, name it as such. Chain derivation steps with 'direct' edges.`;
+  }
   const fromScratch = strategy === 'do_zero';
   if (kind === 'categoria') {
     const isExec = /execu|fluxo|passo|step|flow/i.test(name);
@@ -582,7 +608,7 @@ export async function replanFromFailure(
   const userPrompt = `PROJECT CONTEXT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
-- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${strategyDirective(ctx.strategy)}
+- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${archetypeDirective(ctx.archetype)}${strategyDirective(ctx.strategy)}
 
 NODE THAT FAILED IN PRACTICE
 - Name: ${ctx.nodeName}

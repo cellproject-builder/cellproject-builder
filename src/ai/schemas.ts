@@ -5,6 +5,7 @@ const EdgeKindSchema = z.enum(['direct', 'middleware', 'independent', 'optional'
 const CategoryKindSchema = z.enum(['recursos', 'execucao', 'decisoes']);
 const GroundTruthKindSchema = z.enum(['link', 'spec', 'medida']);
 const ConstructionStrategySchema = z.enum(['reaproveitar', 'hibrido', 'do_zero']);
+const ProjectArchetypeSchema = z.enum(['construir', 'entender']);
 
 const DecisionOptionSchema = z.object({
   label: z.string().describe('Título curto da opção.'),
@@ -84,6 +85,9 @@ export const PlanSchema = z.object({
   approach: z.string().describe('Parágrafo descrevendo a abordagem geral, deixando claro COMO se constrói (reaproveitar vs do zero).'),
   strategy: ConstructionStrategySchema.describe(
     'Estratégia de confecção deste plano: "reaproveitar" (reusar/adaptar o que já existe), "hibrido" (reusar o caro/complexo, fazer o simples), "do_zero" (forjar/construir cada peça).',
+  ),
+  archetype: ProjectArchetypeSchema.describe(
+    'Tipo do objetivo: "construir" (fazer/alcançar algo concreto) ou "entender" (compreender por quê/como, decompondo até os primeiros princípios). Todos os planos do mesmo objetivo têm o mesmo archetype.',
   ),
   tree: z.object({
     categorias: z

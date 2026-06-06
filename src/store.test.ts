@@ -8,6 +8,7 @@ const minimalPlan: AIPlan = {
   pitch: 'pitch',
   approach: 'approach',
   strategy: 'reaproveitar',
+  archetype: 'construir',
   tree: {
     categorias: [
       {
@@ -306,5 +307,43 @@ describe('confirmNode — guarded conclusion (E2 fidelity gate)', () => {
     expect(before.done).toBe(0);
     useGraphStore.getState().pickDecisionOption(id, 'opt1');
     expect(projectProgress(useGraphStore.getState().project).done).toBe(1);
+  });
+});
+
+describe('understand archetype — concept counts as a progress leaf', () => {
+  beforeEach(() => {
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().createProjectFromPlan('obj', 'U', {
+      ...minimalPlan,
+      archetype: 'entender',
+    });
+  });
+
+  function stageConcept(name: string): string {
+    const catId = categoryId();
+    const concept: StagedNode = { ...makeSuggestionNode('c', name, 0), kind: 'concept' };
+    useGraphStore.getState().stageSuggestions(catId, [concept], []);
+    useGraphStore.getState().acceptSuggestion('c');
+    return Object.values(useGraphStore.getState().project!.nodes).find(
+      (n) => n.kind === 'concept',
+    )!.id;
+  }
+
+  it('a terminal concept counts in progress and resolves via takenAsKnown', () => {
+    const id = stageConcept('um conceito');
+    let p = projectProgress(useGraphStore.getState().project);
+    expect(p.total).toBe(1); // concept is a leaf in an understand project
+    expect(p.done).toBe(0);
+    useGraphStore.getState().toggleTakenAsKnown(id);
+    p = projectProgress(useGraphStore.getState().project);
+    expect(p.done).toBe(1);
+    expect(useGraphStore.getState().project!.nodes[id].takenAsKnown).toBe(true);
+  });
+
+  it('a concept does NOT count as a leaf in a build project', () => {
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().createProjectFromPlan('obj', 'B', minimalPlan); // construir
+    stageConcept('auxiliar');
+    expect(projectProgress(useGraphStore.getState().project).total).toBe(0);
   });
 });

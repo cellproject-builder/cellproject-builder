@@ -119,6 +119,7 @@ export function TutorMode() {
             percent={progress.percent}
             done={progress.done}
             total={progress.total}
+            doneWithoutSignal={progress.doneWithoutSignal}
             tr={tr}
           />
         </div>
@@ -136,7 +137,11 @@ export function TutorMode() {
               tr={tr}
             />
           ) : (
-            <DoneCard projectName={project.name} tr={tr} />
+            <DoneCard
+              projectName={project.name}
+              doneWithoutSignal={progress.doneWithoutSignal}
+              tr={tr}
+            />
           )}
 
           {next && next.kind === 'passo' && !allResourcesDone && (
@@ -173,19 +178,29 @@ function ProgressBar({
   percent,
   done,
   total,
+  doneWithoutSignal,
   tr,
 }: {
   percent: number;
   done: number;
   total: number;
+  doneWithoutSignal: number;
   tr: Messages;
 }) {
+  // 100% is only "done green" when every leaf is anchored. If some were
+  // confirmed without signal, the headline goes amber — an unanchored tree is
+  // visibly NOT the same as one earned against reality.
+  const fullyAnchored = percent === 100 && doneWithoutSignal === 0;
   return (
     <div className="mt-3">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-text-secondary text-xs font-mono">{tr.tutor.confirmedOf(done, total)}</span>
         <span className="ml-auto font-mono text-lg font-semibold">
-          <span className={percent === 100 ? 'text-state-done' : 'text-text-primary'}>
+          <span
+            className={
+              fullyAnchored ? 'text-state-done' : percent === 100 ? 'text-conf-mid' : 'text-text-primary'
+            }
+          >
             {percent}%
           </span>
         </span>
@@ -196,6 +211,11 @@ function ProgressBar({
           style={{ width: `${percent}%` }}
         />
       </div>
+      {doneWithoutSignal > 0 && (
+        <div className="mt-1 text-[10px] font-mono text-conf-mid">
+          {tr.tutor.confirmedNoAnchor(doneWithoutSignal)}
+        </div>
+      )}
     </div>
   );
 }
@@ -385,14 +405,31 @@ function TutorBlock({ label, children }: { label: string; children: React.ReactN
   );
 }
 
-function DoneCard({ projectName, tr }: { projectName: string; tr: Messages }) {
+function DoneCard({
+  projectName,
+  doneWithoutSignal,
+  tr,
+}: {
+  projectName: string;
+  doneWithoutSignal: number;
+  tr: Messages;
+}) {
+  // Only celebrate when every leaf was anchored against reality. If some were
+  // confirmed without signal, temper the message instead of throwing a party.
+  const anchored = doneWithoutSignal === 0;
   return (
     <div className="max-w-xl mx-auto text-center py-12 sm:py-20">
-      <div className="text-state-done text-5xl sm:text-6xl mb-4">✓</div>
+      <div className={`text-5xl sm:text-6xl mb-4 ${anchored ? 'text-state-done' : 'text-conf-mid'}`}>
+        {anchored ? '✓' : '◓'}
+      </div>
       <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary mb-3">
-        {tr.tutor.projectDoneTitle}
+        {anchored ? tr.tutor.projectDoneTitle : tr.tutor.projectWalkedTitle}
       </h1>
-      <p className="text-text-secondary">{tr.tutor.projectDoneBody(projectName)}</p>
+      <p className="text-text-secondary">
+        {anchored
+          ? tr.tutor.projectDoneBody(projectName)
+          : tr.tutor.projectWalkedBody(doneWithoutSignal)}
+      </p>
     </div>
   );
 }
@@ -451,16 +488,24 @@ function Row({ node, isNext, onClick, onToggle, project, tr }: RowProps) {
         disabled={blocked}
         aria-label={node.confirmado ? tr.tutor.ariaUnconfirm : tr.tutor.ariaConfirm}
         className={`w-5 h-5 rounded-sm border flex items-center justify-center transition-colors shrink-0 ${
-          node.confirmado
+          node.state === 'done'
             ? 'bg-state-done/20 border-state-done text-state-done'
+            : node.takenAsKnown
+            ? 'bg-ai-accent/15 border-ai-accent/50 text-ai-accent'
+            : node.confirmado
+            ? 'bg-conf-mid/15 border-conf-mid text-conf-mid'
             : 'border-border-base group-hover:border-text-muted'
         }`}
       >
-        {node.confirmado && <span className="text-[10px]">✓</span>}
+        {node.state === 'done' && <span className="text-[10px]">✓</span>}
+        {node.state !== 'done' && node.takenAsKnown && <span className="text-[10px]">⊢</span>}
+        {node.state !== 'done' && !node.takenAsKnown && node.confirmado && (
+          <span className="text-[10px]">✓</span>
+        )}
       </button>
       <span
         className={`truncate flex-1 ${
-          node.confirmado ? 'text-text-muted line-through' : 'text-text-secondary'
+          node.confirmado || node.takenAsKnown ? 'text-text-muted line-through' : 'text-text-secondary'
         }`}
       >
         {node.kind === 'passo' && (
