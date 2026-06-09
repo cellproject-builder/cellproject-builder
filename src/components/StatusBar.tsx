@@ -36,24 +36,7 @@ export function StatusBar() {
         </span>
       )}
       <span className="hidden sm:inline text-text-muted">|</span>
-      <span>{tr.statusBar.nodes(m.nodeCount)}</span>
-      <span className="hidden md:inline text-text-muted">|</span>
-      <span className="hidden md:inline">{tr.statusBar.edges(m.edgeCount)}</span>
-      <span className="hidden md:inline text-text-muted">|</span>
-      <span className="hidden md:inline">
-        {tr.statusBar.confidence}:{' '}
-        <span
-          className={
-            m.avgConfidence >= 70
-              ? 'text-conf-high'
-              : m.avgConfidence >= 40
-              ? 'text-conf-mid'
-              : 'text-conf-low'
-          }
-        >
-          {m.avgConfidence}%
-        </span>
-      </span>
+      <span className="hidden sm:inline">{tr.statusBar.nodes(m.nodeCount)}</span>
       {m.atRisk > 0 && (
         <>
           <span className="hidden sm:inline text-text-muted">|</span>

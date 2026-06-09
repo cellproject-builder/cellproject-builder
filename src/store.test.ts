@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useGraphStore, projectProgress } from './store';
+import { useGraphStore, projectProgress, nextPendingForTutor, isBlocked } from './store';
 import type { AIPlan, ConceptNodeData } from './types';
 
 const minimalPlan: AIPlan = {
@@ -371,10 +371,62 @@ describe('understand archetype — concept counts as a progress leaf', () => {
     expect(useGraphStore.getState().project!.nodes[id].takenAsKnown).toBe(true);
   });
 
-  it('a concept does NOT count as a leaf in a build project', () => {
+  // A concept the AI produced in a BUILD project is still a part the user must
+  // resolve. Hiding it let the tutor declare "done" with work pending.
+  it('a concept counts as a leaf in a build project too (no invisible pending work)', () => {
     useGraphStore.getState().resetProject();
     useGraphStore.getState().createProjectFromPlan('obj', 'B', minimalPlan); // construir
     stageConcept('auxiliar');
-    expect(projectProgress(useGraphStore.getState().project).total).toBe(0);
+    expect(projectProgress(useGraphStore.getState().project).total).toBe(1);
+    expect(nextPendingForTutor(useGraphStore.getState().project)?.name).toBe('auxiliar');
+  });
+});
+
+describe('tree-faithful selectors — the tutor follows the decomposition', () => {
+  beforeEach(() => {
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().createProjectFromPlan('obj', 'Tree', minimalPlan);
+    stageChain();
+    useGraphStore.getState().acceptAllSuggestions();
+  });
+
+  function decomposeFirstPasso(children: StagedNode[]) {
+    const [p1] = passosOrdered();
+    useGraphStore.getState().stageSuggestions(p1.id, children, []);
+    useGraphStore.getState().acceptAllSuggestions();
+    return p1;
+  }
+
+  it('walks depth-first: children of a decomposed step come before the next step', () => {
+    decomposeFirstPasso([
+      makeSuggestionNode('s1', 'sub 1', 0),
+      makeSuggestionNode('s2', 'sub 2', 1),
+    ]);
+    // Down to the atom: the decomposition of passo 1 comes before passo 2.
+    expect(nextPendingForTutor(useGraphStore.getState().project)?.name).toBe('sub 1');
+  });
+
+  it('a decomposed step unblocks its next sibling once all sub-steps are resolved', () => {
+    decomposeFirstPasso([makeSuggestionNode('s1', 'sub 1', 0)]);
+    const project = () => useGraphStore.getState().project;
+    const p2 = passosOrdered().find((p) => p.name === 'passo 2')!;
+    expect(isBlocked(project(), p2.id)).toBe(true);
+    const sub = Object.values(project()!.nodes).find((n) => n.name === 'sub 1')!;
+    useGraphStore.getState().confirmNode(sub.id);
+    // passo 1 was never confirmed directly, but every child is resolved →
+    // resolved through its decomposition → passo 2 is free.
+    expect(isBlocked(project(), p2.id)).toBe(false);
+  });
+
+  it('takenAsKnown on a decomposed node closes the whole subtree (recursion floor)', () => {
+    const p1 = decomposeFirstPasso([makeSuggestionNode('s1', 'sub 1', 0)]);
+    let progress = projectProgress(useGraphStore.getState().project);
+    expect(progress.total).toBe(3); // sub 1 + passo 2 + passo 3 (passo 1 is a container)
+    useGraphStore.getState().toggleTakenAsKnown(p1.id);
+    progress = projectProgress(useGraphStore.getState().project);
+    expect(progress.total).toBe(3); // the floor itself becomes the leaf again
+    expect(progress.done).toBe(1); // …and counts as resolved
+    // The tutor skips the closed subtree entirely.
+    expect(nextPendingForTutor(useGraphStore.getState().project)?.name).toBe('passo 2');
   });
 });

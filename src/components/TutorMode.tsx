@@ -4,8 +4,12 @@ import {
   nextPendingForTutor,
   projectProgress,
   breadcrumbFor,
-  hintsToRefs,
+  buildStagedNodes,
   canConcludeNode,
+  childrenByParent,
+  effectiveLeavesUnder,
+  isActionableKind,
+  isBlocked,
 } from '@/store';
 import { explainNode, decomposeNode } from '@/ai/service';
 import { useKBStore } from '@/kb/store';
@@ -13,20 +17,24 @@ import { requireAI } from '@/ai/availability';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useT } from '@/i18n';
 import type { Messages } from '@/i18n';
-import type { ConceptNodeData } from '@/types';
+import type { ConceptNodeData, Project } from '@/types';
 import { GroundTruthInlineTutor } from './GroundTruth';
 import { MobileSheet } from './MobileSheet';
 
+// The tutor is the concept's core loop made into a screen: look at ONE part of
+// the decomposition — if you can confirm it against reality, confirm; if you
+// can't yet, break it into smaller parts; if you already know it, mark the
+// floor. The sidebar is the decomposition tree itself, not a flat checklist.
 export function TutorMode() {
   const tr = useT();
   const project = useGraphStore((s) => s.project);
-  const confirmNode = useGraphStore((s) => s.confirmNode);
-  const unconfirmNode = useGraphStore((s) => s.unconfirmNode);
+  const selectedId = useGraphStore((s) => s.selectedNodeId);
   const selectNode = useGraphStore((s) => s.selectNode);
   const setViewMode = useGraphStore((s) => s.setViewMode);
 
   const next = useMemo(() => nextPendingForTutor(project), [project]);
   const progress = projectProgress(project);
+  const byParent = useMemo(() => (project ? childrenByParent(project) : null), [project]);
 
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -35,63 +43,42 @@ export function TutorMode() {
     if (!isMobile && sidebarOpen) setSidebarOpen(false);
   }, [isMobile, sidebarOpen]);
 
-  if (!project) return null;
+  if (!project || !byParent) return null;
 
-  const recursos = Object.values(project.nodes).filter((n) => n.kind === 'recurso');
-  const passos = Object.values(project.nodes)
-    .filter((n) => n.kind === 'passo')
-    .sort((a, b) => {
-      if (a.parentId !== b.parentId) return (a.parentId ?? '').localeCompare(b.parentId ?? '');
-      return a.order - b.order;
-    });
+  // Dive into ONE node: the leaf the user picked in the tree, or the next
+  // pending one in decomposition order.
+  const selected = selectedId ? project.nodes[selectedId] : null;
+  const selectedLeaf =
+    selected && isActionableKind(selected.kind) && (byParent.get(selected.id) ?? []).length === 0
+      ? selected
+      : null;
+  const current = selectedLeaf ?? next;
 
-  const resourcesConfirmed = recursos.filter((r) => r.confirmado).length;
-  const allResourcesDone = resourcesConfirmed === recursos.length && recursos.length > 0;
+  const resourceLeaves = effectiveLeavesUnder(project, project.rootId, byParent).filter(
+    (n) => n.kind === 'recurso',
+  );
+  const resourcesConfirmed = resourceLeaves.filter((r) => r.confirmado || r.takenAsKnown).length;
+  const allResourcesDone =
+    resourceLeaves.length > 0 && resourcesConfirmed === resourceLeaves.length;
 
   const sidebarBody = (
-    <>
-      <Section title={tr.tutor.sectionResources} count={recursos.length} done={resourcesConfirmed}>
-        {recursos.map((r) => (
-          <Row
-            key={r.id}
-            node={r}
-            isNext={next?.id === r.id}
-            onClick={() => {
-              selectNode(r.id);
-              setSidebarOpen(false);
-            }}
-            onToggle={() => (r.confirmado ? unconfirmNode(r.id) : confirmNode(r.id))}
-            tr={tr}
-          />
-        ))}
-        {recursos.length === 0 && (
-          <div className="text-xs text-text-muted italic px-2 py-1">{tr.tutor.emptyResources}</div>
-        )}
-      </Section>
-      <Section
-        title={tr.tutor.sectionExecution}
-        count={passos.length}
-        done={passos.filter((p) => p.confirmado).length}
-      >
-        {passos.map((p) => (
-          <Row
-            key={p.id}
-            node={p}
-            isNext={next?.id === p.id}
-            onClick={() => {
-              selectNode(p.id);
-              setSidebarOpen(false);
-            }}
-            onToggle={() => (p.confirmado ? unconfirmNode(p.id) : confirmNode(p.id))}
-            project={project}
-            tr={tr}
-          />
-        ))}
-        {passos.length === 0 && (
-          <div className="text-xs text-text-muted italic px-2 py-1">{tr.tutor.emptySteps}</div>
-        )}
-      </Section>
-    </>
+    <div className="py-1">
+      <TreeRows
+        project={project}
+        byParent={byParent}
+        parentId={project.rootId}
+        depth={0}
+        currentId={current?.id ?? null}
+        onPick={(id) => {
+          selectNode(id);
+          setSidebarOpen(false);
+        }}
+        tr={tr}
+      />
+      {progress.total === 0 && (
+        <div className="text-xs text-text-muted italic px-3 py-2">{tr.tutor.emptyTree}</div>
+      )}
+    </div>
   );
 
   return (
@@ -128,17 +115,17 @@ export function TutorMode() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-          {next ? (
+          {current ? (
             <TutorCard
-              node={next}
+              key={current.id}
+              node={current}
               project={project}
-              onConfirm={() => confirmNode(next.id)}
-              onViewInGraph={() => {
-                selectNode(next.id);
-                setViewMode('graph');
-              }}
+              isNext={current.id === next?.id}
+              next={next}
               tr={tr}
             />
+          ) : progress.total === 0 ? (
+            <EmptyCard tr={tr} onViewGraph={() => setViewMode('graph')} />
           ) : (
             <DoneCard
               projectName={project.name}
@@ -147,13 +134,13 @@ export function TutorMode() {
             />
           )}
 
-          {next && next.kind === 'passo' && !allResourcesDone && (
+          {current && current.kind === 'passo' && !allResourcesDone && (
             <div className="max-w-2xl mx-auto mt-6 p-4 bg-conf-mid/5 border border-conf-mid/30 rounded-sm">
               <div className="text-conf-mid text-xs font-mono uppercase tracking-wider mb-1">
                 {tr.tutor.resourcesLeftWarning}
               </div>
               <div className="text-sm text-text-secondary">
-                {tr.tutor.resourcesLeftBody(recursos.length - resourcesConfirmed)}
+                {tr.tutor.resourcesLeftBody(resourceLeaves.length - resourcesConfirmed)}
               </div>
             </div>
           )}
@@ -165,11 +152,7 @@ export function TutorMode() {
       </aside>
 
       {isMobile && (
-        <MobileSheet
-          open={sidebarOpen}
-          onOpenChange={setSidebarOpen}
-          title={tr.tutor.sheetTitle}
-        >
+        <MobileSheet open={sidebarOpen} onOpenChange={setSidebarOpen} title={tr.tutor.sheetTitle}>
           {sidebarBody}
         </MobileSheet>
       )}
@@ -225,28 +208,58 @@ function ProgressBar({
 
 interface TutorCardProps {
   node: ConceptNodeData;
-  project: NonNullable<ReturnType<typeof useGraphStore.getState>['project']>;
-  onConfirm: () => void;
-  onViewInGraph: () => void;
+  project: Project;
+  isNext: boolean;
+  next: ConceptNodeData | null;
   tr: Messages;
 }
 
-function TutorCard({ node, project, onConfirm, onViewInGraph, tr }: TutorCardProps) {
-  const crumbs = breadcrumbFor(project, node.id);
-  const kindLabel = node.kind === 'recurso' ? tr.tutor.nextResource : tr.tutor.nextStep;
-  const verb = node.kind === 'recurso' ? tr.tutor.iGotItVerbResource : tr.tutor.iGotItVerbStep;
+function TutorCard({ node, project, isNext, next, tr }: TutorCardProps) {
+  const confirmNode = useGraphStore((s) => s.confirmNode);
+  const unconfirmNode = useGraphStore((s) => s.unconfirmNode);
+  const toggleTakenAsKnown = useGraphStore((s) => s.toggleTakenAsKnown);
+  const pickDecisionOption = useGraphStore((s) => s.pickDecisionOption);
+  const selectNode = useGraphStore((s) => s.selectNode);
+  const setViewMode = useGraphStore((s) => s.setViewMode);
   const setNodeExplanation = useGraphStore((s) => s.setNodeExplanation);
   const stageSuggestions = useGraphStore((s) => s.stageSuggestions);
   const acceptSuggestion = useGraphStore((s) => s.acceptSuggestion);
   const rejectSuggestion = useGraphStore((s) => s.rejectSuggestion);
   const acceptAllSuggestions = useGraphStore((s) => s.acceptAllSuggestions);
   const pending = useGraphStore((s) => s.pendingSuggestions);
+
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [decomposing, setDecomposing] = useState(false);
   const [confirmingNoSignal, setConfirmingNoSignal] = useState(false);
+
+  const crumbs = breadcrumbFor(project, node.id);
+  const { ready } = canConcludeNode(project, node.id);
+  const blocked = isBlocked(project, node.id);
   const pendingHere = !!pending && pending.parentId === node.id;
-  const ready = canConcludeNode(project, node.id).ready;
+  const resolved = node.confirmado || !!node.takenAsKnown;
+  // A decision with options resolves by picking — no separate confirm button.
+  const isDecision = node.kind === 'decisao' && (node.decisionOptions?.length ?? 0) > 0;
+
+  const kindLabel = tr.conceptNode[node.kind];
+  const confirmLabel =
+    node.kind === 'recurso'
+      ? tr.detail.alreadyHave
+      : node.kind === 'concept'
+      ? tr.detail.understood
+      : tr.detail.alreadyDid;
+  const decomposeLabel =
+    node.kind === 'concept' ? tr.tutor.decomposeForkConcept : tr.tutor.decomposeFork;
+
+  // Step number = position among passo siblings (orders from the AI may start
+  // at 1 or 0 — the sequence shown to the user is positional).
+  const stepSeq = useMemo(() => {
+    if (node.kind !== 'passo' || !node.parentId) return 0;
+    const sibs = Object.values(project.nodes)
+      .filter((n) => n.parentId === node.parentId && n.kind === 'passo')
+      .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+    return sibs.findIndex((s) => s.id === node.id) + 1;
+  }, [node, project]);
 
   const handleExplain = async () => {
     if (node.explicacao) {
@@ -275,8 +288,8 @@ function TutorCard({ node, project, onConfirm, onViewInGraph, tr }: TutorCardPro
 
   // Recursive decompose, right in the guided flow — break the current node into
   // sub-nodes (staged for accept/reject inline). After accepting, this node
-  // gains children, so nextPendingForTutor advances to a child and the user can
-  // keep decomposing "down to the atom" without leaving the tutor.
+  // gains children, so the tutor advances to a child and the user can keep
+  // decomposing "down to the atom" without leaving the flow.
   const handleDecompose = async () => {
     if (!requireAI()) return;
     setDecomposing(true);
@@ -302,36 +315,26 @@ function TutorCard({ node, project, onConfirm, onViewInGraph, tr }: TutorCardPro
         },
         kbContext,
       );
-      const basePos = node.position;
-      const spacing = 260;
-      const start = basePos.x - ((result.nodes.length - 1) * spacing) / 2;
-      const staged = result.nodes.map((n, i) => ({
-        tempId: n.tempId,
-        kind: n.kind,
-        name: n.name,
-        fx: n.fx,
-        problem: n.problem,
-        confidence: n.confidence,
-        confidenceSource: 'ai' as const,
-        confidenceReason: n.confidenceReason,
-        pros: n.pros,
-        cons: n.cons,
-        oQue: n.oQue,
-        porQue: n.porQue,
-        comoConfirmar: n.comoConfirmar,
-        confirmado: false,
-        order: n.order ?? i,
-        decisionOptions: n.decisionOptions,
-        groundTruthRefs: hintsToRefs(n.groundTruthHints),
-        state: 'concept' as const,
-        notes: '',
-        aiSuggested: true,
-        position: { x: start + i * spacing, y: basePos.y + 260 },
-      }));
-      stageSuggestions(node.id, staged, result.edges);
+      stageSuggestions(node.id, buildStagedNodes(node, result.nodes), result.edges);
     } finally {
       setDecomposing(false);
     }
+  };
+
+  // Acting resumes the flow: clear the explicit selection so the card follows
+  // the next pending part again.
+  const confirmAndAdvance = () => {
+    confirmNode(node.id);
+    setConfirmingNoSignal(false);
+    selectNode(null);
+  };
+  const markKnownAndAdvance = () => {
+    toggleTakenAsKnown(node.id);
+    selectNode(null);
+  };
+  const pickAndAdvance = (optionId: string) => {
+    pickDecisionOption(node.id, optionId);
+    selectNode(null);
   };
 
   return (
@@ -342,17 +345,63 @@ function TutorCard({ node, project, onConfirm, onViewInGraph, tr }: TutorCardPro
           .map((c) => c.name)
           .join(' › ')}
       </div>
-      <div className="flex items-baseline gap-3 mb-4 sm:mb-6">
+      <div className="flex items-baseline gap-3 mb-4 sm:mb-6 flex-wrap">
         <span className="text-[11px] font-mono uppercase tracking-wider text-ai-accent">
           ◆ {kindLabel}
         </span>
-        {node.kind === 'passo' && (
-          <span className="text-text-muted text-xs font-mono">{tr.tutor.stepNumber(node.order + 1)}</span>
+        {stepSeq > 0 && (
+          <span className="text-text-muted text-xs font-mono">{tr.tutor.stepNumber(stepSeq)}</span>
+        )}
+        {isNext && (
+          <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] bg-ai-accent/10 text-ai-accent border border-ai-accent/30">
+            {tr.tutor.nextBadge}
+          </span>
+        )}
+        {!isNext && next && (
+          <button
+            onClick={() => selectNode(next.id)}
+            className="ml-auto text-[11px] text-text-muted hover:text-ai-accent transition-colors truncate max-w-[60%]"
+          >
+            {tr.tutor.jumpToNext(next.name)}
+          </button>
         )}
       </div>
       <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary leading-tight mb-4 sm:mb-6">
         {node.name}
       </h1>
+
+      {resolved && (
+        <div className="mb-5 flex items-center gap-2 flex-wrap">
+          {node.state === 'done' ? (
+            <span className="text-[11px] font-mono text-state-done bg-state-done/10 border border-state-done/30 rounded-sm px-2 py-1">
+              {tr.detail.confirmed}
+            </span>
+          ) : node.takenAsKnown ? (
+            <span className="text-[11px] font-mono text-ai-accent bg-ai-accent/10 border border-ai-accent/30 rounded-sm px-2 py-1">
+              {tr.detail.axiomBadge}
+            </span>
+          ) : (
+            <span className="text-[11px] font-mono text-conf-mid bg-conf-mid/10 border border-conf-mid/30 rounded-sm px-2 py-1">
+              {tr.detail.confirmedNoSignal}
+            </span>
+          )}
+          {node.confirmado ? (
+            <button
+              onClick={() => unconfirmNode(node.id)}
+              className="text-[11px] text-text-muted hover:text-state-problem border border-border-base rounded-sm px-2 py-1 transition-colors"
+            >
+              {tr.detail.undoConfirm}
+            </button>
+          ) : (
+            <button
+              onClick={() => toggleTakenAsKnown(node.id)}
+              className="text-[11px] text-text-muted hover:text-text-secondary border border-border-base rounded-sm px-2 py-1 transition-colors"
+            >
+              {tr.detail.knownUndo}
+            </button>
+          )}
+        </div>
+      )}
 
       {node.oQue && (
         <TutorBlock label={tr.tutor.whatIs}>
@@ -362,6 +411,43 @@ function TutorCard({ node, project, onConfirm, onViewInGraph, tr }: TutorCardPro
       {node.porQue && (
         <TutorBlock label={tr.tutor.whyNeeded}>
           <p className="text-text-secondary leading-relaxed">{node.porQue}</p>
+        </TutorBlock>
+      )}
+
+      {/* A decision is resolved by PICKING a path — that is its confirm. */}
+      {node.kind === 'decisao' && node.decisionOptions && node.decisionOptions.length > 0 && (
+        <TutorBlock label={tr.tutor.decisionLabel}>
+          <div className="space-y-2">
+            {node.decisionOptions.map((opt) => {
+              const picked = node.decisionPickedId === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => pickAndAdvance(opt.id)}
+                  className={`w-full text-left p-3 rounded-sm border transition-colors ${
+                    picked
+                      ? 'bg-ai-accent/15 border-ai-accent text-ai-accent'
+                      : 'bg-bg-secondary border-border-base hover:border-ai-accent/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">{opt.label}</span>
+                    {picked && (
+                      <span className="ml-auto text-[10px] font-mono uppercase tracking-wider">
+                        {tr.tutor.decisionPickedBadge}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[12px] text-text-secondary mt-1 leading-snug">{opt.pitch}</div>
+                  {opt.consequences && (
+                    <div className="text-[11px] text-text-muted mt-1 leading-snug italic">
+                      {tr.tutor.consequencesPrefix} {opt.consequences}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </TutorBlock>
       )}
 
@@ -390,102 +476,121 @@ function TutorCard({ node, project, onConfirm, onViewInGraph, tr }: TutorCardPro
         )}
       </div>
 
-      {/* Recursive decompose, right in the guided flow */}
-      <div className="mt-3">
-        {!pendingHere ? (
-          <button
-            onClick={handleDecompose}
-            disabled={decomposing || (!!pending && !pendingHere)}
-            className="w-full px-4 py-2.5 min-h-[44px] bg-bg-secondary hover:bg-bg-elevated border border-border-base hover:border-ai-accent/40 rounded-sm text-text-secondary hover:text-ai-accent text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            <span>⌥</span>
-            {decomposing ? tr.tutor.decomposing : tr.tutor.decompose}
-          </button>
-        ) : (
-          <div className="space-y-2 p-3 border border-ai-accent/30 rounded-sm bg-ai-accent/5">
-            <div className="text-[10px] font-mono uppercase tracking-wider text-ai-accent">
-              {tr.tutor.decomposeReview}
+      <GroundTruthInlineTutor node={node} project={project} />
+
+      {pendingHere && (
+        <div className="mt-4 space-y-2 p-3 border border-ai-accent/30 rounded-sm bg-ai-accent/5">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-ai-accent">
+            {tr.tutor.decomposeReview}
+          </div>
+          {pending!.nodes.map((s) => (
+            <div key={s.tempId} className="p-2 bg-bg-secondary border border-border-base rounded-sm">
+              <div className="text-sm font-medium text-text-primary leading-tight">{s.data.name}</div>
+              <div className="text-[11px] text-text-secondary leading-snug mb-1.5">
+                {s.data.oQue || s.data.fx}
+              </div>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => acceptSuggestion(s.tempId)}
+                  className="flex-1 text-[11px] bg-conf-high/15 hover:bg-conf-high/30 text-conf-high border border-conf-high/40 rounded-sm py-1 transition-colors"
+                >
+                  {tr.tutor.acceptOne}
+                </button>
+                <button
+                  onClick={() => rejectSuggestion(s.tempId)}
+                  className="text-[11px] text-text-muted hover:text-state-problem border border-border-base rounded-sm px-2.5 py-1 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
-            {pending!.nodes.map((s) => (
-              <div key={s.tempId} className="p-2 bg-bg-secondary border border-border-base rounded-sm">
-                <div className="text-sm font-medium text-text-primary leading-tight">{s.data.name}</div>
-                <div className="text-[11px] text-text-secondary leading-snug mb-1.5">
-                  {s.data.oQue || s.data.fx}
+          ))}
+          <button
+            onClick={acceptAllSuggestions}
+            className="w-full text-[11px] bg-ai-accent/15 hover:bg-ai-accent/30 text-ai-accent border border-ai-accent/40 rounded-sm py-1.5 transition-colors"
+          >
+            {tr.tutor.acceptAll}
+          </button>
+        </div>
+      )}
+
+      {/* The fork at the heart of the concept: confirm against reality, or
+          break it down further, or declare the floor ("I already know this"). */}
+      {!resolved && (
+        <div className="mt-6 sm:mt-8 space-y-2">
+          {!isDecision &&
+            (blocked ? (
+              <div className="text-[11px] text-text-muted text-center italic py-2 border border-border-base rounded-sm">
+                {tr.detail.blockedHint}
+              </div>
+            ) : ready ? (
+              <button
+                onClick={confirmAndAdvance}
+                className="w-full bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-base py-3 min-h-[48px] rounded-sm border-2 border-conf-high/40 transition-colors font-medium"
+              >
+                {confirmLabel}
+              </button>
+            ) : confirmingNoSignal ? (
+              <div className="space-y-1.5">
+                <div className="text-[11px] text-conf-mid text-center leading-snug">
+                  {tr.detail.confirmHintNoSignal}
                 </div>
-                <div className="flex gap-1.5">
+                <div className="flex gap-2">
                   <button
-                    onClick={() => acceptSuggestion(s.tempId)}
-                    className="flex-1 text-[11px] bg-conf-high/15 hover:bg-conf-high/30 text-conf-high border border-conf-high/40 rounded-sm py-1 transition-colors"
+                    onClick={confirmAndAdvance}
+                    className="flex-1 bg-conf-mid/15 hover:bg-conf-mid/30 text-conf-mid text-sm py-2.5 min-h-[44px] rounded-sm border border-conf-mid/40 transition-colors"
                   >
-                    {tr.tutor.acceptOne}
+                    {tr.detail.confirmAnyway}
                   </button>
                   <button
-                    onClick={() => rejectSuggestion(s.tempId)}
-                    className="text-[11px] text-text-muted hover:text-state-problem border border-border-base rounded-sm px-2.5 py-1 transition-colors"
+                    onClick={() => setConfirmingNoSignal(false)}
+                    className="px-4 text-xs text-text-muted hover:text-text-secondary border border-border-base rounded-sm transition-colors"
                   >
-                    ✕
+                    {tr.detail.cancel}
                   </button>
                 </div>
               </div>
+            ) : (
+              <button
+                onClick={() => setConfirmingNoSignal(true)}
+                className="w-full bg-bg-elevated hover:bg-conf-mid/10 text-text-secondary hover:text-conf-mid text-base py-3 min-h-[48px] rounded-sm border-2 border-border-base hover:border-conf-mid/40 transition-colors font-medium"
+              >
+                {confirmLabel}
+              </button>
             ))}
+
+          {!pendingHere && (
             <button
-              onClick={acceptAllSuggestions}
-              className="w-full text-[11px] bg-ai-accent/15 hover:bg-ai-accent/30 text-ai-accent border border-ai-accent/40 rounded-sm py-1.5 transition-colors"
+              onClick={handleDecompose}
+              disabled={decomposing || (!!pending && !pendingHere)}
+              className="w-full px-4 py-2.5 min-h-[44px] bg-bg-secondary hover:bg-bg-elevated border border-border-base hover:border-ai-accent/40 rounded-sm text-text-secondary hover:text-ai-accent text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {tr.tutor.acceptAll}
+              <span>◆</span>
+              {decomposing ? tr.tutor.decomposing : decomposeLabel}
+            </button>
+          )}
+
+          <div className="flex items-center gap-2">
+            {!isDecision && (
+              <button
+                onClick={markKnownAndAdvance}
+                className="flex-1 text-xs py-2 min-h-[36px] rounded-sm border border-border-base bg-bg-elevated text-text-muted hover:text-ai-accent hover:border-ai-accent/40 transition-colors"
+              >
+                {tr.tutor.alreadyKnow}
+              </button>
+            )}
+            <button
+              onClick={() => {
+                selectNode(node.id);
+                setViewMode('graph');
+              }}
+              className="px-4 py-2 min-h-[36px] text-xs text-text-muted hover:text-text-primary border border-border-base rounded-sm transition-colors"
+            >
+              {tr.tutor.viewInGraph}
             </button>
           </div>
-        )}
-      </div>
-
-      <GroundTruthInlineTutor node={node} project={project} />
-
-      <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-        {ready ? (
-          <button
-            onClick={onConfirm}
-            className="flex-1 bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-base py-3 min-h-[48px] rounded-sm border-2 border-conf-high/40 transition-colors font-medium"
-          >
-            {tr.tutor.alreadyVerb(verb)}
-          </button>
-        ) : confirmingNoSignal ? (
-          <div className="flex-1 space-y-1.5">
-            <div className="text-[11px] text-conf-mid text-center leading-snug">
-              {tr.detail.confirmHintNoSignal}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  onConfirm();
-                  setConfirmingNoSignal(false);
-                }}
-                className="flex-1 bg-conf-mid/15 hover:bg-conf-mid/30 text-conf-mid text-sm py-2.5 min-h-[44px] rounded-sm border border-conf-mid/40 transition-colors"
-              >
-                {tr.detail.confirmAnyway}
-              </button>
-              <button
-                onClick={() => setConfirmingNoSignal(false)}
-                className="px-4 text-xs text-text-muted hover:text-text-secondary border border-border-base rounded-sm transition-colors"
-              >
-                {tr.detail.cancel}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setConfirmingNoSignal(true)}
-            className="flex-1 bg-bg-elevated hover:bg-conf-mid/10 text-text-secondary hover:text-conf-mid text-base py-3 min-h-[48px] rounded-sm border-2 border-border-base hover:border-conf-mid/40 transition-colors font-medium"
-          >
-            {tr.tutor.alreadyVerb(verb)}
-          </button>
-        )}
-        <button
-          onClick={onViewInGraph}
-          className="px-4 py-3 min-h-[44px] text-xs text-text-muted hover:text-text-primary border border-border-base rounded-sm transition-colors"
-        >
-          {tr.tutor.viewInGraph}
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -558,6 +663,21 @@ function TutorBlock({ label, children }: { label: string; children: React.ReactN
   );
 }
 
+function EmptyCard({ tr, onViewGraph }: { tr: Messages; onViewGraph: () => void }) {
+  return (
+    <div className="max-w-xl mx-auto text-center py-12 sm:py-20">
+      <div className="text-5xl sm:text-6xl mb-4 text-text-muted">◌</div>
+      <p className="text-text-secondary mb-6">{tr.tutor.emptyTree}</p>
+      <button
+        onClick={onViewGraph}
+        className="text-xs text-text-muted hover:text-text-primary border border-border-base rounded-sm px-4 py-2 transition-colors"
+      >
+        {tr.tutor.viewGraphShort}
+      </button>
+    </div>
+  );
+}
+
 function DoneCard({
   projectName,
   doneWithoutSignal,
@@ -587,101 +707,212 @@ function DoneCard({
   );
 }
 
-interface SectionProps {
-  title: string;
-  count: number;
-  done: number;
-  children: React.ReactNode;
-}
+// ---------------------------------------------------------------------------
+// Sidebar — the decomposition tree. Containers (decomposed nodes, categories)
+// are structure: they show progress but are not confirmable; leaves carry the
+// checkbox. A takenAsKnown node closes its subtree (floor).
+// ---------------------------------------------------------------------------
 
-function Section({ title, count, done, children }: SectionProps) {
-  return (
-    <div className="border-b border-border-base">
-      <div className="px-3 py-2 flex items-baseline gap-2 bg-bg-primary/50">
-        <span className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
-          {title}
-        </span>
-        <span className="ml-auto text-[11px] font-mono text-text-secondary">
-          <span className="text-state-done">{done}</span>
-          <span className="text-text-muted">/{count}</span>
-        </span>
-      </div>
-      <div className="py-1">{children}</div>
-    </div>
-  );
-}
-
-interface RowProps {
-  node: ConceptNodeData;
-  isNext?: boolean;
-  onClick: () => void;
-  onToggle: () => void;
-  project?: ReturnType<typeof useGraphStore.getState>['project'];
+interface TreeRowsProps {
+  project: Project;
+  byParent: Map<string, ConceptNodeData[]>;
+  parentId: string;
+  depth: number;
+  currentId: string | null;
+  onPick: (id: string) => void;
   tr: Messages;
 }
 
-function Row({ node, isNext, onClick, onToggle, project, tr }: RowProps) {
-  const blocked =
-    node.kind === 'passo' && !node.confirmado && project
-      ? isBlockedLocal(project, node.id)
-      : false;
+function TreeRows({ project, byParent, parentId, depth, currentId, onPick, tr }: TreeRowsProps) {
+  const kids = byParent.get(parentId) ?? [];
+  let passoSeq = 0;
+  return (
+    <>
+      {kids.map((node) => {
+        const seq = node.kind === 'passo' ? ++passoSeq : 0;
+        const children = byParent.get(node.id) ?? [];
 
+        if (node.takenAsKnown) {
+          // Floor: subtree closed. Render the node itself as a known leaf.
+          return (
+            <LeafRow
+              key={node.id}
+              node={node}
+              project={project}
+              depth={depth}
+              seq={seq}
+              isCurrent={node.id === currentId}
+              onPick={onPick}
+              tr={tr}
+            />
+          );
+        }
+
+        if (children.length > 0 || node.kind === 'categoria') {
+          const leaves = effectiveLeavesUnder(project, node.id, byParent);
+          const done = leaves.filter((l) => l.confirmado || l.takenAsKnown).length;
+          return (
+            <div key={node.id}>
+              <GroupRow node={node} depth={depth} done={done} total={leaves.length} />
+              <TreeRows
+                project={project}
+                byParent={byParent}
+                parentId={node.id}
+                depth={depth + 1}
+                currentId={currentId}
+                onPick={onPick}
+                tr={tr}
+              />
+            </div>
+          );
+        }
+
+        if (!isActionableKind(node.kind)) return null;
+        return (
+          <LeafRow
+            key={node.id}
+            node={node}
+            project={project}
+            depth={depth}
+            seq={seq}
+            isCurrent={node.id === currentId}
+            onPick={onPick}
+            tr={tr}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+function GroupRow({
+  node,
+  depth,
+  done,
+  total,
+}: {
+  node: ConceptNodeData;
+  depth: number;
+  done: number;
+  total: number;
+}) {
+  const complete = total > 0 && done === total;
   return (
     <div
-      className={`group flex items-center gap-2 px-3 py-2 text-xs transition-colors cursor-pointer min-h-[36px] ${
-        isNext ? 'bg-ai-accent/10 border-l-2 border-ai-accent' : 'hover:bg-bg-elevated/50 border-l-2 border-transparent'
-      } ${blocked ? 'opacity-40' : ''}`}
-      onClick={onClick}
+      className={`flex items-baseline gap-2 pr-3 py-1.5 ${depth === 0 ? 'bg-bg-primary/50 border-y border-border-base mt-1' : ''}`}
+      style={{ paddingLeft: `${12 + depth * 14}px` }}
     >
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!blocked) onToggle();
-        }}
-        disabled={blocked}
-        aria-label={node.confirmado ? tr.tutor.ariaUnconfirm : tr.tutor.ariaConfirm}
-        className={`w-5 h-5 rounded-sm border flex items-center justify-center transition-colors shrink-0 ${
-          node.state === 'done'
-            ? 'bg-state-done/20 border-state-done text-state-done'
-            : node.takenAsKnown
-            ? 'bg-ai-accent/15 border-ai-accent/50 text-ai-accent'
-            : node.confirmado
-            ? 'bg-conf-mid/15 border-conf-mid text-conf-mid'
-            : 'border-border-base group-hover:border-text-muted'
-        }`}
-      >
-        {node.state === 'done' && <span className="text-[10px]">✓</span>}
-        {node.state !== 'done' && node.takenAsKnown && <span className="text-[10px]">⊢</span>}
-        {node.state !== 'done' && !node.takenAsKnown && node.confirmado && (
-          <span className="text-[10px]">✓</span>
-        )}
-      </button>
       <span
-        className={`truncate flex-1 ${
-          node.confirmado || node.takenAsKnown ? 'text-text-muted line-through' : 'text-text-secondary'
+        className={`text-[10px] font-mono uppercase tracking-wider truncate ${
+          depth === 0 ? 'text-text-muted' : 'text-text-muted/80'
         }`}
       >
-        {node.kind === 'passo' && (
-          <span className="text-text-muted font-mono mr-1">{node.order + 1}.</span>
-        )}
         {node.name}
+      </span>
+      <span className="ml-auto text-[11px] font-mono shrink-0">
+        <span className={complete ? 'text-state-done' : 'text-text-secondary'}>{done}</span>
+        <span className="text-text-muted">/{total}</span>
       </span>
     </div>
   );
 }
 
-function isBlockedLocal(
-  project: NonNullable<ReturnType<typeof useGraphStore.getState>['project']>,
-  nodeId: string,
-): boolean {
-  const node = project.nodes[nodeId];
-  if (!node || node.kind !== 'passo') return false;
-  const siblings = Object.values(project.nodes)
-    .filter((n) => n.parentId === node.parentId && n.kind === 'passo')
-    .sort((a, b) => a.order - b.order);
-  for (const s of siblings) {
-    if (s.id === node.id) return false;
-    if (!s.confirmado) return true;
-  }
-  return false;
+const KIND_GLYPH: Partial<Record<ConceptNodeData['kind'], string>> = {
+  recurso: '▪',
+  decisao: '⑂',
+  concept: '◇',
+};
+
+interface LeafRowProps {
+  node: ConceptNodeData;
+  project: Project;
+  depth: number;
+  seq: number;
+  isCurrent: boolean;
+  onPick: (id: string) => void;
+  tr: Messages;
+}
+
+function LeafRow({ node, project, depth, seq, isCurrent, onPick, tr }: LeafRowProps) {
+  const confirmNode = useGraphStore((s) => s.confirmNode);
+  const unconfirmNode = useGraphStore((s) => s.unconfirmNode);
+  const toggleTakenAsKnown = useGraphStore((s) => s.toggleTakenAsKnown);
+
+  const blocked = !node.confirmado && !node.takenAsKnown && isBlocked(project, node.id);
+  const resolvedDone = node.state === 'done';
+  const known = !!node.takenAsKnown;
+  const hunch = node.confirmado && !resolvedDone && !known;
+
+  // The checkbox only closes a node that EARNED it (signal present) or undoes
+  // a previous resolution. Without signal it routes to the card, where
+  // confirming without an anchor is a deliberate two-step — the unfaithful
+  // path is never the easiest click.
+  const handleToggle = () => {
+    if (blocked) return;
+    if (node.confirmado) {
+      unconfirmNode(node.id);
+      return;
+    }
+    if (known) {
+      toggleTakenAsKnown(node.id);
+      return;
+    }
+    if (canConcludeNode(project, node.id).ready) {
+      confirmNode(node.id);
+      return;
+    }
+    onPick(node.id);
+  };
+
+  return (
+    <div
+      className={`group flex items-center gap-2 pr-3 py-2 text-xs transition-colors cursor-pointer min-h-[36px] ${
+        isCurrent
+          ? 'bg-ai-accent/10 border-l-2 border-ai-accent'
+          : 'hover:bg-bg-elevated/50 border-l-2 border-transparent'
+      } ${blocked ? 'opacity-40' : ''}`}
+      style={{ paddingLeft: `${10 + depth * 14}px` }}
+      onClick={() => onPick(node.id)}
+    >
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          handleToggle();
+        }}
+        disabled={blocked}
+        aria-label={
+          node.confirmado || known
+            ? tr.tutor.ariaUnconfirm
+            : canConcludeNode(project, node.id).ready
+            ? tr.tutor.ariaConfirm
+            : tr.tutor.ariaFocus
+        }
+        className={`w-5 h-5 rounded-sm border flex items-center justify-center transition-colors shrink-0 ${
+          resolvedDone
+            ? 'bg-state-done/20 border-state-done text-state-done'
+            : known
+            ? 'bg-ai-accent/15 border-ai-accent/50 text-ai-accent'
+            : hunch
+            ? 'bg-conf-mid/15 border-conf-mid text-conf-mid'
+            : 'border-border-base group-hover:border-text-muted'
+        }`}
+      >
+        {resolvedDone && <span className="text-[10px]">✓</span>}
+        {!resolvedDone && known && <span className="text-[10px]">⊢</span>}
+        {!resolvedDone && !known && node.confirmado && <span className="text-[10px]">✓</span>}
+      </button>
+      <span
+        className={`truncate flex-1 ${
+          node.confirmado || known ? 'text-text-muted line-through' : 'text-text-secondary'
+        }`}
+      >
+        {seq > 0 ? (
+          <span className="text-text-muted font-mono mr-1">{seq}.</span>
+        ) : KIND_GLYPH[node.kind] ? (
+          <span className="text-text-muted font-mono mr-1">{KIND_GLYPH[node.kind]}</span>
+        ) : null}
+        {node.name}
+      </span>
+    </div>
+  );
 }

@@ -23,7 +23,7 @@
 | Local persistence (IndexedDB) for projects + KB + config | ✅ working |
 | 4 ground-truth mechanisms (user criterion, critique, replan, anchors) | ✅ working |
 | Knowledge base (PDF ingestion + summarization + AI judge) | ✅ working |
-| Graph with 5 lenses + tutor mode | ✅ working |
+| Graph with 5 lenses + tree-walking tutor (confirm · decompose · already-known) | ✅ working |
 | Bilingual UI (en / pt-BR) | ✅ working |
 | Multi-project local management | 🚧 single project for now — `Reset` discards |
 | Mobile polish (drawer, sheet, safe areas) | 🚧 partial |
@@ -39,7 +39,7 @@
 2. The AI proposes 1–3 alternative plans via streaming.
 3. You pick one → it becomes a navigable tree in React Flow.
 4. Detail each node with AI when needed (`Detail with AI`).
-5. Execute in tutor mode, confirming step by step.
+5. Execute in tutor mode, one part at a time: **confirm** it against reality, **break it into parts** when you can't confirm yet, or mark it **already known** (the recursion floor). Decisions are picked right in the flow.
 6. Attach PDFs to the **knowledge base** so the AI grounds plans in your own material.
 
 Concept dive: [`docs/CONCEPT.md`](docs/CONCEPT.md) · panorama: [`docs/cellproject-overview.html`](docs/cellproject-overview.html).

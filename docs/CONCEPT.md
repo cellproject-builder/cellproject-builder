@@ -55,10 +55,19 @@ Project (goal)
 
 ### Node state (`NodeState`)
 
-`concept` → `validated` → `executing` → `done`
-Or, at any moment: `problem`, `discarded`.
+State is **earned, never painted** — there is no manual state picker in the UI.
+
+- `concept` — created, untouched.
+- `validated` — confirmed by the user, but without real signal (see *Conclusion gate*).
+- `done` — confirmed **with** real signal (or the explicit, audited `force` opt-out).
+- `problem` — set by `reportFailure` (mechanism c), always carrying `failureContext`.
+- `executing` / `discarded` — legacy values still rendered for old data; the UI no longer sets them.
 
 The boolean `confirmado` marks whether the user confirmed the node. **Reaching `done` is gated** (see *Conclusion gate*): a node earns `done` only against real signal — a locked user criterion or a verified anchor — and only when not blocked by an earlier sibling. Without signal, confirming still sets `confirmado: true` and advances the flow, but the node stays `validated` and is flagged `confirmedWithoutSignal` (no green / 100%). The selector `canConcludeNode(project, nodeId)` is the single source of this rule.
+
+### Progress = the decomposition frontier
+
+Progress counts **effective leaves**: every actionable node (`recurso`, `passo`, `decisao`, `concept` — in any archetype) that has no children, plus every `takenAsKnown` node (the recursion floor — whatever lies below a floor stops counting). A decomposed node is a container: it resolves through its children, which is also what unblocks the next step after you broke the previous one into sub-steps instead of confirming it directly. The selectors `effectiveLeaves`, `isNodeResolved` and `nextPendingForTutor` all walk the tree the same way, in sibling `order` (the decomposition order), depth-first.
 
 ### Edges (`EdgeKind`)
 
@@ -69,7 +78,7 @@ The boolean `confirmado` marks whether the user confirmed the node. **Reaching `
 
 ### Key fields per node
 
-- **Conceptual**: `fx` (function/purpose), `problem`, `pros`, `cons`, `confidence` (0–100 + `confidenceSource`, `confidenceReason`).
+- **Conceptual**: `fx` (function/purpose), `problem`, `pros`, `cons`, `confidence` (0–100 + `confidenceSource`, `confidenceReason`) — confidence is the AI's signal, displayed with its source and reason, never edited by hand: the user's truth enters through the ground-truth mechanisms.
 - **Didactic**: `oQue`, `porQue`, `comoConfirmar`, `explicacao` (generated on demand by the tutor).
 - **Ground truth** (see dedicated section): `comoConfirmarUsuario` + `comoConfirmarUsuarioAt`, `critica`, `groundTruthRefs`, `failureContext` + `failureReportedAt`.
 - **Execution**: `confirmado`, `order`.
@@ -96,14 +105,20 @@ The boolean `confirmado` marks whether the user confirmed the node. **Reaching `
 
 ### 3. Guided execution — `TutorMode`
 
+The tutor is the concept's core loop made into a screen.
+
 1. Key `t` enters tutor mode; `g` returns to the graph.
-2. Tutor presents one node at a time with `oQue` / `porQue` / `comoConfirmar`.
-3. `explainNode(ctx)` generates, on demand, a long markdown explanation (senior-engineer depth, structured with **UPPERCASE BOLD** headings).
-4. The user confirms → `confirmNode` updates state and advances.
+2. The sidebar **is the decomposition tree**: categories and decomposed nodes appear as groups with their own progress; leaves (`recurso` / `passo` / `decisao` / `concept`) are rows in decomposition order. Clicking a row dives into that part; the checkbox one-click-confirms only nodes that already carry real signal — without signal it routes to the card, where confirming is a deliberate two-step. The unfaithful path is never the easiest click.
+3. The card shows ONE leaf — the one you picked, or the next pending in **depth-first** order: after decomposing a node, its parts come before the next sibling, so you go down to the atom before moving on.
+4. The card presents `oQue` / `porQue`, the ground-truth block, and the fork as actions:
+   - **Confirm** ("I have it / I did it / I understood it") — gated by `canConcludeNode`.
+   - **"Can't confirm yet → break it into parts"** — `decomposeNode`, staged inline for accept/reject.
+   - **"I already know this"** — `takenAsKnown`, the recursion floor; closes the whole subtree.
+5. `explainNode(ctx)` generates, on demand, a long markdown explanation (senior-engineer depth, structured with **UPPERCASE BOLD** headings).
 
 ### 4. Decisions
 
-When a node is `decisao`, the user picks one of `decisionOptions`. The pick becomes history (`kind: 'decision'`) and sets `decisionPickedId`, which can condition the next steps.
+When a node is `decisao`, the user picks one of `decisionOptions` — in the tutor card or in the detail panel; the pick **is** the decision's confirm and goes through the same conclusion gate. It becomes history (`kind: 'decision'`) and sets `decisionPickedId`, which can condition the next steps.
 
 ## Closing the loop — ground truth
 

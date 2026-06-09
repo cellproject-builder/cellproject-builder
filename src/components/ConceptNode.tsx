@@ -125,7 +125,7 @@ function ConceptNodeImpl({ data, selected }: Props) {
     !blocked &&
     !data.confirmado &&
     nodeHasSignal &&
-    (data.kind === 'recurso' || data.kind === 'passo');
+    (data.kind === 'recurso' || data.kind === 'passo' || data.kind === 'concept');
 
   if (level === 'far') {
     return (
@@ -182,7 +182,11 @@ function ConceptNodeImpl({ data, selected }: Props) {
             }}
             className="mt-2 w-full bg-conf-high/10 hover:bg-conf-high/25 text-conf-high text-[11px] py-1 rounded-sm border border-conf-high/30 transition-colors"
           >
-            {data.kind === 'recurso' ? tr.conceptNode.quickHaveResource : tr.conceptNode.quickHaveStep}
+            {data.kind === 'recurso'
+              ? tr.conceptNode.quickHaveResource
+              : data.kind === 'concept'
+              ? tr.conceptNode.quickUnderstood
+              : tr.conceptNode.quickHaveStep}
           </button>
         )}
         <Handle type="source" position={Position.Bottom} className="!bg-border-base !border-none" />
@@ -201,7 +205,9 @@ function ConceptNodeImpl({ data, selected }: Props) {
           <span className="font-mono text-[10px] text-text-muted">#{data.order + 1}</span>
         )}
         <span className="ml-auto flex items-center gap-1.5">
-          {data.confirmado && <span className="text-state-done text-xs">✓</span>}
+          {anchored && <span className="text-state-done text-xs">✓</span>}
+          {known && <span className="text-ai-accent text-xs" title={tr.conceptNode.axiom}>⊢</span>}
+          {hunch && <span className="text-conf-mid text-xs" title={tr.conceptNode.noAnchor}>✓</span>}
           {blocked && <span className="text-text-muted text-[10px]">{tr.conceptNode.blocked}</span>}
           <span className={`w-2 h-2 rounded-full ${confidenceDot(band)}`} />
           <span className="font-mono text-[11px] text-text-secondary">{data.confidence}%</span>
@@ -243,7 +249,11 @@ function ConceptNodeImpl({ data, selected }: Props) {
           }}
           className="mt-2.5 w-full bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-xs py-2.5 min-h-[40px] rounded-sm border border-conf-high/40 transition-colors font-medium"
         >
-          {data.kind === 'recurso' ? tr.detail.alreadyHave : tr.detail.alreadyDid}
+          {data.kind === 'recurso'
+            ? tr.detail.alreadyHave
+            : data.kind === 'concept'
+            ? tr.detail.understood
+            : tr.detail.alreadyDid}
         </button>
       )}
       <Handle type="source" position={Position.Bottom} className="!bg-border-base !border-none" />

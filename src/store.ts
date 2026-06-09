@@ -7,12 +7,14 @@ import type {
   ConceptNodeData,
   ConceptEdgeData,
   AIPlan,
+  AISuggestedNode,
   NodeState,
   NodeKind,
   HistoryEntry,
   AdversarialCritique,
   GroundTruthRef,
 } from '@/types';
+import { t } from '@/i18n';
 import { buildDemoProject, DEMO_PROJECT_ID } from '@/data/demoProject';
 
 type Lens = 'structure' | 'flow' | 'risk' | 'state' | 'connections';
@@ -126,6 +128,41 @@ export function hintsToRefs(
   }));
 }
 
+// Maps an AI decompose/replan result into the staged-node shape consumed by
+// stageSuggestions. One place for the mapping (tutor card, detail panel and
+// the failure replan all stage the same way); children fan out below `base`.
+export function buildStagedNodes(
+  base: { position: { x: number; y: number } },
+  nodes: AISuggestedNode[],
+  opts?: { notes?: string },
+): Array<Omit<ConceptNodeData, 'id' | 'parentId' | 'history'> & { tempId: string }> {
+  const spacing = 260;
+  const start = base.position.x - ((nodes.length - 1) * spacing) / 2;
+  return nodes.map((n, i) => ({
+    tempId: n.tempId,
+    kind: n.kind,
+    name: n.name,
+    fx: n.fx,
+    problem: n.problem,
+    confidence: n.confidence,
+    confidenceSource: 'ai' as const,
+    confidenceReason: n.confidenceReason,
+    pros: n.pros,
+    cons: n.cons,
+    oQue: n.oQue,
+    porQue: n.porQue,
+    comoConfirmar: n.comoConfirmar,
+    confirmado: false,
+    order: n.order ?? i,
+    decisionOptions: n.decisionOptions,
+    groundTruthRefs: hintsToRefs(n.groundTruthHints),
+    state: 'concept' as const,
+    notes: opts?.notes ?? '',
+    aiSuggested: true,
+    position: { x: start + i * spacing, y: base.position.y + 260 },
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // Layout helpers
 // ---------------------------------------------------------------------------
@@ -175,27 +212,28 @@ export const useGraphStore = create<GraphState>()(
       pendingSuggestions: null,
 
       createProjectFromPlan: (objective, name, plan) => {
+        const tr = t();
         const rootId = nanoid(10);
         const root: ConceptNodeData = {
           id: rootId,
           parentId: null,
           kind: 'root',
-          name: name || 'Projeto',
+          name: name || tr.store.projectFallbackName,
           fx: objective,
-          problem: 'Objetivo global do projeto',
+          problem: tr.store.rootProblem,
           confidence: 100,
           confidenceSource: 'ai',
-          confidenceReason: 'Dado pelo usuário',
+          confidenceReason: tr.store.rootConfidenceReason,
           pros: [],
           cons: [],
           oQue: objective,
           porQue: plan.pitch,
-          comoConfirmar: 'Todas as etapas de recursos e execução confirmadas.',
+          comoConfirmar: tr.store.rootComoConfirmar,
           confirmado: false,
           order: 0,
           state: 'validated',
           notes: plan.approach,
-          history: [historyEntry('created', `Projeto criado a partir de "${plan.title}"`)],
+          history: [historyEntry('created', tr.store.createdFromPlan(plan.title))],
           aiSuggested: false,
           position: ROOT_POS,
         };
@@ -211,21 +249,21 @@ export const useGraphStore = create<GraphState>()(
             parentId: rootId,
             kind: 'categoria',
             name: cat.name,
-            fx: `categoria: ${cat.name.toLowerCase()}`,
+            fx: tr.store.categoriaFx(cat.name.toLowerCase()),
             problem: cat.porQue,
             confidence: 100,
             confidenceSource: 'ai',
-            confidenceReason: 'Eixo estrutural',
+            confidenceReason: tr.store.categoriaConfidenceReason,
             pros: [],
             cons: [],
             oQue: cat.oQue,
             porQue: cat.porQue,
-            comoConfirmar: 'Todos os itens desta categoria confirmados.',
+            comoConfirmar: tr.store.categoriaComoConfirmar,
             confirmado: false,
             order: catIdx,
             state: 'validated',
             notes: '',
-            history: [historyEntry('created', `Categoria criada: ${cat.name}`)],
+            history: [historyEntry('created', tr.store.categoriaCreated(cat.name))],
             aiSuggested: false,
             position: categoriaPositions[cat.tempId] ?? { x: 0, y: CATEGORY_Y },
           };
@@ -261,7 +299,7 @@ export const useGraphStore = create<GraphState>()(
               groundTruthRefs: hintsToRefs(child.groundTruthHints),
               state: 'concept',
               notes: '',
-              history: [historyEntry('created', `Gerado no plano "${plan.title}"`)],
+              history: [historyEntry('created', tr.store.generatedInPlan(plan.title))],
               aiSuggested: false,
               position: leafPositions[child.tempId] ?? { x: 0, y: LEAF_Y },
             };
@@ -278,7 +316,7 @@ export const useGraphStore = create<GraphState>()(
 
         const project: Project = {
           id: nanoid(10),
-          name: name || 'Projeto',
+          name: name || tr.store.projectFallbackName,
           objective,
           createdAt: now(),
           updatedAt: now(),
@@ -325,14 +363,14 @@ export const useGraphStore = create<GraphState>()(
             next = addHistory(
               next,
               'confidence',
-              `Confiança: ${prev.confidence}% → ${patch.confidence}%`,
+              t().store.confidenceChange(prev.confidence, patch.confidence),
             );
           }
           if (patch.state !== undefined && patch.state !== prev.state) {
-            next = addHistory(next, 'state', `Estado: ${prev.state} → ${patch.state}`);
+            next = addHistory(next, 'state', t().store.stateChange(prev.state, patch.state));
           }
           if (patch.name !== undefined && patch.name !== prev.name) {
-            next = addHistory(next, 'rename', `Nome: "${prev.name}" → "${patch.name}"`);
+            next = addHistory(next, 'rename', t().store.renamed(prev.name, patch.name));
           }
           return {
             project: {
@@ -417,10 +455,10 @@ export const useGraphStore = create<GraphState>()(
             confirmedWithoutSignal: !earnsDone,
           };
           const message = ready
-            ? `Confirmado: "${prev.name}"`
+            ? t().store.confirmed(prev.name)
             : earnsDone
-              ? `Confirmado sem âncora real (assumido pelo usuário): "${prev.name}"`
-              : `Confirmado sem sinal real — falta: ${missing.join('; ')}: "${prev.name}"`;
+              ? t().store.confirmedForced(prev.name)
+              : t().store.confirmedNoSignal(missing.join('; '), prev.name);
           next = addHistory(next, 'confirmed', message);
           return {
             project: {
@@ -442,7 +480,7 @@ export const useGraphStore = create<GraphState>()(
             state: 'concept' as NodeState,
             confirmedWithoutSignal: false,
           };
-          next = addHistory(next, 'unconfirmed', `Desconfirmado: "${prev.name}"`);
+          next = addHistory(next, 'unconfirmed', t().store.unconfirmed(prev.name));
           return {
             project: {
               ...state.project,
@@ -464,9 +502,7 @@ export const useGraphStore = create<GraphState>()(
           const next = addHistory(
             { ...prev, takenAsKnown: nowKnown },
             'manual',
-            nowKnown
-              ? `Marcado como axioma / já sabido: "${prev.name}"`
-              : `Reaberto para decompor: "${prev.name}"`,
+            nowKnown ? t().store.markedKnown(prev.name) : t().store.reopenedKnown(prev.name),
           );
           return {
             project: {
@@ -496,7 +532,9 @@ export const useGraphStore = create<GraphState>()(
               confirmedWithoutSignal: !ready,
             },
             'decision',
-            ready ? `Escolha: "${opt.label}"` : `Escolha (sem sinal real): "${opt.label}"`,
+            ready
+              ? t().store.decisionPicked(opt.label)
+              : t().store.decisionPickedNoSignal(opt.label),
           );
           return {
             project: {
@@ -538,11 +576,7 @@ export const useGraphStore = create<GraphState>()(
             comoConfirmarUsuario: trimmed,
             comoConfirmarUsuarioAt: now(),
           };
-          next = addHistory(
-            next,
-            'criterio_usuario',
-            `Critério do usuário registrado (travado antes de ver o da IA).`,
-          );
+          next = addHistory(next, 'criterio_usuario', t().store.criterionLocked);
           return {
             project: {
               ...state.project,
@@ -565,7 +599,7 @@ export const useGraphStore = create<GraphState>()(
           const next = addHistory(
             { ...prev, comoConfirmarAtendido: { observacao: obs, at: now() } },
             'criterio_usuario',
-            `Critério aferido como atendido: ${obs}`,
+            t().store.criterionAttested(obs),
           );
           return {
             project: {
@@ -584,7 +618,7 @@ export const useGraphStore = create<GraphState>()(
           const next = addHistory(
             { ...prev, critica },
             'critica',
-            `Crítica adversarial registrada: ${critica.fraquezas.length} fraqueza(s).`,
+            t().store.critiqueRecorded(critica.fraquezas.length),
           );
           return {
             project: {
@@ -625,7 +659,7 @@ export const useGraphStore = create<GraphState>()(
           const next = addHistory(
             { ...prev, groundTruthRefs: refs },
             'ground_truth',
-            `Âncora ${ref.kind} adicionada: ${ref.label}`,
+            t().store.anchorAdded(ref.kind, ref.label),
           );
           return {
             project: {
@@ -657,7 +691,9 @@ export const useGraphStore = create<GraphState>()(
           const next = addHistory(
             { ...prev, groundTruthRefs: refs },
             'ground_truth',
-            `Âncora "${changedLabel}" ${nowVerified ? 'verificada ✓' : 'desverificada'}.`,
+            nowVerified
+              ? t().store.anchorVerified(changedLabel)
+              : t().store.anchorUnverified(changedLabel),
           );
           return {
             project: {
@@ -679,7 +715,7 @@ export const useGraphStore = create<GraphState>()(
           const next = addHistory(
             { ...prev, groundTruthRefs: refs },
             'ground_truth',
-            `Âncora removida: ${target.label}`,
+            t().store.anchorRemoved(target.label),
           );
           return {
             project: {
@@ -706,9 +742,9 @@ export const useGraphStore = create<GraphState>()(
             confirmado: false,
             confirmedWithoutSignal: false,
           };
-          next = addHistory(next, 'failure', `Falha reportada: ${trimmed}`);
+          next = addHistory(next, 'failure', t().store.failureReported(trimmed));
           if (prev.state !== 'problem') {
-            next = addHistory(next, 'state', `Estado: ${prev.state} → problem`);
+            next = addHistory(next, 'state', t().store.stateChange(prev.state, 'problem'));
           }
           return {
             project: {
@@ -735,7 +771,7 @@ export const useGraphStore = create<GraphState>()(
           const restored: ConceptNodeData = ready
             ? { ...cleared, state: 'done', confirmado: true, confirmedWithoutSignal: false }
             : { ...cleared, state: 'concept', confirmado: false };
-          const next = addHistory(restored, 'replan', 'Falha marcada como resolvida.');
+          const next = addHistory(restored, 'replan', t().store.failureCleared);
           return {
             project: {
               ...state.project,
@@ -770,7 +806,7 @@ export const useGraphStore = create<GraphState>()(
           id,
           parentId: pending.parentId,
           aiSuggested: false,
-          history: [historyEntry('created', 'Sugestão AI aceita')],
+          history: [historyEntry('created', t().store.suggestionAccepted)],
         };
 
         const acceptedMap: Record<string, string> = {
@@ -853,7 +889,7 @@ export const useGraphStore = create<GraphState>()(
             id,
             parentId: pending.parentId,
             aiSuggested: false,
-            history: [historyEntry('created', 'Sugestão AI aceita (lote)')],
+            history: [historyEntry('created', t().store.suggestionAcceptedBatch)],
           };
         });
 
@@ -966,20 +1002,104 @@ export const confidenceBand = (confidence: number): 'high' | 'mid' | 'low' => {
   return 'low';
 };
 
+// ---------------------------------------------------------------------------
+// Tree walking — the project IS a decomposition tree, so every selector reads
+// it the same way: children in sibling `order` (the decomposition order),
+// `takenAsKnown` as a recursion floor that closes its whole subtree.
+// ---------------------------------------------------------------------------
+
+// Kinds the user acts on. categoria/root are structure — they resolve through
+// their children, never directly.
+const ACTIONABLE_KINDS: ReadonlySet<NodeKind> = new Set([
+  'recurso',
+  'passo',
+  'decisao',
+  'concept',
+]);
+
+export const isActionableKind = (kind: NodeKind): boolean => ACTIONABLE_KINDS.has(kind);
+
+export const childrenByParent = (project: Project): Map<string, ConceptNodeData[]> => {
+  const map = new Map<string, ConceptNodeData[]>();
+  for (const n of Object.values(project.nodes)) {
+    if (!n.parentId) continue;
+    const arr = map.get(n.parentId);
+    if (arr) arr.push(n);
+    else map.set(n.parentId, [n]);
+  }
+  for (const arr of map.values()) {
+    arr.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+  }
+  return map;
+};
+
 /**
- * A passo is "blocked" when any earlier passo under the same categoria is not
- * yet confirmed. Applies only to kind=passo.
+ * The decomposition frontier under `startId`: nodes with no children (the
+ * current atoms) plus takenAsKnown nodes (floors — whatever lies below a floor
+ * no longer counts). Only actionable kinds; containers resolve through these.
+ */
+export const effectiveLeavesUnder = (
+  project: Project,
+  startId: string,
+  byParent?: Map<string, ConceptNodeData[]>,
+): ConceptNodeData[] => {
+  const map = byParent ?? childrenByParent(project);
+  const out: ConceptNodeData[] = [];
+  const walk = (id: string) => {
+    for (const child of map.get(id) ?? []) {
+      if (child.takenAsKnown) {
+        if (ACTIONABLE_KINDS.has(child.kind)) out.push(child);
+        continue;
+      }
+      const kids = map.get(child.id);
+      if (kids && kids.length > 0) {
+        walk(child.id);
+      } else if (ACTIONABLE_KINDS.has(child.kind)) {
+        out.push(child);
+      }
+    }
+  };
+  walk(startId);
+  return out;
+};
+
+export const effectiveLeaves = (project: Project): ConceptNodeData[] =>
+  effectiveLeavesUnder(project, project.rootId);
+
+/**
+ * A node is resolved when reality (or the user) closed it: a leaf via
+ * confirmado/takenAsKnown; a decomposed node when EVERY child is resolved.
+ * This is what lets a step that was broken into sub-steps unblock its next
+ * sibling once the sub-steps are all confirmed.
+ */
+export const isNodeResolved = (
+  project: Project,
+  nodeId: string,
+  byParent?: Map<string, ConceptNodeData[]>,
+): boolean => {
+  const node = project.nodes[nodeId];
+  if (!node) return false;
+  if (node.takenAsKnown) return true;
+  const map = byParent ?? childrenByParent(project);
+  const kids = map.get(nodeId) ?? [];
+  if (kids.length === 0) return node.confirmado;
+  return kids.every((k) => isNodeResolved(project, k.id, map));
+};
+
+/**
+ * A passo is "blocked" while any earlier passo among its siblings is not yet
+ * resolved (confirmed, taken as known, or fully resolved through its own
+ * decomposition). Applies only to kind=passo.
  */
 export const isBlocked = (project: Project | null, nodeId: string): boolean => {
   if (!project) return false;
   const node = project.nodes[nodeId];
-  if (!node || node.kind !== 'passo') return false;
-  const siblings = Object.values(project.nodes)
-    .filter((n) => n.parentId === node.parentId && n.kind === 'passo')
-    .sort((a, b) => a.order - b.order);
+  if (!node || node.kind !== 'passo' || !node.parentId) return false;
+  const byParent = childrenByParent(project);
+  const siblings = (byParent.get(node.parentId) ?? []).filter((n) => n.kind === 'passo');
   for (const s of siblings) {
     if (s.id === node.id) return false;
-    if (!s.confirmado && !s.takenAsKnown) return true;
+    if (!isNodeResolved(project, s.id, byParent)) return true;
   }
   return false;
 };
@@ -1000,7 +1120,7 @@ export const canConcludeNode = (
   if (!node) return { ready: false, missing: ['nó inexistente'] };
   const missing: string[] = [];
   const blocked = isBlocked(project, nodeId);
-  if (blocked) missing.push('confirme os passos anteriores primeiro');
+  if (blocked) missing.push(t().store.missingBlocked);
   // Reality must CONFIRM the node, not merely be engaged. A locked criterion (a)
   // or a verified anchor (d) is signal; a bare critique (b) or a bare
   // failure-report (c) is process, not confirmation, so neither earns 'done' on
@@ -1009,7 +1129,7 @@ export const canConcludeNode = (
   const hasVerifiedAnchor = (node.groundTruthRefs ?? []).some((r) => r.verificado); // (d)
   const hasSignal = hasMetCriterion || hasVerifiedAnchor;
   if (!hasSignal) {
-    missing.push('afira que o critério foi atendido, ou verifique uma âncora real');
+    missing.push(t().store.missingSignal);
   }
   const ready = !blocked && hasSignal;
   return { ready, missing };
@@ -1020,20 +1140,11 @@ export const projectProgress = (project: Project | null) => {
     return { total: 0, done: 0, doneWithSignal: 0, doneWithoutSignal: 0, percent: 0 };
   }
   const understand = project.archetype === 'entender';
-  // Single O(n) pass: which ids have children (a decomposed parent is a
-  // container, resolved through its children — not a leaf to count).
-  const hasChildren = new Set<string>();
-  for (const n of Object.values(project.nodes)) {
-    if (n.parentId) hasChildren.add(n.parentId);
-  }
-  const leaves = Object.values(project.nodes).filter((n) => {
-    const leafKind =
-      n.kind === 'recurso' ||
-      n.kind === 'passo' ||
-      n.kind === 'decisao' ||
-      (understand && n.kind === 'concept');
-    return leafKind && !hasChildren.has(n.id);
-  });
+  // Progress counts the decomposition frontier: every actionable leaf in ANY
+  // archetype (a concept node the AI produced in a build project is still a
+  // part the user must understand or confirm — hiding it from progress let the
+  // tutor declare "done" with work pending).
+  const leaves = effectiveLeaves(project);
   const total = leaves.length;
   const resolved = leaves.filter((n) => n.confirmado || n.takenAsKnown);
   const done = resolved.length;
@@ -1049,69 +1160,39 @@ export const projectProgress = (project: Project | null) => {
 };
 
 /**
- * Next pending in tutor flow:
- *  1. First unconfirmed recurso (any).
- *  2. Otherwise first unconfirmed passo across Execução categorias, respecting
- *     sequencing within each categoria.
- *  3. null when everything is done.
+ * Next pending node for the tutor: depth-first over the tree in decomposition
+ * order — the first unresolved actionable leaf. Depth-first is the concept's
+ * core loop made literal: after decomposing a node, its parts come before the
+ * next sibling, so the user goes "down to the atom" before moving on.
+ * takenAsKnown subtrees are skipped entirely (the floor closed them).
  */
 export const nextPendingForTutor = (project: Project | null): ConceptNodeData | null => {
   if (!project) return null;
-  const nodes = Object.values(project.nodes);
-  // One O(n) pass: a node with children is a container, not a thing to act on.
-  const hasChildren = new Set<string>();
-  for (const n of nodes) if (n.parentId) hasChildren.add(n.parentId);
-  const pending = (n: ConceptNodeData) =>
-    !n.confirmado && !n.takenAsKnown && !hasChildren.has(n.id);
-
-  const unconfirmedRecurso = nodes.find((n) => n.kind === 'recurso' && pending(n));
-  if (unconfirmedRecurso) return unconfirmedRecurso;
-
-  // Understand projects: surface a terminal foundation concept to grasp next.
-  if (project.archetype === 'entender') {
-    const pendingConcept = nodes.find((n) => n.kind === 'concept' && pending(n));
-    if (pendingConcept) return pendingConcept;
-  }
-
-  // Group terminal passos by parent, pick first unconfirmed from each in order.
-  const passosByParent = new Map<string, ConceptNodeData[]>();
-  nodes
-    .filter((n) => n.kind === 'passo' && !hasChildren.has(n.id))
-    .forEach((n) => {
-      const arr = passosByParent.get(n.parentId!) ?? [];
-      arr.push(n);
-      passosByParent.set(n.parentId!, arr);
-    });
-
-  for (const [, arr] of passosByParent) {
-    arr.sort((a, b) => a.order - b.order);
-    const next = arr.find((p) => !p.confirmado && !p.takenAsKnown);
-    if (next) return next;
-  }
-
-  // Decisions are leaves too — surface any unresolved fork so the tutor doesn't
-  // show "done" while a decision is still open.
-  const unconfirmedDecisao = nodes.find((n) => n.kind === 'decisao' && pending(n));
-  if (unconfirmedDecisao) return unconfirmedDecisao;
-
-  return null;
+  const byParent = childrenByParent(project);
+  const walk = (id: string): ConceptNodeData | null => {
+    for (const child of byParent.get(id) ?? []) {
+      if (child.takenAsKnown) continue;
+      const kids = byParent.get(child.id);
+      if (kids && kids.length > 0) {
+        const found = walk(child.id);
+        if (found) return found;
+        continue;
+      }
+      if (ACTIONABLE_KINDS.has(child.kind) && !child.confirmado) return child;
+    }
+    return null;
+  };
+  return walk(project.rootId);
 };
 
 export const projectMetrics = (project: Project | null) => {
   if (!project) return null;
   const nodes = Object.values(project.nodes);
-  const confSum = nodes.reduce((a, n) => a + n.confidence, 0);
-  const avgConf = nodes.length ? Math.round(confSum / nodes.length) : 0;
-  const incomplete = nodes.filter((n) => n.state === 'concept' && n.confidence < 70).length;
   const atRisk = nodes.filter((n) => n.confidence < 40).length;
-  const progress = projectProgress(project);
   return {
     nodeCount: nodes.length,
-    edgeCount: Object.keys(project.edges).length,
-    avgConfidence: avgConf,
-    incomplete,
     atRisk,
-    progress,
+    progress: projectProgress(project),
   };
 };
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ConceptNodeData, GroundTruthKind, GroundTruthRef, Project } from '@/types';
-import { useGraphStore, breadcrumbFor, hintsToRefs } from '@/store';
+import { useGraphStore, breadcrumbFor, buildStagedNodes } from '@/store';
 import { useKBStore } from '@/kb/store';
 import { useT } from '@/i18n';
 import {
@@ -25,7 +25,14 @@ export function UserCriterionField({ node }: { node: ConceptNodeData }) {
   // before lock, so the user cannot copy it. Closes the attack-(a) bypass.
   const showAI = locked;
 
-  if (node.kind !== 'recurso' && node.kind !== 'passo' && node.kind !== 'decisao') {
+  // Every actionable leaf gets the criterion — including `concept`, where the
+  // criterion is "how would I know I truly understood this".
+  if (
+    node.kind !== 'recurso' &&
+    node.kind !== 'passo' &&
+    node.kind !== 'decisao' &&
+    node.kind !== 'concept'
+  ) {
     return null;
   }
 
@@ -89,7 +96,11 @@ export function UserCriterionField({ node }: { node: ConceptNodeData }) {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={2}
-              placeholder={tr.groundTruth.criterionPlaceholder}
+              placeholder={
+                node.kind === 'concept'
+                  ? tr.groundTruth.criterionPlaceholderUnderstand
+                  : tr.groundTruth.criterionPlaceholder
+              }
               className="w-full bg-bg-elevated border border-border-base rounded-sm px-2 py-1 text-xs resize-none focus:border-ai-accent outline-none"
             />
             <div className="mt-1">
@@ -556,32 +567,9 @@ export function FailureSection({
         kbContext,
       );
 
-      const basePos = node.position;
-      const spacing = 260;
-      const start = basePos.x - ((result.nodes.length - 1) * spacing) / 2;
-      const staged = result.nodes.map((n, i) => ({
-        tempId: n.tempId,
-        kind: n.kind,
-        name: n.name,
-        fx: n.fx,
-        problem: n.problem,
-        confidence: n.confidence,
-        confidenceSource: 'ai' as const,
-        confidenceReason: n.confidenceReason,
-        pros: n.pros,
-        cons: n.cons,
-        oQue: n.oQue,
-        porQue: n.porQue,
-        comoConfirmar: n.comoConfirmar,
-        confirmado: false,
-        order: n.order ?? i,
-        decisionOptions: n.decisionOptions,
-        groundTruthRefs: hintsToRefs(n.groundTruthHints),
-        state: 'concept' as const,
+      const staged = buildStagedNodes(node, result.nodes, {
         notes: tr.groundTruth.failureReplanNotes(node.failureContext ?? ''),
-        aiSuggested: true,
-        position: { x: start + i * spacing, y: basePos.y + 260 },
-      }));
+      });
       stageSuggestions(node.id, staged, result.edges);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

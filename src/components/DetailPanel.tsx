@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
-import { useGraphStore, breadcrumbFor, isBlocked, canConcludeNode, hintsToRefs } from '@/store';
+import {
+  useGraphStore,
+  breadcrumbFor,
+  buildStagedNodes,
+  confidenceBand,
+  isBlocked,
+  canConcludeNode,
+} from '@/store';
 import { decomposeNode, explainNode } from '@/ai/service';
 import { requireAI } from '@/ai/availability';
 import { useKBStore } from '@/kb/store';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useT } from '@/i18n';
-import type { NodeState, ConceptNodeData } from '@/types';
 import { ExplanationContent } from './TutorMode';
 import { MobileSheet } from './MobileSheet';
 import {
@@ -14,8 +20,6 @@ import {
   GroundTruthRefsList,
   FailureSection,
 } from './GroundTruth';
-
-const STATE_VALUES: NodeState[] = ['concept', 'validated', 'executing', 'done', 'problem', 'discarded'];
 
 export function DetailPanel() {
   const tr = useT();
@@ -93,36 +97,7 @@ export function DetailPanel() {
         },
         kbContext,
       );
-      const basePos = node.position;
-      const spacing = 260;
-      const start = basePos.x - ((result.nodes.length - 1) * spacing) / 2;
-      const staged = result.nodes.map((n, i) => {
-        const data: Omit<ConceptNodeData, 'id' | 'parentId' | 'history'> & { tempId: string } = {
-          tempId: n.tempId,
-          kind: n.kind,
-          name: n.name,
-          fx: n.fx,
-          problem: n.problem,
-          confidence: n.confidence,
-          confidenceSource: 'ai',
-          confidenceReason: n.confidenceReason,
-          pros: n.pros,
-          cons: n.cons,
-          oQue: n.oQue,
-          porQue: n.porQue,
-          comoConfirmar: n.comoConfirmar,
-          confirmado: false,
-          order: n.order ?? i,
-          decisionOptions: n.decisionOptions,
-          groundTruthRefs: hintsToRefs(n.groundTruthHints),
-          state: 'concept',
-          notes: '',
-          aiSuggested: true,
-          position: { x: start + i * spacing, y: basePos.y + 260 },
-        };
-        return data;
-      });
-      stageSuggestions(node.id, staged, result.edges);
+      stageSuggestions(node.id, buildStagedNodes(node, result.nodes), result.edges);
     } finally {
       setDecomposing(false);
     }
@@ -174,6 +149,8 @@ export function DetailPanel() {
           )}
           {node.state === 'done' ? (
             <span className="text-[10px] font-mono text-state-done ml-auto">{tr.detail.confirmed}</span>
+          ) : node.state === 'problem' ? (
+            <span className="text-[10px] font-mono text-state-problem ml-auto">{tr.detail.problemBadge}</span>
           ) : node.confirmado ? (
             <span className="text-[10px] font-mono text-conf-mid ml-auto">{tr.detail.confirmedNoSignal}</span>
           ) : node.takenAsKnown ? (
@@ -257,47 +234,37 @@ export function DetailPanel() {
           </section>
         )}
 
+        {/* Confidence is the AI's signal (value + source + reason), shown, not
+            edited — the user's truth enters through the four ground-truth
+            mechanisms, never by dragging a number. State is earned through the
+            confirm gate / failure report, never painted by hand. */}
         <section className="p-3 border-b border-border-base">
           <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
             {tr.detail.confidence}
+            {node.confidenceSource && (
+              <span className="ml-2 normal-case tracking-normal text-text-muted/80">
+                · {tr.detail.confidenceSourceLabel[node.confidenceSource]}
+              </span>
+            )}
           </label>
           <div className="flex items-center gap-2">
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={node.confidence}
-              onChange={(e) => updateNode(node.id, { confidence: Number(e.target.value) })}
-              className="flex-1 accent-ai-accent"
-            />
+            <div className="flex-1 h-1.5 bg-bg-elevated rounded-sm overflow-hidden border border-border-base">
+              <div
+                className={`h-full ${
+                  confidenceBand(node.confidence) === 'high'
+                    ? 'bg-conf-high'
+                    : confidenceBand(node.confidence) === 'mid'
+                    ? 'bg-conf-mid'
+                    : 'bg-conf-low'
+                }`}
+                style={{ width: `${node.confidence}%` }}
+              />
+            </div>
             <span className="font-mono text-sm w-12 text-right">{node.confidence}%</span>
           </div>
           {node.confidenceReason && (
             <div className="text-[11px] text-text-muted mt-1 italic">{node.confidenceReason}</div>
           )}
-        </section>
-
-        <section className="p-3 border-b border-border-base">
-          <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-            {tr.detail.state}
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-            {/* 'done' is gate-owned: it can only be earned through the confirm
-                flow (canConcludeNode), never set directly here. */}
-            {STATE_VALUES.filter((value) => value !== 'done').map((value) => (
-              <button
-                key={value}
-                onClick={() => updateNode(node.id, { state: value })}
-                className={`text-[10px] font-mono py-1.5 rounded-sm border transition-colors ${
-                  node.state === value
-                    ? 'bg-bg-elevated border-text-primary text-text-primary'
-                    : 'border-border-base text-text-muted hover:text-text-secondary hover:border-text-muted'
-                }`}
-              >
-                {tr.detail.states[value]}
-              </button>
-            ))}
-          </div>
         </section>
 
         <section className="p-3 border-b border-border-base">
