@@ -36,6 +36,12 @@ const edgeStyleByKind: Record<ConceptEdgeData['kind'], { stroke: string; strokeW
 
 const SUGGESTION_EDGE_STYLE = { stroke: '#8b5cf6', strokeWidth: 1.5, strokeDasharray: '3 3' };
 
+// Hierarchy (parent → part) is structure, not semantics — the tree already
+// lives in parentId. Rendering it as a subtle skeleton keeps the kind colors
+// (sequence, middleware, informational, optional) meaning something: without
+// this, nearly every edge in a project is a green "direct" and the legend lies.
+const DECOMPOSITION_EDGE_STYLE = { stroke: '#52525b', strokeWidth: 1.25 };
+
 const edgeTypes: EdgeTypes = {};
 
 const lensPositions = (
@@ -235,13 +241,18 @@ export function GraphCanvas() {
   const rfEdges: Edge[] = useMemo(() => {
     if (!project) return [];
     // Edge animation is a battery/jank cost on touch devices — static there.
-    const base: Edge[] = Object.values(project.edges).map((e) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      style: edgeStyleByKind[e.kind],
-      animated: !isMobile && e.kind === 'direct',
-    }));
+    const base: Edge[] = Object.values(project.edges).map((e) => {
+      // parent → child is decomposition structure; only non-hierarchy edges
+      // carry a semantic kind worth coloring (e.g. the passo N → N+1 chain).
+      const isHierarchy = project.nodes[e.target]?.parentId === e.source;
+      return {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        style: isHierarchy ? DECOMPOSITION_EDGE_STYLE : edgeStyleByKind[e.kind],
+        animated: !isMobile && !isHierarchy && e.kind === 'direct',
+      };
+    });
 
     if (pending) {
       pending.nodes.forEach((p) => {
@@ -362,6 +373,7 @@ function Swatch({ stroke, dash, width = 2 }: { stroke: string; dash?: string; wi
 function EdgeLegend({ tr }: { tr: Messages }) {
   const [open, setOpen] = useState(false);
   const rows: Array<{ label: string; stroke: string; dash?: string; width?: number }> = [
+    { label: tr.graph.legendDecomposition, stroke: DECOMPOSITION_EDGE_STYLE.stroke, width: 1.25 },
     { label: tr.graph.legendDirect, stroke: edgeStyleByKind.direct.stroke, width: 2.5 },
     { label: tr.graph.legendMiddleware, stroke: edgeStyleByKind.middleware.stroke, dash: edgeStyleByKind.middleware.strokeDasharray },
     { label: tr.graph.legendIndependent, stroke: edgeStyleByKind.independent.stroke, dash: edgeStyleByKind.independent.strokeDasharray },
