@@ -42,12 +42,15 @@ export function DetailPanel() {
   const [explanationOpen, setExplanationOpen] = useState(false);
 
   const isMobile = useIsMobile();
+  const selectionVersion = useGraphStore((s) => s.selectionVersion);
   const [drawerDismissed, setDrawerDismissed] = useState(false);
   const [confirmingNoSignal, setConfirmingNoSignal] = useState(false);
+  // selectionVersion bumps on every selectNode — so tapping the SAME node
+  // again on mobile re-opens a sheet the user had swiped away.
   useEffect(() => {
     setDrawerDismissed(false);
     setConfirmingNoSignal(false);
-  }, [selectedId]);
+  }, [selectedId, selectionVersion]);
 
   if (!project || !selectedId) {
     return (

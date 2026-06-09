@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useGraphStore, projectProgress, nextPendingForTutor, isBlocked } from './store';
+import {
+  useGraphStore,
+  projectProgress,
+  nextPendingForTutor,
+  isBlocked,
+  computeTreeLayout,
+} from './store';
 import type { AIPlan, ConceptNodeData } from './types';
 
 const minimalPlan: AIPlan = {
@@ -428,5 +434,35 @@ describe('tree-faithful selectors — the tutor follows the decomposition', () =
     expect(progress.done).toBe(1); // …and counts as resolved
     // The tutor skips the closed subtree entirely.
     expect(nextPendingForTutor(useGraphStore.getState().project)?.name).toBe('passo 2');
+  });
+
+  it('computeTreeLayout: depth maps to y, siblings keep order without overlap, parent is centered', () => {
+    const project = useGraphStore.getState().project!;
+    const pos = computeTreeLayout(project);
+    const root = project.nodes[project.rootId];
+    const cat = Object.values(project.nodes).find((n) => n.kind === 'categoria')!;
+    const [p1, p2, p3] = passosOrdered();
+
+    expect(pos[root.id]).toEqual({ x: 0, y: 0 });
+    expect(pos[cat.id].y).toBeGreaterThan(pos[root.id].y);
+    expect(pos[p1.id].y).toBeGreaterThan(pos[cat.id].y);
+
+    // Sibling order preserved with clearance for the widest node card (300px).
+    expect(pos[p1.id].x).toBeLessThan(pos[p2.id].x);
+    expect(pos[p2.id].x).toBeLessThan(pos[p3.id].x);
+    expect(pos[p2.id].x - pos[p1.id].x).toBeGreaterThanOrEqual(300);
+
+    // Single-child chains stack straight; a parent sits centered over its kids.
+    expect(pos[cat.id].x).toBeCloseTo((pos[p1.id].x + pos[p3.id].x) / 2, 5);
+  });
+
+  it('applyLayoutPositions repositions every known node in one shot', () => {
+    const project = useGraphStore.getState().project!;
+    const pos = computeTreeLayout(project);
+    useGraphStore.getState().applyLayoutPositions(pos);
+    const after = useGraphStore.getState().project!;
+    for (const [id, p] of Object.entries(pos)) {
+      expect(after.nodes[id].position).toEqual(p);
+    }
   });
 });

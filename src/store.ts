@@ -23,6 +23,9 @@ type ViewMode = 'graph' | 'tutor';
 interface GraphState {
   project: Project | null;
   selectedNodeId: string | null;
+  // Bumped on every selectNode call (even for the same id) so surfaces like
+  // the mobile detail sheet can re-open when the user taps the node again.
+  selectionVersion: number;
   focusedParentId: string | null;
   lens: Lens;
   viewMode: ViewMode;
@@ -47,6 +50,7 @@ interface GraphState {
   setViewMode: (mode: ViewMode) => void;
   updateNode: (id: string, patch: Partial<ConceptNodeData>) => void;
   updateNodePosition: (id: string, pos: { x: number; y: number }) => void;
+  applyLayoutPositions: (positions: Record<string, { x: number; y: number }>) => void;
   deleteNode: (id: string) => void;
   addManualHistory: (id: string, message: string) => void;
 
@@ -206,6 +210,7 @@ export const useGraphStore = create<GraphState>()(
     (set, get) => ({
       project: null,
       selectedNodeId: null,
+      selectionVersion: 0,
       focusedParentId: null,
       lens: 'structure',
       viewMode: 'tutor',
@@ -348,7 +353,8 @@ export const useGraphStore = create<GraphState>()(
         });
       },
 
-      selectNode: (id) => set({ selectedNodeId: id }),
+      selectNode: (id) =>
+        set((s) => ({ selectedNodeId: id, selectionVersion: s.selectionVersion + 1 })),
       focusNode: (id) => set({ focusedParentId: id }),
       setLens: (lens) => set({ lens }),
       setViewMode: (mode) => set({ viewMode: mode }),
@@ -392,6 +398,20 @@ export const useGraphStore = create<GraphState>()(
               nodes: { ...state.project.nodes, [id]: { ...prev, position: pos } },
             },
           };
+        }),
+
+      // One-shot bulk reposition (auto-layout). Single set, no history spam —
+      // positions are presentation, not decisions worth auditing.
+      applyLayoutPositions: (positions) =>
+        set((state) => {
+          if (!state.project) return state;
+          const nodes = { ...state.project.nodes };
+          for (const [id, pos] of Object.entries(positions)) {
+            const prev = nodes[id];
+            if (!prev) continue;
+            nodes[id] = { ...prev, position: pos };
+          }
+          return { project: { ...state.project, updatedAt: now(), nodes } };
         }),
 
       deleteNode: (id) =>
@@ -1065,6 +1085,45 @@ export const effectiveLeavesUnder = (
 
 export const effectiveLeaves = (project: Project): ConceptNodeData[] =>
   effectiveLeavesUnder(project, project.rootId);
+
+// ---------------------------------------------------------------------------
+// Auto-layout — tidy tree over the decomposition. Children spread under their
+// parent in sibling order, each subtree gets a horizontal slot proportional to
+// its leaf count, parents sit centered over their slot, depth maps to y.
+// World units sized for the widest node card (300px) plus breathing room.
+// ---------------------------------------------------------------------------
+
+const LAYOUT_X_GAP = 340;
+const LAYOUT_Y_GAP = 300;
+
+export function computeTreeLayout(project: Project): Record<string, { x: number; y: number }> {
+  const byParent = childrenByParent(project);
+  const widths = new Map<string, number>(); // subtree width in leaf slots
+  const widthOf = (id: string): number => {
+    const cached = widths.get(id);
+    if (cached !== undefined) return cached;
+    const kids = byParent.get(id) ?? [];
+    const w = kids.length === 0 ? 1 : kids.reduce((acc, k) => acc + widthOf(k.id), 0);
+    widths.set(id, w);
+    return w;
+  };
+
+  const positions: Record<string, { x: number; y: number }> = {};
+  const place = (id: string, depth: number, left: number) => {
+    positions[id] = { x: (left + widthOf(id) / 2) * LAYOUT_X_GAP, y: depth * LAYOUT_Y_GAP };
+    let cursor = left;
+    for (const kid of byParent.get(id) ?? []) {
+      place(kid.id, depth + 1, cursor);
+      cursor += widthOf(kid.id);
+    }
+  };
+  place(project.rootId, 0, 0);
+
+  // Keep the root at x=0 so the layout is stable regardless of tree size.
+  const shift = positions[project.rootId]?.x ?? 0;
+  for (const pos of Object.values(positions)) pos.x -= shift;
+  return positions;
+}
 
 /**
  * A node is resolved when reality (or the user) closed it: a leaf via

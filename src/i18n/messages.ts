@@ -218,6 +218,16 @@ export const en = {
     sheetFallbackTitle: 'Node details',
     locale: 'en-US',
   },
+  graph: {
+    tidy: '✥ Tidy tree',
+    tidyTitle: 'Recompute positions as a clean tree (you can still drag after)',
+    legend: 'Legend',
+    legendDirect: 'direct sequence',
+    legendMiddleware: 'influence via intermediary',
+    legendIndependent: 'informational link',
+    legendOptional: 'alternative path',
+    legendSuggestion: 'pending AI suggestion',
+  },
   conceptNode: {
     root: 'OBJECTIVE',
     categoria: 'CATEGORY',
@@ -603,6 +613,16 @@ export const ptBR: Messages = {
     viewExplain: 'Ver explicação detalhada',
     sheetFallbackTitle: 'Detalhes do nó',
     locale: 'pt-BR',
+  },
+  graph: {
+    tidy: '✥ Organizar árvore',
+    tidyTitle: 'Recalcula as posições como uma árvore limpa (dá pra arrastar depois)',
+    legend: 'Legenda',
+    legendDirect: 'sequência direta',
+    legendMiddleware: 'influência via intermediário',
+    legendIndependent: 'ligação informativa',
+    legendOptional: 'caminho alternativo',
+    legendSuggestion: 'sugestão AI pendente',
   },
   conceptNode: {
     root: 'OBJETIVO',
