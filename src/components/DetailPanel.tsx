@@ -36,8 +36,12 @@ export function DetailPanel() {
   const setNodeExplanation = useGraphStore((s) => s.setNodeExplanation);
   const pending = useGraphStore((s) => s.pendingSuggestions);
 
+  const addRule = useGraphStore((s) => s.addRule);
+  const removeRule = useGraphStore((s) => s.removeRule);
+
   const [decomposing, setDecomposing] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
+  const [ruleDraft, setRuleDraft] = useState('');
   const [explaining, setExplaining] = useState(false);
   const [explanationOpen, setExplanationOpen] = useState(false);
 
@@ -97,6 +101,7 @@ export function DetailPanel() {
           siblings,
           strategy: project.constructionStrategy,
           archetype: project.archetype,
+          rules: project.rules,
         },
         kbContext,
       );
@@ -123,6 +128,7 @@ export function DetailPanel() {
         oQue: node.oQue,
         porQue: node.porQue,
         comoConfirmar: node.comoConfirmar,
+        rules: project.rules,
       });
       setNodeExplanation(node.id, text);
       setExplanationOpen(true);
@@ -180,6 +186,64 @@ export function DetailPanel() {
             onChange={(v) => updateNode(node.id, { porQue: v })}
           />
         </section>
+
+        {/* Rules live on the project (the root) — hard boundaries the AI
+            treats as the challenge in every plan/decompose/replan/critique. */}
+        {node.kind === 'root' && (
+          <section className="p-3 border-b border-border-base">
+            <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted mb-2">
+              ⛓ {tr.detail.rulesLabel}
+            </label>
+            {(project.rules ?? []).length === 0 && (
+              <div className="text-[11px] text-text-muted italic mb-2">{tr.detail.rulesEmpty}</div>
+            )}
+            {(project.rules ?? []).length > 0 && (
+              <div className="flex gap-1.5 flex-wrap mb-2">
+                {project.rules!.map((r) => (
+                  <span
+                    key={r}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-1 rounded-sm bg-ai-accent/5 text-text-secondary border border-ai-accent/30"
+                  >
+                    {r}
+                    <button
+                      onClick={() => removeRule(r)}
+                      className="text-text-muted hover:text-state-problem transition-colors"
+                      aria-label={tr.common.remove}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-1">
+              <input
+                value={ruleDraft}
+                onChange={(e) => setRuleDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && ruleDraft.trim()) {
+                    addRule(ruleDraft);
+                    setRuleDraft('');
+                  }
+                }}
+                placeholder={tr.detail.rulesAddPlaceholder}
+                className="flex-1 bg-bg-elevated border border-border-base rounded-sm px-2 py-1 text-[11px] focus:border-ai-accent outline-none"
+              />
+              <button
+                onClick={() => {
+                  if (ruleDraft.trim()) {
+                    addRule(ruleDraft);
+                    setRuleDraft('');
+                  }
+                }}
+                disabled={!ruleDraft.trim()}
+                className="px-2 bg-bg-elevated border border-border-base rounded-sm text-[11px] hover:border-text-muted disabled:opacity-40"
+              >
+                +
+              </button>
+            </div>
+          </section>
+        )}
 
         <UserCriterionField node={node} />
         <GroundTruthRefsList node={node} />

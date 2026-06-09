@@ -12,6 +12,8 @@ export function ObjectiveScreen() {
   const tr = useT();
   const [name, setName] = useState('');
   const [objective, setObjective] = useState('');
+  const [rules, setRules] = useState<string[]>([]);
+  const [ruleDraft, setRuleDraft] = useState('');
   const [plans, setPlans] = useState<AIPlan[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -25,6 +27,13 @@ export function ObjectiveScreen() {
   const createProjectFromPlan = useGraphStore((s) => s.createProjectFromPlan);
   const kbCount = useKBStore((s) => Object.keys(s.docs).length);
   const getContextFor = useKBStore((s) => s.getContextFor);
+
+  const addRule = () => {
+    const trimmed = ruleDraft.trim();
+    if (!trimmed || rules.includes(trimmed)) return;
+    setRules((r) => [...r, trimmed]);
+    setRuleDraft('');
+  };
 
   const handleGenerate = async () => {
     if (!objective.trim()) return;
@@ -43,6 +52,7 @@ export function ObjectiveScreen() {
         objective.trim(),
         (ev) => setProgress(ev),
         kbContext,
+        rules,
       );
       setPlans(generated);
       // Do NOT auto-select — the user must consciously choose a construction
@@ -59,7 +69,7 @@ export function ObjectiveScreen() {
     if (!plans || !selectedId) return;
     const plan = plans.find((p) => p.id === selectedId);
     if (!plan) return;
-    createProjectFromPlan(objective.trim(), name.trim() || 'Project', plan);
+    createProjectFromPlan(objective.trim(), name.trim() || 'Project', plan, rules);
   };
 
   return (
@@ -154,6 +164,53 @@ export function ObjectiveScreen() {
                   {tr.objective.exampleServer}
                 </button>
               </div>
+            </div>
+
+            {/* Rules = the challenge's hard boundaries. They condition every
+                plan, decomposition, replan, critique and explanation. */}
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-text-muted mb-1.5">
+                {tr.objective.rulesLabel}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  value={ruleDraft}
+                  onChange={(e) => setRuleDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addRule()}
+                  disabled={loading}
+                  placeholder={tr.objective.rulesPlaceholder}
+                  className="flex-1 bg-bg-secondary border border-border-base rounded-sm px-3 py-2 text-sm focus:border-ai-accent outline-none disabled:opacity-50"
+                />
+                <button
+                  onClick={addRule}
+                  disabled={loading || !ruleDraft.trim()}
+                  className="px-3 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors disabled:opacity-40"
+                >
+                  {tr.objective.rulesAddBtn}
+                </button>
+              </div>
+              {rules.length > 0 && (
+                <div className="mt-2 flex gap-1.5 flex-wrap">
+                  {rules.map((r) => (
+                    <span
+                      key={r}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-1 rounded-sm bg-ai-accent/5 text-text-secondary border border-ai-accent/30"
+                    >
+                      <span className="text-ai-accent">⛓</span>
+                      {r}
+                      <button
+                        onClick={() => setRules((rs) => rs.filter((x) => x !== r))}
+                        disabled={loading}
+                        className="text-text-muted hover:text-state-problem transition-colors"
+                        aria-label={tr.common.remove}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <p className="mt-1.5 text-[11px] text-text-muted">{tr.objective.rulesHint}</p>
             </div>
             <button
               onClick={handleGenerate}

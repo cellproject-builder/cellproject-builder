@@ -211,6 +211,7 @@ export function CritiqueSection({
         porQue: node.porQue,
         comoConfirmar: node.comoConfirmar,
         comoConfirmarUsuario: node.comoConfirmarUsuario,
+        rules: project.rules,
       });
       setCritica(node.id, result);
     } catch (e) {
@@ -563,6 +564,7 @@ export function FailureSection({
           siblings,
           strategy: project.constructionStrategy,
           archetype: project.archetype,
+          rules: project.rules,
         },
         kbContext,
       );

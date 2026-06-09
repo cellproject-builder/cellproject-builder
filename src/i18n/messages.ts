@@ -103,6 +103,11 @@ export const en = {
     exampleServerName: 'Home Linux server',
     exampleServerObjective:
       'spin up an Ubuntu Server 24.04 box with SSH key-only auth, UFW firewall and Nextcloud running in Docker accessible on the LAN',
+    rulesLabel: 'Rules / constraints (optional)',
+    rulesPlaceholder: 'e.g. max budget R$300 · no welding · done in 2 weekends',
+    rulesAddBtn: '+ add',
+    rulesHint:
+      'Each rule is a hard boundary — the AI takes it as the challenge: every plan, decomposition and replan must win inside it.',
     generate: '◆ Generate plans with AI',
     generating: (phase: string, elapsed: string) =>
       `Generating plans — ${phase} ${elapsed}`,
@@ -133,6 +138,8 @@ export const en = {
   tutor: {
     modeKicker: '◆ Tutor Mode',
     focusHint: 'One part at a time: confirm it, or break it down until you can.',
+    rulesLabel: 'Rules',
+    rulesTitle: 'Challenge rule — every part must comply',
     confirmedOf: (done: number, total: number) => `${done}/${total} confirmed`,
     nextBadge: 'next pending',
     jumpToNext: (name: string) => `→ next pending: ${name}`,
@@ -194,6 +201,10 @@ export const en = {
       ai: 'AI estimate',
     },
     problemBadge: '⚠ problem',
+    rulesLabel: 'Challenge rules',
+    rulesEmpty:
+      'No rules. Add hard constraints (budget, materials, deadline) and the AI takes them as the challenge.',
+    rulesAddPlaceholder: 'new rule…',
     notes: 'Notes',
     notesPlaceholder: 'Free context, references…',
     historyLabel: (n: number) => `History (${n})`,
@@ -377,6 +388,8 @@ export const en = {
     suggestionAcceptedBatch: 'AI suggestion accepted (batch)',
     missingBlocked: 'confirm the previous steps first',
     missingSignal: 'attest the criterion as met, or verify a real anchor',
+    ruleAdded: (r: string) => `Rule added: "${r}"`,
+    ruleRemoved: (r: string) => `Rule removed: "${r}"`,
   },
   notify: {
     objectivePromptLabel: (objective: string) => `Objective: ${objective}`,
@@ -497,6 +510,11 @@ export const ptBR: Messages = {
     exampleServerName: 'Servidor Linux local',
     exampleServerObjective:
       'subir um Ubuntu Server 24.04 com SSH só por chave pública, firewall UFW e Nextcloud rodando em Docker acessível na LAN',
+    rulesLabel: 'Regras / limitações (opcional)',
+    rulesPlaceholder: 'ex: orçamento máximo R$300 · sem solda · pronto em 2 fins de semana',
+    rulesAddBtn: '+ adicionar',
+    rulesHint:
+      'Cada regra é um limite duro — a IA encara como desafio: todo plano, decomposição e replanejamento tem que vencer dentro dela.',
     generate: '◆ Gerar planos com AI',
     generating: (phase: string, elapsed: string) =>
       `Gerando planos — ${phase} ${elapsed}`,
@@ -529,6 +547,8 @@ export const ptBR: Messages = {
     modeKicker: '◆ Modo Tutor',
     focusHint:
       'Uma parte por vez: confirme, ou decomponha até conseguir confirmar.',
+    rulesLabel: 'Regras',
+    rulesTitle: 'Regra do desafio — toda parte precisa respeitar',
     confirmedOf: (done: number, total: number) =>
       `${done}/${total} confirmados`,
     nextBadge: 'próximo pendente',
@@ -591,6 +611,10 @@ export const ptBR: Messages = {
       ai: 'estimativa da IA',
     },
     problemBadge: '⚠ problema',
+    rulesLabel: 'Regras do desafio',
+    rulesEmpty:
+      'Sem regras. Adicione limites duros (orçamento, materiais, prazo) e a IA encara como desafio.',
+    rulesAddPlaceholder: 'nova regra…',
     notes: 'Notas',
     notesPlaceholder: 'Contexto livre, referências…',
     historyLabel: (n: number) => `Histórico (${n})`,
@@ -772,6 +796,8 @@ export const ptBR: Messages = {
     suggestionAcceptedBatch: 'Sugestão AI aceita (lote)',
     missingBlocked: 'confirme os passos anteriores primeiro',
     missingSignal: 'afira que o critério foi atendido, ou verifique uma âncora real',
+    ruleAdded: (r: string) => `Regra adicionada: "${r}"`,
+    ruleRemoved: (r: string) => `Regra removida: "${r}"`,
   },
   notify: {
     objectivePromptLabel: (objective: string) => `Objetivo: ${objective}`,

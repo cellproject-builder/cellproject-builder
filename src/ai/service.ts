@@ -63,6 +63,7 @@ interface DecomposeContext {
   siblings: { name: string; fx: string }[];
   strategy?: ConstructionStrategy;
   archetype?: ProjectArchetype;
+  rules?: string[];
 }
 
 interface ExplainContext {
@@ -74,6 +75,7 @@ interface ExplainContext {
   oQue: string;
   porQue: string;
   comoConfirmar: string;
+  rules?: string[];
 }
 
 interface CritiqueContext {
@@ -87,6 +89,7 @@ interface CritiqueContext {
   porQue: string;
   comoConfirmar: string;
   comoConfirmarUsuario?: string;
+  rules?: string[];
 }
 
 interface ReplanContext {
@@ -101,6 +104,7 @@ interface ReplanContext {
   siblings: { name: string; fx: string }[];
   strategy?: ConstructionStrategy;
   archetype?: ProjectArchetype;
+  rules?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -224,6 +228,22 @@ function formatSiblings(siblings: { name: string; fx: string }[]) {
   return siblings.map((s) => `- ${s.name} — ${s.fx}`).join('\n');
 }
 
+// User rules are the project's CHALLENGE: hard boundaries every output must
+// win inside. Injected into every planning/critique/explain prompt so no part
+// of the scope can quietly drift outside them.
+function formatRules(rules?: string[]): string {
+  if (!rules || rules.length === 0) return '';
+  const list = rules.map((r) => `- ${r}`).join('\n');
+  return `
+
+USER RULES — HARD CONSTRAINTS (the user set these as the challenge)
+${list}
+These are non-negotiable boundaries, not preferences. Treat them as a design challenge: the best solution is the one that WINS INSIDE them.
+- EVERY node you propose must comply with EVERY rule. Make compliance concrete and verifiable (real numbers, prices, sources, dates) — never optimistic hand-waving.
+- Quantitative rules (budget, weight, deadline, size): allocate explicitly across resources/steps — state the estimated cost/measure in each node's oQue and add a groundTruthHint (kind="medida") so the user can check it in the real world — and keep the running TOTAL inside the rule with safety margin.
+- If part of the goal cannot fit a rule, do NOT silently violate it: surface the conflict in that node's cons and propose the closest compliant alternative.`;
+}
+
 // Builds the KNOWLEDGE BASE block injected at the start of user prompts.
 // Compact on purpose: at most 2 docs, summary as short bullets + up to 5 facts.
 // If kbContext is empty/missing this returns an empty string and the prompt
@@ -252,6 +272,7 @@ export async function generatePlans(
   objective: string,
   onProgress?: PlanProgressCallback,
   kbContext?: KBContextEntry[],
+  rules?: string[],
 ): Promise<AIPlan[]> {
   assertAIReady();
 
@@ -259,6 +280,7 @@ export async function generatePlans(
 """
 ${objective.trim()}
 """
+${formatRules(rules)}
 ${formatKBContext(kbContext)}
 
 TASK
@@ -269,7 +291,7 @@ First, classify the goal's ARCHETYPE and tag EVERY plan with it (all plans share
 Then generate 1 to 3 plans, each tagged with a 'strategy':
 - For "construir": "reaproveitar" (reuse/adapt what already exists — the recommended default) · "hibrido" · "do_zero" (build from scratch).
 - For "entender": "reaproveitar" (lean on existing explanations — books, courses, worked derivations) · "do_zero" (derive it yourself from first principles) · "hibrido" (mix). Use the SAME enum values.
-The user picks the strategy by choosing a plan, so each 'approach' must state clearly HOW (reuse-vs-build, or read-vs-derive). Don't force variants that don't fit — 1 plan is fine if only one makes sense.
+The user picks the strategy by choosing a plan, so each 'approach' must state clearly HOW (reuse-vs-build, or read-vs-derive). Don't force variants that don't fit — 1 plan is fine if only one makes sense.${rules && rules.length > 0 ? `\nWhen USER RULES exist, every plan's 'approach' must state explicitly HOW it satisfies each rule (e.g. a budget rule → a rough cost breakdown that closes under the cap).` : ''}
 
 Shape the tree by archetype (2 or 3 categories):
 - "construir": "Recursos" (kind "recursos") · "Execução" (kind "execucao", sequential passos with 'order' from 1) · "Decisões" (kind "decisoes") ONLY on a real trade-off — its children include 'decisionOptions' (2 or 3).
@@ -419,7 +441,7 @@ export async function decomposeNode(
   const userPrompt = `PROJECT CONTEXT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
-- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${archetypeDirective(ctx.archetype)}${strategyDirective(ctx.strategy)}
+- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${archetypeDirective(ctx.archetype)}${strategyDirective(ctx.strategy)}${formatRules(ctx.rules)}
 
 NODE TO DECOMPOSE
 - Name: ${ctx.nodeName}
@@ -529,7 +551,7 @@ export async function explainNode(ctx: ExplainContext): Promise<string> {
   const userPrompt = `PROJECT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
-- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}
+- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${formatRules(ctx.rules)}
 
 NODE
 - Name: ${ctx.nodeName}
@@ -538,7 +560,7 @@ NODE
 - Why it matters: ${ctx.porQue}
 - Confirmation criterion: ${ctx.comoConfirmar}
 
-Generate the full markdown explanation following the structure above. Focus on letting the user execute this node alone.`;
+Generate the full markdown explanation following the structure above. Focus on letting the user execute this node alone.${ctx.rules && ctx.rules.length > 0 ? ' Every instruction, material and number you give must stay inside the USER RULES above — call out explicitly when a rule shapes a choice.' : ''}`;
 
   const { text } = await generateText({
     model: aiModel,
@@ -562,7 +584,7 @@ export async function critiqueNode(ctx: CritiqueContext): Promise<AdversarialCri
   const userPrompt = `PROJECT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
-- Path: ${formatBreadcrumb(ctx.breadcrumb)}
+- Path: ${formatBreadcrumb(ctx.breadcrumb)}${formatRules(ctx.rules)}
 
 NODE TO CRITIQUE
 - Name: ${ctx.nodeName}
@@ -574,7 +596,7 @@ NODE TO CRITIQUE
 ${ctx.comoConfirmarUsuario ? `- User-written criterion: ${ctx.comoConfirmarUsuario}` : '- The user has not written a criterion yet.'}
 
 TASK
-Point out weaknesses, hidden assumptions, and propose an INDEPENDENT alternative criterion that a skeptic would use.`;
+Point out weaknesses, hidden assumptions, and propose an INDEPENDENT alternative criterion that a skeptic would use.${ctx.rules && ctx.rules.length > 0 ? ' Attack RULE COMPLIANCE first: where would this node blow the user rules in practice (real prices, real weights, real deadlines)? An optimistic estimate that busts a rule is a weakness.' : ''}`;
 
   const { object } = await generateObject({
     model: aiModel,
@@ -608,7 +630,7 @@ export async function replanFromFailure(
   const userPrompt = `PROJECT CONTEXT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
-- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${archetypeDirective(ctx.archetype)}${strategyDirective(ctx.strategy)}
+- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${archetypeDirective(ctx.archetype)}${strategyDirective(ctx.strategy)}${formatRules(ctx.rules)}
 
 NODE THAT FAILED IN PRACTICE
 - Name: ${ctx.nodeName}

@@ -169,6 +169,10 @@ export interface Project {
   nodes: Record<string, ConceptNodeData>;
   edges: Record<string, ConceptEdgeData>;
   rootId: string;
+  // User-written rules/constraints ("max budget R$300", "no welding", …).
+  // Hard boundaries treated as the project's CHALLENGE: every plan,
+  // decomposition, replan, critique and explanation must win inside them.
+  rules?: string[];
   // The construction strategy the user picked at plan selection (optional for
   // back-compat with projects created before this existed).
   constructionStrategy?: ConstructionStrategy;

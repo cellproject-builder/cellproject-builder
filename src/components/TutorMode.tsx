@@ -105,6 +105,23 @@ export function TutorMode() {
               </button>
             </div>
           </div>
+          {project.rules && project.rules.length > 0 && (
+            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+              <span className="text-[9px] font-mono uppercase tracking-wider text-text-muted">
+                {tr.tutor.rulesLabel}
+              </span>
+              {project.rules.map((r) => (
+                <span
+                  key={r}
+                  className="text-[10px] font-mono px-1.5 py-0.5 rounded-[2px] bg-ai-accent/5 text-text-secondary border border-ai-accent/30"
+                  title={tr.tutor.rulesTitle}
+                >
+                  <span className="text-ai-accent mr-1">⛓</span>
+                  {r}
+                </span>
+              ))}
+            </div>
+          )}
           <ProgressBar
             percent={progress.percent}
             done={progress.done}
@@ -278,6 +295,7 @@ function TutorCard({ node, project, isNext, next, tr }: TutorCardProps) {
         oQue: node.oQue,
         porQue: node.porQue,
         comoConfirmar: node.comoConfirmar,
+        rules: project.rules,
       });
       setNodeExplanation(node.id, text);
       setOpen(true);
@@ -312,6 +330,7 @@ function TutorCard({ node, project, isNext, next, tr }: TutorCardProps) {
           siblings,
           strategy: project.constructionStrategy,
           archetype: project.archetype,
+          rules: project.rules,
         },
         kbContext,
       );

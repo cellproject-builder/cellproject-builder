@@ -466,3 +466,40 @@ describe('tree-faithful selectors — the tutor follows the decomposition', () =
     }
   });
 });
+
+describe('project rules — hard constraints carried by the project', () => {
+  beforeEach(() => {
+    useGraphStore.getState().resetProject();
+  });
+
+  it('createProjectFromPlan persists trimmed rules; empty list stays undefined', () => {
+    useGraphStore
+      .getState()
+      .createProjectFromPlan('obj', 'R', minimalPlan, ['  orçamento máximo R$300  ', '', 'sem solda']);
+    expect(useGraphStore.getState().project!.rules).toEqual([
+      'orçamento máximo R$300',
+      'sem solda',
+    ]);
+
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().createProjectFromPlan('obj', 'R2', minimalPlan, []);
+    expect(useGraphStore.getState().project!.rules).toBeUndefined();
+  });
+
+  it('addRule/removeRule manage rules with an audit entry on the root', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'R', minimalPlan);
+    const { addRule, removeRule } = useGraphStore.getState();
+
+    addRule('  prazo: 2 fins de semana  ');
+    addRule('prazo: 2 fins de semana'); // duplicate → ignored
+    let project = useGraphStore.getState().project!;
+    expect(project.rules).toEqual(['prazo: 2 fins de semana']);
+
+    removeRule('prazo: 2 fins de semana');
+    project = useGraphStore.getState().project!;
+    expect(project.rules).toBeUndefined(); // last rule removed → undefined again
+
+    const rootHistory = project.nodes[project.rootId].history.map((h) => h.message);
+    expect(rootHistory.some((m) => m.includes('prazo: 2 fins de semana'))).toBe(true);
+  });
+});

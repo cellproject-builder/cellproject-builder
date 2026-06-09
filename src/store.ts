@@ -42,8 +42,10 @@ interface GraphState {
     acceptedMap?: Record<string, string>;
   } | null;
 
-  createProjectFromPlan: (objective: string, name: string, plan: AIPlan) => void;
+  createProjectFromPlan: (objective: string, name: string, plan: AIPlan, rules?: string[]) => void;
   loadDemoProject: () => void;
+  addRule: (text: string) => void;
+  removeRule: (text: string) => void;
   selectNode: (id: string | null) => void;
   focusNode: (id: string | null) => void;
   setLens: (lens: Lens) => void;
@@ -216,8 +218,9 @@ export const useGraphStore = create<GraphState>()(
       viewMode: 'tutor',
       pendingSuggestions: null,
 
-      createProjectFromPlan: (objective, name, plan) => {
+      createProjectFromPlan: (objective, name, plan, rules) => {
         const tr = t();
+        const cleanRules = (rules ?? []).map((r) => r.trim()).filter(Boolean);
         const rootId = nanoid(10);
         const root: ConceptNodeData = {
           id: rootId,
@@ -328,6 +331,7 @@ export const useGraphStore = create<GraphState>()(
           nodes,
           edges,
           rootId,
+          rules: cleanRules.length > 0 ? cleanRules : undefined,
           constructionStrategy: plan.strategy,
           archetype: plan.archetype,
         };
@@ -352,6 +356,47 @@ export const useGraphStore = create<GraphState>()(
           viewMode: 'graph',
         });
       },
+
+      // Rules are the project's challenge boundaries — managed on the project,
+      // audited on the root node's history.
+      addRule: (text) =>
+        set((state) => {
+          if (!state.project) return state;
+          const trimmed = text.trim();
+          if (!trimmed) return state;
+          const rules = state.project.rules ?? [];
+          if (rules.includes(trimmed)) return state;
+          const root = state.project.nodes[state.project.rootId];
+          const nextRoot = root ? addHistory(root, 'manual', t().store.ruleAdded(trimmed)) : root;
+          return {
+            project: {
+              ...state.project,
+              updatedAt: now(),
+              rules: [...rules, trimmed],
+              nodes: nextRoot
+                ? { ...state.project.nodes, [nextRoot.id]: nextRoot }
+                : state.project.nodes,
+            },
+          };
+        }),
+
+      removeRule: (text) =>
+        set((state) => {
+          if (!state.project || !state.project.rules?.includes(text)) return state;
+          const rules = state.project.rules.filter((r) => r !== text);
+          const root = state.project.nodes[state.project.rootId];
+          const nextRoot = root ? addHistory(root, 'manual', t().store.ruleRemoved(text)) : root;
+          return {
+            project: {
+              ...state.project,
+              updatedAt: now(),
+              rules: rules.length > 0 ? rules : undefined,
+              nodes: nextRoot
+                ? { ...state.project.nodes, [nextRoot.id]: nextRoot }
+                : state.project.nodes,
+            },
+          };
+        }),
 
       selectNode: (id) =>
         set((s) => ({ selectedNodeId: id, selectionVersion: s.selectionVersion + 1 })),
