@@ -28,6 +28,9 @@ export default function App() {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return;
+      // Superfície modal aberta (modo leitura, sheet mobile): atalhos de uma
+      // letra trocariam a view e desmontariam o overlay no meio da leitura.
+      if (document.querySelector('[aria-modal="true"]')) return;
       if (e.key === 't') setViewMode('tutor');
       else if (e.key === 'g') setViewMode('graph');
       else if (e.key === '1') setLens('structure');

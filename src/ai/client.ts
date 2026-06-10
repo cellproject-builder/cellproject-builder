@@ -57,12 +57,19 @@ function buildModels(provider: Provider, cfg: ProviderConfig): ResolvedModels {
     appUrl: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173',
   });
   return {
-    main: client.chat(cfg.mainModel),
-    kb: client.chat(cfg.kbModel),
+    main: client.chat(cfg.mainModel, openrouterSettings(cfg.mainModel)),
+    kb: client.chat(cfg.kbModel, openrouterSettings(cfg.kbModel)),
     mainId: cfg.mainModel,
     kbId: cfg.kbModel,
     provider,
   };
+}
+
+// "Grok 4.3 high" = modelo x-ai/grok-4.3 + reasoning effort "high" — no
+// OpenRouter o effort vai no corpo da request, não no id do modelo. Restrito
+// aos grok: outros modelos podem rejeitar o parâmetro de reasoning.
+function openrouterSettings(modelId: string): { reasoning?: { effort: 'high' } } {
+  return /(^|\/)grok-/i.test(modelId) ? { reasoning: { effort: 'high' } } : {};
 }
 
 function resolve(): ResolvedModels {

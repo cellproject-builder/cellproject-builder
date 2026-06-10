@@ -81,7 +81,11 @@ export const PlanCategorySchema = z.object({
   kind: CategoryKindSchema,
   oQue: z.string(),
   porQue: z.string(),
-  children: z.array(SuggestedNodeSchema).describe('Nós filhos diretos desta categoria.'),
+  children: z
+    .array(SuggestedNodeSchema)
+    .describe(
+      'Nós filhos diretos desta categoria. COMPLETO: em "recursos", um nó por subsistema/pré-requisito de que o resultado depende pra FUNCIONAR (ex., num build eletrônico: estrutura, atuação, placa de controle, energia, comando, fiação/solda, software; num objetivo de entender: um conceito por premissa de que a conclusão depende) — tipicamente 5–8; em "execucao", passos até um resultado funcionando e testado — incluindo, quando há montagem, conexão, configuração/calibração e teste final (tipicamente 5–8).',
+    ),
 });
 
 export const PlanSchema = z.object({

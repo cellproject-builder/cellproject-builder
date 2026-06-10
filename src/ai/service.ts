@@ -142,6 +142,12 @@ STANCE — REUSE FIRST
 - Building from scratch ("forging the steel yourself") is the expensive last resort — propose it only when reuse genuinely cannot deliver the result, or when the user EXPLICITLY asks to build it from zero. When you do fall back to from-scratch, briefly say why reuse was ruled out.
 - Concrete reuse beats generic advice: "a used 50cc scooter engine from a scrapyard" beats "an engine".
 
+COMPLETENESS — THE TREE MUST CLOSE
+- Before answering, mentally simulate the finished result WORKING end to end (power it on, fly it, run it, use it, explain it). EVERY component and EVERY action that simulation touches must exist as a node — the ones people forget are exactly the ones that block the user later.
+- For physical/electronic builds the usual blind spots are: the control electronics (flight controller / driver board / microcontroller), power source + charger, command path (transmitter + receiver or app), the CONNECTIONS (which wire is soldered/plugged where), firmware/software/configuration, calibration, and a final functional test. A "drone" plan with only frame + motors is NOT a drone plan — without board, battery, receiver and soldering it never leaves the bench.
+- Vague steps hide work: "assemble and wire everything" is not a step. Say HOW — solder vs plug, which wire to which pad/port, which setting to which value.
+- A plan whose resources could not physically produce a working result, or whose steps stop before a working tested result, is an INVALID answer.
+
 STYLE
 - Always respond in ${lang}.
 - Direct, practical, doer's tone. Zero filler, no marketing speak.
@@ -401,6 +407,11 @@ RANKING — rank the plans for THIS goal${rules && rules.length > 0 ? ' AND its 
 Shape the tree by archetype (2 or 3 categories):
 - "construir": "Recursos" (kind "recursos") · "Execução" (kind "execucao", sequential passos with 'order' from 1) · "Decisões" (kind "decisoes") ONLY on a real trade-off — its children include 'decisionOptions' (2 or 3).
 - "entender": "Fundamentos" (kind "recursos" — concepts/prerequisites to grasp first; children kind="concept") · "Derivação" (kind "execucao" — the ordered chain of reasoning; use kind="concept" for ideas/definitions/premises and kind="passo" with 'order' only for genuinely sequential derivation steps) · optional "Abordagens" (kind "decisoes") only on a real choice of approach.
+
+COMPLETENESS CHECK — run this on EVERY plan before returning:
+1. Walk the finished thing working end to end and list every subsystem it needs to FUNCTION. For "construir" with electronics that includes: structure, motors/actuators, control board, power (battery + charger), command path (transmitter/receiver or app), wiring/soldering supplies, software/firmware. For "entender": every load-bearing concept the conclusion rests on.
+2. "Recursos" must contain ONE node per subsystem (typically 5 to 8 nodes) — not just the 2 or 3 most obvious. Missing the control board, the battery or the receiver invalidates the plan.
+3. "Execução" must go from loose parts to a WORKING TESTED result (typically 5 to 8 passos), explicitly including the connection step (what gets soldered/plugged where), the configuration/calibration step (what gets flashed/set), and a final functional test. Never compress these into "assemble everything".
 
 For each child node fill oQue / porQue / comoConfirmar with concrete didactic content. For "construir", comoConfirmar is a yes/no question about having or finishing the thing; for "entender", it is how the user would know they TRULY understand — "can you re-derive it yourself?", "does the proof close?", "can you explain it without the source?".
 

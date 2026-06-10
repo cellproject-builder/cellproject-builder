@@ -14,6 +14,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useT } from '@/i18n';
 import { ExplanationContent } from './Markdown';
 import { MobileSheet } from './MobileSheet';
+import { ReadingMode } from './ReadingMode';
 import {
   UserCriterionField,
   CritiqueSection,
@@ -51,11 +52,18 @@ export function DetailPanel() {
   const selectionVersion = useGraphStore((s) => s.selectionVersion);
   const [drawerDismissed, setDrawerDismissed] = useState(false);
   const [confirmingNoSignal, setConfirmingNoSignal] = useState(false);
+  const [readingOpen, setReadingOpen] = useState(false);
   // selectionVersion bumps on every selectNode — so tapping the SAME node
   // again on mobile re-opens a sheet the user had swiped away.
+  // Célula que já tem explicação detalhada abre mostrando ela — sem clique
+  // extra; o estado só é recalculado na troca de seleção, então fechar
+  // manualmente continua respeitado enquanto o nó está selecionado.
   useEffect(() => {
     setDrawerDismissed(false);
     setConfirmingNoSignal(false);
+    setReadingOpen(false);
+    const current = selectedId ? useGraphStore.getState().project?.nodes[selectedId] : null;
+    setExplanationOpen(Boolean(current?.explicacao));
   }, [selectedId, selectionVersion]);
 
   if (!project || !selectedId) {
@@ -118,11 +126,7 @@ export function DetailPanel() {
     }
   };
 
-  const handleExplain = async () => {
-    if (node.explicacao) {
-      setExplanationOpen((o) => !o);
-      return;
-    }
+  const generateExplanation = async () => {
     if (!requireAI()) return;
     setExplaining(true);
     try {
@@ -143,6 +147,14 @@ export function DetailPanel() {
     } finally {
       setExplaining(false);
     }
+  };
+
+  const handleExplain = async () => {
+    if (node.explicacao) {
+      setExplanationOpen((o) => !o);
+      return;
+    }
+    await generateExplanation();
   };
 
   const recordNote = () => {
@@ -259,25 +271,35 @@ export function DetailPanel() {
         <FailureSection node={node} project={project} />
 
         <section className="p-3 border-b border-border-base">
-          <button
-            onClick={handleExplain}
-            disabled={explaining}
-            className="w-full flex items-center justify-between gap-2 px-2 py-1.5 bg-ai-accent/10 hover:bg-ai-accent/20 border border-ai-accent/30 rounded-sm text-ai-accent text-xs transition-colors disabled:opacity-60"
-          >
-            <span className="flex items-center gap-1.5">
-              <span>◆</span>
-              {explaining
-                ? tr.detail.generatingExplain
-                : node.explicacao
-                ? explanationOpen
-                  ? tr.detail.closeExplain
-                  : tr.detail.viewExplain
-                : tr.detail.explainBtn}
-            </span>
-            {node.explicacao && (
-              <span className="text-[10px]">{explanationOpen ? '▲' : '▼'}</span>
-            )}
-          </button>
+          <div className="flex gap-1.5">
+            <button
+              onClick={handleExplain}
+              disabled={explaining}
+              className="flex-1 min-w-0 flex items-center justify-between gap-2 px-2 py-1.5 bg-ai-accent/10 hover:bg-ai-accent/20 border border-ai-accent/30 rounded-sm text-ai-accent text-xs transition-colors disabled:opacity-60"
+            >
+              <span className="flex items-center gap-1.5">
+                <span>◆</span>
+                {explaining
+                  ? tr.detail.generatingExplain
+                  : node.explicacao
+                  ? explanationOpen
+                    ? tr.detail.closeExplain
+                    : tr.detail.viewExplain
+                  : tr.detail.explainBtn}
+              </span>
+              {node.explicacao && (
+                <span className="text-[10px]">{explanationOpen ? '▲' : '▼'}</span>
+              )}
+            </button>
+            <button
+              onClick={() => setReadingOpen(true)}
+              title={tr.detail.readingMode}
+              aria-label={tr.detail.readingMode}
+              className="shrink-0 w-8 flex items-center justify-center bg-bg-elevated hover:bg-ai-accent/10 border border-border-base hover:border-ai-accent/40 rounded-sm text-text-muted hover:text-ai-accent transition-colors text-sm"
+            >
+              ⛶
+            </button>
+          </div>
           {explanationOpen && node.explicacao && (
             <div className="mt-2 p-3 bg-bg-elevated/50 border border-border-base rounded-sm">
               <ExplanationContent text={node.explicacao} />
@@ -486,6 +508,16 @@ export function DetailPanel() {
           </button>
         )}
       </div>
+
+      {readingOpen && (
+        <ReadingMode
+          node={node}
+          breadcrumb={crumbs.map((c) => c.name)}
+          onClose={() => setReadingOpen(false)}
+          onGenerate={generateExplanation}
+          generating={explaining}
+        />
+      )}
     </>
   );
 

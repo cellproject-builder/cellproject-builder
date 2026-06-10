@@ -21,6 +21,7 @@ import type { ConceptNodeData, Project } from '@/types';
 import { GroundTruthInlineTutor } from './GroundTruth';
 import { ExplanationContent } from './Markdown';
 import { MobileSheet } from './MobileSheet';
+import { ReadingMode } from './ReadingMode';
 
 // The tutor is the concept's core loop made into a screen: look at ONE part of
 // the decomposition — if you can confirm it against reality, confirm; if you
@@ -248,8 +249,13 @@ function TutorCard({ node, project, isNext, next, tr }: TutorCardProps) {
 
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [reading, setReading] = useState(false);
   const [decomposing, setDecomposing] = useState(false);
   const [confirmingNoSignal, setConfirmingNoSignal] = useState(false);
+
+  // O card é reaproveitado quando o foco do tutor muda de nó — fecha o modo
+  // leitura pra não "teleportar" o leitor pra outra célula sem aviso.
+  useEffect(() => setReading(false), [node.id]);
 
   const crumbs = breadcrumbFor(project, node.id);
   const { ready } = canConcludeNode(project, node.id);
@@ -474,27 +480,46 @@ function TutorCard({ node, project, isNext, next, tr }: TutorCardProps) {
       )}
 
       <div className="mt-4">
-        <button
-          onClick={handleExplain}
-          disabled={loading}
-          className="w-full flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] bg-ai-accent/10 hover:bg-ai-accent/20 border border-ai-accent/30 rounded-sm text-ai-accent text-sm transition-colors disabled:opacity-60"
-        >
-          <span className="flex items-center gap-2 text-left">
-            <span>◆</span>
-            {loading
-              ? tr.tutor.generatingExplain
-              : node.explicacao
-              ? open
-                ? tr.tutor.closeExplain
-                : tr.tutor.viewExplain
-              : tr.tutor.explain}
-          </span>
-          {node.explicacao && <span className="text-xs">{open ? '▲' : '▼'}</span>}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExplain}
+            disabled={loading}
+            className="flex-1 min-w-0 flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] bg-ai-accent/10 hover:bg-ai-accent/20 border border-ai-accent/30 rounded-sm text-ai-accent text-sm transition-colors disabled:opacity-60"
+          >
+            <span className="flex items-center gap-2 text-left">
+              <span>◆</span>
+              {loading
+                ? tr.tutor.generatingExplain
+                : node.explicacao
+                ? open
+                  ? tr.tutor.closeExplain
+                  : tr.tutor.viewExplain
+                : tr.tutor.explain}
+            </span>
+            {node.explicacao && <span className="text-xs">{open ? '▲' : '▼'}</span>}
+          </button>
+          <button
+            onClick={() => setReading(true)}
+            title={tr.detail.readingMode}
+            aria-label={tr.detail.readingMode}
+            className="shrink-0 w-11 min-h-[44px] flex items-center justify-center bg-bg-elevated hover:bg-ai-accent/10 border border-border-base hover:border-ai-accent/40 rounded-sm text-text-muted hover:text-ai-accent transition-colors"
+          >
+            ⛶
+          </button>
+        </div>
         {open && node.explicacao && (
           <div className="mt-3 p-4 sm:p-5 bg-bg-secondary border border-border-base rounded-sm">
             <ExplanationContent text={node.explicacao} />
           </div>
+        )}
+        {reading && (
+          <ReadingMode
+            node={node}
+            breadcrumb={crumbs.map((c) => c.name)}
+            onClose={() => setReading(false)}
+            onGenerate={handleExplain}
+            generating={loading}
+          />
         )}
       </div>
 

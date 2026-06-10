@@ -31,11 +31,15 @@ export const PROVIDER_KEY_HINTS: Record<Provider, string> = {
 export const PROVIDER_DEFAULTS: Record<Provider, { mainModel: string; kbModel: string }> = {
   openai: { mainModel: 'gpt-4o', kbModel: 'gpt-4o-mini' },
   anthropic: { mainModel: 'claude-sonnet-4-5', kbModel: 'claude-haiku-4-5' },
-  openrouter: { mainModel: 'google/gemini-3.5-flash', kbModel: 'google/gemini-2.5-flash-lite' },
+  // Grok 4.3 com reasoning effort "high" — o effort é parâmetro de request
+  // (ver ai/client.ts), não faz parte do id do modelo.
+  openrouter: { mainModel: 'x-ai/grok-4.3', kbModel: 'google/gemini-2.5-flash-lite' },
 };
 
 // kbModel default antigo que saiu do ar no OpenRouter — migrado no persist.
 const DEAD_OPENROUTER_KB_MODEL = 'google/gemini-2.0-flash-001';
+// mainModel default da era gemini — config persistida volta pro grok no v3.
+const OLD_OPENROUTER_MAIN_MODEL = 'google/gemini-3.5-flash';
 
 interface ConfigState {
   activeProvider: Provider | null;
@@ -92,7 +96,7 @@ export const useConfigStore = create<ConfigState>()(
     }),
     {
       name: 'cellproject-config',
-      version: 2, // v2: webResearchEnabled + troca do kbModel morto do OpenRouter
+      version: 3, // v3: mainModel do OpenRouter de volta pro grok-4.3 (high)
       storage: createJSONStorage(() => idbStorage),
       migrate: (persisted, version) => {
         const state = persisted as Partial<ConfigState>;
@@ -100,6 +104,12 @@ export const useConfigStore = create<ConfigState>()(
           const or = state.providers?.openrouter;
           if (or && or.kbModel === DEAD_OPENROUTER_KB_MODEL) {
             or.kbModel = PROVIDER_DEFAULTS.openrouter.kbModel;
+          }
+        }
+        if (version < 3) {
+          const or = state.providers?.openrouter;
+          if (or && or.mainModel === OLD_OPENROUTER_MAIN_MODEL) {
+            or.mainModel = PROVIDER_DEFAULTS.openrouter.mainModel;
           }
         }
         return state as ConfigState;
