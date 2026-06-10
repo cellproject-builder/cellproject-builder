@@ -29,6 +29,8 @@ interface GraphState {
   focusedParentId: string | null;
   lens: Lens;
   viewMode: ViewMode;
+  // Desktop detail panel collapsed to a thin rail → the graph gets the room.
+  detailPanelOpen: boolean;
   pendingSuggestions: {
     parentId: string;
     nodes: Array<{
@@ -50,6 +52,7 @@ interface GraphState {
   focusNode: (id: string | null) => void;
   setLens: (lens: Lens) => void;
   setViewMode: (mode: ViewMode) => void;
+  setDetailPanelOpen: (open: boolean) => void;
   updateNode: (id: string, patch: Partial<ConceptNodeData>) => void;
   updateNodePosition: (id: string, pos: { x: number; y: number }) => void;
   applyLayoutPositions: (positions: Record<string, { x: number; y: number }>) => void;
@@ -216,6 +219,7 @@ export const useGraphStore = create<GraphState>()(
       focusedParentId: null,
       lens: 'structure',
       viewMode: 'tutor',
+      detailPanelOpen: true,
       pendingSuggestions: null,
 
       createProjectFromPlan: (objective, name, plan, rules) => {
@@ -403,6 +407,7 @@ export const useGraphStore = create<GraphState>()(
       focusNode: (id) => set({ focusedParentId: id }),
       setLens: (lens) => set({ lens }),
       setViewMode: (mode) => set({ viewMode: mode }),
+      setDetailPanelOpen: (open) => set({ detailPanelOpen: open }),
 
       updateNode: (id, patch) =>
         set((state) => {
@@ -1033,6 +1038,7 @@ export const useGraphStore = create<GraphState>()(
         focusedParentId: state.focusedParentId,
         lens: state.lens,
         viewMode: state.viewMode,
+        detailPanelOpen: state.detailPanelOpen,
       }),
     },
   ),

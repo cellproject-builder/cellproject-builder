@@ -222,6 +222,10 @@ export interface AIPlan {
   approach: string;
   strategy: ConstructionStrategy;
   archetype: ProjectArchetype;
+  // AI ranking for THIS goal (+rules): 1 = best recommendation. Advisory —
+  // the user still picks consciously. rankReason names the tradeoff.
+  rank: number;
+  rankReason: string;
   tree: AIPlanTree;
 }
 

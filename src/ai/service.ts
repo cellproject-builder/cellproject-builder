@@ -268,13 +268,35 @@ ${blocks.join('\n\n')}\n\n`;
 // generatePlans — generates 1 to 3 alternative plans for the objective
 // ---------------------------------------------------------------------------
 
+// Compact summary of plans already shown — sent back to the model when the
+// user asks for MORE plans, so new ones explore genuinely different angles.
+export interface ExistingPlanSummary {
+  title: string;
+  strategy: ConstructionStrategy;
+  approach: string;
+  rank: number;
+}
+
 export async function generatePlans(
   objective: string,
   onProgress?: PlanProgressCallback,
   kbContext?: KBContextEntry[],
   rules?: string[],
+  existingPlans?: ExistingPlanSummary[],
 ): Promise<AIPlan[]> {
   assertAIReady();
+
+  const hasExisting = !!existingPlans && existingPlans.length > 0;
+  const existingBlock = hasExisting
+    ? `
+
+PLANS ALREADY SHOWN TO THE USER (do NOT repeat these approaches):
+${existingPlans!
+  .map((p) => `- [rank ${p.rank}] "${p.title}" (${p.strategy}) — ${p.approach}`)
+  .join('\n')}
+
+The user asked for MORE alternatives. Generate EXACTLY 3 NEW plans with angles clearly different from the above — e.g. cheapest possible, fastest to finish, most robust/professional, most unconventional/creative, most educational. Repeating a 'strategy' enum is fine when the ANGLE is new; never repeat an approach. Keep the SAME archetype as the plans above. Rank each new plan relative to ALL plans including the ones above (rank 1 = better than the current #1; otherwise continue the scale).`
+    : '';
 
   const userPrompt = `USER GOAL:
 """
@@ -288,10 +310,14 @@ First, classify the goal's ARCHETYPE and tag EVERY plan with it (all plans share
 - "construir" — the goal is to MAKE / BUILD / achieve something concrete.
 - "entender" — the goal is to UNDERSTAND why something is true or how it works, decomposing toward first principles.
 
-Then generate 1 to 3 plans, each tagged with a 'strategy':
-- For "construir": "reaproveitar" (reuse/adapt what already exists — the recommended default) · "hibrido" · "do_zero" (build from scratch).
+Then generate EXACTLY 3 plans with clearly DIFFERENT styles, each tagged with a 'strategy':
+- For "construir": one plan per strategy — "reaproveitar" (reuse/adapt what already exists — the recommended default) · "hibrido" · "do_zero" (build from scratch). If a user rule genuinely forbids one strategy, still deliver 3 plans by varying the angle inside the allowed strategies (cheapest / fastest / most robust) and say so in the approach.
 - For "entender": "reaproveitar" (lean on existing explanations — books, courses, worked derivations) · "do_zero" (derive it yourself from first principles) · "hibrido" (mix). Use the SAME enum values.
-The user picks the strategy by choosing a plan, so each 'approach' must state clearly HOW (reuse-vs-build, or read-vs-derive). Don't force variants that don't fit — 1 plan is fine if only one makes sense.${rules && rules.length > 0 ? `\nWhen USER RULES exist, every plan's 'approach' must state explicitly HOW it satisfies each rule (e.g. a budget rule → a rough cost breakdown that closes under the cap).` : ''}
+The user picks the style by choosing a plan, so each 'approach' must state clearly HOW (reuse-vs-build, or read-vs-derive).${rules && rules.length > 0 ? `\nWhen USER RULES exist, every plan's 'approach' must state explicitly HOW it satisfies each rule (e.g. a budget rule → a rough cost breakdown that closes under the cap).` : ''}
+
+RANKING — rank the plans for THIS goal${rules && rules.length > 0 ? ' AND its rules' : ''}:
+- 'rank': 1 = your single best recommendation, 2 = runner-up, 3 = third. No ties.
+- 'rankReason': ONE concrete sentence naming the tradeoff that earned the position (cost, time, risk, robustness, learning value). No marketing speak.${existingBlock}
 
 Shape the tree by archetype (2 or 3 categories):
 - "construir": "Recursos" (kind "recursos") · "Execução" (kind "execucao", sequential passos with 'order' from 1) · "Decisões" (kind "decisoes") ONLY on a real trade-off — its children include 'decisionOptions' (2 or 3).
@@ -422,6 +448,8 @@ function hydratePlan(raw: RawPlan): AIPlan {
     approach: raw.approach,
     strategy: raw.strategy,
     archetype: raw.archetype,
+    rank: clamp(Math.round(raw.rank), 1, 99),
+    rankReason: raw.rankReason,
     tree: { categorias },
   };
 }

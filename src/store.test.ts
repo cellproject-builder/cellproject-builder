@@ -15,6 +15,8 @@ const minimalPlan: AIPlan = {
   approach: 'approach',
   strategy: 'reaproveitar',
   archetype: 'construir',
+  rank: 1,
+  rankReason: 'simples',
   tree: {
     categorias: [
       {

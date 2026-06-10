@@ -16,6 +16,7 @@ export function ObjectiveScreen() {
   const [ruleDraft, setRuleDraft] = useState('');
   const [plans, setPlans] = useState<AIPlan[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [moreLoading, setMoreLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [progress, setProgress] = useState<PlanProgressEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,12 +66,46 @@ export function ObjectiveScreen() {
     }
   };
 
+  // More alternatives on demand: same generator, but the prompt carries the
+  // plans already shown so the new batch explores different angles and is
+  // ranked against the whole set.
+  const handleMorePlans = async () => {
+    if (!plans || moreLoading) return;
+    setMoreLoading(true);
+    setError(null);
+    try {
+      const kbContext = await getContextFor({
+        label: tr.notify.objectivePromptLabel(objective.trim()),
+      });
+      const more = await generatePlans(
+        objective.trim(),
+        undefined,
+        kbContext,
+        rules,
+        plans.map((p) => ({
+          title: p.title,
+          strategy: p.strategy,
+          approach: p.approach,
+          rank: p.rank,
+        })),
+      );
+      setPlans((prev) => [...(prev ?? []), ...more]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setMoreLoading(false);
+    }
+  };
+
   const handleConfirm = () => {
     if (!plans || !selectedId) return;
     const plan = plans.find((p) => p.id === selectedId);
     if (!plan) return;
     createProjectFromPlan(objective.trim(), name.trim() || 'Project', plan, rules);
   };
+
+  // Display order = the AI's ranking (1 first). The pick stays the user's.
+  const sortedPlans = plans ? [...plans].sort((a, b) => a.rank - b.rank) : null;
 
   return (
     <div className="fixed inset-0 bg-bg-primary flex items-start justify-center overflow-y-auto">
@@ -284,7 +319,7 @@ export function ObjectiveScreen() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {plans.map((p) => (
+              {sortedPlans!.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setSelectedId(p.id)}
@@ -294,13 +329,30 @@ export function ObjectiveScreen() {
                       : 'border-border-base bg-bg-secondary hover:border-text-muted'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-ai-accent text-xs font-mono">◆</span>
-                    <span className="text-sm font-semibold">{p.title}</span>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span
+                      className={`shrink-0 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] border ${
+                        p.rank === 1
+                          ? 'bg-conf-high/15 text-conf-high border-conf-high/40'
+                          : 'bg-bg-primary text-text-muted border-border-base'
+                      }`}
+                    >
+                      {p.rank === 1 ? `★ ${tr.objective.rankBest}` : `#${p.rank}`}
+                    </span>
+                    <span className="text-sm font-semibold leading-tight">{p.title}</span>
                     <span className="ml-auto shrink-0 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] bg-ai-accent/10 text-ai-accent border border-ai-accent/30">
                       {tr.objective.strategyLabel(p.strategy)}
                     </span>
                   </div>
+                  {p.rankReason && (
+                    <div
+                      className={`text-[10px] leading-snug mb-2 ${
+                        p.rank === 1 ? 'text-conf-high/90' : 'text-text-muted'
+                      }`}
+                    >
+                      {p.rankReason}
+                    </div>
+                  )}
                   <div className="text-[11px] text-text-secondary mb-2 leading-snug">
                     {p.pitch}
                   </div>
@@ -332,6 +384,30 @@ export function ObjectiveScreen() {
                 </button>
               ))}
             </div>
+
+            <button
+              onClick={handleMorePlans}
+              disabled={moreLoading}
+              className="w-full py-2.5 min-h-[40px] text-xs border border-dashed border-border-base rounded-sm text-text-muted hover:text-ai-accent hover:border-ai-accent/40 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {moreLoading ? (
+                <>
+                  <Spinner />
+                  {tr.objective.morePlansLoading}
+                </>
+              ) : (
+                tr.objective.morePlans
+              )}
+            </button>
+
+            {error && (
+              <div className="border border-red-500/40 bg-red-500/10 text-red-300 rounded-sm p-3 text-xs">
+                <div className="font-mono uppercase tracking-wider text-[10px] mb-1">
+                  {tr.objective.errorLabel}
+                </div>
+                {error}
+              </div>
+            )}
 
             {progress?.reasoning && (
               <ReasoningPanel

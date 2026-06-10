@@ -124,7 +124,10 @@ export const en = {
     pickStrategyTitle: 'How do you want to build this?',
     pickStrategyTitleUnderstand: 'How do you want to understand this?',
     pickStrategyHint:
-      'Each plan is a different construction strategy — pick the one that matches how you want to make it.',
+      'Different styles, ranked by the AI for your goal — the choice is still yours.',
+    rankBest: 'recommended',
+    morePlans: '＋ Generate 3 more plans (other angles)',
+    morePlansLoading: 'Generating more plans…',
     strategyLabel: (s: 'reaproveitar' | 'hibrido' | 'do_zero'): string =>
       s === 'reaproveitar' ? 'Reuse' : s === 'hibrido' ? 'Hybrid' : 'From scratch',
     chunks: (n: number) => `${n} chunk${n === 1 ? '' : 's'}`,
@@ -227,6 +230,9 @@ export const en = {
     closeExplain: 'Close detailed explanation',
     viewExplain: 'View detailed explanation',
     sheetFallbackTitle: 'Node details',
+    collapsePanel: 'Hide panel — graph only',
+    expandPanel: 'Show details panel',
+    railLabel: 'details',
     locale: 'en-US',
   },
   graph: {
@@ -532,7 +538,10 @@ export const ptBR: Messages = {
     pickStrategyTitle: 'Como você quer construir?',
     pickStrategyTitleUnderstand: 'Como você quer entender?',
     pickStrategyHint:
-      'Cada plano é uma estratégia de confecção diferente — escolha a que combina com como você quer fazer.',
+      'Estilos diferentes, ranqueados pela IA pro teu objetivo — a escolha continua sendo tua.',
+    rankBest: 'recomendado',
+    morePlans: '＋ Gerar mais 3 planos (outros ângulos)',
+    morePlansLoading: 'Gerando mais planos…',
     strategyLabel: (s: 'reaproveitar' | 'hibrido' | 'do_zero'): string =>
       s === 'reaproveitar' ? 'Reaproveitar' : s === 'hibrido' ? 'Híbrido' : 'Do zero',
     chunks: (n: number) => `${n} chunk${n === 1 ? '' : 's'}`,
@@ -637,6 +646,9 @@ export const ptBR: Messages = {
     closeExplain: 'Fechar explicação detalhada',
     viewExplain: 'Ver explicação detalhada',
     sheetFallbackTitle: 'Detalhes do nó',
+    collapsePanel: 'Recolher painel — só o grafo',
+    expandPanel: 'Mostrar painel de detalhes',
+    railLabel: 'detalhes',
     locale: 'pt-BR',
   },
   graph: {

@@ -38,6 +38,8 @@ export function DetailPanel() {
 
   const addRule = useGraphStore((s) => s.addRule);
   const removeRule = useGraphStore((s) => s.removeRule);
+  const panelOpen = useGraphStore((s) => s.detailPanelOpen);
+  const setPanelOpen = useGraphStore((s) => s.setDetailPanelOpen);
 
   const [decomposing, setDecomposing] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
@@ -57,9 +59,13 @@ export function DetailPanel() {
   }, [selectedId, selectionVersion]);
 
   if (!project || !selectedId) {
+    if (!panelOpen) {
+      return <CollapsedRail onExpand={() => setPanelOpen(true)} label={tr.detail.expandPanel} />;
+    }
     return (
-      <aside className="hidden md:flex md:w-[280px] lg:w-[380px] shrink-0 border-l border-border-base bg-bg-secondary p-4 text-text-muted text-sm">
-        {tr.detail.noSelection}
+      <aside className="hidden md:flex md:w-[280px] lg:w-[380px] shrink-0 border-l border-border-base bg-bg-secondary flex-col">
+        <PanelTopBar onCollapse={() => setPanelOpen(false)} label={tr.detail.collapsePanel} />
+        <div className="p-4 text-text-muted text-sm">{tr.detail.noSelection}</div>
       </aside>
     );
   }
@@ -495,9 +501,50 @@ export function DetailPanel() {
     );
   }
 
+  // Versatile panel: collapse to a thin rail so the graph takes the room;
+  // the preference persists across reloads.
+  if (!panelOpen) {
+    return <CollapsedRail onExpand={() => setPanelOpen(true)} label={tr.detail.expandPanel} />;
+  }
+
   return (
     <aside className="hidden md:flex md:w-[280px] lg:w-[380px] shrink-0 border-l border-border-base bg-bg-secondary flex-col overflow-hidden">
+      <PanelTopBar onCollapse={() => setPanelOpen(false)} label={tr.detail.collapsePanel} />
       {body}
+    </aside>
+  );
+}
+
+function PanelTopBar({ onCollapse, label }: { onCollapse: () => void; label: string }) {
+  return (
+    <div className="shrink-0 flex items-center justify-end border-b border-border-base px-1.5 py-1">
+      <button
+        onClick={onCollapse}
+        title={label}
+        aria-label={label}
+        className="w-6 h-6 flex items-center justify-center rounded-sm text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
+      >
+        »
+      </button>
+    </div>
+  );
+}
+
+function CollapsedRail({ onExpand, label }: { onExpand: () => void; label: string }) {
+  const tr = useT();
+  return (
+    <aside className="hidden md:flex w-9 shrink-0 border-l border-border-base bg-bg-secondary flex-col items-center py-2">
+      <button
+        onClick={onExpand}
+        title={label}
+        aria-label={label}
+        className="w-7 h-7 flex items-center justify-center rounded-sm border border-border-base text-text-muted hover:text-ai-accent hover:border-ai-accent/40 transition-colors"
+      >
+        «
+      </button>
+      <span className="mt-3 text-[9px] font-mono uppercase tracking-widest text-text-muted [writing-mode:vertical-rl]">
+        {tr.detail.railLabel}
+      </span>
     </aside>
   );
 }

@@ -89,6 +89,18 @@ export const PlanSchema = z.object({
   archetype: ProjectArchetypeSchema.describe(
     'Tipo do objetivo: "construir" (fazer/alcançar algo concreto) ou "entender" (compreender por quê/como, decompondo até os primeiros princípios). Todos os planos do mesmo objetivo têm o mesmo archetype.',
   ),
+  rank: z
+    .number()
+    .int()
+    .min(1)
+    .describe(
+      'Posição no ranking para ESTE objetivo (e regras, se houver): 1 = sua melhor recomendação, 2 = segunda, 3 = terceira.',
+    ),
+  rankReason: z
+    .string()
+    .describe(
+      'UMA frase concreta com o tradeoff que justifica a posição (custo, tempo, risco, robustez, aprendizado). Sem marketing.',
+    ),
   tree: z.object({
     categorias: z
       .array(PlanCategorySchema)
@@ -101,9 +113,9 @@ export const PlanSchema = z.object({
 export const PlansResponseSchema = z.object({
   plans: z
     .array(PlanSchema)
-    .min(1)
+    .min(3)
     .max(3)
-    .describe('1 a 3 planos alternativos, ordenados do mais simples ao mais ambicioso.'),
+    .describe('EXATAMENTE 3 planos alternativos, com estilos claramente diferentes e ranqueados.'),
 });
 
 export const DecomposeResponseSchema = z.object({
