@@ -22,15 +22,13 @@ export const KBSummarySchema = z.object({
     .describe(
       'Domínio curto e específico do conteúdo. Ex: "marcenaria", "eletrônica analógica", "culinária vegetariana".',
     ),
+  // Sem .min()/.max() nos arrays: Gemini rejeita limites de cardinalidade no
+  // JSON Schema (400 "too many states"). Os limites vivem nos describes.
   tags: z
     .array(z.string())
-    .min(3)
-    .max(15)
-    .describe('Conceitos-chave, nomes próprios, técnicas. Uma palavra ou frase curta.'),
+    .describe('3 a 15 conceitos-chave, nomes próprios, técnicas. Uma palavra ou frase curta.'),
   resumo: z
     .array(z.string())
-    .min(3)
-    .max(6)
     .describe('Resumo em 3-6 bullets cobrindo a tese/conteúdo principal. Frases curtas.'),
   fatos: z
     .array(KBFatoSchema)

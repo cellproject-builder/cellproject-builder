@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+// ATENÇÃO: nada de z.number().int()/.min()/.max() nem .min()/.max() em arrays
+// nestes schemas. Gemini (default no OpenRouter) compila o JSON Schema num
+// autômato de decodificação restrita e rejeita bounds numéricos / limites de
+// array com 400 "constraint has too many states". Os limites são garantidos
+// no prompt + clamp no código (materializeNode / hydratePlan).
+
 const NodeKindSchema = z.enum(['categoria', 'recurso', 'passo', 'decisao', 'concept']);
 const EdgeKindSchema = z.enum(['direct', 'middleware', 'independent', 'optional']);
 const CategoryKindSchema = z.enum(['recursos', 'execucao', 'decisoes']);
@@ -37,7 +43,7 @@ export const SuggestedNodeSchema = z.object({
       'Função do nó descrita como transformação "estado antes → estado depois". Frase curta.',
     ),
   problem: z.string().describe('Problema que este nó resolve. 1 frase.'),
-  confidence: z.number().min(0).max(100).describe('Confiança de 0 a 100.'),
+  confidence: z.number().describe('Confiança de 0 a 100.'),
   confidenceReason: z.string().describe('Motivo curto da confiança.'),
   pros: z.array(z.string()).describe('Prós curtos. Pode ser vazio.'),
   cons: z.array(z.string()).describe('Contras curtos. Pode ser vazio.'),
@@ -48,9 +54,8 @@ export const SuggestedNodeSchema = z.object({
     .describe('Pergunta concreta que o usuário possa responder sim/não para confirmar.'),
   order: z
     .number()
-    .int()
     .optional()
-    .describe('Ordem entre irmãos — obrigatório se kind="passo".'),
+    .describe('Ordem entre irmãos (inteiro) — obrigatório se kind="passo".'),
   decisionOptions: z
     .array(DecisionOptionSchema)
     .optional()
@@ -91,10 +96,8 @@ export const PlanSchema = z.object({
   ),
   rank: z
     .number()
-    .int()
-    .min(1)
     .describe(
-      'Posição no ranking para ESTE objetivo (e regras, se houver): 1 = sua melhor recomendação, 2 = segunda, 3 = terceira.',
+      'Posição no ranking para ESTE objetivo (e regras, se houver), inteiro a partir de 1: 1 = sua melhor recomendação, 2 = segunda, 3 = terceira.',
     ),
   rankReason: z
     .string()
@@ -104,8 +107,6 @@ export const PlanSchema = z.object({
   tree: z.object({
     categorias: z
       .array(PlanCategorySchema)
-      .min(1)
-      .max(3)
       .describe('1 a 3 categorias. Sempre inclua "recursos" e "execucao". "decisoes" só se houver tradeoff real.'),
   }),
 });
@@ -113,13 +114,11 @@ export const PlanSchema = z.object({
 export const PlansResponseSchema = z.object({
   plans: z
     .array(PlanSchema)
-    .min(3)
-    .max(3)
     .describe('EXATAMENTE 3 planos alternativos, com estilos claramente diferentes e ranqueados.'),
 });
 
 export const DecomposeResponseSchema = z.object({
-  nodes: z.array(SuggestedNodeSchema).min(1),
+  nodes: z.array(SuggestedNodeSchema).describe('Pelo menos 1 nó novo.'),
   edges: z.array(SuggestedEdgeSchema).describe('Arestas entre os novos nós. Pode ser vazio.'),
 });
 
@@ -129,8 +128,7 @@ export const DecomposeResponseSchema = z.object({
 export const CritiqueResponseSchema = z.object({
   fraquezas: z
     .array(z.string())
-    .min(1)
-    .describe('Pontos onde este nó pode estar errado, incompleto, ou depender de premissa frágil.'),
+    .describe('Pelo menos 1 ponto onde este nó pode estar errado, incompleto, ou depender de premissa frágil.'),
   premissasOcultas: z
     .array(z.string())
     .describe('Coisas que o plano assume em silêncio e que o usuário pode não perceber.'),
