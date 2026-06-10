@@ -269,6 +269,35 @@ describe('confirmNode — guarded conclusion (E2 fidelity gate)', () => {
     expect(node(id).state).not.toBe('done');
   });
 
+  // Per-cell web research: digest persists on the node and each source becomes
+  // an UNVERIFIED link anchor — verifying is still the user's act, so research
+  // alone must not earn 'done'.
+  it('applyWebResearch stores the digest and adds sources as unverified link anchors', () => {
+    const id = singlePasso();
+    const digest = {
+      query: 'passo 1',
+      findings: '- fato real [site](https://exemplo.com/doc)',
+      sources: [
+        { url: 'https://exemplo.com/doc', title: 'Doc oficial' },
+        { url: 'https://exemplo.com/preco', title: 'Preço real' },
+      ],
+      searchedAt: 1,
+    };
+    useGraphStore.getState().applyWebResearch(id, digest);
+    const n = node(id);
+    expect(n.webResearch).toEqual(digest);
+    const links = (n.groundTruthRefs ?? []).filter((r) => r.kind === 'link');
+    expect(links).toHaveLength(2);
+    expect(links.every((r) => r.addedByAI && !r.verificado)).toBe(true);
+
+    // Re-pesquisar não duplica âncoras de URLs já conhecidas.
+    useGraphStore.getState().applyWebResearch(id, digest);
+    expect((node(id).groundTruthRefs ?? []).filter((r) => r.kind === 'link')).toHaveLength(2);
+
+    useGraphStore.getState().confirmNode(id);
+    expect(node(id).state).toBe('validated');
+  });
+
   it('force:true concludes without signal (explicit opt-out)', () => {
     const id = singlePasso();
     useGraphStore.getState().confirmNode(id, { force: true });

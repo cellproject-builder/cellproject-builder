@@ -7,7 +7,9 @@ import {
   critiqueNode,
   replanFromFailure,
 } from '@/ai/service';
+import { runResearch } from '@/ai/research';
 import { requireAI } from '@/ai/availability';
+import { ExplanationContent } from './Markdown';
 
 // ---------------------------------------------------------------------------
 // (a) User-written criterion — locked before seeing the AI's
@@ -212,6 +214,7 @@ export function CritiqueSection({
         comoConfirmar: node.comoConfirmar,
         comoConfirmarUsuario: node.comoConfirmarUsuario,
         rules: project.rules,
+        research: node.webResearch,
       });
       setCritica(node.id, result);
     } catch (e) {
@@ -261,6 +264,28 @@ export function CritiqueSection({
               {node.critica.criterioAlternativo}
             </div>
           </div>
+          {node.critica.fontes && node.critica.fontes.length > 0 && (
+            <div>
+              <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
+                {tr.groundTruth.criticSources}
+              </div>
+              <ul className="space-y-0.5 pl-3">
+                {node.critica.fontes.map((f) => (
+                  <li key={f.url} className="relative leading-relaxed">
+                    <span className="absolute -left-3 text-ai-accent">⌖</span>
+                    <a
+                      href={f.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-text-secondary underline decoration-ai-accent/40 hover:text-ai-accent transition-colors break-all"
+                    >
+                      {f.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="flex gap-1.5">
             <button
               onClick={run}
@@ -311,19 +336,50 @@ function CritiqueGroup({ label, items }: { label: string; items: string[] }) {
 // (d) Verifiable anchors list
 // ---------------------------------------------------------------------------
 
-export function GroundTruthRefsList({ node }: { node: ConceptNodeData }) {
+export function GroundTruthRefsList({
+  node,
+  project,
+}: {
+  node: ConceptNodeData;
+  project: Project;
+}) {
   const tr = useT();
   const addGroundTruthRef = useGraphStore((s) => s.addGroundTruthRef);
   const toggleGroundTruthVerified = useGraphStore((s) => s.toggleGroundTruthVerified);
   const removeGroundTruthRef = useGraphStore((s) => s.removeGroundTruthRef);
+  const applyWebResearch = useGraphStore((s) => s.applyWebResearch);
 
   const [kind, setKind] = useState<GroundTruthKind>('spec');
   const [label, setLabel] = useState('');
   const [value, setValue] = useState('');
   const [adding, setAdding] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [showFindings, setShowFindings] = useState(false);
 
   const refs = node.groundTruthRefs ?? [];
   const verifiedCount = refs.filter((r) => r.verificado).length;
+
+  // Pesquisa web DESTA célula: busca fontes reais sobre o nó e adiciona cada
+  // uma como âncora kind="link". O digest fica no nó e vira contexto grátis
+  // pra explicar/criticar/decompor/replanejar.
+  const handleResearch = async () => {
+    if (!requireAI()) return;
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const digest = await runResearch(
+        `${node.name} — ${node.oQue || node.fx}`,
+        `Project goal: ${project.objective}. Find official docs, real prices/specs/availability and tutorials usable as verifiable references for this part.${project.rules && project.rules.length > 0 ? ` Hard constraints: ${project.rules.join(' · ')}` : ''}`,
+      );
+      applyWebResearch(node.id, digest);
+      setShowFindings(true);
+    } catch (e) {
+      setSearchError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSearching(false);
+    }
+  };
 
   const handleAdd = () => {
     if (!label.trim() || !value.trim()) return;
@@ -428,6 +484,53 @@ export function GroundTruthRefsList({ node }: { node: ConceptNodeData }) {
           {tr.groundTruth.addAnchor}
         </button>
       )}
+
+      {/* Pesquisa web da célula — ação explícita, fontes viram âncoras */}
+      <div className="mt-2 space-y-1.5">
+        <button
+          onClick={handleResearch}
+          disabled={searching}
+          className="w-full text-[11px] bg-ai-accent/10 hover:bg-ai-accent/25 disabled:opacity-50 disabled:cursor-not-allowed text-ai-accent border border-ai-accent/30 rounded-sm py-1.5 transition-colors flex items-center justify-center gap-1.5"
+        >
+          {searching ? (
+            <>
+              <span className="inline-block w-3 h-3 border-2 border-ai-accent/40 border-t-ai-accent rounded-full animate-spin" />
+              {tr.groundTruth.researchingBtn}
+            </>
+          ) : node.webResearch ? (
+            tr.groundTruth.researchAgainBtn
+          ) : (
+            tr.groundTruth.researchBtn
+          )}
+        </button>
+
+        {node.webResearch && (
+          <button
+            onClick={() => setShowFindings((v) => !v)}
+            className="w-full text-left text-[10px] font-mono text-text-muted hover:text-text-secondary transition-colors flex items-center gap-1.5"
+          >
+            <span>{showFindings ? '▾' : '▸'}</span>
+            <span>
+              {tr.groundTruth.researchedOn(
+                new Date(node.webResearch.searchedAt).toLocaleDateString(tr.detail.locale),
+              )}{' '}
+              · {tr.groundTruth.researchFindings}
+            </span>
+          </button>
+        )}
+
+        {showFindings && node.webResearch && (
+          <div className="border border-border-base bg-bg-elevated/40 rounded-sm p-2 max-h-56 overflow-y-auto">
+            <ExplanationContent text={node.webResearch.findings} />
+          </div>
+        )}
+
+        {searchError && (
+          <div className="text-[11px] text-state-problem bg-state-problem/5 border border-state-problem/30 rounded-sm px-2 py-1">
+            {searchError}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -565,6 +668,7 @@ export function FailureSection({
           strategy: project.constructionStrategy,
           archetype: project.archetype,
           rules: project.rules,
+          research: node.webResearch,
         },
         kbContext,
       );
@@ -696,7 +800,7 @@ export function GroundTruthInlineTutor({
       </div>
       <div className="rounded-sm border border-border-base bg-bg-secondary">
         <UserCriterionField node={node} />
-        <GroundTruthRefsList node={node} />
+        <GroundTruthRefsList node={node} project={project} />
         <CritiqueSection node={node} project={project} />
         <FailureSection node={node} project={project} />
       </div>

@@ -19,6 +19,7 @@ import { useT } from '@/i18n';
 import type { Messages } from '@/i18n';
 import type { ConceptNodeData, Project } from '@/types';
 import { GroundTruthInlineTutor } from './GroundTruth';
+import { ExplanationContent } from './Markdown';
 import { MobileSheet } from './MobileSheet';
 
 // The tutor is the concept's core loop made into a screen: look at ONE part of
@@ -296,6 +297,7 @@ function TutorCard({ node, project, isNext, next, tr }: TutorCardProps) {
         porQue: node.porQue,
         comoConfirmar: node.comoConfirmar,
         rules: project.rules,
+        research: node.webResearch,
       });
       setNodeExplanation(node.id, text);
       setOpen(true);
@@ -331,6 +333,7 @@ function TutorCard({ node, project, isNext, next, tr }: TutorCardProps) {
           strategy: project.constructionStrategy,
           archetype: project.archetype,
           rules: project.rules,
+          research: node.webResearch,
         },
         kbContext,
       );
@@ -612,63 +615,6 @@ function TutorCard({ node, project, isNext, next, tr }: TutorCardProps) {
       )}
     </div>
   );
-}
-
-export function ExplanationContent({ text }: { text: string }) {
-  const lines = text.split('\n');
-  return (
-    <div className="text-sm text-text-secondary leading-relaxed space-y-1">
-      {lines.map((line, i) => {
-        if (line.trim() === '') return <div key={i} className="h-2" />;
-        const boldMatch = line.match(/^\*\*(.+?)\*\*$/);
-        if (boldMatch) {
-          return (
-            <div
-              key={i}
-              className="text-[10px] font-mono uppercase tracking-widest text-ai-accent pt-2 first:pt-0"
-            >
-              {boldMatch[1]}
-            </div>
-          );
-        }
-        if (line.startsWith('- ')) {
-          return (
-            <div key={i} className="pl-4 relative">
-              <span className="absolute left-0 text-text-muted">•</span>
-              {renderInline(line.slice(2))}
-            </div>
-          );
-        }
-        const numMatch = line.match(/^(\d+)\.\s(.*)$/);
-        if (numMatch) {
-          return (
-            <div key={i} className="pl-6 relative">
-              <span className="absolute left-0 text-text-muted font-mono text-xs">
-                {numMatch[1]}.
-              </span>
-              {renderInline(numMatch[2])}
-            </div>
-          );
-        }
-        return <div key={i}>{renderInline(line)}</div>;
-      })}
-    </div>
-  );
-}
-
-function renderInline(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((p, i) => {
-    const m = p.match(/^\*\*(.+?)\*\*$/);
-    if (m) {
-      return (
-        <strong key={i} className="text-text-primary font-semibold">
-          {m[1]}
-        </strong>
-      );
-    }
-    return <span key={i}>{p}</span>;
-  });
 }
 
 function TutorBlock({ label, children }: { label: string; children: React.ReactNode }) {

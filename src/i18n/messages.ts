@@ -111,6 +111,12 @@ export const en = {
     generate: '◆ Generate plans with AI',
     generating: (phase: string, elapsed: string) =>
       `Generating plans — ${phase} ${elapsed}`,
+    researchToggle: '🌐 Real web research',
+    researchToggleHint:
+      'searches real sources (docs, prices, specs) before planning · slower, uses more credits',
+    phaseResearching: 'searching the web',
+    researchingNote: 'searching the web for real sources…',
+    webSources: '◆ Web sources:',
     phaseConnecting: 'connecting',
     phaseStreaming: 'receiving',
     phaseFinalizing: 'validating',
@@ -181,6 +187,7 @@ export const en = {
     ariaConfirm: 'Confirm',
     ariaUnconfirm: 'Undo confirmation',
     ariaFocus: 'Open this part in the tutor',
+    referencesHeader: 'REFERENCES',
   },
   detail: {
     noSelection: 'No node selected. Click a node in the graph.',
@@ -295,6 +302,7 @@ export const en = {
     weaknesses: 'Weaknesses',
     hiddenPremises: 'Hidden premises',
     altCriterion: 'Alternative criterion (skeptic)',
+    criticSources: 'Real sources consulted',
     regenerate: '↻ Regenerate',
     regenerating: 'Regenerating…',
     discard: 'discard',
@@ -304,6 +312,11 @@ export const en = {
     noAnchorsHint:
       'No anchors. Add something that confirms off-screen (link, spec, measurement).',
     addAnchor: '+ add anchor',
+    researchBtn: '🌐 Search the web for sources (add refs)',
+    researchAgainBtn: '🌐 ↻ Search the web again',
+    researchingBtn: 'Searching the web…',
+    researchedOn: (date: string) => `web research ${date}`,
+    researchFindings: 'facts found',
     anchorAddBtn: 'add',
     anchorLabelPlaceholder: 'label (e.g. max dimension)',
     anchorValuePlaceholder: {
@@ -385,6 +398,8 @@ export const en = {
     criterionAttested: (obs: string) => `Criterion attested as met: ${obs}`,
     critiqueRecorded: (n: number) => `Adversarial critique recorded: ${n} weakness(es).`,
     anchorAdded: (kind: string, label: string) => `Anchor ${kind} added: ${label}`,
+    webResearchDone: (n: number) =>
+      `Web research recorded: ${n} new source${n === 1 ? '' : 's'} added as link anchor${n === 1 ? '' : 's'}.`,
     anchorVerified: (label: string) => `Anchor "${label}" verified ✓.`,
     anchorUnverified: (label: string) => `Anchor "${label}" unverified.`,
     anchorRemoved: (label: string) => `Anchor removed: ${label}`,
@@ -408,6 +423,7 @@ export const en = {
       'You are in the demo. Configure an API key in ⚙ to use AI actions.',
     aiMissingKey:
       'No API key configured. Open ⚙ Settings and add one.',
+    noPlansReturned: 'The model returned no plans. Try generating again.',
   },
 };
 
@@ -524,6 +540,12 @@ export const ptBR: Messages = {
     generate: '◆ Gerar planos com AI',
     generating: (phase: string, elapsed: string) =>
       `Gerando planos — ${phase} ${elapsed}`,
+    researchToggle: '🌐 Pesquisa real na web',
+    researchToggleHint:
+      'pesquisa fontes reais (docs, preços, specs) antes de planejar · mais lento, gasta mais créditos',
+    phaseResearching: 'pesquisando na web',
+    researchingNote: 'pesquisando fontes reais na web…',
+    webSources: '◆ Fontes da web:',
     phaseConnecting: 'conectando',
     phaseStreaming: 'recebendo',
     phaseFinalizing: 'validando',
@@ -597,6 +619,7 @@ export const ptBR: Messages = {
     ariaConfirm: 'Confirmar',
     ariaUnconfirm: 'Desfazer confirmação',
     ariaFocus: 'Abrir esta parte no tutor',
+    referencesHeader: 'REFERÊNCIAS',
   },
   detail: {
     noSelection: 'Nenhum nó selecionado. Clique em um nó no grafo.',
@@ -711,6 +734,7 @@ export const ptBR: Messages = {
     weaknesses: 'Fraquezas',
     hiddenPremises: 'Premissas ocultas',
     altCriterion: 'Critério alternativo (cético)',
+    criticSources: 'Fontes reais consultadas',
     regenerate: '↻ Regerar',
     regenerating: 'Regerando…',
     discard: 'descartar',
@@ -720,6 +744,11 @@ export const ptBR: Messages = {
     noAnchorsHint:
       'Sem âncoras. Adicione algo que se confirma fora da tela (link, spec, medida).',
     addAnchor: '+ adicionar âncora',
+    researchBtn: '🌐 Pesquisar fontes na web (adicionar refs)',
+    researchAgainBtn: '🌐 ↻ Pesquisar na web de novo',
+    researchingBtn: 'Pesquisando na web…',
+    researchedOn: (date: string) => `pesquisa web ${date}`,
+    researchFindings: 'fatos encontrados',
     anchorAddBtn: 'adicionar',
     anchorLabelPlaceholder: 'rótulo (ex: dimensão máxima)',
     anchorValuePlaceholder: {
@@ -799,6 +828,8 @@ export const ptBR: Messages = {
     criterionAttested: (obs: string) => `Critério aferido como atendido: ${obs}`,
     critiqueRecorded: (n: number) => `Crítica adversarial registrada: ${n} fraqueza(s).`,
     anchorAdded: (kind: string, label: string) => `Âncora ${kind} adicionada: ${label}`,
+    webResearchDone: (n: number) =>
+      `Pesquisa web registrada: ${n} fonte${n === 1 ? '' : 's'} nova${n === 1 ? '' : 's'} como âncora de link.`,
     anchorVerified: (label: string) => `Âncora "${label}" verificada ✓.`,
     anchorUnverified: (label: string) => `Âncora "${label}" desverificada.`,
     anchorRemoved: (label: string) => `Âncora removida: ${label}`,
@@ -822,5 +853,6 @@ export const ptBR: Messages = {
       'Você está na demonstração. Configure uma chave em ⚙ pra usar ações de IA.',
     aiMissingKey:
       'Nenhuma chave de API configurada. Abra ⚙ Configurações e adicione uma.',
+    noPlansReturned: 'O modelo não retornou nenhum plano. Tente gerar de novo.',
   },
 };

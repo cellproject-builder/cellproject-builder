@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { generatePlans, type PlanProgressEvent } from '@/ai/service';
 import { useGraphStore } from '@/store';
 import { useKBStore } from '@/kb/store';
+import { useConfigStore } from '@/config/store';
 import { useT } from '@/i18n';
 import type { AIPlan } from '@/types';
 import type { Messages } from '@/i18n';
@@ -28,6 +29,8 @@ export function ObjectiveScreen() {
   const createProjectFromPlan = useGraphStore((s) => s.createProjectFromPlan);
   const kbCount = useKBStore((s) => Object.keys(s.docs).length);
   const getContextFor = useKBStore((s) => s.getContextFor);
+  const webResearch = useConfigStore((s) => s.webResearchEnabled);
+  const setWebResearch = useConfigStore((s) => s.setWebResearchEnabled);
 
   const addRule = () => {
     const trimmed = ruleDraft.trim();
@@ -79,7 +82,7 @@ export function ObjectiveScreen() {
       });
       const more = await generatePlans(
         objective.trim(),
-        undefined,
+        (ev) => setProgress(ev),
         kbContext,
         rules,
         plans.map((p) => ({
@@ -145,6 +148,31 @@ export function ObjectiveScreen() {
             </span>{' '}
             <span className="text-text-secondary">
               {kbUsed.map((k) => k.titulo).join(' · ')}
+            </span>
+          </div>
+        )}
+
+        {/* Fontes reais consultadas na pesquisa web — links clicáveis, são as
+            mesmas URLs que o plano pode citar como âncora kind="link". */}
+        {progress?.research && progress.research.sources.length > 0 && (
+          <div className="mb-4 text-[11px] bg-ai-accent/5 border border-ai-accent/30 rounded-sm px-3 py-2">
+            <span className="font-mono uppercase tracking-wider text-ai-accent">
+              {tr.objective.webSources}
+            </span>{' '}
+            <span className="text-text-secondary">
+              {progress.research.sources.map((s, i) => (
+                <span key={s.url}>
+                  {i > 0 && ' · '}
+                  <a
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline decoration-ai-accent/40 hover:text-ai-accent transition-colors"
+                  >
+                    {s.title}
+                  </a>
+                </span>
+              ))}
             </span>
           </div>
         )}
@@ -247,6 +275,37 @@ export function ObjectiveScreen() {
               )}
               <p className="mt-1.5 text-[11px] text-text-muted">{tr.objective.rulesHint}</p>
             </div>
+
+            {/* Pesquisa real na web — modo global (vale pra planos, tutor,
+                crítica e replan). Opt-in: custa créditos e adiciona latência. */}
+            <label
+              className={`flex items-start gap-2.5 p-3 rounded-sm border cursor-pointer transition-colors ${
+                webResearch
+                  ? 'border-ai-accent/50 bg-ai-accent/5'
+                  : 'border-border-base bg-bg-secondary hover:border-text-muted'
+              } ${loading ? 'opacity-50 pointer-events-none' : ''}`}
+            >
+              <input
+                type="checkbox"
+                checked={webResearch}
+                onChange={(e) => setWebResearch(e.target.checked)}
+                disabled={loading}
+                className="mt-0.5 accent-ai-accent"
+              />
+              <span className="min-w-0">
+                <span
+                  className={`block text-xs font-medium ${
+                    webResearch ? 'text-ai-accent' : 'text-text-secondary'
+                  }`}
+                >
+                  {tr.objective.researchToggle}
+                </span>
+                <span className="block text-[11px] text-text-muted mt-0.5">
+                  {tr.objective.researchToggleHint}
+                </span>
+              </span>
+            </label>
+
             <button
               onClick={handleGenerate}
               disabled={loading || !objective.trim()}
@@ -443,6 +502,8 @@ function Spinner() {
 
 function phaseLabel(phase: PlanProgressEvent['phase'] | undefined, tr: Messages): string {
   switch (phase) {
+    case 'researching':
+      return tr.objective.phaseResearching;
     case 'connecting':
       return tr.objective.phaseConnecting;
     case 'streaming':
@@ -482,7 +543,9 @@ function PartialPlansPreview({ progress, tr }: { progress: PlanProgressEvent; tr
   if (!plans || plans.length === 0) {
     return (
       <div className="text-text-muted italic">
-        {progress.phase === 'connecting'
+        {progress.phase === 'researching'
+          ? tr.objective.researchingNote
+          : progress.phase === 'connecting'
           ? tr.objective.awaitingFirstToken
           : tr.objective.startingDraft}
       </div>

@@ -31,17 +31,24 @@ export const PROVIDER_KEY_HINTS: Record<Provider, string> = {
 export const PROVIDER_DEFAULTS: Record<Provider, { mainModel: string; kbModel: string }> = {
   openai: { mainModel: 'gpt-4o', kbModel: 'gpt-4o-mini' },
   anthropic: { mainModel: 'claude-sonnet-4-5', kbModel: 'claude-haiku-4-5' },
-  openrouter: { mainModel: 'google/gemini-3.5-flash', kbModel: 'google/gemini-2.0-flash-001' },
+  openrouter: { mainModel: 'google/gemini-3.5-flash', kbModel: 'google/gemini-2.5-flash-lite' },
 };
+
+// kbModel default antigo que saiu do ar no OpenRouter — migrado no persist.
+const DEAD_OPENROUTER_KB_MODEL = 'google/gemini-2.0-flash-001';
 
 interface ConfigState {
   activeProvider: Provider | null;
   providers: Partial<Record<Provider, ProviderConfig>>;
+  // Pesquisa real na web: a IA busca fontes/documentação antes de planejar,
+  // explicar e criticar. Opt-in global — cada busca custa créditos do provider.
+  webResearchEnabled: boolean;
 
   setActiveProvider: (p: Provider) => void;
   saveProviderConfig: (p: Provider, cfg: ProviderConfig) => void;
   clearProvider: (p: Provider) => void;
   clearAll: () => void;
+  setWebResearchEnabled: (enabled: boolean) => void;
 }
 
 const idbStorage: StateStorage = {
@@ -59,8 +66,11 @@ export const useConfigStore = create<ConfigState>()(
     (set) => ({
       activeProvider: null,
       providers: {},
+      webResearchEnabled: false,
 
       setActiveProvider: (p) => set({ activeProvider: p }),
+
+      setWebResearchEnabled: (enabled) => set({ webResearchEnabled: enabled }),
 
       saveProviderConfig: (p, cfg) =>
         set((state) => ({
@@ -82,8 +92,18 @@ export const useConfigStore = create<ConfigState>()(
     }),
     {
       name: 'cellproject-config',
-      version: 1,
+      version: 2, // v2: webResearchEnabled + troca do kbModel morto do OpenRouter
       storage: createJSONStorage(() => idbStorage),
+      migrate: (persisted, version) => {
+        const state = persisted as Partial<ConfigState>;
+        if (version < 2) {
+          const or = state.providers?.openrouter;
+          if (or && or.kbModel === DEAD_OPENROUTER_KB_MODEL) {
+            or.kbModel = PROVIDER_DEFAULTS.openrouter.kbModel;
+          }
+        }
+        return state as ConfigState;
+      },
     },
   ),
 );

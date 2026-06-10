@@ -13,6 +13,7 @@ import type {
   HistoryEntry,
   AdversarialCritique,
   GroundTruthRef,
+  WebResearchDigest,
 } from '@/types';
 import { t } from '@/i18n';
 import { buildDemoProject, DEMO_PROJECT_ID } from '@/data/demoProject';
@@ -76,6 +77,10 @@ interface GraphState {
   ) => void; // attack (d)
   toggleGroundTruthVerified: (id: string, refId: string) => void;
   removeGroundTruthRef: (id: string, refId: string) => void;
+  // Pesquisa web da célula: persiste o digest e converte cada fonte nova em
+  // âncora kind="link" (addedByAI, não verificada — verificar continua sendo
+  // ato do usuário).
+  applyWebResearch: (id: string, digest: WebResearchDigest) => void;
   reportFailure: (id: string, context: string) => void; // attack (c)
   clearFailure: (id: string) => void;
 
@@ -730,6 +735,42 @@ export const useGraphStore = create<GraphState>()(
             { ...prev, groundTruthRefs: refs },
             'ground_truth',
             t().store.anchorAdded(ref.kind, ref.label),
+          );
+          return {
+            project: {
+              ...state.project,
+              updatedAt: now(),
+              nodes: { ...state.project.nodes, [id]: next },
+            },
+          };
+        }),
+
+      applyWebResearch: (id, digest) =>
+        set((state) => {
+          if (!state.project) return state;
+          const prev = state.project.nodes[id];
+          if (!prev) return state;
+          const existing = prev.groundTruthRefs ?? [];
+          const known = new Set(existing.map((r) => r.value));
+          const fresh: GroundTruthRef[] = digest.sources
+            .filter((s) => !known.has(s.url))
+            .map((s) => ({
+              id: nanoid(8),
+              kind: 'link',
+              label: s.title,
+              value: s.url,
+              verificado: false,
+              addedAt: now(),
+              addedByAI: true,
+            }));
+          const next = addHistory(
+            {
+              ...prev,
+              webResearch: digest,
+              groundTruthRefs: fresh.length > 0 ? [...existing, ...fresh] : prev.groundTruthRefs,
+            },
+            'ground_truth',
+            t().store.webResearchDone(fresh.length),
           );
           return {
             project: {

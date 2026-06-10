@@ -76,11 +76,30 @@ export interface GroundTruthRef {
   addedByAI: boolean; // true quando veio como hint da IA, false quando usuário cadastrou
 }
 
+// Fonte real consultada na web (pesquisa por célula) — URL direta + título.
+export interface WebSourceRef {
+  url: string;
+  title: string;
+}
+
+// Resultado da pesquisa web de UMA célula — ação explícita do usuário
+// ("pesquisar fontes"). Fica no nó: as fontes viram âncoras kind="link" e o
+// digest é reaproveitado como contexto por explicar/criticar/decompor/replan,
+// sem nova busca (custo zero depois da primeira).
+export interface WebResearchDigest {
+  query: string;
+  findings: string; // markdown curto com fatos concretos citando as fontes
+  sources: WebSourceRef[];
+  searchedAt: number;
+}
+
 // Crítica adversarial — segunda passada cética, prompt distinto do planejador.
 export interface AdversarialCritique {
   fraquezas: string[];
   premissasOcultas: string[];
   criterioAlternativo: string; // critério independente, escrito por cético
+  // Fontes da pesquisa web que embasou a crítica (quando o modo está ligado).
+  fontes?: WebSourceRef[];
   generatedAt: number;
 }
 
@@ -120,6 +139,10 @@ export interface ConceptNodeData {
 
   // Ground truth (attack d): âncoras verificáveis no mundo real.
   groundTruthRefs?: GroundTruthRef[];
+
+  // Pesquisa web desta célula (ação explícita do usuário). As fontes também
+  // entram em groundTruthRefs como âncoras kind="link" no momento da pesquisa.
+  webResearch?: WebResearchDigest;
 
   // Ground truth (attack c): contexto de falha real. Preenchido quando o
   // usuário reporta que o nó quebrou na execução; dispara replan contextual.

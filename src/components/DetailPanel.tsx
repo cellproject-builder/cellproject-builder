@@ -12,7 +12,7 @@ import { requireAI } from '@/ai/availability';
 import { useKBStore } from '@/kb/store';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useT } from '@/i18n';
-import { ExplanationContent } from './TutorMode';
+import { ExplanationContent } from './Markdown';
 import { MobileSheet } from './MobileSheet';
 import {
   UserCriterionField,
@@ -108,6 +108,7 @@ export function DetailPanel() {
           strategy: project.constructionStrategy,
           archetype: project.archetype,
           rules: project.rules,
+          research: node.webResearch,
         },
         kbContext,
       );
@@ -135,6 +136,7 @@ export function DetailPanel() {
         porQue: node.porQue,
         comoConfirmar: node.comoConfirmar,
         rules: project.rules,
+        research: node.webResearch,
       });
       setNodeExplanation(node.id, text);
       setExplanationOpen(true);
@@ -252,7 +254,7 @@ export function DetailPanel() {
         )}
 
         <UserCriterionField node={node} />
-        <GroundTruthRefsList node={node} />
+        <GroundTruthRefsList node={node} project={project} />
         <CritiqueSection node={node} project={project} />
         <FailureSection node={node} project={project} />
 

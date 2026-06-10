@@ -12,7 +12,14 @@ import type {
 } from '@/types';
 import type { KBContextEntry } from '@/kb/types';
 import { aiModel, assertAIReady, currentModelIds } from './client';
-import { currentLocaleAIName } from '@/i18n';
+import { currentLocaleAIName, t } from '@/i18n';
+import {
+  isWebResearchOn,
+  runResearch,
+  formatResearchBlock,
+  type ResearchDigest,
+  type ResearchSource,
+} from './research';
 import {
   PlansResponseSchema,
   DecomposeResponseSchema,
@@ -30,6 +37,7 @@ import {
 export type DeepPartial<T> = T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 
 export type PlanProgressPhase =
+  | 'researching'
   | 'connecting'
   | 'streaming'
   | 'finalizing'
@@ -43,6 +51,9 @@ export interface PlanProgressEvent {
   chunkCount: number;
   elapsedMs: number;
   error?: string;
+  // Digest da pesquisa web (quando o modo pesquisa está ligado) — a UI mostra
+  // as fontes reais consultadas junto dos planos.
+  research?: ResearchDigest;
 }
 
 export type PlanProgressCallback = (ev: PlanProgressEvent) => void;
@@ -53,6 +64,9 @@ export type PlanProgressCallback = (ev: PlanProgressEvent) => void;
 // critiqueNode / replanFromFailure.
 // ---------------------------------------------------------------------------
 
+// `research` em todos os contextos de nó = digest salvo pela pesquisa POR
+// CÉLULA (node.webResearch). Quem busca é o usuário, explicitamente, uma vez;
+// estes fluxos só reaproveitam o resultado como contexto — custo zero extra.
 interface DecomposeContext {
   projectName: string;
   projectObjective: string;
@@ -64,6 +78,7 @@ interface DecomposeContext {
   strategy?: ConstructionStrategy;
   archetype?: ProjectArchetype;
   rules?: string[];
+  research?: ResearchDigest | null;
 }
 
 interface ExplainContext {
@@ -76,6 +91,7 @@ interface ExplainContext {
   porQue: string;
   comoConfirmar: string;
   rules?: string[];
+  research?: ResearchDigest | null;
 }
 
 interface CritiqueContext {
@@ -90,6 +106,7 @@ interface CritiqueContext {
   comoConfirmar: string;
   comoConfirmarUsuario?: string;
   rules?: string[];
+  research?: ResearchDigest | null;
 }
 
 interface ReplanContext {
@@ -105,6 +122,7 @@ interface ReplanContext {
   strategy?: ConstructionStrategy;
   archetype?: ProjectArchetype;
   rules?: string[];
+  research?: ResearchDigest | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +186,12 @@ STRUCTURE
 
 DO NOT include introductory filler like "of course, I will explain" — go straight to the content.`;
 
+// Adendo quando a célula tem pesquisa web salva: o tutor recebe o bloco WEB
+// RESEARCH no prompt e deve fundamentar números/comandos/URLs nele.
+const TUTOR_RESEARCH_ADDON = `
+
+A WEB RESEARCH block with REAL, current facts and sources is included in the user prompt — it came from an actual web search about this node. Ground your numbers, versions, prices and commands in it. When you use a fact from it, cite the source inline as a markdown link [site](url). Never cite a URL outside that block's SOURCES list.`;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -217,6 +241,45 @@ function materializeEdge(raw: RawSuggestedEdge, idMap: Map<string, string>): AIS
 
 function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
+}
+
+// APICallError costuma vir com message genérica ("Provider returned error") e
+// o motivo real enterrado no responseBody. Puxa o detalhe pra mensagem que a
+// UI exibe — sem isso o usuário vê um erro opaco (ou pior, nada).
+function readableAIError(err: unknown): Error {
+  if (!(err instanceof Error)) return new Error(String(err));
+  const body = (err as Error & { responseBody?: unknown }).responseBody;
+  if (typeof body !== 'string' || body.length === 0) return err;
+  let detail = body;
+  try {
+    const parsed = JSON.parse(body) as {
+      error?: { message?: string; metadata?: { raw?: string } };
+    };
+    detail = parsed.error?.metadata?.raw ?? parsed.error?.message ?? body;
+  } catch {
+    // corpo não-JSON — usa cru
+  }
+  const friendly = new Error(`${err.message} — ${detail.slice(0, 500)}`);
+  friendly.name = err.name;
+  return friendly;
+}
+
+// Pesquisa web opcional antes de um fluxo estruturado. Falha de pesquisa nunca
+// derruba a geração — degrada para o fluxo sem pesquisa.
+async function maybeResearch(topic: string, focus?: string): Promise<ResearchDigest | null> {
+  if (!isWebResearchOn()) return null;
+  try {
+    return await runResearch(topic, focus);
+  } catch (err) {
+    console.warn('[cellproject] web research failed — continuing without it', err);
+    return null;
+  }
+}
+
+// Quando há pesquisa, os links reais dela podem (e devem) virar âncoras.
+function researchAnchorDirective(research: ResearchDigest | null): string {
+  if (!research || research.sources.length === 0) return '';
+  return `\nWhen a node has a natural link anchor, use one of the WEB RESEARCH source URLs as a groundTruthHint (kind="link", value = the exact URL from the SOURCES list).`;
 }
 
 function formatBreadcrumb(crumbs: string[]) {
@@ -286,6 +349,22 @@ export async function generatePlans(
 ): Promise<AIPlan[]> {
   assertAIReady();
 
+  const startedAt = performance.now();
+  const elapsed = () => Math.round(performance.now() - startedAt);
+
+  // Pesquisa real ANTES de planejar: fatos atuais (preços, specs, docs) entram
+  // no prompt e as URLs reais viram candidatas a âncora kind="link".
+  let research: ResearchDigest | null = null;
+  if (isWebResearchOn()) {
+    onProgress?.({ phase: 'researching', chunkCount: 0, elapsedMs: elapsed() });
+    research = await maybeResearch(
+      objective,
+      rules && rules.length > 0
+        ? `Verify feasibility against these hard constraints: ${rules.join(' · ')}`
+        : undefined,
+    );
+  }
+
   const hasExisting = !!existingPlans && existingPlans.length > 0;
   const existingBlock = hasExisting
     ? `
@@ -329,15 +408,21 @@ GROUND TRUTH: when a node has any anchor verifiable in the real world, fill 'gro
 - resource "bamboo": hint with kind="spec" value="Phyllostachys aurea, 40cm ± 2cm, Ø 5-8mm"
 - step "tie return knot": hint with kind="link" value="URL of a known tutorial"
 - any measurement: kind="medida" value="weight < 15g" (always with unit and tolerance when applicable).
-If no natural anchor exists, omit the field — DO NOT invent links.
+If no natural anchor exists, omit the field — DO NOT invent links.${researchAnchorDirective(research)}
 
-Use short unique tempIds within the plan (e.g. "p1", "r1", "cat1"). Do not generate edges here.`;
+Use short unique tempIds within the plan (e.g. "p1", "r1", "cat1"). Do not generate edges here.${formatResearchBlock(research)}`;
 
-  const startedAt = performance.now();
-  const elapsed = () => Math.round(performance.now() - startedAt);
+  onProgress?.({
+    phase: 'connecting',
+    chunkCount: 0,
+    elapsedMs: elapsed(),
+    research: research ?? undefined,
+  });
 
-  onProgress?.({ phase: 'connecting', chunkCount: 0, elapsedMs: elapsed() });
-
+  // Erros do stream NÃO aparecem no partialObjectStream (ele só termina) e
+  // `result.object` PENDURA para sempre em cima de erro de API — sem este
+  // onError a UI congelava em "validando". Capturamos e lançamos nós mesmos.
+  let streamError: unknown = null;
   const result = streamObject({
     model: aiModel,
     schema: PlansResponseSchema,
@@ -345,6 +430,9 @@ Use short unique tempIds within the plan (e.g. "p1", "r1", "cat1"). Do not gener
     system: baseSystem(),
     prompt: userPrompt,
     temperature: 0.6,
+    onError: (ev) => {
+      streamError = ev.error;
+    },
   });
 
   let chunkCount = 0;
@@ -359,14 +447,18 @@ Use short unique tempIds within the plan (e.g. "p1", "r1", "cat1"). Do not gener
         partial: lastPartial,
         chunkCount,
         elapsedMs: elapsed(),
+        research: research ?? undefined,
       });
     }
+
+    if (streamError) throw streamError;
 
     onProgress?.({
       phase: 'finalizing',
       partial: lastPartial,
       chunkCount,
       elapsedMs: elapsed(),
+      research: research ?? undefined,
     });
 
     const finalObject = await result.object;
@@ -374,6 +466,8 @@ Use short unique tempIds within the plan (e.g. "p1", "r1", "cat1"). Do not gener
     const reasoning = extractReasoning(providerMetadata);
 
     const hydrated = finalObject.plans.map(hydratePlan);
+    // O schema não impõe mais min(3) (Gemini rejeita) — defende aqui.
+    if (hydrated.length === 0) throw new Error(t().notify.noPlansReturned);
 
     onProgress?.({
       phase: 'done',
@@ -381,19 +475,21 @@ Use short unique tempIds within the plan (e.g. "p1", "r1", "cat1"). Do not gener
       reasoning,
       chunkCount,
       elapsedMs: elapsed(),
+      research: research ?? undefined,
     });
 
     return hydrated;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const friendly = readableAIError(err);
     onProgress?.({
       phase: 'error',
       partial: lastPartial,
       chunkCount,
       elapsedMs: elapsed(),
-      error: message,
+      error: friendly.message,
+      research: research ?? undefined,
     });
-    throw err;
+    throw friendly;
   }
 }
 
@@ -458,6 +554,8 @@ function hydratePlan(raw: RawPlan): AIPlan {
 // decomposeNode — break an existing node into children + edges
 // ---------------------------------------------------------------------------
 
+// Decompose não dispara busca própria (é o caminho quente do fluxo), mas se a
+// célula já tem pesquisa salva o digest entra como contexto — de graça.
 export async function decomposeNode(
   ctx: DecomposeContext,
   kbContext?: KBContextEntry[],
@@ -480,9 +578,9 @@ EXISTING SIBLINGS (do not repeat)
 ${formatSiblings(ctx.siblings)}
 ${formatKBContext(kbContext)}
 TASK
-${guidance}
+${guidance}${researchAnchorDirective(ctx.research ?? null)}
 
-Use short unique tempIds (e.g. "a", "b", "c"). If there is order or dependency between the new nodes, create 'direct' edges between them.`;
+Use short unique tempIds (e.g. "a", "b", "c"). If there is order or dependency between the new nodes, create 'direct' edges between them.${formatResearchBlock(ctx.research)}`;
 
   const { object } = await generateObject({
     model: aiModel,
@@ -574,7 +672,8 @@ function decomposeGuidance(
 export async function explainNode(ctx: ExplainContext): Promise<string> {
   assertAIReady();
 
-  const systemTutor = `${baseSystem()}${TUTOR_GUIDANCE_TEMPLATE}`;
+  const research = ctx.research ?? null;
+  const systemTutor = `${baseSystem()}${TUTOR_GUIDANCE_TEMPLATE}${research ? TUTOR_RESEARCH_ADDON : ''}`;
 
   const userPrompt = `PROJECT
 - Name: ${ctx.projectName}
@@ -588,7 +687,7 @@ NODE
 - Why it matters: ${ctx.porQue}
 - Confirmation criterion: ${ctx.comoConfirmar}
 
-Generate the full markdown explanation following the structure above. Focus on letting the user execute this node alone.${ctx.rules && ctx.rules.length > 0 ? ' Every instruction, material and number you give must stay inside the USER RULES above — call out explicitly when a rule shapes a choice.' : ''}`;
+Generate the full markdown explanation following the structure above. Focus on letting the user execute this node alone.${ctx.rules && ctx.rules.length > 0 ? ' Every instruction, material and number you give must stay inside the USER RULES above — call out explicitly when a rule shapes a choice.' : ''}${formatResearchBlock(research)}`;
 
   const { text } = await generateText({
     model: aiModel,
@@ -597,7 +696,17 @@ Generate the full markdown explanation following the structure above. Focus on l
     temperature: 0.4,
   });
 
-  return text.trim();
+  // Quando a célula tem pesquisa, fecha com a seção de referências reais.
+  return research ? appendReferences(text.trim(), research.sources) : text.trim();
+}
+
+// Seção de referências montada por código a partir de result.sources — URLs
+// garantidamente reais (vieram da busca), não da memória do modelo.
+function appendReferences(text: string, sources: ResearchSource[]): string {
+  if (sources.length === 0) return text;
+  const header = t().tutor.referencesHeader;
+  const lines = sources.map((s) => `- [${s.title}](${s.url})`).join('\n');
+  return `${text}\n\n**${header}**\n${lines}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -608,6 +717,11 @@ Generate the full markdown explanation following the structure above. Focus on l
 
 export async function critiqueNode(ctx: CritiqueContext): Promise<AdversarialCritique> {
   assertAIReady();
+
+  // Cético com evidência real: se o usuário pesquisou esta célula, o digest
+  // entra como evidência — o ataque deixa de ser "IA desconfia da IA" e passa
+  // a citar o mundo.
+  const research = ctx.research ?? null;
 
   const userPrompt = `PROJECT
 - Name: ${ctx.projectName}
@@ -624,7 +738,7 @@ NODE TO CRITIQUE
 ${ctx.comoConfirmarUsuario ? `- User-written criterion: ${ctx.comoConfirmarUsuario}` : '- The user has not written a criterion yet.'}
 
 TASK
-Point out weaknesses, hidden assumptions, and propose an INDEPENDENT alternative criterion that a skeptic would use.${ctx.rules && ctx.rules.length > 0 ? ' Attack RULE COMPLIANCE first: where would this node blow the user rules in practice (real prices, real weights, real deadlines)? An optimistic estimate that busts a rule is a weakness.' : ''}`;
+Point out weaknesses, hidden assumptions, and propose an INDEPENDENT alternative criterion that a skeptic would use.${ctx.rules && ctx.rules.length > 0 ? ' Attack RULE COMPLIANCE first: where would this node blow the user rules in practice (real prices, real weights, real deadlines)? An optimistic estimate that busts a rule is a weakness.' : ''}${research ? ' Weigh the WEB RESEARCH facts above the planner\'s optimism — when reality contradicts the node, that contradiction IS the weakness.' : ''}${formatResearchBlock(research)}`;
 
   const { object } = await generateObject({
     model: aiModel,
@@ -639,6 +753,7 @@ Point out weaknesses, hidden assumptions, and propose an INDEPENDENT alternative
     fraquezas: object.fraquezas,
     premissasOcultas: object.premissasOcultas,
     criterioAlternativo: object.criterioAlternativo,
+    fontes: research && research.sources.length > 0 ? research.sources : undefined,
     generatedAt: Date.now(),
   };
 }
@@ -654,6 +769,10 @@ export async function replanFromFailure(
   kbContext?: KBContextEntry[],
 ): Promise<{ nodes: AISuggestedNode[]; edges: AISuggestedEdge[] }> {
   assertAIReady();
+
+  // O usuário acabou de queimar tempo numa premissa furada — se a célula tem
+  // pesquisa salva, o replan parte de alternativas que EXISTEM.
+  const research = ctx.research ?? null;
 
   const userPrompt = `PROJECT CONTEXT
 - Name: ${ctx.projectName}
@@ -680,9 +799,9 @@ Real execution showed that the original plan didn't work. Re-decompose this node
 2. If the failure was a resource (broken, missing, out of spec), suggest concrete alternatives and/or a new mitigation step.
 3. If the failure was a step, break it into smaller steps covering where it got stuck.
 4. Prefer 2–4 new, highly specific nodes. 'direct' edges in a chain when there is order.
-5. Every new node should bring verifiable groundTruthHints — the user just burned time on something the AI claimed without an anchor.
+5. Every new node should bring verifiable groundTruthHints — the user just burned time on something the AI claimed without an anchor.${researchAnchorDirective(research)}
 
-Use short unique tempIds (e.g. "a", "b", "c").`;
+Use short unique tempIds (e.g. "a", "b", "c").${formatResearchBlock(research)}`;
 
   const { object } = await generateObject({
     model: aiModel,
