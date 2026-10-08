@@ -14,6 +14,7 @@ import {
   type ConcludeMissingKey,
   canRevealAICriterionNow,
   relatedPartsFor,
+  planOverviewFor,
 } from '@/store';
 import { decomposeNode, explainNode } from '@/ai/service';
 import { requireAI } from '@/ai/availability';
@@ -189,6 +190,7 @@ export function DetailPanel() {
           comoConfirmar: n.comoConfirmar,
           comoConfirmarUsuario: n.comoConfirmarUsuario,
           knownElsewhere: knownElsewhereFor(p, n.id),
+          planOverview: planOverviewFor(p, n.id),
         },
         kbContext,
         { signal },

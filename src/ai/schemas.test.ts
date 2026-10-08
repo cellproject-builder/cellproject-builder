@@ -67,3 +67,16 @@ describe('schemas de resposta — compatíveis com strict json_schema', () => {
     expect(strictViolations(await toJSONSchema(ok))).toEqual([]);
   });
 });
+
+import { stripZeroTolerance, isZeroMeasure } from './service';
+describe('âncoras de medida sem precisão falsa', () => {
+  it('remove ± 0 e detecta valor zero', () => {
+    expect(stripZeroTolerance('R$100 ± R$0')).toBe('R$100');
+    expect(stripZeroTolerance('40cm ± 2cm')).toBe('40cm ± 2cm');
+    expect(stripZeroTolerance('60 L ± 0 L')).toBe('60 L');
+    expect(isZeroMeasure('R$0 ± R$0')).toBe(true);
+    expect(isZeroMeasure('R$0,00')).toBe(true);
+    expect(isZeroMeasure('R$100 ± R$0')).toBe(false);
+    expect(isZeroMeasure('0,5 mm')).toBe(false);
+  });
+});

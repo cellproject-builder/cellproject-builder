@@ -16,6 +16,7 @@ import {
   stepSequence,
   canRevealAICriterionNow,
   relatedPartsFor,
+  planOverviewFor,
 } from '@/store';
 import { explainNode, decomposeNode } from '@/ai/service';
 import { useKBStore } from '@/kb/store';
@@ -649,6 +650,7 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
             comoConfirmar: node.comoConfirmar,
             comoConfirmarUsuario: node.comoConfirmarUsuario,
             knownElsewhere,
+            planOverview: planOverviewFor(project, node.id),
           },
           kbContext,
           { signal: local.signal },

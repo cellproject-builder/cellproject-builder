@@ -1983,6 +1983,26 @@ export const relatedPartsFor = (
   return out.filter((p) => p.oQue?.trim());
 };
 
+// Resumo do resto do plano para prompts (cético, replan, quebrar): cada nó
+// fora da subárvore de `nodeId`, rotulado pela categoria, em ordem de árvore.
+export const planOverviewFor = (
+  project: Project,
+  nodeId: string,
+): { category: string; name: string; oQue: string }[] => {
+  const byParent = childrenByParent(project);
+  const out: { category: string; name: string; oQue: string }[] = [];
+  const walk = (id: string, category: string | null) => {
+    for (const child of byParent.get(id) ?? []) {
+      if (child.id === nodeId) continue; // a própria subárvore já vai no prompt
+      const cat = category ?? child.name;
+      out.push({ category: cat, name: child.name, oQue: child.oQue ?? '' });
+      walk(child.id, cat);
+    }
+  };
+  walk(project.rootId, null);
+  return out;
+};
+
 export const confidenceBand = (confidence: number): 'high' | 'mid' | 'low' => {
   if (confidence >= 70) return 'high';
   if (confidence >= 40) return 'mid';

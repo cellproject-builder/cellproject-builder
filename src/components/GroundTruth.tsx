@@ -7,10 +7,13 @@ import {
   CRITERION_UNLOCK_MS,
   pendingParent,
   refCountsAsSignal,
+  relatedPartsFor,
+  planOverviewFor,
+  canRevealAICriterionNow,
 } from '@/store';
 import { useKBStore } from '@/kb/store';
 import { useT } from '@/i18n';
-import { critiqueNode, replanFromFailure } from '@/ai/service';
+import { critiqueNode, replanFromFailure, stripZeroTolerance } from '@/ai/service';
 import { runResearch } from '@/ai/research';
 import { requireAI } from '@/ai/availability';
 import { useAIAction } from '@/hooks/useAIAction';
@@ -579,6 +582,8 @@ function CritiqueBody({ node, project, collapsible }: SectionProps) {
           comoConfirmarUsuario: cur.comoConfirmarUsuario,
           rules: proj.rules,
           research: cur.webResearch,
+          relatedParts: relatedPartsFor(proj, cur.id),
+          planOverview: planOverviewFor(proj, cur.id),
         },
         { signal },
       );
@@ -1151,7 +1156,7 @@ function RefRow({
                 </a>
               ) : (
                 <>
-                  {refData.value}
+                  {refData.kind === 'medida' ? stripZeroTolerance(refData.value) : refData.value}
                   {refData.kind === 'link' && (
                     <span className="ml-1 text-state-problem">({tr.groundTruth.invalidLink})</span>
                   )}
@@ -1293,8 +1298,13 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
           rules: proj.rules,
           research: cur.webResearch,
           currentChildren: currentChildren.length > 0 ? currentChildren : undefined,
-          comoConfirmar: cur.comoConfirmar || undefined,
+          // Critério da IA só depois de revelado: senão o diagnóstico mostraria
+          // o limiar da IA antes de o usuário escrever o dele.
+          comoConfirmar: canRevealAICriterionNow(cur)
+            ? cur.comoConfirmar || undefined
+            : cur.comoConfirmarUsuario || undefined,
           failedAnchors: failedAnchors.length > 0 ? failedAnchors : undefined,
+          planOverview: planOverviewFor(proj, cur.id),
         },
         kbContext,
         { signal },

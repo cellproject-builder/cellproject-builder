@@ -378,6 +378,16 @@ export interface DecomposeContext {
   knownElsewhere?: string[];
   // Kind da categoria persistido (quando nodeKind = 'categoria').
   categoryKind?: AIPlanCategory['kind'];
+  // Resumo do resto do plano (outras categorias/partes): evita duplicar um
+  // passo que já existe em outra categoria.
+  planOverview?: PlanOverviewEntry[];
+}
+
+// Uma linha do resumo do plano: categoria › parte: oQue curto.
+export interface PlanOverviewEntry {
+  category: string;
+  name: string;
+  oQue: string;
 }
 
 export interface ExplainContext {
@@ -413,6 +423,10 @@ export interface CritiqueContext {
   comoConfirmarUsuario?: string;
   rules?: string[];
   research?: ResearchDigest | null;
+  // Pai/irmãos e o resto do plano: sem isso o cético aponta como "faltando"
+  // o que já está dito em outro nó (orçamento, dimensões).
+  relatedParts?: ExplainContext['relatedParts'];
+  planOverview?: PlanOverviewEntry[];
 }
 
 export interface ReplanContext {
@@ -434,6 +448,9 @@ export interface ReplanContext {
   comoConfirmar?: string;
   // Âncoras que se provaram falsas ou não foram verificadas.
   failedAnchors?: string[];
+  // Resto do plano (passos de execução, orçamento): o replan não pode
+  // contradizer horários/valores de outros nós sem dizer o que muda neles.
+  planOverview?: PlanOverviewEntry[];
 }
 
 // ---------------------------------------------------------------------------
@@ -496,9 +513,10 @@ function groundTruthRules(research: ResearchDigest | null, scope: 'plan' | 'resp
   return `
 GROUND TRUTH (groundTruthHints) — 0 to 2 per node, strongest first, each checkable in the real world:
 - kind="spec": a model / part number, or a specification with unit checkable on a datasheet — e.g. "XT60", "ESP32-WROOM-32", "Phyllostachys aurea, Ø 5-8mm".
-- kind="medida": number + unit + tolerance — e.g. "40cm ± 2cm", "< 15g".
+- kind="medida": number + unit + tolerance — e.g. "40cm ± 2cm", "< 15g". The tolerance is never zero: an estimate (a price, a duration) is a RANGE — e.g. "R$100–140" — never "R$100 ± R$0".
 ${linkLine}
-- NEVER an instruction ("test without propellers" is not an anchor). If no natural anchor exists, return an empty array.`;
+- NEVER an instruction ("test without propellers" is not an anchor). If no natural anchor exists, return an empty array.
+- NEVER a zero or trivial value ("additional cost: 0", "R$0 ± R$0") — that proves nothing. Most steps have no natural anchor: leave them empty.`;
 }
 
 function criticSystem(): string {
@@ -586,6 +604,19 @@ function anchorPolicy(research: ResearchDigest | null | undefined): AnchorPolicy
   return { allowedUrls: allowed.length > 0 ? new Set(allowed) : null, seenUrls: new Set() };
 }
 
+const ZERO_NUM = String.raw`0+(?:[.,]0+)?`;
+const CURRENCY = String.raw`(?:R\$|US\$|\$|€|£)?`;
+const ZERO_TOL_RE = new RegExp(String.raw`\s*(?:±|\+/-)\s*${CURRENCY}\s*${ZERO_NUM}\s*[\p{L}%]*\.?\s*$`, 'u');
+const ZERO_MEASURE_RE = new RegExp(String.raw`^\s*${CURRENCY}\s*${ZERO_NUM}\s*[\p{L}%]*\s*$`, 'u');
+
+export function stripZeroTolerance(value: string): string {
+  return value.replace(ZERO_TOL_RE, '').trim() || value;
+}
+
+export function isZeroMeasure(value: string): boolean {
+  return ZERO_MEASURE_RE.test(stripZeroTolerance(value));
+}
+
 function sanitizeHints(
   raw: RawSuggestedNode['groundTruthHints'] | null | undefined,
   policy: AnchorPolicy,
@@ -598,6 +629,12 @@ function sanitizeHints(
     const label = h.label?.trim() ?? '';
     let value = h.value?.trim() ?? '';
     if (!value) continue;
+    if (h.kind === 'medida') {
+      // Prova inútil: valor zero ("R$0 ± R$0", "0 min") não comprova nada.
+      if (isZeroMeasure(value)) continue;
+      // Precisão falsa: "± 0" numa estimativa some (fica só o valor).
+      value = stripZeroTolerance(value);
+    }
     if (h.kind === 'link') {
       const url = normalizeUrl(value);
       if (!url || !policy.allowedUrls || !policy.allowedUrls.has(url) || policy.seenUrls.has(url)) continue;
@@ -1450,11 +1487,12 @@ NODE TO DECOMPOSE
 - Function (fx): ${ctx.nodeFx}${nodeContentBlock(ctx)}
 
 EXISTING SIBLINGS (do not repeat)
-${formatSiblings(ctx.siblings)}
+${formatSiblings(ctx.siblings)}${formatPlanOverview(ctx.planOverview, 'REST OF THE PLAN (already covered elsewhere — do not duplicate)')}
 ${formatKBContext(kbContext)}
 TASK
 ${guidance}
-- Every child is a real part to obtain or a real action to do. Never a bookkeeping child (budget split, cost allocation, "N slots/positions", cost summary) — put each price inside the oQue of the real part it belongs to, and keep prices consistent with the node content above.
+- Every child is a real part to obtain or a real action to do. Never duplicate a part or step that already exists in the REST OF THE PLAN.${ctx.nodeKind === 'recurso' ? ' Breaking a RESOURCE yields only acquisition/specification parts (what to get, which spec, where from, how to check it on arrival) — never installation or assembly steps, which belong to the Execution category.' : ''}
+- Never a bookkeeping child (budget split, cost allocation, "N slots/positions", cost summary) — put each price inside the oQue of the real part it belongs to, and keep prices consistent with the node content above.
 ${CRITERION_RULES}
 ${groundTruthRules(research, 'response')}
 
@@ -1636,6 +1674,16 @@ export function scrubInternalNames(text: string): string {
     .replace(/\bgroundTruthHints?\b/g, t().ai.anchorWord);
 }
 
+function formatPlanOverview(list: PlanOverviewEntry[] | undefined, header: string): string {
+  const items = (list ?? []).slice(0, 40);
+  if (items.length === 0) return '';
+  const clip = (s: string) => (s.length > 180 ? `${s.slice(0, 177)}…` : s);
+  return `
+
+${header}
+${items.map((e) => `- [${e.category}] ${e.name}${e.oQue.trim() ? `: ${clip(e.oQue.trim())}` : ''}`).join('\n')}`;
+}
+
 // Partes vizinhas no plano: os números delas são a fonte da verdade.
 function formatRelatedParts(parts: ExplainContext['relatedParts']): string {
   const list = (parts ?? []).filter((p) => p.oQue.trim()).slice(0, 10);
@@ -1686,10 +1734,10 @@ NODE TO CRITIQUE
 - What it is: ${ctx.oQue}
 - Why it matters: ${ctx.porQue}
 - AI criterion: ${ctx.comoConfirmar.trim() || '(hidden — the user has not locked theirs yet)'}
-${ctx.comoConfirmarUsuario ? `- User-written criterion: ${ctx.comoConfirmarUsuario}` : '- The user has not written a criterion yet.'}
+${ctx.comoConfirmarUsuario ? `- User-written criterion: ${ctx.comoConfirmarUsuario}` : '- The user has not written a criterion yet.'}${formatRelatedParts(ctx.relatedParts)}${formatPlanOverview(ctx.planOverview, 'REST OF THE PLAN (already decided elsewhere — budget totals, dimensions, schedules)')}
 
 TASK
-Point out weaknesses, hidden assumptions, and propose an INDEPENDENT alternative criterion that a skeptic would use.${ctx.rules && ctx.rules.length > 0 ? ' Attack RULE COMPLIANCE first: where would this node blow the user rules in practice (real prices, real weights, real deadlines)? An optimistic estimate that busts a rule is a weakness.' : ''}${research ? " Weigh the WEB RESEARCH facts above the planner's optimism — when reality contradicts the node, that contradiction IS the weakness." : ''}${formatResearchBlock(research)}`;
+Before calling something missing, check the related parts and the rest of the plan: if a budget, dimension or schedule is already stated in another node, it is NOT a weakness of this node. Point out weaknesses, hidden assumptions, and propose an INDEPENDENT alternative criterion that a skeptic would use.${ctx.rules && ctx.rules.length > 0 ? ' Attack RULE COMPLIANCE first: where would this node blow the user rules in practice (real prices, real weights, real deadlines)? An optimistic estimate that busts a rule is a weakness.' : ''}${research ? " Weigh the WEB RESEARCH facts above the planner's optimism — when reality contradicts the node, that contradiction IS the weakness." : ''}${formatResearchBlock(research)}`;
 
     const { object } = await raceAbort(
       generateObject({
@@ -1774,7 +1822,7 @@ ${ctx.failureContext.trim()}
 """${previousDecompositionBlock(ctx)}
 
 SIBLINGS (context)
-${formatSiblings(ctx.siblings)}
+${formatSiblings(ctx.siblings)}${formatPlanOverview(ctx.planOverview, 'REST OF THE PLAN (steps, schedules, prices already decided — stay consistent with them)')}
 ${formatKBContext(kbContext)}
 TASK
 Real execution showed that the original plan didn't work. Re-decompose this node KNOWING what failed. Rules:
@@ -1784,6 +1832,8 @@ Real execution showed that the original plan didn't work. Re-decompose this node
 4. If the failure was a step, break it into smaller steps covering where it got stuck.
 5. Prefer 2–4 new, highly specific nodes. 'direct' edges in a chain when there is order.
 6. Give each new node a verifiable anchor when one exists — the user just burned time on something the AI claimed without an anchor.
+7. Stay consistent with the REST OF THE PLAN: times, schedules, prices and totals must match the existing nodes. If your fix really changes one of them (e.g. a schedule in an execution step, the project total), say so explicitly in the oQue of the new node ("replaces the 14h–20h schedule of step X"). Never invent a new budget total — sum the real parts.
+8. Propose a durable fix. A temporary workaround (borrowed, improvised) is only acceptable as a bridge, explicitly paired with the permanent solution.
 ${CRITERION_RULES}
 ${groundTruthRules(research, 'response')}
 
