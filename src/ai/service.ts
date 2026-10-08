@@ -497,7 +497,7 @@ CONFIDENCE — use the whole 0-100 scale; it is the chance a user at this level 
 
 // Escrita: dinheiro como nos chips do app e termos técnicos estabelecidos.
 const WRITING_RULES = `
-- Money in Brazilian reais is written with a space: "R$ 100", "R$ 110–130". Use the established term for a thing, not a loose paraphrase (e.g. the loop that keeps water off an outlet is a "drip loop" — in Portuguese "alça de gotejamento").`;
+- Money in Brazilian reais is written with a space: "R$ 100", "R$ 110–130". Use the established term for a thing, not a loose paraphrase (e.g. the loop that keeps water off an outlet is a "drip loop" — in Portuguese "alça de gotejamento"). Write the way a native speaker talks: no calques or slang anglicisms (in Portuguese, "desconecte da tomada", never "desplugue"; "não reaproveite peças dela", never "não a canibalize").`;
 
 // Critério de confirmação: UMA checagem observável com limiar.
 const CRITERION_RULES = `
@@ -519,6 +519,7 @@ GROUND TRUTH (groundTruthHints) — 0 to 2 per node, strongest first, each check
 - kind="spec": a model / part number, or a specification with unit checkable on a datasheet — e.g. "XT60", "ESP32-WROOM-32", "Phyllostachys aurea, Ø 5-8mm".
 - kind="medida": a physical measurement of the item itself — number + unit + tolerance — e.g. "40cm ± 2cm", "< 15g". The tolerance is never zero.
 - A price, budget or time ESTIMATE is never an anchor (it only restates the plan, there is nothing to check): keep it in oQue, not in groundTruthHints.
+- Never restate the user's goal or a purchase range as an anchor ("tank volume: 60 L" copied from the goal, "flow: 300–450 L/h" as a buying range): that is a target, not evidence. A hint must name something the user can read on the real item or its datasheet (a model number, a marked rating) — if there is none, return an empty array.
 ${linkLine}
 - NEVER an instruction ("test without propellers" is not an anchor). If no natural anchor exists, return an empty array.
 - NEVER a zero or trivial value ("additional cost: 0", "R$0 ± R$0") — that proves nothing. Most steps have no natural anchor: leave them empty.`;
@@ -1499,7 +1500,7 @@ ${formatKBContext(kbContext)}
 TASK
 ${guidance}
 - Every child is a real part to obtain or a real action to do. Never duplicate a part or step that already exists in the REST OF THE PLAN.${ctx.nodeKind === 'recurso' ? ' Breaking a RESOURCE yields only acquisition/specification parts (what to get, which spec, where from, how to check it on arrival) — never installation or assembly steps, which belong to the Execution category.' : ''}
-- Never a bookkeeping child (budget split, cost allocation, "N slots/positions", cost summary) — put each price inside the oQue of the real part it belongs to, and keep prices consistent with the node content above.
+- Never a bookkeeping child (budget split, cost allocation, "N slots/positions", cost summary) — put each price inside the oQue of the real part it belongs to, and keep prices consistent with the node content above. Never a budget recap or total inside a child's oQue.
 ${CRITERION_RULES}
 ${groundTruthRules(research, 'response')}
 
@@ -1852,7 +1853,8 @@ Real execution showed that the original plan didn't work. Re-decompose this node
 4. If the failure was a step, break it into smaller steps covering where it got stuck.
 5. Prefer 2–4 new, highly specific nodes. 'direct' edges in a chain when there is order.
 6. Give each new node a verifiable anchor when one exists — the user just burned time on something the AI claimed without an anchor.
-7. Stay consistent with the REST OF THE PLAN: times, schedules, prices and totals must match the existing nodes. If your fix really changes one of them (e.g. a schedule in an execution step, the project total), say so explicitly in the oQue of the new node ("replaces the 14h–20h schedule of step X"). Never invent a new budget total — sum the real parts.
+7. Stay consistent with the REST OF THE PLAN: times, schedules, prices and totals must match the existing nodes. If your fix really changes a schedule of an existing step, say so in the oQue of the new node that changes it ("replaces the 14h–20h schedule of step X"). Each child's oQue carries only its OWN price — never a budget recap or project/branch total (that belongs to the parent, not to a part like a lid or a cable); if the total changes, say it in 'diagnosis'. Never invent a new budget total.
+7b. Never re-create a step that already exists in the REST OF THE PLAN (same action, same schedule or same check) — the existing step still runs; only add what is new.
 8. Propose a durable fix. A temporary workaround (borrowed, improvised) is only acceptable as a bridge, explicitly paired with the permanent solution.
 ${CRITERION_RULES}
 ${groundTruthRules(research, 'response')}

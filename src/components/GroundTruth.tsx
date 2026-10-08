@@ -492,7 +492,8 @@ function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
           </span>
           {!revealed && (
             <span className="text-footnote tabular-nums text-text-faint">
-              {inUndoWindow ? tr.groundTruth.revealIn(secs(remainingMs)) : tr.groundTruth.hiddenUntilLock}
+              {/* Travado = só falta o prazo (mesmo depois de marcar atendido). */}
+              {locked ? tr.groundTruth.revealIn(Math.max(1, secs(remainingMs))) : tr.groundTruth.hiddenUntilLock}
             </span>
           )}
         </div>
@@ -778,6 +779,8 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
 
   const refs = node.groundTruthRefs ?? [];
   const checkedCount = refs.filter(refCountsAsSignal).length;
+  // Especificação-alvo da IA ainda não conferida: "o que conferir", não prova.
+  const toCheckCount = refs.filter((r) => r.addedByAI && !refCountsAsSignal(r)).length;
 
   // Pesquisa web DESTA célula: busca fontes reais e adiciona cada uma como
   // prova kind="link". O digest fica no nó e vira contexto grátis pra
@@ -1026,7 +1029,7 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
     return (
       <Fold
         title={tr.groundTruth.anchors}
-        summary={tr.groundTruth.summaryProofs(refs.length, checkedCount)}
+        summary={tr.groundTruth.summaryProofs(refs.length - toCheckCount, checkedCount, toCheckCount)}
         summaryClass={checkedCount > 0 ? 'text-state-done' : 'text-text-muted'}
         autoOpen={researching || Boolean(research.error) || highlight.size > 0}
       >
@@ -1040,7 +1043,7 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
       <div className="mb-3 flex items-center gap-2">
         <span className="text-control font-semibold text-text-primary">{tr.groundTruth.anchors}</span>
         <span className="ml-auto shrink-0 text-footnote text-text-muted">
-          {tr.groundTruth.summaryProofs(refs.length, checkedCount)}
+          {tr.groundTruth.summaryProofs(refs.length - toCheckCount, checkedCount, toCheckCount)}
         </span>
       </div>
       {body}
@@ -1136,14 +1139,16 @@ function RefRow({
               {valueIsLabel ? (refData.kind === 'medida' ? stripZeroTolerance(refData.value) : refData.value) : refData.label}
             </span>
             {refData.addedByAI && (
-              <span className="chip ml-auto h-[18px] shrink-0 gap-1 bg-ai-accent/12 px-1.5 text-ai-accent">
+              <span
+                title={tr.groundTruth.anchorAITitle}
+                className="chip ml-auto h-[18px] shrink-0 gap-1 bg-ai-accent/12 px-1.5 text-ai-accent">
                 <span aria-hidden>✦</span>
                 {tr.groundTruth.anchorAIBadge}
               </span>
             )}
           </div>
           {!valueIsLabel && (
-            <div className="mt-0.5 break-all text-footnote text-text-muted">
+            <div className="mt-0.5 [overflow-wrap:anywhere] text-footnote text-text-muted">
               {href ? (
                 <a
                   href={href}

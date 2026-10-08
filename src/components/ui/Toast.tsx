@@ -54,6 +54,9 @@ export const useToastStore = create<ToastState>()((set) => ({
 export const toast = {
   show: (opts: ToastOptions | string) => useToastStore.getState().show(opts),
   dismiss: (id: string) => useToastStore.getState().dismiss(id),
+  // Fecha todos (ex.: ao começar uma geração, o painel de progresso ocupa o
+  // rodapé e um toast antigo esconderia as etapas).
+  clear: () => useToastStore.setState({ toasts: [] }),
 };
 
 // Ícone em um disco pequeno da cor do tom; o vidro do toast fica neutro.
@@ -120,19 +123,14 @@ export function Toaster({ raised = false }: { raised?: boolean } = {}) {
       aria-live="polite"
       aria-label={tr.toast.regionLabel}
       className={`pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 px-4 ${
-        // No tutor, centraliza na coluna do card (à esquerda da sidebar).
-        raised ? 'md:right-[260px] lg:right-[300px]' : 'pb-[calc(env(safe-area-inset-bottom)+3rem)]'
-      }`}
-      // No tutor, o toast sobe acima da barra de ações sticky: o card publica a
-      // altura real dela em --tutor-bar-h (sem barra, só a margem).
-      style={
+        // No tutor, no desktop, o toast mora no pé da sidebar (à direita):
+        // centralizado na coluna, cobria a linha de baixo do card seguinte.
+        // No mobile, sobe acima da barra de ações sticky — o card publica a
+        // altura real dela em --tutor-bar-h.
         raised
-          ? {
-              paddingBottom:
-                'max(calc(var(--tutor-bar-h, 0px) + 1rem), calc(env(safe-area-inset-bottom) + 1rem))',
-            }
-          : undefined
-      }
+          ? 'pb-[max(calc(var(--tutor-bar-h,0px)+1rem),calc(env(safe-area-inset-bottom)+1rem))] md:left-auto md:w-[260px] lg:w-[300px] md:px-3 md:pb-3'
+          : 'pb-[calc(env(safe-area-inset-bottom)+3rem)]'
+      }`}
     >
       {toasts.map((item) => (
         <div key={item.id} className="w-full max-w-md">

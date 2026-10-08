@@ -27,14 +27,20 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useT } from '@/i18n';
 import type { Messages } from '@/i18n';
 import type { ConceptNodeData, Project } from '@/types';
-import { GroundTruthInlineTutor } from './GroundTruth';
+import { GroundTruthInlineTutor, GroundTruthRefsList, FailureSection } from './GroundTruth';
 import { ExplanationContent } from './Markdown';
 import { MobileSheet } from './MobileSheet';
 import { ReadingMode, type ReadingAction } from './ReadingMode';
 import { InlineError } from './ui/InlineError';
 import { toast } from './ui/Toast';
 import { OverflowMenu, type OverflowMenuItem } from './ui/OverflowMenu';
-import { discardSuggestionsWithUndo, acceptedCount } from './suggestionActions';
+import {
+  discardSuggestionsWithUndo,
+  acceptedCount,
+  acceptSuggestionsWithUndo,
+  rejectSuggestionWithUndo,
+  originalBatchCount,
+} from './suggestionActions';
 
 // The tutor is the concept's core loop made into a screen: look at ONE part of
 // the decomposition — if you can confirm it against reality, confirm; if you
@@ -200,16 +206,14 @@ export function TutorMode() {
     if (!isMobile && sidebarOpen) setSidebarOpen(false);
   }, [isMobile, sidebarOpen]);
 
-  // Dive into ONE node: the leaf the user picked in the tree, the node whose
-  // suggestions are under review (pinned until staging empties), or the next
-  // pending one in decomposition order.
+  // Dive into ONE node: the part the user picked in the tree or breadcrumb
+  // (a decomposed one opens in read mode — its text, failure and proofs stay
+  // reachable), the node whose suggestions are under review (pinned until
+  // staging empties), or the next pending one in decomposition order.
   const selected = project && selectedId ? project.nodes[selectedId] : null;
-  const selectedLeaf =
-    selected && byParent && isActionableKind(selected.kind) && (byParent.get(selected.id) ?? []).length === 0
-      ? selected
-      : null;
+  const selectedPart = selected && isActionableKind(selected.kind) ? selected : null;
   const pinned = pendingNode && isActionableKind(pendingNode.kind) ? pendingNode : null;
-  const current = selectedLeaf ?? pinned ?? next;
+  const current = selectedPart ?? pinned ?? next;
   const currentId = current?.id ?? null;
 
   // Trocar de nó abre o card novo do topo (título e breadcrumb visíveis).
@@ -245,6 +249,9 @@ export function TutorMode() {
       st.selectNode(first.id);
     } else if ((map.get(prev) ?? []).length === 0 && isActionableKind(proj.nodes[prev].kind)) {
       st.selectNode(prev); // descartou tudo: continua no mesmo nó
+    } else if (st.selectedNodeId === prev) {
+      // Aceitou, mas as sub-partes já estão resolvidas: segue o próximo.
+      st.selectNode(null);
     }
   }, [pendingParentId]);
 
@@ -466,9 +473,6 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
   const selectNode = useGraphStore((s) => s.selectNode);
   const setNodeExplanation = useGraphStore((s) => s.setNodeExplanation);
   const stageSuggestions = useGraphStore((s) => s.stageSuggestions);
-  const acceptSuggestion = useGraphStore((s) => s.acceptSuggestion);
-  const rejectSuggestion = useGraphStore((s) => s.rejectSuggestion);
-  const acceptAllSuggestions = useGraphStore((s) => s.acceptAllSuggestions);
   const pending = useGraphStore((s) => s.pendingSuggestions);
   const aiJobs = useGraphStore((s) => s.aiJobs);
   const putStream = useExplainStream((s) => s.put);
@@ -734,17 +738,23 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
     if (resolved || pendingHere || hasKids) return undefined;
     if (blocker) return { label: tr.tutor.blockedBefore(blocker.name), onClick: goToBlocker, tone: 'muted' };
     if (openFailure) return { label: tr.tutor.resolveFailureFirst, onClick: () => goToGT('failure'), tone: 'muted' };
-    if (isDecision) {
-      if (!pickedOpt) return { label: tr.tutor.pickFirst, onClick: () => {}, tone: 'muted', disabled: true };
-      return ready
+    if (isDecision && !pickedOpt) return { label: tr.tutor.pickFirst, onClick: () => {}, tone: 'muted', disabled: true };
+    if (ready) {
+      return isDecision && pickedOpt
         ? { label: tr.tutor.pickOption(pickedOpt.label), onClick: pickAndAdvance, tone: 'primary' }
-        : { label: tr.tutor.pickOptionNoProof(pickedOpt.label), onClick: () => setConfirmingNoSignal(true), tone: 'muted' };
+        : { label: confirmLabel, onClick: confirmAndAdvance, tone: 'primary' };
     }
-    return ready
-      ? { label: confirmLabel, onClick: confirmAndAdvance, tone: 'primary' }
-      : { label: tr.tutor.confirmNoProof, onClick: () => setConfirmingNoSignal(true), tone: 'muted' };
+    // Sem sinal real: leva ao critério/aferição no card (o modo leitura fecha
+    // antes; o rAF espera o foco voltar ao gatilho para então focar o campo).
+    // "Confirmar sem prova…" fica só no "…", como na barra.
+    return {
+      label: proofTarget === 'criterion' ? tr.tutor.writeCriterionBtn : tr.tutor.attestBtn,
+      onClick: () => requestAnimationFrame(() => goToGT(proofTarget)),
+      tone: 'muted',
+    };
   })();
 
+  const nextSub = hasKids ? firstPendingUnder(project, byParent, node.id) : null;
   const canDecompose = !resolved && !hasKids && !pendingHere;
   const canMarkKnown = !resolved && !isDecision && !hasKids && !pendingHere;
   // Barra vazia (nó já decomposto): some, e o card fecha com um respiro.
@@ -831,7 +841,8 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
           <span className="chip bg-state-problem/12 text-state-problem">{tr.detail.problemBadge}</span>
         )}
         {isNext && <span className="chip bg-accent/12 text-accent">{tr.tutor.nextBadge}</span>}
-        {!isNext && next && !resolved && (
+        {/* Pai decomposto: o atalho é a próxima sub-parte (no corpo do card). */}
+        {!isNext && next && !resolved && !(hasKids && nextSub) && (
           <button
             onClick={() => selectNode(next.id)}
             className="ml-auto btn btn-tertiary btn-sm min-w-0 max-w-[60%]"
@@ -964,14 +975,16 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
               )}
               <div className="flex gap-1.5">
                 <button
-                  onClick={() => acceptSuggestion(s.tempId)}
+                  onClick={() => acceptSuggestionsWithUndo(tr, s.tempId)}
+                  aria-label={tr.tutor.acceptOneAria(s.data.name)}
                   className="tap flex-1 btn btn-secondary btn-sm text-state-done"
                 >
                   {tr.tutor.acceptOne}
                 </button>
                 <button
-                  onClick={() => rejectSuggestion(s.tempId)}
-                  aria-label={tr.conceptNode.reject}
+                  onClick={() => rejectSuggestionWithUndo(tr, s.tempId)}
+                  aria-label={`${tr.conceptNode.rejectAria}: ${s.data.name}`}
+                  title={tr.conceptNode.rejectAria}
                   className="tap btn btn-ghost btn-sm btn-icon hover:text-state-problem"
                 >
                   <svg aria-hidden width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -1068,6 +1081,18 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
                 ? { label: knownLabel, onClick: markKnownAndAdvance }
                 : undefined
             }
+            onNoProof={
+              offerNoProof
+                ? {
+                    label: isDecision && pickedOpt ? tr.tutor.pickOptionNoProof(pickedOpt.label) : tr.tutor.confirmNoProof,
+                    onClick: () => setConfirmingNoSignal(true),
+                  }
+                : undefined
+            }
+            generatingLabel={
+              explainRunning ? (streamText ? tr.tutor.writingExplain(elapsed) : tr.common.thinking(elapsed)) : undefined
+            }
+            onCancelGenerate={explainRunning ? cancelJob : undefined}
           />
         )}
       </div>
@@ -1077,7 +1102,38 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
           como conclusão — some, com o motivo. Um critério já travado antes
           continua à vista. */}
       {(pendingHere || hasKids) && !resolved && !node.comoConfirmarUsuarioAt ? (
-        <p className="mt-6 text-footnote text-text-muted">{tr.tutor.resolvedBySubparts}</p>
+        <div className="mt-6 space-y-3">
+          <p className="text-footnote text-text-muted">{tr.tutor.resolvedBySubparts}</p>
+          {hasKids && !pendingHere && (
+            nextSub ? (
+              <button
+                type="button"
+                onClick={() => {
+                  focusTitleOnMount = true;
+                  selectNode(nextSub.id);
+                }}
+                className="tap btn btn-secondary max-w-full"
+              >
+                <span className="truncate">{tr.tutor.nextSubpart(nextSub.name)}</span>
+                <svg aria-hidden width="8" height="12" viewBox="0 0 8 12" fill="none" className="shrink-0 text-text-faint">
+                  <path d="M2 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            ) : (
+              <p className="text-footnote text-state-done">{tr.tutor.allSubpartsDone}</p>
+            )
+          )}
+          {/* Registro de falha e provas do pai continuam à vista (só leitura do
+              critério: ele se resolve pelas sub-partes). */}
+          {(node.failureContext || (hasKids && (node.groundTruthRefs?.length ?? 0) > 0)) && (
+            <div id={GT_WRAPPER_ID} className="-mx-4 space-y-1 [&>details]:border-t-0 [&_summary]:rounded-control">
+              {hasKids && (node.groundTruthRefs?.length ?? 0) > 0 && (
+                <GroundTruthRefsList node={node} project={project} collapsible />
+              )}
+              {node.failureContext && <FailureSection node={node} project={project} collapsible domIds />}
+            </div>
+          )}
+        </div>
       ) : (
         <div id={GT_WRAPPER_ID}>
           <GroundTruthInlineTutor node={node} project={project} />
@@ -1089,7 +1145,9 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
       {/* O que falta para concluir — dentro do card, perto da barra (a barra
           fica só com ações). */}
       {(decomposeAI.error ||
-        (!resolved && !pendingHere && !hasKids && !blocker && (openFailure || (!ready && !confirmingNoSignal))) ||
+        // O convite ao critério já está no próprio campo (e na barra): aqui
+        // só a falha em aberto.
+        (!resolved && !pendingHere && !hasKids && !blocker && openFailure) ||
         (canDecompose && decomposeBlocked && !job)) && (
         <div className="mt-6 space-y-2">
           {decomposeAI.error && (
@@ -1105,16 +1163,6 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
                 <div className="flex items-center gap-2 text-footnote text-text-secondary">
                   <span aria-hidden className="w-2 h-2 rounded-full bg-state-problem shrink-0" />
                   <span>{tr.tutor.failureOpenHint}</span>
-                </div>
-              ) : !ready && !confirmingNoSignal ? (
-                <div className="text-footnote text-text-muted">
-                  {tr.tutor.gateLead}{' '}
-                  <button
-                    onClick={() => goToGT(proofTarget)}
-                    className="text-accent font-medium hover:underline underline-offset-2 text-left rounded-chip"
-                  >
-                    {proofTarget === 'criterion' ? tr.tutor.gateHintNotLocked : tr.tutor.gateHintNotAttested}
-                  </button>
                 </div>
               ) : null}
             </>
@@ -1150,7 +1198,7 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
         )}
         {pendingHere && confirmingDiscard && (
           <div className="text-footnote text-conf-mid" role="alert">
-            {tr.tutor.discardPartialWarning(acceptedCount(pending), pending!.nodes.length)}
+            {tr.tutor.discardPartialWarning(acceptedCount(pending), originalBatchCount(pending), pending!.nodes.length)}
           </div>
         )}
         {decomposeRunning && canDecompose && (
@@ -1186,7 +1234,7 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
             </>
           ) : pendingHere ? (
             <>
-              <button onClick={acceptAllSuggestions} className="tap btn btn-primary h-8 flex-1 min-w-0">
+              <button onClick={() => acceptSuggestionsWithUndo(tr)} className="tap btn btn-primary h-8 flex-1 min-w-0">
                 <span className="truncate">{tr.tutor.acceptAllCount(pending!.nodes.length)}</span>
               </button>
               <button
@@ -1443,13 +1491,9 @@ function TreeRows({ project, byParent, parentId, depth, currentId, suggestionCou
         }
 
         if (children.length > 0 || node.kind === 'categoria') {
-          const leaves = effectiveLeavesUnder(
-            project,
-            node.id,
-            byParent,
-            undefined,
-            new Set(Object.keys(suggestionCounts)),
-          );
+          // Só partes aceitas: as sugestões em revisão aparecem no selo
+          // "+N sug." — o pai não entra como folha extra no denominador.
+          const leaves = effectiveLeavesUnder(project, node.id, byParent);
           const done = leaves.filter((l) => l.confirmado || l.takenAsKnown).length;
           return (
             <div key={node.id}>
@@ -1615,7 +1659,7 @@ function LeafRow({ node, project, depth, isCurrent, onPick, tr }: LeafRowProps) 
     <div
       className={`flex items-center gap-2 pr-1.5 rounded-chip transition-colors duration-120 ease-mac ${
         isCurrent ? 'bg-accent/12' : 'hover:bg-text-faint/10'
-      } ${blocked ? 'opacity-55' : ''}`}
+      }`}
       style={{ paddingLeft: `${8 + depth * 14}px` }}
     >
       {quickConfirm ? (
@@ -1644,6 +1688,8 @@ function LeafRow({ node, project, depth, isCurrent, onPick, tr }: LeafRowProps) 
             ? 'text-accent font-medium'
             : resolved
             ? 'text-text-muted'
+            : blocked
+            ? 'text-text-faint'
             : 'text-text-primary'
         }`}
       >
@@ -1653,6 +1699,22 @@ function LeafRow({ node, project, depth, isCurrent, onPick, tr }: LeafRowProps) 
         )}
         {node.name}
       </button>
+      {blocked && (
+        // Bloqueado pela ordem: o mesmo cadeado dos nós do grafo.
+        <svg
+          role="img"
+          aria-label={tr.tutor.blockedRow}
+          width="10"
+          height="11"
+          viewBox="0 0 10 11"
+          fill="none"
+          className="shrink-0 text-text-muted"
+        >
+          <title>{tr.tutor.blockedRow}</title>
+          <rect x="1.5" y="4.5" width="7" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M3.2 4.5V3.2a1.8 1.8 0 0 1 3.6 0v1.3" stroke="currentColor" strokeWidth="1.2" />
+        </svg>
+      )}
       {node.failureContext && (
         <span
           className="shrink-0 w-2 h-2 rounded-full bg-state-problem"

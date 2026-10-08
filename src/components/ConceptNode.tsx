@@ -4,6 +4,7 @@ import type { ConceptNodeData, NodeKind } from '@/types';
 import { useGraphStore, confidenceBand, isActionableKind } from '@/store';
 import { useAIReveal } from '@/hooks/useAIReveal';
 import { useT } from '@/i18n';
+import { acceptSuggestionsWithUndo, rejectSuggestionWithUndo } from './suggestionActions';
 import type { Messages } from '@/i18n';
 
 // Tipo = glifo pequeno + rótulo discreto; a BORDA e o ponto de 8px ficam só
@@ -157,8 +158,6 @@ function ConceptNodeImpl({ data, selected }: Props) {
   const level = useRfStore<'far' | 'mid' | 'near'>((s) =>
     s.transform[2] < 0.6 ? 'far' : s.transform[2] < 1.1 ? 'mid' : 'near',
   );
-  const acceptSuggestion = useGraphStore((s) => s.acceptSuggestion);
-  const rejectSuggestion = useGraphStore((s) => s.rejectSuggestion);
   const confirmNode = useGraphStore((s) => s.confirmNode);
   // Mesmo gate do tutor: só depois do lock E da janela de desfazer.
   const { revealed: revealCheck } = useAIReveal(data);
@@ -204,8 +203,9 @@ function ConceptNodeImpl({ data, selected }: Props) {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              acceptSuggestion(data.tempId as string);
+              acceptSuggestionsWithUndo(tr, data.tempId as string);
             }}
+            aria-label={tr.tutor.acceptOneAria(data.name)}
             className="tap btn btn-primary flex-1"
           >
             {tr.conceptNode.accept}
@@ -213,9 +213,9 @@ function ConceptNodeImpl({ data, selected }: Props) {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              rejectSuggestion(data.tempId as string);
+              rejectSuggestionWithUndo(tr, data.tempId as string);
             }}
-            aria-label={tr.conceptNode.rejectAria}
+            aria-label={`${tr.conceptNode.rejectAria}: ${data.name}`}
             title={tr.conceptNode.rejectAria}
             className="tap btn btn-secondary btn-icon hover:!text-state-problem"
           >

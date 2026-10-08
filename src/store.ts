@@ -127,6 +127,9 @@ export interface GraphState {
     // materializar uma edge entre dois nós aceitos um a um — só dá pra criar
     // a edge real quando ambos os endpoints já têm id real.
     acceptedMap?: Record<string, string>;
+    // Tamanho do lote quando a IA o propôs — o aviso de descarte parcial
+    // conta o lote inteiro (aceitas + descartadas uma a uma + restantes).
+    originalCount?: number;
   } | null;
   // Lotes de sugestões estacionados (um por pai): quebrar/replanejar outro nó
   // não descarta nem bloqueia por causa do lote em revisão — ele estaciona e
@@ -222,6 +225,16 @@ export interface GraphState {
   // Desfazer do "Descartar todas": devolve o lote descartado (se o pai ainda
   // existe). O lote ativo de outro pai, se houver, estaciona.
   restoreSuggestions: (batch: NonNullable<GraphState['pendingSuggestions']>) => boolean;
+  // Desfazer do ✕ (ou parte do desfazer de aceitar): devolve ao lote do pai
+  // as sugestões `tempIds` tiradas de `before` (o lote como estava antes).
+  reinstateSuggestions: (before: NonNullable<GraphState['pendingSuggestions']>, tempIds: string[]) => boolean;
+  // Desfazer de aceitar (uma ou todas): remove os nós criados — se ninguém
+  // mexeu neles desde então — e devolve as sugestões ao lote.
+  undoAcceptSuggestions: (
+    before: NonNullable<GraphState['pendingSuggestions']>,
+    added: Record<string, string>,
+    parentBefore: ConceptNodeData,
+  ) => boolean;
   // Torna ativo o lote estacionado deste pai (estacionando o ativo atual).
   resumeSuggestions: (parentId: string) => boolean;
 
@@ -1526,6 +1539,7 @@ export const useGraphStore = create<GraphState>()(
               parentId,
               nodes: nodes.map((n) => ({ tempId: n.tempId, data: n })),
               edges,
+              originalCount: nodes.length,
             },
           };
         });
@@ -1703,6 +1717,84 @@ export const useGraphStore = create<GraphState>()(
         if (cur && cur.nodes.length > 0) parked[cur.parentId] = cur;
         delete parked[batch.parentId];
         set({ pendingSuggestions: batch, parkedSuggestions: parked });
+        return true;
+      },
+
+      reinstateSuggestions: (before, tempIds) => {
+        const s = get();
+        const project = s.project;
+        if (!project?.nodes[before.parentId] || tempIds.length === 0) return false;
+        const back = new Set(tempIds);
+        const parked = { ...s.parkedSuggestions };
+        const cur = s.pendingSuggestions;
+        const base =
+          cur && cur.parentId === before.parentId ? cur : parked[before.parentId] ?? null;
+        delete parked[before.parentId];
+        if (cur && cur.parentId !== before.parentId && cur.nodes.length > 0) parked[cur.parentId] = cur;
+        const baseIds = new Set((base?.nodes ?? []).map((n) => n.tempId));
+        const nodes = before.nodes.filter((n) => back.has(n.tempId) || baseIds.has(n.tempId));
+        for (const n of base?.nodes ?? []) if (!nodes.some((x) => x.tempId === n.tempId)) nodes.push(n);
+        if (nodes.length === 0) return false;
+        const inNodes = new Set(nodes.map((n) => n.tempId));
+        // Só aceitas que ainda existem: a aresta pendente materializa depois.
+        const acceptedMap = Object.fromEntries(
+          Object.entries(base?.acceptedMap ?? before.acceptedMap ?? {}).filter(
+            ([tid, real]) => !back.has(tid) && Boolean(project.nodes[real]),
+          ),
+        );
+        const known = (tid: string) => inNodes.has(tid) || Boolean(acceptedMap[tid]);
+        const seen = new Set<string>();
+        const edges = [...(base?.edges ?? []), ...before.edges].filter((e) => {
+          const key = `${e.sourceTempId}>${e.targetTempId}>${e.kind}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return (
+            known(e.sourceTempId) &&
+            known(e.targetTempId) &&
+            (inNodes.has(e.sourceTempId) || inNodes.has(e.targetTempId))
+          );
+        });
+        set({
+          parkedSuggestions: parked,
+          pendingSuggestions: {
+            parentId: before.parentId,
+            nodes,
+            edges,
+            ...(Object.keys(acceptedMap).length > 0 ? { acceptedMap } : {}),
+            originalCount: before.originalCount ?? base?.originalCount,
+          },
+        });
+        return true;
+      },
+
+      undoAcceptSuggestions: (before, added, parentBefore) => {
+        const project = get().project;
+        const realIds = Object.values(added);
+        if (!project || realIds.length === 0) return false;
+        const removing = new Set(realIds);
+        // Obsoleto: alguém mexeu no nó aceito (critério, confirmação, filhos…).
+        for (const id of realIds) {
+          const n = project.nodes[id];
+          if (!n || n.history.length > 1 || n.confirmado || n.takenAsKnown) return false;
+        }
+        if (Object.values(project.nodes).some((n) => n.parentId && removing.has(n.parentId))) return false;
+        const nodes = { ...project.nodes };
+        for (const id of realIds) delete nodes[id];
+        const parent = nodes[before.parentId];
+        if (parent && !parentBefore.planReplacedAt && parent.planReplacedAt) {
+          nodes[before.parentId] = {
+            ...parent,
+            planReplacedAt: undefined,
+            explicacao: parentBefore.explicacao,
+          };
+        }
+        const edges = Object.fromEntries(
+          Object.entries(project.edges).filter(([, e]) => !removing.has(e.source) && !removing.has(e.target)),
+        );
+        const next: Project = { ...project, updatedAt: now(), nodes, edges };
+        set({ project: next.manualLayout === true ? next : withTreeLayout(next) });
+        get().reinstateSuggestions(before, Object.keys(added));
+        get().selectNode(before.parentId);
         return true;
       },
 

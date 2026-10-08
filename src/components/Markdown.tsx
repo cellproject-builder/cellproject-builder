@@ -170,6 +170,19 @@ export function ExplanationContent({
 
     // Sub-bullets preservam a indentação do modelo (2 espaços = 1 nível).
     const bulletMatch = line.match(/^\s*[-*+]\s+(.*)$/);
+    // "- 1. Faça X" (bullet + número): vira item numerado, sem marcador duplo.
+    const numInBullet = bulletMatch?.[1].match(/^(\*\*)?(\d+)[.)](\*\*)?\s+(.*)$/);
+    if (bulletMatch && numInBullet) {
+      const level = indentLevel(line);
+      const rest = numInBullet[1] && !numInBullet[3] ? `**${numInBullet[4]}` : numInBullet[4];
+      blocks.push(
+        <div key={i} className="pl-6 relative" style={level ? { marginLeft: level * 16 } : undefined}>
+          <span className="absolute left-0 w-5 text-right text-text-muted tabular-nums">{numInBullet[2]}.</span>
+          {renderInline(rest)}
+        </div>,
+      );
+      continue;
+    }
     if (bulletMatch) {
       const level = indentLevel(line);
       blocks.push(

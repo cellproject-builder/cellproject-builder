@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent as Re
 import { useKBStore, type IngestProgress } from '@/kb/store';
 import { textSentToModel } from '@/kb/service';
 import { useT } from '@/i18n';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { Messages } from '@/i18n';
 import { Modal } from '@/components/ui/Modal';
 import { InlineError } from '@/components/ui/InlineError';
@@ -65,6 +66,8 @@ export function KnowledgeRepo({ open, onClose }: Props) {
   const dropzoneRef = useRef<HTMLDivElement>(null);
   const [items, setItems] = useState<QueueItem[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  // Toque: não há arrastar-e-soltar — o convite é só "toque para escolher".
+  const coarse = useMediaQuery('(pointer: coarse)');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
@@ -233,7 +236,7 @@ export function KnowledgeRepo({ open, onClose }: Props) {
             <div className="text-control font-medium text-accent">{tr.kb.dropActive}</div>
           ) : (
             <>
-              <div className="text-control font-medium text-text-primary">{tr.kbModal.dropOrClick}</div>
+              <div className="text-control font-medium text-text-primary">{coarse ? tr.kbModal.tapToChoose : tr.kbModal.dropOrClick}</div>
               <div className="mt-1 max-w-md text-footnote text-text-muted">{tr.kbModal.dropHint}</div>
             </>
           )}

@@ -443,6 +443,9 @@ export function ObjectiveScreen() {
     // Nova geração: o aviso de "retomamos seus planos" deixou de valer.
     setRestoredAt(null);
     more.reset();
+    // O painel de progresso ocupa o rodapé: um toast antigo ("Projeto
+    // arquivado") esconderia as etapas.
+    toast.clear();
     setObjectiveDraft({ generatingSince: Date.now() });
     const result = await gen.run(obj, eff, undefined);
     if (!mountedRef.current) return;
@@ -825,8 +828,9 @@ export function ObjectiveScreen() {
             </div>
 
             {/* Opções: grupo estilo Ajustes do Sistema. */}
-            {/* No mobile, gerando: o progresso toma o lugar das opções. */}
-            <div className={`card p-4 sm:p-5 space-y-5 ${gen.running ? 'hidden sm:block' : ''}`}>
+            {/* Gerando: o progresso toma o lugar das opções (também no
+                desktop — senão os esboços nasciam abaixo da dobra). */}
+            <div className={`card p-4 sm:p-5 space-y-5 ${gen.running ? 'hidden' : ''}`}>
               <div>
                 <label htmlFor="cp-name" className="label block mb-1.5">
                   {tr.objective.projectNameLabel}
@@ -1003,7 +1007,7 @@ export function ObjectiveScreen() {
 
         {view === 'plans' && outlines && !starting && (
           <div className="space-y-5">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col-reverse items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
               <div className="min-w-0">
                 <h1 className="text-title2 font-semibold tracking-[-0.01em] text-text-primary">
                   {outlines[0]?.archetype === 'entender'
@@ -1716,7 +1720,7 @@ function StartingView({
   const tree = assembleTree(outline, progress?.partial);
   return (
     <div className="space-y-4 animate-card-swap" aria-label={tr.ai.twoPhase.startingAria}>
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col-reverse items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
         <div className="min-w-0">
           <h1 className="text-title2 font-semibold tracking-[-0.01em] text-text-primary">
             {tr.ai.twoPhase.startingTitle(outline.title)}

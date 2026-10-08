@@ -162,11 +162,11 @@ describe('TutorMode — confirmar com toast e desfazer', () => {
     expect(useGraphStore.getState().project!.nodes[parentId].confirmado).toBe(false);
   });
 
-  it('critério travado e não aferido: a dica fala em aferir', () => {
+  it('critério travado e não aferido: a ação da barra fala em aferir', () => {
     const parentId = nodeByName('Passo pai').id;
     act(() => useGraphStore.getState().setUserCriterion(parentId, 'o LED acende'));
     render();
-    expect(container.textContent).toMatch(/critério foi atendido|criterion was met/);
+    expect(container.textContent).toMatch(/Dizer se foi atendido|Say if it was met/);
   });
 });
 

@@ -278,7 +278,7 @@ function ConfigForm({
                 href={keyInfo.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="tap-area inline-block text-accent hover:underline underline-offset-2"
+                className="tap inline-flex items-center text-accent hover:underline underline-offset-2"
               >
                 {tr.apiKey.createKeyLink(PROVIDER_LABELS[selected])}
               </a>

@@ -35,6 +35,11 @@ interface ReadingModeProps {
   onConfirm?: ReadingAction;
   onDecompose?: ReadingAction;
   onKnown?: ReadingAction;
+  // Caminho sem prova: só no menu "…", nunca como botão do rodapé.
+  onNoProof?: ReadingAction;
+  // Progresso da geração (mesmo rótulo do card: "pensando… 4s") e cancelar.
+  generatingLabel?: string;
+  onCancelGenerate?: () => void;
 }
 
 const FOCUSABLE =
@@ -52,6 +57,9 @@ export function ReadingMode({
   onConfirm,
   onDecompose,
   onKnown,
+  onNoProof,
+  generatingLabel,
+  onCancelGenerate,
 }: ReadingModeProps) {
   const tr = useT();
   const trail =
@@ -140,6 +148,7 @@ export function ReadingMode({
   };
 
   const actions = [onConfirm, onDecompose, onKnown].filter(Boolean) as ReadingAction[];
+  const menuActions = [onDecompose, onKnown, onNoProof].filter((a): a is ReadingAction => Boolean(a));
 
   const overlay = (
     // pointer-events-auto é obrigatório: aberto por cima do sheet mobile
@@ -180,7 +189,7 @@ export function ReadingMode({
         </div>
       </header>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain scroll-stable">
         <article className="max-w-[720px] mx-auto px-5 sm:px-10 pt-8 sm:pt-14 pb-24">
           <div className="reading mx-auto">
             <div className="label mb-2">
@@ -255,14 +264,21 @@ export function ReadingMode({
                 <ExplanationContent text={explanation} variant="reading" idPrefix={HEADING_PREFIX} />
               ) : (
                 <div className="space-y-3">
-                  <p className="text-text-muted">{tr.reading.noExplanation}</p>
+                  {!generating && <p className="text-text-muted">{tr.reading.noExplanation}</p>}
                   {onGenerate && (
-                    <button onClick={onGenerate} disabled={generating} className="tap btn btn-ai">
-                      <span className={`ai-icon ${generating ? 'animate-pulse-subtle' : ''}`} aria-hidden>
-                        ✦
-                      </span>
-                      {generating ? tr.reading.generating : tr.reading.generate}
-                    </button>
+                    <div className="flex items-center gap-2" aria-live="polite">
+                      <button onClick={onGenerate} disabled={generating} className="tap btn btn-ai tabular-nums">
+                        <span className={`ai-icon ${generating ? 'animate-pulse-subtle' : ''}`} aria-hidden>
+                          ✦
+                        </span>
+                        {generating ? generatingLabel ?? tr.reading.generating : tr.reading.generate}
+                      </button>
+                      {generating && onCancelGenerate && (
+                        <button onClick={onCancelGenerate} className="tap btn btn-ghost">
+                          {tr.common.cancelRunning}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -323,9 +339,12 @@ export function ReadingMode({
                   <OverflowMenu
                     label={tr.reading.actions}
                     placement="up"
-                    items={[onDecompose, onKnown]
-                      .filter((a): a is ReadingAction => Boolean(a))
-                      .map((a) => ({ key: a.label, label: a.label, onClick: run(a), disabled: a.disabled }))}
+                    items={menuActions.map((a) => ({
+                      key: a.label,
+                      label: a.label,
+                      onClick: run(a),
+                      disabled: a.disabled,
+                    }))}
                   />
                   <button
                     onClick={run(onConfirm)}

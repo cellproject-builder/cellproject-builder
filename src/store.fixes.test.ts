@@ -265,3 +265,64 @@ describe('correção rodada 2 (e2e com IA real)', () => {
     expect(after.explicacao).toBeUndefined();
   });
 });
+
+describe('correção rodada 3 — aceitar/descartar sugestão com desfazer', () => {
+  it('desfazer "aceitar todas" remove os nós criados e devolve o lote inteiro', () => {
+    const vaso = byName('vaso');
+    st().stageSuggestions(
+      vaso.id,
+      [staged('a', 's1', 0), staged('b', 's2', 1)],
+      [{ sourceTempId: 'a', targetTempId: 'b', kind: 'direct' }],
+    );
+    const before = st().pendingSuggestions!;
+    expect(before.originalCount).toBe(2);
+    const parentBefore = st().project!.nodes[vaso.id];
+    st().acceptAllSuggestions();
+    const added = { a: byName('s1').id, b: byName('s2').id };
+    expect(st().undoAcceptSuggestions(before, added, parentBefore)).toBe(true);
+    expect(Object.values(st().project!.nodes).some((n) => n.name === 's1')).toBe(false);
+    expect(st().pendingSuggestions?.parentId).toBe(vaso.id);
+    expect(st().pendingSuggestions?.nodes.map((n) => n.tempId)).toEqual(['a', 'b']);
+    expect(st().pendingSuggestions?.edges).toHaveLength(1);
+    expect(Object.values(st().project!.edges).some((e) => e.target === added.a)).toBe(false);
+  });
+
+  it('desfazer o aceitar de UMA sugestão a devolve ao lote que continua aberto', () => {
+    const vaso = byName('vaso');
+    st().stageSuggestions(vaso.id, [staged('a', 's1', 0), staged('b', 's2', 1)], []);
+    const before = st().pendingSuggestions!;
+    const parentBefore = st().project!.nodes[vaso.id];
+    st().acceptSuggestion('a');
+    expect(st().undoAcceptSuggestions(before, { a: byName('s1').id }, parentBefore)).toBe(true);
+    expect(st().pendingSuggestions?.nodes.map((n) => n.tempId)).toEqual(['a', 'b']);
+    expect(st().pendingSuggestions?.acceptedMap?.a).toBeUndefined();
+  });
+
+  it('não desfaz o aceitar se o nó aceito já foi trabalhado', () => {
+    const vaso = byName('vaso');
+    st().stageSuggestions(vaso.id, [staged('a', 's1', 0)], []);
+    const before = st().pendingSuggestions!;
+    const parentBefore = st().project!.nodes[vaso.id];
+    st().acceptAllSuggestions();
+    const id = byName('s1').id;
+    st().confirmNode(id);
+    expect(st().undoAcceptSuggestions(before, { a: id }, parentBefore)).toBe(false);
+    expect(st().project!.nodes[id]).toBeDefined();
+  });
+
+  it('desfazer o ✕ devolve a sugestão descartada (mesmo com o lote vazio)', () => {
+    const vaso = byName('vaso');
+    st().stageSuggestions(vaso.id, [staged('a', 's1', 0), staged('b', 's2', 1)], []);
+    const before = st().pendingSuggestions!;
+    st().rejectSuggestion('a');
+    expect(st().reinstateSuggestions(before, ['a'])).toBe(true);
+    expect(st().pendingSuggestions?.nodes.map((n) => n.tempId)).toEqual(['a', 'b']);
+    const before2 = st().pendingSuggestions!;
+    st().rejectSuggestion('a');
+    st().rejectSuggestion('b');
+    expect(st().pendingSuggestions).toBeNull();
+    expect(st().reinstateSuggestions(before2, ['b'])).toBe(true);
+    expect(st().pendingSuggestions?.nodes.map((n) => n.tempId)).toEqual(['b']);
+    expect(st().pendingSuggestions?.originalCount).toBe(2);
+  });
+});

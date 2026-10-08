@@ -286,10 +286,16 @@ export const en = {
     writingExplain: (s: number) => `Writing the explanation… ${s}s`,
     rejectAll: 'Discard all',
     acceptAllCount: (n: number) => `✓ Accept all (${n})`,
-    discardPartialWarning: (accepted: number, rest: number) =>
-      `Only ${accepted} of ${accepted + rest} parts were accepted. This part will then be resolved by ${accepted === 1 ? 'that one alone' : 'those alone'} — whatever the other ${rest} covered stops being tracked.`,
-    discardPartialConfirm: (rest: number) => `Discard the other ${rest}`,
+    discardPartialWarning: (accepted: number, total: number, rest: number) =>
+      `Only ${accepted} of ${total} ${total === 1 ? 'part was' : 'parts were'} accepted. This part will then be resolved by ${accepted === 1 ? 'that one alone' : 'those alone'} — whatever ${rest === 1 ? 'the other one covered' : `the other ${rest} covered`} stops being tracked.`,
+    discardPartialConfirm: (rest: number) => (rest === 1 ? 'Discard the other one' : `Discard the other ${rest}`),
     suggestionsDiscarded: (n: number) => (n === 1 ? '1 suggestion discarded' : `${n} suggestions discarded`),
+    suggestionDiscarded: (name: string) => `“${name}” discarded`,
+    suggestionAccepted: (name: string) => `“${name}” added`,
+    suggestionsAccepted: (n: number) => (n === 1 ? '1 part added' : `${n} parts added`),
+    acceptOneAria: (name: string) => `Accept suggestion: ${name}`,
+    nextSubpart: (name: string) => `Next sub-part: ${name}`,
+    allSubpartsDone: 'Every sub-part is resolved.',
     confirmNoProof: 'Confirm without proof…',
     confirmNoProofConfirm: '✓ Confirm without proof',
     confirmNoProofWarning:
@@ -304,7 +310,7 @@ export const en = {
     pickOptionNoProof: (label: string) => `Pick “${label}” without proof…`,
     pickFirst: 'Pick one option above',
     decisionSelectedBadge: 'selected',
-    knownConcept: 'I already master this',
+    knownConcept: 'I already know this',
     knownStep: 'No need to detail (I know how to do it)',
     knownResource: 'No need to detail (I know where to get it)',
     knownNoProofSub: '“Already know” counts as done, but without proof.',
@@ -468,9 +474,9 @@ export const en = {
       problem: 'Problem',
     },
     risk: {
-      low: 'High risk, below 40%',
-      mid: 'Medium risk, 40–69%',
-      high: 'Low risk, 70% or more',
+      low: 'High risk (confidence < 40%)',
+      mid: 'Medium risk (confidence 40–69%)',
+      high: 'Low risk (confidence ≥ 70%)',
     },
     stagingSummary: (n: number, parent: string) =>
       `${n} suggested part${n === 1 ? '' : 's'} for “${parent}”`,
@@ -484,6 +490,10 @@ export const en = {
     legendBorderNoProof: 'dashed border: confirmed without proof',
     legendBorderProblem: 'border: problem',
     legendDependencyHint: 'In Structure, dependencies show on hover or on the selected part.',
+    legendStateDot: 'dot: the part’s state (same colors as the border)',
+    legendLock: 'lock: blocked by the order (an earlier step is pending)',
+    legendBars: 'bars: the AI’s estimated confidence',
+    legendNext: 'the next pending part',
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
     fitAll: 'Show the whole graph',
@@ -525,7 +535,7 @@ export const en = {
     yourCriterion: 'Your criterion',
     locked: 'Locked',
     criterionPlaceholder:
-      'How would you know this node is done? Write yours before seeing the AI’s.',
+      'How would you know this part is done? Write yours before seeing the AI’s.',
     criterionPlaceholderUnderstand:
       'How would you know you truly understood this? (e.g. "I can re-derive it without the source"). Write yours before seeing the AI’s.',
     lockBtn: 'Lock criterion',
@@ -600,8 +610,14 @@ export const en = {
     submitHint: 'Ctrl/⌘+Enter sends',
     vagueHint:
       'Can you make it more testable? Add a number, a unit or something you can see happen.',
-    summaryProofs: (n: number, checked: number) =>
-      n === 0 ? 'no proofs yet' : `${n} proof${n === 1 ? '' : 's'}, ${checked} checked`,
+    // n = provas de verdade (suas ou já conferidas); toCheck = especificações-
+    // alvo da IA ainda não conferidas — não contam como prova.
+    summaryProofs: (n: number, checked: number, toCheck = 0) => {
+      const proofs = n === 0 ? '' : `${n} proof${n === 1 ? '' : 's'}, ${checked} checked`;
+      const target = toCheck === 0 ? '' : `${toCheck} to check`;
+      return [proofs, target].filter(Boolean).join(' · ') || 'no proofs yet';
+    },
+    anchorAITitle: 'Target spec suggested by the AI — not proof until you check it against the real item',
     summaryOpinionGenerated: 'opinion generated',
     summaryOpinionNone: 'not requested yet',
     summaryFailureOpen: 'open failure',
@@ -638,6 +654,7 @@ export const en = {
     title: 'My PDFs',
     docCount: (n: number) => `${n} document${n === 1 ? '' : 's'}`,
     dropOrClick: 'Drop PDFs here or click to choose',
+    tapToChoose: 'Tap to choose a PDF',
     dropHint:
       'The PDF stays in your browser. Only the extracted text (up to ~40k characters) goes to the model you configured, to generate a summary. Avoid confidential documents.',
     pdfOnlyError: 'Only PDF supported for now.',
@@ -825,7 +842,7 @@ export const en = {
         done: 'Plan ready',
         error: 'Error',
       },
-      nodesProgress: (ready: number, total: number) => `${ready} of ~${total} steps detailed`,
+      nodesProgress: (ready: number, total: number) => `${ready} of ${total} parts detailed`,
       expandingHint: 'Detailing this plan in the background. If you press Start before it finishes, it waits.',
       expandReady: 'Full plan ready',
       outlineOnly: 'These are summaries. The detailed step by step is put together when you pick a plan.',
@@ -1195,10 +1212,16 @@ export const ptBR: Messages = {
     writingExplain: (s: number) => `Escrevendo a explicação… ${s}s`,
     rejectAll: 'Descartar todas',
     acceptAllCount: (n: number) => `✓ Aceitar todas (${n})`,
-    discardPartialWarning: (accepted: number, rest: number) =>
-      `Só ${accepted} de ${accepted + rest} partes foram aceitas. Esta parte passa a ser resolvida só ${accepted === 1 ? 'por ela' : 'por elas'} — o que as outras ${rest} cobriam deixa de ser acompanhado.`,
-    discardPartialConfirm: (rest: number) => `Descartar as outras ${rest}`,
+    discardPartialWarning: (accepted: number, total: number, rest: number) =>
+      `Só ${accepted} de ${total} ${accepted === 1 ? 'foi aceita' : 'foram aceitas'}. Esta parte passa a ser resolvida só ${accepted === 1 ? 'por ela' : 'por elas'} — ${rest === 1 ? 'o que a outra cobria deixa' : `o que as outras ${rest} cobriam deixa`} de ser acompanhado.`,
+    discardPartialConfirm: (rest: number) => (rest === 1 ? 'Descartar a outra' : `Descartar as outras ${rest}`),
     suggestionsDiscarded: (n: number) => (n === 1 ? '1 sugestão descartada' : `${n} sugestões descartadas`),
+    suggestionDiscarded: (name: string) => `“${name}” descartada`,
+    suggestionAccepted: (name: string) => `“${name}” adicionada`,
+    suggestionsAccepted: (n: number) => (n === 1 ? '1 parte adicionada' : `${n} partes adicionadas`),
+    acceptOneAria: (name: string) => `Aceitar sugestão: ${name}`,
+    nextSubpart: (name: string) => `Próxima sub-parte: ${name}`,
+    allSubpartsDone: 'Todas as sub-partes estão resolvidas.',
     confirmNoProof: 'Confirmar sem prova…',
     confirmNoProofConfirm: '✓ Confirmar sem prova',
     confirmNoProofWarning:
@@ -1213,7 +1236,7 @@ export const ptBR: Messages = {
     pickOptionNoProof: (label: string) => `Escolher “${label}” sem prova…`,
     pickFirst: 'Escolha uma opção acima',
     decisionSelectedBadge: 'selecionada',
-    knownConcept: 'Já domino isso',
+    knownConcept: 'Já sei isso',
     knownStep: 'Não preciso detalhar (já sei fazer)',
     knownResource: 'Não preciso detalhar (sei onde conseguir)',
     knownNoProofSub: '“Já sei” conta como feito, mas sem prova.',
@@ -1233,7 +1256,7 @@ export const ptBR: Messages = {
     nextPendingBtn: 'Próximo pendente',
     toastDone: (name: string) => `${name} concluído (com prova)`,
     toastNoProof: (name: string) => `${name} confirmado sem prova. Você pode voltar depois`,
-    toastKnown: (name: string) => `${name} marcado como já sabido`,
+    toastKnown: (name: string) => `${name} marcado como “já sei”`,
     toastKnownNoProof: (name: string) => `${name}: conta como feito, mas sem prova`,
     toastPicked: (label: string) => `Escolhido “${label}” (com prova)`,
     toastPickedNoProof: (label: string) => `Escolhido “${label}” sem prova. Você pode voltar depois`,
@@ -1267,7 +1290,7 @@ export const ptBR: Messages = {
     blocked: 'Bloqueado',
     confirmed: 'Concluído com prova',
     confirmedNoSignal: 'Confirmado, sem prova',
-    axiomBadge: 'Já sabido',
+    axiomBadge: 'Já sei',
     confirmHintNoSignal:
       'Vai confirmar sem prova — trave um critério ou verifique uma prova pra ganhar um "concluído" de verdade.',
     confirmAnyway: '✓ Confirmar sem prova',
@@ -1373,13 +1396,13 @@ export const ptBR: Messages = {
       blocked: 'Bloqueado',
       noProof: 'Sem prova',
       doneProof: 'Concluído com prova',
-      known: 'Já domino',
+      known: 'Já sei',
       problem: 'Problema',
     },
     risk: {
-      low: 'Risco alto, abaixo de 40%',
-      mid: 'Risco médio, de 40% a 69%',
-      high: 'Risco baixo, 70% ou mais',
+      low: 'Risco alto (confiança < 40%)',
+      mid: 'Risco médio (confiança de 40% a 69%)',
+      high: 'Risco baixo (confiança ≥ 70%)',
     },
     stagingSummary: (n: number, parent: string) =>
       `${n} parte${n === 1 ? ' sugerida' : 's sugeridas'} para “${parent}”`,
@@ -1393,6 +1416,10 @@ export const ptBR: Messages = {
     legendBorderNoProof: 'borda tracejada: confirmado sem prova',
     legendBorderProblem: 'borda: problema',
     legendDependencyHint: 'Na Estrutura, as dependências aparecem no hover ou na parte selecionada.',
+    legendStateDot: 'ponto: o estado da parte (mesmas cores da borda)',
+    legendLock: 'cadeado: bloqueada pela ordem (um passo anterior está pendente)',
+    legendBars: 'barras: confiança estimada pela IA',
+    legendNext: 'a próxima parte pendente',
     zoomIn: 'Aproximar',
     zoomOut: 'Afastar',
     fitAll: 'Ver o grafo inteiro',
@@ -1434,7 +1461,7 @@ export const ptBR: Messages = {
     yourCriterion: 'Seu critério',
     locked: 'Travado',
     criterionPlaceholder:
-      'Como você saberia que este nó está concluído? Escreva antes de ver o da IA.',
+      'Como você saberia que esta parte está concluída? Escreva antes de ver o da IA.',
     criterionPlaceholderUnderstand:
       'Como você saberia que entendeu isso de verdade? (ex: "consigo rederivar sem olhar a fonte"). Escreva antes de ver o da IA.',
     lockBtn: 'Travar critério',
@@ -1509,10 +1536,13 @@ export const ptBR: Messages = {
     submitHint: 'Ctrl/⌘+Enter envia',
     vagueHint:
       'Dá pra deixar mais testável? Coloque um número, uma unidade ou algo que dê pra ver acontecer.',
-    summaryProofs: (n: number, checked: number) =>
-      n === 0
-        ? 'nenhuma prova ainda'
-        : `${n} prova${n === 1 ? '' : 's'}, ${checked} conferida${checked === 1 ? '' : 's'}`,
+    summaryProofs: (n: number, checked: number, toCheck = 0) => {
+      const proofs =
+        n === 0 ? '' : `${n} prova${n === 1 ? '' : 's'}, ${checked} conferida${checked === 1 ? '' : 's'}`;
+      const target = toCheck === 0 ? '' : `${toCheck} a conferir`;
+      return [proofs, target].filter(Boolean).join(' · ') || 'nenhuma prova ainda';
+    },
+    anchorAITitle: 'Especificação-alvo sugerida pela IA — só vira prova quando você conferir no item real',
     summaryOpinionGenerated: 'opinião gerada',
     summaryOpinionNone: 'ainda não pedida',
     summaryFailureOpen: 'falha aberta',
@@ -1549,6 +1579,7 @@ export const ptBR: Messages = {
     title: 'Meus PDFs',
     docCount: (n: number) => `${n} documento${n === 1 ? '' : 's'}`,
     dropOrClick: 'Solte PDFs aqui ou clique para escolher',
+    tapToChoose: 'Toque para escolher um PDF',
     dropHint:
       'O PDF fica no seu navegador. Só o texto extraído (até ~40 mil caracteres) vai para o modelo que você configurou, para gerar um resumo. Evite documentos confidenciais.',
     pdfOnlyError: 'Apenas PDF por enquanto.',
@@ -1733,7 +1764,7 @@ export const ptBR: Messages = {
         done: 'Plano pronto',
         error: 'Erro',
       },
-      nodesProgress: (ready: number, total: number) => `${ready} de ~${total} passos detalhados`,
+      nodesProgress: (ready: number, total: number) => `${ready} de ${total} partes detalhadas`,
       expandingHint: 'Detalhando este plano em segundo plano. Se você clicar em Começar antes, ele espera terminar.',
       expandReady: 'Plano completo pronto',
       outlineOnly: 'São resumos. O passo a passo detalhado é montado quando você escolhe um plano.',

@@ -96,6 +96,7 @@ export function DetailPanel() {
 
   const [noteDraft, setNoteDraft] = useState('');
   const failureRef = useRef<HTMLDivElement>(null);
+  const criterionRef = useRef<HTMLDivElement>(null);
   const [ruleDraft, setRuleDraft] = useState('');
   const [explanationOpen, setExplanationOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -103,7 +104,15 @@ export function DetailPanel() {
 
   const isMobile = useIsMobile();
   const selectionVersion = useGraphStore((s) => s.selectionVersion);
-  const [drawerDismissed, setDrawerDismissed] = useState(false);
+  // Chegar no grafo (vindo do tutor) com uma seleção herdada não abre o
+  // sheet no mobile: o nó fica destacado e o sheet só abre com um toque.
+  const [drawerDismissed, setDrawerDismissed] = useState(
+    () =>
+      Boolean(useGraphStore.getState().selectedNodeId) &&
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(max-width: 767px)').matches === true,
+  );
+  const initialSelection = useRef({ selectedId, selectionVersion });
   const [confirmingNoSignal, setConfirmingNoSignal] = useState(false);
   const [readingOpen, setReadingOpen] = useState(false);
   // selectionVersion bumps on every selectNode — so tapping the SAME node
@@ -112,7 +121,8 @@ export function DetailPanel() {
   // extra; o estado só é recalculado na troca de seleção, então fechar
   // manualmente continua respeitado enquanto o nó está selecionado.
   useEffect(() => {
-    setDrawerDismissed(false);
+    const init = initialSelection.current;
+    if (init.selectedId !== selectedId || init.selectionVersion !== selectionVersion) setDrawerDismissed(false);
     setConfirmingNoSignal(false);
     setReadingOpen(false);
     setMenuOpen(false);
@@ -343,6 +353,14 @@ export function DetailPanel() {
     });
   };
 
+  // Caminho com prova: rola até o critério (ou a aferição) e foca o campo.
+  const goToCriterion = () => {
+    const el = criterionRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.querySelector<HTMLElement>('textarea:not([disabled])')?.focus({ preventScroll: true });
+  };
+
   const recordNote = () => {
     if (!noteDraft.trim()) return;
     addManualHistory(node.id, noteDraft.trim());
@@ -431,6 +449,18 @@ export function DetailPanel() {
             onOpenChange={setMenuOpen}
             tr={tr}
             items={[
+              // "Confirmar sem prova…" mora no "…", como no tutor: o rodapé
+              // leva ao critério (o caminho com prova).
+              primaryIsConfirm && !ready && !confirmGate
+                ? {
+                    key: 'noProof',
+                    label: tr.tutor.confirmNoProof,
+                    onClick: () => {
+                      setMenuOpen(false);
+                      setConfirmingNoSignal(true);
+                    },
+                  }
+                : null,
               !node.confirmado && node.parentId
                 ? {
                     key: 'known',
@@ -573,7 +603,8 @@ export function DetailPanel() {
         </div>
       )}
 
-      {!primaryIsDecompose && !node.takenAsKnown && (
+      {/* Concluído não oferece quebrar: a parte já se resolveu. */}
+      {!primaryIsDecompose && !node.takenAsKnown && !node.confirmado && (
         <div>
           {decomposeButton(false)}
           {decomposeExtras}
@@ -665,7 +696,9 @@ export function DetailPanel() {
         </section>
       )}
 
-      <UserCriterionField node={node} />
+      <div ref={criterionRef}>
+        <UserCriterionField node={node} />
+      </div>
       <GroundTruthRefsList node={node} project={project} />
       <CritiqueSection node={node} project={project} />
       <div ref={failureRef}>
@@ -827,6 +860,11 @@ export function DetailPanel() {
           onClose={() => setReadingOpen(false)}
           onGenerate={() => void generateExplanation()}
           generating={explaining}
+          streamingText={explaining ? streamingText : undefined}
+          generatingLabel={
+            explaining ? tr.detail.generatingExplainElapsed(Math.round(explain.elapsedMs / 1000)) : undefined
+          }
+          onCancelGenerate={explaining ? explain.cancel : undefined}
         />
       )}
     </>
@@ -896,12 +934,14 @@ export function DetailPanel() {
                 {confirmLabel}
               </button>
             ) : (
-              // Mesmo rótulo do tutor: sem prova, a ação é "Confirmar sem prova…".
-              <button
-                onClick={() => setConfirmingNoSignal(true)}
-                className="tap btn btn-secondary !h-8 flex-1"
-              >
-                {tr.tutor.confirmNoProof}
+              // Mesmo rótulo do tutor: sem prova, o rodapé leva ao critério;
+              // "Confirmar sem prova…" fica no menu "…" do painel.
+              <button onClick={goToCriterion} className="tap btn btn-secondary !h-8 flex-1 min-w-0">
+                <span className="truncate">
+                  {conclude.missingKeys.includes('criterionNotLocked')
+                    ? tr.tutor.writeCriterionBtn
+                    : tr.tutor.attestBtn}
+                </span>
               </button>
             ))}
           {primaryIsDecompose && decomposeButton(true)}
@@ -973,20 +1013,9 @@ function ProjectSummary({ project, tr }: { project: Project; tr: Messages }) {
         )}
       </div>
       <div>
-        <div className="flex items-center justify-between text-footnote text-text-muted mb-1.5">
-          <span>{tr.detail.summaryProgress(progress.done, progress.total)}</span>
-          <span className="tabular-nums">{progress.percent}%</span>
-        </div>
-        {/* Mesmo código do anel da toolbar: accent = concluído, verde = com prova. */}
-        <div className="relative h-1 bg-bg-elevated rounded-full overflow-hidden">
-          <div
-            className="absolute inset-y-0 left-0 bg-accent rounded-full transition-[width] duration-240 ease-mac"
-            style={{ width: `${progress.percent}%` }}
-          />
-          <div
-            className="absolute inset-y-0 left-0 bg-state-done rounded-full transition-[width] duration-240 ease-mac"
-            style={{ width: `${progress.total ? (progress.doneWithSignal / progress.total) * 100 : 0}%` }}
-          />
+        {/* O anel da toolbar é o indicador de progresso; aqui só a contagem. */}
+        <div className="text-footnote text-text-muted">
+          {tr.detail.summaryProgress(progress.done, progress.total)}
         </div>
         {progress.doneWithoutSignal > 0 && (
           <div className="text-footnote text-conf-mid mt-1.5">

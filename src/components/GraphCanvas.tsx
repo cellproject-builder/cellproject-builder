@@ -37,7 +37,7 @@ import { useReviewingParents } from '@/hooks/useReviewingParents';
 import { useT } from '@/i18n';
 import type { Messages } from '@/i18n';
 import { ConceptNode, SIDE_HANDLE } from './ConceptNode';
-import { discardSuggestionsWithUndo } from './suggestionActions';
+import { discardSuggestionsWithUndo, acceptSuggestionsWithUndo } from './suggestionActions';
 import type { ConceptEdgeData, ConceptNodeData, Project } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -113,8 +113,9 @@ const EDGE_DIMMED_OPACITY = 0.3;
 // FIT_ALL_MIN_ZOOM.
 const READABLE_MIN_ZOOM = 0.7;
 // Lentes de colunas: todas as colunas à vista importam mais que o tamanho do
-// texto (0.6 ainda é o nível "mid" do card).
-const COLUMNS_MIN_ZOOM = 0.6;
+// texto (abaixo de 0.6 o card vira o nível "far": nome legível, sem resumo).
+// O encaixe é pela largura — as colunas leem de cima e rolam na vertical.
+const COLUMNS_MIN_ZOOM = 0.5;
 const CONNECTIONS_MIN_ZOOM = 0.5;
 const FIT_ALL_MIN_ZOOM = 0.15;
 // Cromo flutuante sobre o canvas (px de tela): faixa dos botões do topo
@@ -447,7 +448,6 @@ export function GraphCanvas() {
   const setLens = useGraphStore((s) => s.setLens);
   const updateNodePosition = useGraphStore((s) => s.updateNodePosition);
   const applyLayoutPositions = useGraphStore((s) => s.applyLayoutPositions);
-  const acceptAllSuggestions = useGraphStore((s) => s.acceptAllSuggestions);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -606,7 +606,8 @@ export function GraphCanvas() {
       const pad = 0;
       const b = getNodesBounds(all.map((n) => n.id));
       if (b.width <= 0 || b.height <= 0) return;
-      const fit = Math.min(W / b.width, H / b.height);
+      const columns = !whole && (st.lens === 'state' || st.lens === 'risk' || st.lens === 'flow');
+      const fit = columns ? W / b.width : Math.min(W / b.width, H / b.height);
       // Conexões é um mapa de relações: precisa caber inteiro, com piso menor.
       // "Ver o grafo inteiro" (whole) encaixa de verdade.
       const floor = whole
@@ -978,7 +979,10 @@ export function GraphCanvas() {
           targetHandle: t0.x < s0.x ? SIDE_HANDLE.targetRight : SIDE_HANDLE.targetLeft,
         };
       }
-      if (!hierarchy && Math.abs(t0.y - s0.y) < 120 && Math.abs(t0.x - s0.x) > 60) {
+      // Fluxo: recurso → passo em outra coluna sai/entra pelo lado (o bezier
+      // de baixo→cima fazia laçadas em U sob os cards e riscava vizinhos).
+      const sideways = lens === 'flow' && Math.abs(t0.x - s0.x) >= CARD_W;
+      if (!hierarchy && (sideways || (Math.abs(t0.y - s0.y) < 120 && Math.abs(t0.x - s0.x) > 60))) {
         const right = t0.x > s0.x;
         return {
           type: 'smoothstep',
@@ -1126,7 +1130,9 @@ export function GraphCanvas() {
           // por onde o texto dos cards aparecia), todos com 44px de alvo.
           <Panel
             position="top-left"
-            className="glass-host border rounded-card shadow-mac p-1 flex items-center gap-1 max-w-[calc(100%-24px)]"
+            // Opaca (não vidro): no mobile os cards passam por baixo e o texto
+            // deles vazava pela pílula como "texto fantasma".
+            className="bar-solid border rounded-card shadow-mac p-1 flex items-center gap-1 max-w-[calc(100%-24px)]"
           >
             <button
               onClick={handleTidy}
@@ -1212,7 +1218,7 @@ export function GraphCanvas() {
                 <button
                   onClick={() => {
                     const parentId = pending.parentId;
-                    acceptAllSuggestions();
+                    acceptSuggestionsWithUndo(tr);
                     // Aceitas, a árvore é relayoutada: enquadra a subárvore nova.
                     focusNode(parentId);
                   }}
@@ -1303,6 +1309,29 @@ function Swatch({ stroke, dash, width = 2 }: { stroke: string; dash?: string; wi
 
 function EdgeLegend({ tr, inBar = false }: { tr: Messages; inBar?: boolean }) {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  // Esc fecha a legenda ANTES do Esc do canvas (que limparia a seleção);
+  // clicar fora (ex.: Meus PDFs) também fecha.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+      buttonRef.current?.focus();
+    };
+    const onPointer = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as globalThis.Node)) setOpen(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    document.addEventListener('pointerdown', onPointer, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('pointerdown', onPointer, true);
+    };
+  }, [open]);
   const rows: Array<{ label: string; stroke: string; dash?: string; width?: number }> = [
     { label: tr.graph.legendDecomposition, stroke: DECOMPOSITION_EDGE_STYLE.stroke, width: DECOMPOSITION_EDGE_STYLE.strokeWidth },
     { label: tr.graph.legendDirect, stroke: edgeStyleByKind.direct.stroke, width: edgeStyleByKind.direct.strokeWidth },
@@ -1314,8 +1343,9 @@ function EdgeLegend({ tr, inBar = false }: { tr: Messages; inBar?: boolean }) {
   return (
     // Pílula do mesmo tamanho dos outros controles; a legenda abre como
     // popover (não estica a barra).
-    <div className="relative shrink-0">
+    <div className="relative shrink-0" ref={rootRef}>
       <button
+        ref={buttonRef}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         className={`tap h-[30px] px-3 rounded-control text-footnote font-medium text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors duration-120 ease-mac ${
@@ -1356,6 +1386,38 @@ function EdgeLegend({ tr, inBar = false }: { tr: Messages; inBar?: boolean }) {
             <div className="flex items-center gap-2.5">
               <span className="w-6 h-3.5 rounded-[4px] border-[1.5px] border-state-problem shrink-0" />
               {tr.graph.legendBorderProblem}
+            </div>
+          </div>
+          <hr className="divider my-2.5" />
+          {/* Marcas dentro dos cards. */}
+          <div className="space-y-1.5 text-footnote text-text-secondary">
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 flex justify-center gap-1 shrink-0" aria-hidden>
+                <span className="w-2 h-2 rounded-full bg-state-done" />
+                <span className="w-2 h-2 rounded-full bg-state-problem" />
+              </span>
+              {tr.graph.legendStateDot}
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 flex justify-center text-text-faint shrink-0" aria-hidden>
+                <svg width="10" height="11" viewBox="0 0 10 11" fill="none">
+                  <rect x="1" y="4.5" width="8" height="6" rx="1.5" fill="currentColor" />
+                  <path d="M3 4.5V3a2 2 0 0 1 4 0v1.5" stroke="currentColor" strokeWidth="1.3" />
+                </svg>
+              </span>
+              {tr.graph.legendLock}
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 flex justify-center items-end gap-[2px] text-text-muted shrink-0" aria-hidden>
+                <span className="w-[3px] h-1 rounded-sm bg-current" />
+                <span className="w-[3px] h-2 rounded-sm bg-current" />
+                <span className="w-[3px] h-3 rounded-sm bg-current opacity-40" />
+              </span>
+              {tr.graph.legendBars}
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="chip !h-[18px] bg-accent/12 text-accent shrink-0">{tr.conceptNode.next}</span>
+              {tr.graph.legendNext}
             </div>
             <p className="text-text-muted pt-1">{tr.graph.legendDependencyHint}</p>
           </div>
