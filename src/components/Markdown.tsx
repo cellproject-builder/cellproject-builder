@@ -1,36 +1,86 @@
 // Renderizador leve do markdown que a IA produz (tutor, pesquisa web):
-// títulos em **CAIXA ALTA** ou #/##/###, bullets, listas numeradas, negrito,
-// `código` inline, blocos ``` e links [texto](url) clicáveis. Sem dependência
-// externa de markdown.
+// títulos em **CAIXA ALTA** ou #/##/###, bullets (com sub-níveis), listas
+// numeradas, tabelas simples, negrito, *itálico*, `código` inline, blocos ```
+// e links [texto](url) clicáveis. Sem dependência externa de markdown.
 //
 // `variant`: 'panel' (compacto, dentro da sidebar) · 'reading' (tipografia
 // confortável pro modo leitura em tela cheia).
+// `idPrefix`: quando presente, cada título ganha id `${idPrefix}-h-${n}` — o
+// índice do modo leitura rola até eles (ver extractHeadings).
 
 type Variant = 'panel' | 'reading';
+
+// Título de seção: linha inteira em **negrito** (formato pedido ao tutor) ou
+// heading markdown #/##/### que modelos emitem por conta própria.
+function headingText(line: string): string | null {
+  const boldMatch = line.match(/^\*\*(.+?)\*\*:?\s*$/);
+  const hashMatch = line.match(/^#{1,4}\s+(.*)$/);
+  if (!boldMatch && !hashMatch) return null;
+  // Tira o negrito (o estilo do título já é destaque) mas mantém links e
+  // `código` formatados via renderInline.
+  return (boldMatch ? boldMatch[1] : hashMatch![1]).replace(/\*\*/g, '').trim();
+}
+
+const isFence = (line: string) => line.trimStart().startsWith('```');
+const isTableRow = (line: string) => /^\s*\|.*\|\s*$/.test(line);
+const isTableSeparator = (line: string) => /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(line);
+const splitRow = (line: string) =>
+  line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((c) => c.trim());
+
+// Nível de indentação (2 espaços ou 1 tab = 1 nível), limitado a 4.
+const indentLevel = (line: string) => {
+  const lead = line.match(/^[\t ]*/)?.[0] ?? '';
+  const spaces = lead.replace(/\t/g, '  ').length;
+  return Math.min(4, Math.floor(spaces / 2));
+};
+
+/** Textos dos títulos, na mesma ordem/numeração dos ids gerados. */
+export function extractHeadings(text: string): string[] {
+  const out: string[] = [];
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (isFence(lines[i])) {
+      i++;
+      while (i < lines.length && !isFence(lines[i])) i++;
+      continue;
+    }
+    const h = headingText(lines[i]);
+    if (h) out.push(h.replace(/`/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'));
+  }
+  return out;
+}
 
 export function ExplanationContent({
   text,
   variant = 'panel',
+  idPrefix,
 }: {
   text: string;
   variant?: Variant;
+  idPrefix?: string;
 }) {
   const reading = variant === 'reading';
   const lines = text.split('\n');
   const blocks: React.ReactNode[] = [];
+  let headingIdx = 0;
 
   const headingCls = reading
-    ? 'text-[11px] font-mono uppercase tracking-widest text-ai-accent pt-5 first:pt-0'
-    : 'text-[10px] font-mono uppercase tracking-widest text-ai-accent pt-2 first:pt-0';
+    ? 'text-base font-semibold text-text-primary pt-5 first:pt-0 scroll-mt-4'
+    : 'text-sm font-semibold text-text-primary pt-2 first:pt-0';
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
     // Bloco de código cercado — acumula até a cerca de fechamento (ou EOF).
-    if (line.trimStart().startsWith('```')) {
+    if (isFence(line)) {
       const code: string[] = [];
       let j = i + 1;
-      while (j < lines.length && !lines[j].trimStart().startsWith('```')) {
+      while (j < lines.length && !isFence(lines[j])) {
         code.push(lines[j]);
         j++;
       }
@@ -53,27 +103,68 @@ export function ExplanationContent({
       continue;
     }
 
-    // Título de seção: linha inteira em **negrito** (formato pedido ao tutor)
-    // ou heading markdown #/##/### que modelos emitem por conta própria.
-    const boldMatch = line.match(/^\*\*(.+?)\*\*:?\s*$/);
-    const hashMatch = line.match(/^#{1,4}\s+(.*)$/);
-    if (boldMatch || hashMatch) {
-      // Tira o negrito (o estilo do título já é destaque) mas mantém links e
-      // `código` clicáveis/formatados via renderInline.
-      const content = (boldMatch ? boldMatch[1] : hashMatch![1]).replace(/\*\*/g, '');
+    // Tabela simples: cabeçalho | separador |---| e linhas seguintes.
+    if (isTableRow(line) && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
+      const head = splitRow(line);
+      const rows: string[][] = [];
+      let j = i + 2;
+      while (j < lines.length && isTableRow(lines[j])) {
+        rows.push(splitRow(lines[j]));
+        j++;
+      }
+      const cell = reading ? 'px-2.5 py-1.5' : 'px-2 py-1';
       blocks.push(
-        <div key={i} className={headingCls}>
-          {renderInline(content)}
+        <div key={i} className="overflow-x-auto my-1.5">
+          <table className={`border-collapse ${reading ? 'text-sm' : 'text-xs'}`}>
+            <thead>
+              <tr>
+                {head.map((h, k) => (
+                  <th
+                    key={k}
+                    className={`${cell} text-left font-semibold text-text-primary border border-border-base bg-bg-elevated`}
+                  >
+                    {renderInline(h)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, ri) => (
+                <tr key={ri}>
+                  {head.map((_, k) => (
+                    <td key={k} className={`${cell} align-top border border-border-base`}>
+                      {renderInline(r[k] ?? '')}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      i = j - 1;
+      continue;
+    }
+
+    const heading = headingText(line);
+    if (heading !== null) {
+      const id = idPrefix ? `${idPrefix}-h-${headingIdx}` : undefined;
+      headingIdx++;
+      blocks.push(
+        <div key={i} id={id} className={headingCls}>
+          {renderInline(heading)}
         </div>,
       );
       continue;
     }
 
-    const bulletMatch = line.match(/^\s*[-*]\s+(.*)$/);
+    // Sub-bullets preservam a indentação do modelo (2 espaços = 1 nível).
+    const bulletMatch = line.match(/^\s*[-*+]\s+(.*)$/);
     if (bulletMatch) {
+      const level = indentLevel(line);
       blocks.push(
-        <div key={i} className="pl-4 relative">
-          <span className="absolute left-0 text-text-muted">•</span>
+        <div key={i} className="pl-4 relative" style={level ? { marginLeft: level * 16 } : undefined}>
+          <span className="absolute left-0 text-text-muted">{level > 0 ? '◦' : '•'}</span>
           {renderInline(bulletMatch[1])}
         </div>,
       );
@@ -82,8 +173,9 @@ export function ExplanationContent({
 
     const numMatch = line.match(/^\s*(\d+)[.)]\s(.*)$/);
     if (numMatch) {
+      const level = indentLevel(line);
       blocks.push(
-        <div key={i} className="pl-6 relative">
+        <div key={i} className="pl-6 relative" style={level ? { marginLeft: level * 16 } : undefined}>
           <span className="absolute left-0 text-text-muted font-mono text-xs">{numMatch[1]}.</span>
           {renderInline(numMatch[2])}
         </div>,
@@ -108,9 +200,12 @@ export function ExplanationContent({
 }
 
 export function renderInline(text: string): React.ReactNode {
-  // Negrito, `código` e links markdown [texto](url) — conteúdo com pesquisa
-  // web cita fontes inline; precisam ser clicáveis.
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\(https?:\/\/[^\s)]+\))/g);
+  // Negrito, *itálico*, `código` e links markdown [texto](url) — conteúdo com
+  // pesquisa web cita fontes inline; precisam ser clicáveis. O negrito vem
+  // antes na alternância, então `**x**` nunca vira itálico.
+  const parts = text.split(
+    /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\(https?:\/\/[^\s)]+\)|\*(?![\s*])[^*\n]*[^\s*]\*)/g,
+  );
   return parts.map((p, i) => {
     const bold = p.match(/^\*\*(.+?)\*\*$/);
     if (bold) {
@@ -143,6 +238,14 @@ export function renderInline(text: string): React.ReactNode {
         >
           {link[1]}
         </a>
+      );
+    }
+    const italic = p.match(/^\*([^*]+)\*$/);
+    if (italic) {
+      return (
+        <em key={i} className="italic">
+          {italic[1]}
+        </em>
       );
     }
     return <span key={i}>{p}</span>;
