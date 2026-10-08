@@ -823,7 +823,8 @@ export function ObjectiveScreen() {
             </div>
 
             {/* Opções: grupo estilo Ajustes do Sistema. */}
-            <div className="card p-4 sm:p-5 space-y-5">
+            {/* No mobile, gerando: o progresso toma o lugar das opções. */}
+            <div className={`card p-4 sm:p-5 space-y-5 ${gen.running ? 'hidden sm:block' : ''}`}>
               <div>
                 <label htmlFor="cp-name" className="label block mb-1.5">
                   {tr.objective.projectNameLabel}
