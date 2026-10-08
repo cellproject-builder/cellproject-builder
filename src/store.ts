@@ -145,6 +145,10 @@ export interface GraphState {
   // Sugestões em staging do projeto arquivado (custaram uma chamada de IA):
   // voltam junto no desfazer. Persistido, como o próprio staging.
   archivedPending: GraphState['pendingSuggestions'];
+  // Arquivado que o último reset/import/demo substituiu (só há um slot de
+  // arquivo). Não persistido: só serve para o desfazer devolvê-lo ao arquivo
+  // em vez de perdê-lo de vez.
+  replacedArchive: { project: Project; pending: GraphState['pendingSuggestions'] } | null;
 
   // `alternatives` podem ser esboços (os não escolhidos ficam no projeto).
   createProjectFromPlan: (
@@ -376,6 +380,17 @@ const archivePendingCandidate = (
   state.project && state.project.id !== DEMO_PROJECT_ID
     ? state.pendingSuggestions
     : state.archivedPending;
+
+// O arquivado atual que será sobrescrito por arquivar `state.project`.
+const replacedArchiveCandidate = (
+  state: Pick<GraphState, 'project' | 'archivedProject' | 'archivedPending' | 'replacedArchive'>,
+): GraphState['replacedArchive'] =>
+  state.project &&
+  state.project.id !== DEMO_PROJECT_ID &&
+  state.archivedProject &&
+  state.archivedProject.id !== state.project.id
+    ? { project: state.archivedProject, pending: state.archivedPending }
+    : state.replacedArchive;
 
 // Troca o lote ativo pelo estacionado de `parentId` (o ativo vai pro estacionamento).
 const swapInParked = (
@@ -679,6 +694,7 @@ export const useGraphStore = create<GraphState>()(
       aiJobs: {},
       archivedProject: null,
       archivedPending: null,
+      replacedArchive: null,
 
       createProjectFromPlan: (objective, name, plan, rules, alternatives) => {
         const tr = t();
@@ -829,6 +845,7 @@ export const useGraphStore = create<GraphState>()(
           ...freshProjectSession(),
           archivedProject: archiveCandidate(state.project, state.archivedProject),
           archivedPending: archivePendingCandidate(state),
+          replacedArchive: replacedArchiveCandidate(state),
           project,
           selectedNodeId: project.rootId,
           focusedParentId: project.rootId,
@@ -1921,6 +1938,7 @@ export const useGraphStore = create<GraphState>()(
           ...freshProjectSession(),
           archivedProject: archiveCandidate(state.project, state.archivedProject),
           archivedPending: archivePendingCandidate(state),
+          replacedArchive: replacedArchiveCandidate(state),
           project: null,
           selectedNodeId: null,
           focusedParentId: null,
@@ -1929,15 +1947,21 @@ export const useGraphStore = create<GraphState>()(
         })),
 
       undoReset: () => {
-        const { archivedProject, archivedPending, project, pendingSuggestions } = get();
+        const { archivedProject, archivedPending, project, pendingSuggestions, replacedArchive } = get();
         if (!archivedProject) return false;
         const keepCurrent = project && project.id !== DEMO_PROJECT_ID;
+        // Sem projeto aberto, o arquivo volta a ter o que o reset substituiu.
+        const restored =
+          !keepCurrent && replacedArchive && replacedArchive.project.id !== archivedProject.id
+            ? replacedArchive
+            : null;
         set({
           ...freshProjectSession(),
           // Troca, não descarta: se já havia outro projeto aberto, ele é que
           // vai pro arquivo.
-          archivedProject: keepCurrent ? project : null,
-          archivedPending: keepCurrent ? pendingSuggestions : null,
+          archivedProject: keepCurrent ? project : (restored?.project ?? null),
+          archivedPending: keepCurrent ? pendingSuggestions : (restored?.pending ?? null),
+          replacedArchive: null,
           pendingSuggestions:
             archivedPending && archivedProject.nodes[archivedPending.parentId] ? archivedPending : null,
           project: archivedProject,
@@ -1955,6 +1979,7 @@ export const useGraphStore = create<GraphState>()(
           ...freshProjectSession(),
           archivedProject: archiveCandidate(state.project, state.archivedProject),
           archivedPending: archivePendingCandidate(state),
+          replacedArchive: replacedArchiveCandidate(state),
           project: parsed,
           selectedNodeId: parsed.rootId,
           focusedParentId: parsed.rootId,

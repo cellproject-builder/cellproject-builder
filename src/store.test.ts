@@ -949,7 +949,7 @@ describe('objective draft, layout and navigation', () => {
 describe('safe reset and import', () => {
   beforeEach(() => {
     useGraphStore.getState().resetProject();
-    useGraphStore.setState({ archivedProject: null });
+    useGraphStore.setState({ archivedProject: null, replacedArchive: null });
   });
 
   it('resetProject archives the project and undoReset brings it back', () => {
@@ -961,6 +961,21 @@ describe('safe reset and import', () => {
     expect(useGraphStore.getState().undoReset()).toBe(true);
     expect(useGraphStore.getState().project?.id).toBe(before.id);
     expect(useGraphStore.getState().archivedProject).toBeNull();
+  });
+
+  it('undoReset keeps the previously archived project instead of losing it', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'Antigo', minimalPlan);
+    const old = useGraphStore.getState().project!;
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().createProjectFromPlan('obj', 'Ativo', minimalPlan);
+    const active = useGraphStore.getState().project!;
+    expect(useGraphStore.getState().archivedProject?.id).toBe(old.id);
+
+    useGraphStore.getState().resetProject();
+    expect(useGraphStore.getState().archivedProject?.id).toBe(active.id);
+    expect(useGraphStore.getState().undoReset()).toBe(true);
+    expect(useGraphStore.getState().project?.id).toBe(active.id);
+    expect(useGraphStore.getState().archivedProject?.id).toBe(old.id);
   });
 
   it('leaving the demo does not overwrite the archived real project', () => {

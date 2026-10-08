@@ -71,17 +71,40 @@ export function MobileSheet({
   useEffect(() => {
     if (!open || !footer) return;
     setHiddenPx(estimateHiddenPx(activeSnap));
-    let t = setTimeout(measure, 550);
+    // Mede quando o Content parar de se mover (fim da animação do vaul), em
+    // vez de num instante fixo que pode cair no meio dela.
+    let raf = 0;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const settle = () => {
+      cancelAnimationFrame(raf);
+      const start = performance.now();
+      let last = NaN;
+      let still = 0;
+      const tick = () => {
+        const el = contentRef.current;
+        const b = el ? el.getBoundingClientRect().bottom : NaN;
+        still = Math.abs(b - last) < 0.5 ? still + 1 : 0;
+        last = b;
+        if (still >= 6 || performance.now() - start > 1500) {
+          measure();
+          return;
+        }
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    };
+    t = setTimeout(settle, 120);
     // Resize/rotação: estimativa imediata e nova medida depois que o vaul
     // reposiciona o Content no snap.
     const onResize = () => {
       setHiddenPx(estimateHiddenPx(snapRef.current));
       clearTimeout(t);
-      t = setTimeout(() => requestAnimationFrame(measure), 350);
+      t = setTimeout(settle, 120);
     };
     window.addEventListener('resize', onResize);
     return () => {
       clearTimeout(t);
+      cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
     };
     // footer só importa como presença
@@ -140,9 +163,10 @@ export function MobileSheet({
   );
 }
 
-// Estimativa antes da medida: o Content tem 96% de window.innerHeight e só a
-// fração do snap fica visível.
+// Estimativa antes da medida, com a mesma conta do vaul: no snap s ele
+// translada o Content em innerHeight * (1 - s) a partir da posição aberta
+// (bottom: 0), então é isso que fica abaixo da tela — independe dos 96%.
 function estimateHiddenPx(activeSnap: SnapPoint | null): number {
   if (typeof activeSnap !== 'number' || typeof window === 'undefined') return 0;
-  return Math.round(Math.max(0, window.innerHeight * (0.96 - activeSnap)));
+  return Math.round(Math.max(0, window.innerHeight * (1 - activeSnap)));
 }
