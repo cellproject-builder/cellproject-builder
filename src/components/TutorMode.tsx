@@ -14,7 +14,6 @@ import {
   nodesWithoutSignal,
   pendingParent,
   stepSequence,
-  type PendingSuggestions,
   canRevealAICriterionNow,
   relatedPartsFor,
 } from '@/store';
@@ -175,11 +174,13 @@ export function TutorMode() {
   const setLastTutorNode = useGraphStore((s) => s.setLastTutorNode);
   const pending = useGraphStore((s) => s.pendingSuggestions);
   const pendingNode = useGraphStore(pendingParent);
+  const parked = useGraphStore((s) => s.parkedSuggestions);
+  const resumeSuggestions = useGraphStore((s) => s.resumeSuggestions);
 
-  // Sugestões em revisão contam como partes abertas do pai (progresso e
-  // "próximo pendente" não pulam um pai com sugestões esperando).
+  // Sugestões em revisão seguram o "próximo pendente" (não pula um pai com
+  // sugestões esperando), mas não entram no progresso: só conta o aceito.
   const next = useMemo(() => nextPendingForTutor(project, pending), [project, pending]);
-  const progress = projectProgress(project, pending);
+  const progress = projectProgress(project);
   const byParent = useMemo(() => (project ? childrenByParent(project) : null), [project]);
 
   const isMobile = useIsMobile();
@@ -205,6 +206,11 @@ export function TutorMode() {
     if (currentId) setLastTutorNode(currentId);
   }, [currentId, setLastTutorNode]);
 
+  // Chegou (pelo "próximo") num nó com lote estacionado: as sugestões voltam.
+  useEffect(() => {
+    if (currentId && useGraphStore.getState().parkedSuggestions[currentId]) resumeSuggestions(currentId);
+  }, [currentId, resumeSuggestions]);
+
   // Staging esvaziou (aceitou/descartou tudo): desce para o primeiro filho do
   // pai revisado — o loop continua "até o átomo" sem o usuário procurar.
   const pendingParentId = pending?.parentId ?? null;
@@ -228,20 +234,31 @@ export function TutorMode() {
 
   if (!project || !byParent) return null;
 
-  const reviewPending = () => {
-    if (!pendingNode) return;
-    if (isActionableKind(pendingNode.kind)) {
-      selectNode(pendingNode.id);
+  const reviewAt = (target: ConceptNodeData) => {
+    // selectNode traz de volta um lote estacionado deste pai.
+    if (isActionableKind(target.kind)) {
+      selectNode(target.id);
       setSidebarOpen(false);
       return;
     }
     // Pai estrutural (categoria/objetivo): a revisão acontece no grafo — e é
     // ele (não o card atual) que o grafo deve abrir.
-    selectNode(pendingNode.id);
-    setLastTutorNode(pendingNode.id);
+    selectNode(target.id);
+    setLastTutorNode(target.id);
     setViewMode('graph');
-    requestCenter(pendingNode.id);
+    requestCenter(target.id);
   };
+  const reviewPending = () => {
+    if (pendingNode) reviewAt(pendingNode);
+  };
+
+  // Lotes estacionados (de outros pais) — selo na árvore e um aviso discreto.
+  const parkedNodes = Object.keys(parked)
+    .map((id) => project.nodes[id])
+    .filter((n): n is ConceptNodeData => Boolean(n));
+  const suggestionCounts: Record<string, number> = {};
+  for (const n of parkedNodes) suggestionCounts[n.id] = parked[n.id].nodes.length;
+  if (pending && pending.nodes.length > 0) suggestionCounts[pending.parentId] = pending.nodes.length;
 
   const resourceLeaves = effectiveLeavesUnder(project, project.rootId, byParent).filter(
     (n) => n.kind === 'recurso',
@@ -258,7 +275,7 @@ export function TutorMode() {
         parentId={project.rootId}
         depth={0}
         currentId={currentId}
-        pending={pending}
+        suggestionCounts={suggestionCounts}
         onPick={(id) => {
           selectNode(id);
           setSidebarOpen(false);
@@ -354,6 +371,20 @@ export function TutorMode() {
               </button>
             </div>
           )}
+          {parkedNodes
+            .filter((n) => n.id !== currentId)
+            .map((n) => (
+              <div
+                key={n.id}
+                className="max-w-2xl mx-auto mb-4 flex items-center gap-2 px-3 py-2 border border-border-base bg-bg-secondary rounded-sm text-xs text-text-secondary"
+              >
+                <span className="w-1.5 h-1.5 shrink-0 rounded-full bg-ai-accent/60" />
+                <span className="flex-1 min-w-0">{tr.tutor.parkedBanner(parked[n.id].nodes.length, n.name)}</span>
+                <button onClick={() => reviewAt(n)} className="tap shrink-0 text-ai-accent hover:underline font-medium">
+                  {tr.tutor.reviewPending} →
+                </button>
+              </div>
+            ))}
 
           {current ? (
             <TutorCard
@@ -363,7 +394,6 @@ export function TutorMode() {
               byParent={byParent}
               isNext={current.id === next?.id}
               next={next}
-              onReviewPending={reviewPending}
               tr={tr}
               notice={
                 current.kind === 'passo' && resourceLeaves.length > 0 && !allResourcesDone ? (
@@ -474,12 +504,11 @@ interface TutorCardProps {
   byParent: Map<string, ConceptNodeData[]>;
   isNext: boolean;
   next: ConceptNodeData | null;
-  onReviewPending: () => void;
   notice?: React.ReactNode;
   tr: Messages;
 }
 
-function TutorCard({ node, project, byParent, isNext, next, onReviewPending, notice, tr }: TutorCardProps) {
+function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorCardProps) {
   const confirmNode = useGraphStore((s) => s.confirmNode);
   const unconfirmNode = useGraphStore((s) => s.unconfirmNode);
   const toggleTakenAsKnown = useGraphStore((s) => s.toggleTakenAsKnown);
@@ -493,7 +522,6 @@ function TutorCard({ node, project, byParent, isNext, next, onReviewPending, not
   const acceptAllSuggestions = useGraphStore((s) => s.acceptAllSuggestions);
   const rejectAllSuggestions = useGraphStore((s) => s.rejectAllSuggestions);
   const pending = useGraphStore((s) => s.pendingSuggestions);
-  const pendingNode = useGraphStore(pendingParent);
   const aiJobs = useGraphStore((s) => s.aiJobs);
   const putStream = useExplainStream((s) => s.put);
   const streamText = useExplainStream((s) => s.texts[node.id]);
@@ -572,15 +600,14 @@ function TutorCard({ node, project, byParent, isNext, next, onReviewPending, not
       : tr.tutor.knownStep;
   const pickedOpt = node.decisionOptions?.find((o) => o.id === selectedOpt) ?? null;
 
-  // Só uma quebra por vez: outra em andamento ou sugestões esperando revisão
-  // em outro nó desabilitam o decompor — com o motivo e um atalho até lá.
+  // Só uma quebra por vez: outra em andamento desabilita o decompor — com o
+  // motivo e um atalho até lá. Sugestões em revisão em OUTRO nó não bloqueiam:
+  // o lote de lá estaciona e volta quando o usuário reabrir aquele pai.
   const otherDecomposeId = Object.entries(aiJobs).find(
     ([id, j]) => id !== node.id && (j.kind === 'decompose' || j.kind === 'replan'),
   )?.[0];
   const decomposeBlocked: { reason: string; go: () => void } | null =
-    pending && !pendingHere && pendingNode
-      ? { reason: tr.tutor.decomposeBlockedPending(pendingNode.name), go: onReviewPending }
-      : otherDecomposeId && project.nodes[otherDecomposeId]
+    otherDecomposeId && project.nodes[otherDecomposeId]
       ? {
           reason: tr.tutor.decomposeBlockedRunning(project.nodes[otherDecomposeId].name),
           go: () => selectNode(otherDecomposeId),
@@ -1303,12 +1330,13 @@ interface TreeRowsProps {
   parentId: string;
   depth: number;
   currentId: string | null;
-  pending: PendingSuggestions | null;
+  // Sugestões ainda não aceitas por pai: selo à parte, fora do done/total.
+  suggestionCounts: Record<string, number>;
   onPick: (id: string) => void;
   tr: Messages;
 }
 
-function TreeRows({ project, byParent, parentId, depth, currentId, pending, onPick, tr }: TreeRowsProps) {
+function TreeRows({ project, byParent, parentId, depth, currentId, suggestionCounts, onPick, tr }: TreeRowsProps) {
   const kids = byParent.get(parentId) ?? [];
   return (
     <>
@@ -1331,18 +1359,25 @@ function TreeRows({ project, byParent, parentId, depth, currentId, pending, onPi
         }
 
         if (children.length > 0 || node.kind === 'categoria') {
-          const leaves = effectiveLeavesUnder(project, node.id, byParent, pending);
+          const leaves = effectiveLeavesUnder(project, node.id, byParent);
           const done = leaves.filter((l) => l.confirmado || l.takenAsKnown).length;
           return (
             <div key={node.id}>
-              <GroupRow node={node} depth={depth} done={done} total={leaves.length} />
+              <GroupRow
+                node={node}
+                depth={depth}
+                done={done}
+                total={leaves.length}
+                suggestions={suggestionCounts[node.id] ?? 0}
+                tr={tr}
+              />
               <TreeRows
                 project={project}
                 byParent={byParent}
                 parentId={node.id}
                 depth={depth + 1}
                 currentId={currentId}
-                pending={pending}
+                suggestionCounts={suggestionCounts}
                 onPick={onPick}
                 tr={tr}
               />
@@ -1372,11 +1407,15 @@ function GroupRow({
   depth,
   done,
   total,
+  suggestions,
+  tr,
 }: {
   node: ConceptNodeData;
   depth: number;
   done: number;
   total: number;
+  suggestions: number;
+  tr: Messages;
 }) {
   const complete = total > 0 && done === total;
   return (
@@ -1391,7 +1430,12 @@ function GroupRow({
       >
         {node.name}
       </span>
-      <span className="ml-auto text-[11px] font-mono shrink-0">
+      {suggestions > 0 && (
+        <span className="ml-auto shrink-0 text-[10px] font-mono text-ai-accent" title={tr.tutor.suggestionsBadgeTitle}>
+          {tr.tutor.suggestionsBadge(suggestions)}
+        </span>
+      )}
+      <span className={`${suggestions > 0 ? '' : 'ml-auto '}text-[11px] font-mono shrink-0`}>
         <span className={complete ? 'text-state-done' : 'text-text-secondary'}>{done}</span>
         <span className="text-text-muted">/{total}</span>
       </span>

@@ -113,6 +113,12 @@ export const en = {
     modelTitle: (provider: string, model: string) => `${provider} · ${model} — open settings`,
     breadcrumbAria: 'Path to the selected part',
     breadcrumbTitle: (name: string) => `Frame “${name}” and its parts in the graph`,
+    // rodada 2: arquivo alcançável
+    newProjectHintReplaces: 'archives it · replaces the archived one',
+    newProjectConfirmDiscard: (name: string) => `Confirm: archived “${name}” will be discarded`,
+    reopenArchived: (name: string) => `Reopen “${name}”`,
+    reopenArchivedHint: 'archived',
+    reopenedArchived: (name: string) => `“${name}” reopened.`,
   },
   statusBar: {
     progress: 'Progress',
@@ -217,6 +223,9 @@ export const en = {
     addCredits: 'Add credits →',
     kbBadge: 'My PDFs',
     kbTitle: 'My PDFs — documents the AI can use as a source',
+    // rodada 2: reabrir o projeto arquivado pela tela inicial
+    reopenArchived: (name: string) => `↩ Reopen “${name}”`,
+    reopenArchivedTitle: 'Your previous project was archived — reopen it',
   },
   tutor: {
     modeKicker: '◆ Tutor Mode',
@@ -311,6 +320,11 @@ export const en = {
     aiBusy: 'AI working on this part',
     readingMode: 'Open reading mode — full screen',
     blockedRow: 'blocked',
+    // rodada 2: sugestões estacionadas (fora do progresso)
+    parkedBanner: (n: number, name: string) =>
+      `${n} suggestion${n === 1 ? '' : 's'} saved in “${name}”, waiting for review`,
+    suggestionsBadge: (n: number) => `+${n} sug.`,
+    suggestionsBadgeTitle: 'AI suggestions not accepted yet — they do not count toward progress',
   },
   reading: {
     kicker: 'reading mode',
@@ -768,6 +782,8 @@ export const en = {
       effort: (e: 'low' | 'medium' | 'high'): string =>
         e === 'low' ? 'light reasoning' : e === 'medium' ? 'medium reasoning' : 'deep reasoning',
     },
+    // rodada 2: termo no lugar de nome de campo que vaze no texto da IA
+    anchorWord: 'verifiable anchor',
   },
   toast: {
     regionLabel: 'Notifications',
@@ -953,6 +969,12 @@ export const ptBR: Messages = {
     modelTitle: (provider: string, model: string) => `${provider} · ${model} — abrir configurações`,
     breadcrumbAria: 'Caminho até a parte selecionada',
     breadcrumbTitle: (name: string) => `Enquadrar “${name}” e as partes dele no grafo`,
+    // rodada 2: arquivo alcançável
+    newProjectHintReplaces: 'arquiva · substitui o arquivado',
+    newProjectConfirmDiscard: (name: string) => `Confirmar: “${name}” (arquivado) será descartado`,
+    reopenArchived: (name: string) => `Reabrir “${name}”`,
+    reopenArchivedHint: 'arquivado',
+    reopenedArchived: (name: string) => `“${name}” reaberto.`,
   },
   statusBar: {
     progress: 'Progresso',
@@ -1058,6 +1080,9 @@ export const ptBR: Messages = {
     addCredits: 'Adicionar créditos →',
     kbBadge: 'Meus PDFs',
     kbTitle: 'Meus PDFs — documentos que a IA pode usar como base',
+    // rodada 2: reabrir o projeto arquivado pela tela inicial
+    reopenArchived: (name: string) => `↩ Reabrir “${name}”`,
+    reopenArchivedTitle: 'Seu projeto anterior foi arquivado — reabrir',
   },
   tutor: {
     modeKicker: '◆ Modo Tutor',
@@ -1154,6 +1179,11 @@ export const ptBR: Messages = {
     aiBusy: 'IA trabalhando nesta parte',
     readingMode: 'Abrir modo leitura — tela cheia',
     blockedRow: 'bloqueado',
+    // rodada 2: sugestões estacionadas (fora do progresso)
+    parkedBanner: (n: number, name: string) =>
+      `${n} ${n === 1 ? 'sugestão guardada' : 'sugestões guardadas'} em “${name}”, aguardando revisão`,
+    suggestionsBadge: (n: number) => `+${n} sug.`,
+    suggestionsBadgeTitle: 'Sugestões da IA ainda não aceitas — não contam no progresso',
   },
   reading: {
     kicker: 'modo leitura',
@@ -1610,6 +1640,8 @@ export const ptBR: Messages = {
       effort: (e: 'low' | 'medium' | 'high') =>
         e === 'low' ? 'raciocínio leve' : e === 'medium' ? 'raciocínio médio' : 'raciocínio profundo',
     },
+    // rodada 2: termo no lugar de nome de campo que vaze no texto da IA
+    anchorWord: 'âncora verificável',
   },
   toast: {
     regionLabel: 'Notificações',

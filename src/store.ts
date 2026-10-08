@@ -102,6 +102,10 @@ export interface GraphState {
     // a edge real quando ambos os endpoints já têm id real.
     acceptedMap?: Record<string, string>;
   } | null;
+  // Lotes de sugestões estacionados (um por pai): quebrar/replanejar outro nó
+  // não descarta nem bloqueia por causa do lote em revisão — ele estaciona e
+  // volta a ser o ativo quando o usuário reabre aquele pai. Não persistido.
+  parkedSuggestions: Record<string, NonNullable<GraphState['pendingSuggestions']>>;
   drafts: Record<string, NodeDrafts>;
   objectiveDraft: ObjectiveDraft;
   lastAction: LastAction | null;
@@ -178,6 +182,8 @@ export interface GraphState {
   acceptAllSuggestions: () => void;
   rejectSuggestion: (tempId: string) => void;
   rejectAllSuggestions: () => void;
+  // Torna ativo o lote estacionado deste pai (estacionando o ativo atual).
+  resumeSuggestions: (parentId: string) => boolean;
 
   setDraft: (nodeId: string, field: DraftField, value: string) => void;
   clearDraft: (nodeId: string, field?: DraftField) => void;
@@ -306,9 +312,23 @@ const archivePendingCandidate = (
     ? state.pendingSuggestions
     : state.archivedPending;
 
+// Troca o lote ativo pelo estacionado de `parentId` (o ativo vai pro estacionamento).
+const swapInParked = (
+  s: Pick<GraphState, 'pendingSuggestions' | 'parkedSuggestions'>,
+  parentId: string,
+): Pick<GraphState, 'pendingSuggestions' | 'parkedSuggestions'> => {
+  const parked = { ...s.parkedSuggestions };
+  const next = parked[parentId];
+  delete parked[parentId];
+  const cur = s.pendingSuggestions;
+  if (cur && cur.parentId !== parentId && cur.nodes.length > 0) parked[cur.parentId] = cur;
+  return { pendingSuggestions: next ?? null, parkedSuggestions: parked };
+};
+
 // Estado efêmero que pertence ao projeto aberto — zerado ao trocar de projeto.
 const freshProjectSession = () => ({
   pendingSuggestions: null,
+  parkedSuggestions: {},
   drafts: {},
   lastAction: null,
   aiJobs: {},
@@ -513,6 +533,7 @@ export const useGraphStore = create<GraphState>()(
       viewMode: 'tutor',
       detailPanelOpen: true,
       pendingSuggestions: null,
+      parkedSuggestions: {},
       drafts: {},
       objectiveDraft: EMPTY_OBJECTIVE_DRAFT,
       lastAction: null,
@@ -704,8 +725,13 @@ export const useGraphStore = create<GraphState>()(
           };
         }),
 
+      // Abrir um pai com lote estacionado traz as sugestões dele de volta.
       selectNode: (id) =>
-        set((s) => ({ selectedNodeId: id, selectionVersion: s.selectionVersion + 1 })),
+        set((s) => ({
+          selectedNodeId: id,
+          selectionVersion: s.selectionVersion + 1,
+          ...(id && s.parkedSuggestions[id] ? swapInParked(s, id) : {}),
+        })),
       focusNode: (id) => set((s) => ({ focusedParentId: id, focusVersion: s.focusVersion + 1 })),
       setLens: (lens) => set({ lens }),
       // Ir pro grafo sem seleção útil (nada, nó apagado ou só a raiz) abre o
@@ -868,9 +894,18 @@ export const useGraphStore = create<GraphState>()(
           );
           let drafts = state.drafts;
           for (const rid of toRemove) drafts = withoutDraft(drafts, rid);
+          // Sugestões de um pai apagado não têm onde entrar.
+          const parkedSuggestions = Object.fromEntries(
+            Object.entries(state.parkedSuggestions).filter(([pid]) => !toRemove.has(pid)),
+          );
           return {
             project: { ...state.project, updatedAt: now(), nodes, edges },
             drafts,
+            parkedSuggestions,
+            pendingSuggestions:
+              state.pendingSuggestions && toRemove.has(state.pendingSuggestions.parentId)
+                ? null
+                : state.pendingSuggestions,
             lastAction:
               state.lastAction && toRemove.has(state.lastAction.nodeId) ? null : state.lastAction,
             selectedNodeId:
@@ -1334,14 +1369,30 @@ export const useGraphStore = create<GraphState>()(
           };
         }),
 
+      // Um lote de outro pai em revisão não é descartado: estaciona. Um lote
+      // novo do MESMO pai substitui o anterior (inclusive o estacionado).
       stageSuggestions: (parentId, nodes, edges) => {
-        set({
-          pendingSuggestions: {
-            parentId,
-            nodes: nodes.map((n) => ({ tempId: n.tempId, data: n })),
-            edges,
-          },
+        set((s) => {
+          const parked = { ...s.parkedSuggestions };
+          delete parked[parentId];
+          const cur = s.pendingSuggestions;
+          if (cur && cur.parentId !== parentId && cur.nodes.length > 0) parked[cur.parentId] = cur;
+          return {
+            parkedSuggestions: parked,
+            pendingSuggestions: {
+              parentId,
+              nodes: nodes.map((n) => ({ tempId: n.tempId, data: n })),
+              edges,
+            },
+          };
         });
+      },
+
+      resumeSuggestions: (parentId) => {
+        const s = get();
+        if (!s.parkedSuggestions[parentId] || !s.project?.nodes[parentId]) return false;
+        set(swapInParked(s, parentId));
+        return true;
       },
 
       acceptSuggestion: (tempId) => {
@@ -1998,7 +2049,10 @@ export const canConcludeNode = (
 const resolvedWithoutSignal = (n: ConceptNodeData, understand: boolean): boolean =>
   Boolean(n.confirmedWithoutSignal) || (Boolean(n.takenAsKnown) && !understand);
 
-export const projectProgress = (project: Project | null, pending?: PendingRef) => {
+// Só conta o que está em project.nodes: sugestões ainda não aceitas não
+// entram no denominador (nem no total, nem por categoria) — o lote em revisão
+// segura o "próximo" do tutor (nextPendingForTutor), não o progresso.
+export const projectProgress = (project: Project | null) => {
   if (!project) {
     return { total: 0, done: 0, doneWithSignal: 0, doneWithoutSignal: 0, percent: 0 };
   }
@@ -2007,7 +2061,7 @@ export const projectProgress = (project: Project | null, pending?: PendingRef) =
   // archetype (a concept node the AI produced in a build project is still a
   // part the user must understand or confirm — hiding it from progress let the
   // tutor declare "done" with work pending).
-  const leaves = effectiveLeaves(project, pending);
+  const leaves = effectiveLeaves(project);
   const total = leaves.length;
   const resolved = leaves.filter((n) => n.confirmado || n.takenAsKnown);
   const done = resolved.length;
@@ -2059,18 +2113,18 @@ export const nextPendingForTutor = (
   return walk(project.rootId);
 };
 
-export const projectMetrics = (project: Project | null, pending?: PendingRef) => {
+export const projectMetrics = (project: Project | null) => {
   if (!project) return null;
   const nodes = Object.values(project.nodes);
   // Risco = trabalho pendente de baixa confiança. Raiz/categorias (100 fixo) e
   // folhas já resolvidas não contam.
-  const atRisk = effectiveLeaves(project, pending).filter(
+  const atRisk = effectiveLeaves(project).filter(
     (n) => !n.confirmado && !n.takenAsKnown && n.confidence < 40,
   ).length;
   return {
     nodeCount: nodes.length,
     atRisk,
-    progress: projectProgress(project, pending),
+    progress: projectProgress(project),
   };
 };
 

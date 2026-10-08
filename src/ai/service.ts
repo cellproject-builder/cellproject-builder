@@ -487,10 +487,14 @@ RULES
 - No "great point, but". Go straight to what's fragile.
 - DO NOT restate what the plan already says. Your value is finding what it does NOT say.
 - 1 to 3 weaknesses, the most severe first, each under 160 characters.
-- 'criterioAlternativo' MUST be different in form from the original comoConfirmar. If the original asks "is it ready?", yours should measure something external — a number, a proof, a third-party observation.
+- The alternative criterion MUST be different in form from the original AI criterion. If the original asks "is it ready?", yours should measure something external — a number, a proof, a third-party observation.
 - If a user-written criterion exists, treat it as MORE trustworthy than the AI's: your alternative should complement it, not duplicate it.
-- Do not propose solutions. Your output is a diagnosis, not a prescription.`;
+- Do not propose solutions. Your output is a diagnosis, not a prescription.${NO_INTERNAL_NAMES}`;
 }
+
+// Texto lido pelo usuário: o modelo tende a repetir nomes de campo do prompt.
+const NO_INTERNAL_NAMES = `
+- NEVER mention internal field, schema or key names (oQue, porQue, comoConfirmar, groundTruthHints, kind="...", ruleConflict, etc.) in the text the user reads. Say it in plain words: "verifiable anchor", "proof of measurement", "confirmation criterion".`;
 
 // Template do tutor com cabeçalhos no idioma do usuário. Sem critério travado,
 // a explicação NÃO sugere como verificar — o usuário escreve o dele primeiro.
@@ -513,7 +517,7 @@ STRUCTURE
 - When there are variants or trade-offs, list each one with the name in **bold** followed by a description.
 - Give real numbers (voltages, sizes, commands). No "depends on the case".
 - Call out common errors ("pitfalls") and how to diagnose.
-${closing}
+${closing}${NO_INTERNAL_NAMES}
 
 DO NOT include introductory filler like "of course, I will explain" — go straight to the content.`;
 }
@@ -682,7 +686,9 @@ function formatSiblings(siblings: { name: string; fx: string }[]) {
 // User rules are the project's CHALLENGE: hard boundaries every output must
 // win inside. Injected into every planning/critique/explain prompt so no part
 // of the scope can quietly drift outside them.
-function formatRules(rules?: string[]): string {
+// `prose`: prompts cuja saída é texto lido pelo usuário (explicar, cético) —
+// nada de nomes de campo, senão o modelo os repete na resposta.
+function formatRules(rules?: string[], mode: 'structured' | 'prose' = 'structured'): string {
   if (!rules || rules.length === 0) return '';
   const list = rules.map((r) => `- ${r}`).join('\n');
   return `
@@ -691,7 +697,11 @@ USER RULES — HARD CONSTRAINTS (the user set these as the challenge)
 ${list}
 These are non-negotiable boundaries, not preferences. Treat them as a design challenge: the best solution is the one that WINS INSIDE them.
 - EVERY node you propose must comply with EVERY rule. Make compliance concrete and verifiable (real numbers, prices, sources, dates) — never optimistic hand-waving.
-- Quantitative rules (budget, weight, deadline, size): allocate explicitly across resources/steps — state the estimated cost/measure in each node's oQue and add a groundTruthHint (kind="medida") so the user can check it in the real world — and keep the running TOTAL inside the rule with safety margin.
+- Quantitative rules (budget, weight, deadline, size): allocate explicitly across resources/steps — ${
+    mode === 'prose'
+      ? 'state the estimated cost/measure with its unit, as a measurement the user can check in the real world,'
+      : `state the estimated cost/measure in each node's oQue and add a groundTruthHint (kind="medida") so the user can check it in the real world`
+  } — and keep the running TOTAL inside the rule with safety margin.
 - If part of the goal cannot fit a rule, do NOT silently violate it: put the conflict in that node's 'ruleConflict' (one concrete sentence with the number) and propose the closest compliant alternative.`;
 }
 
@@ -1176,7 +1186,7 @@ export async function explainNode(ctx: ExplainContext, opts?: ExplainOptions): P
     const userPrompt = `PROJECT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
-- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${formatRules(ctx.rules)}
+- Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${formatRules(ctx.rules, 'prose')}
 
 NODE
 - Name: ${ctx.nodeName}
@@ -1204,12 +1214,12 @@ Generate the full markdown explanation following the structure above. Focus on l
       const next = await raceAbort(it.next(), signal);
       if (next.done) break;
       text += next.value;
-      opts?.onDelta?.(text);
+      opts?.onDelta?.(scrubInternalNames(text));
     }
     if (signal?.aborted) throw signal.reason;
     if (streamError) throw streamError;
 
-    const final = text.trim();
+    const final = scrubInternalNames(text).trim();
     if (!final) {
       const e = t().ai.errors;
       throw new AIError({ kind: 'schema', title: e.outputTitle, hint: e.outputHint });
@@ -1219,6 +1229,13 @@ Generate the full markdown explanation following the structure above. Focus on l
   } catch (err) {
     throw toAIError(err, signal);
   }
+}
+
+// Rede de segurança: nome de campo que ainda vaze vira termo do usuário.
+export function scrubInternalNames(text: string): string {
+  return text
+    .replace(/\s*\(?\bkind\s*=\s*"[\w-]+"\)?/g, '')
+    .replace(/\bgroundTruthHints?\b/g, t().ai.anchorWord);
 }
 
 // Partes vizinhas no plano: os números delas são a fonte da verdade.
@@ -1262,7 +1279,7 @@ export async function critiqueNode(
     const userPrompt = `PROJECT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
-- Path: ${formatBreadcrumb(ctx.breadcrumb)}${formatRules(ctx.rules)}
+- Path: ${formatBreadcrumb(ctx.breadcrumb)}${formatRules(ctx.rules, 'prose')}
 
 NODE TO CRITIQUE
 - Name: ${ctx.nodeName}
@@ -1270,7 +1287,7 @@ NODE TO CRITIQUE
 - Function: ${ctx.nodeFx}
 - What it is: ${ctx.oQue}
 - Why it matters: ${ctx.porQue}
-- AI criterion (comoConfirmar): ${ctx.comoConfirmar.trim() || '(hidden — the user has not locked theirs yet)'}
+- AI criterion: ${ctx.comoConfirmar.trim() || '(hidden — the user has not locked theirs yet)'}
 ${ctx.comoConfirmarUsuario ? `- User-written criterion: ${ctx.comoConfirmarUsuario}` : '- The user has not written a criterion yet.'}
 
 TASK
@@ -1290,9 +1307,9 @@ Point out weaknesses, hidden assumptions, and propose an INDEPENDENT alternative
     );
 
     return {
-      fraquezas: object.fraquezas,
-      premissasOcultas: object.premissasOcultas,
-      criterioAlternativo: object.criterioAlternativo,
+      fraquezas: object.fraquezas.map(scrubInternalNames),
+      premissasOcultas: object.premissasOcultas.map(scrubInternalNames),
+      criterioAlternativo: scrubInternalNames(object.criterioAlternativo),
       fontes: research && research.sources.length > 0 ? research.sources : undefined,
       generatedAt: Date.now(),
     };

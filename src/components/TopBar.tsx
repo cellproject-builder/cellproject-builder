@@ -26,6 +26,7 @@ export function TopBar() {
   const resetProject = useGraphStore((s) => s.resetProject);
   const undoReset = useGraphStore((s) => s.undoReset);
   const importProject = useGraphStore((s) => s.importProject);
+  const archivedProject = useGraphStore((s) => s.archivedProject);
   const kbCount = useKBStore((s) => Object.keys(s.docs).length);
   const activeProvider = useConfigStore((s) => s.activeProvider);
   const activeModel = useConfigStore((s) =>
@@ -34,6 +35,9 @@ export function TopBar() {
   const [kbOpen, setKbOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // "Novo projeto" com um arquivado já guardado: o 2º clique confirma (o
+  // arquivo tem uma vaga só — o arquivado anterior seria descartado).
+  const [confirmNew, setConfirmNew] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,6 +57,10 @@ export function TopBar() {
 
   // Menu ⋯: fecha no clique fora e no Esc (devolvendo o foco ao botão);
   // setas navegam entre os itens.
+  useEffect(() => {
+    if (!menuOpen) setConfirmNew(false);
+  }, [menuOpen]);
+
   useEffect(() => {
     if (!menuOpen) return;
     const items = () =>
@@ -89,6 +97,9 @@ export function TopBar() {
 
   const crumbs = breadcrumbFor(project, selectedId);
   const inDemo = isDemoProject(project);
+  const otherArchived = archivedProject && archivedProject.id !== project?.id ? archivedProject : null;
+  // Sair da demo não arquiva nada — o arquivado continua intacto.
+  const newWouldDiscard = !inDemo && otherArchived !== null;
 
   const exportJson = () => {
     if (!project) return;
@@ -105,6 +116,7 @@ export function TopBar() {
   // A demo não é arquivada (não há o que perder).
   const handleNewProject = () => {
     const wasDemo = inDemo;
+    const prevView = viewMode;
     resetProject();
     if (wasDemo) {
       toast.show({ message: tr.topBar.demoClosed, tone: 'info' });
@@ -114,8 +126,21 @@ export function TopBar() {
       message: tr.topBar.projectArchived,
       tone: 'info',
       durationMs: 10000,
-      action: { label: tr.common.undo, onClick: () => void undoReset() },
+      action: {
+        label: tr.common.undo,
+        // Volta para a mesma vista em que o usuário estava (grafo ou tutor).
+        onClick: () => {
+          if (undoReset()) setViewMode(prevView);
+        },
+      },
     });
+  };
+
+  // Reabre o arquivado; o atual (se houver) vai para o arquivo no lugar dele.
+  const handleReopenArchived = () => {
+    if (!otherArchived) return;
+    const name = otherArchived.name;
+    if (undoReset()) toast.show({ message: tr.topBar.reopenedArchived(name), tone: 'ok' });
   };
 
   const handleImportFile = (file: File) => {
@@ -296,14 +321,41 @@ export function TopBar() {
             <button
               role="menuitem"
               onClick={() => {
+                if (newWouldDiscard && !confirmNew) {
+                  setConfirmNew(true);
+                  return;
+                }
                 setMenuOpen(false);
                 handleNewProject();
               }}
-              className={`${menuItemClass} ${inDemo ? 'text-ai-accent' : ''}`}
+              className={`${menuItemClass} ${inDemo ? 'text-ai-accent' : confirmNew ? 'text-state-problem' : ''}`}
             >
-              <span>{inDemo ? tr.topBar.demoExit : tr.topBar.newProject}</span>
-              {!inDemo && <span className="text-[10px] text-text-muted">{tr.topBar.newProjectHint}</span>}
+              {confirmNew && otherArchived ? (
+                <span>{tr.topBar.newProjectConfirmDiscard(otherArchived.name)}</span>
+              ) : (
+                <>
+                  <span>{inDemo ? tr.topBar.demoExit : tr.topBar.newProject}</span>
+                  {!inDemo && (
+                    <span className="text-[10px] text-text-muted">
+                      {otherArchived ? tr.topBar.newProjectHintReplaces : tr.topBar.newProjectHint}
+                    </span>
+                  )}
+                </>
+              )}
             </button>
+            {otherArchived && (
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  handleReopenArchived();
+                }}
+                className={menuItemClass}
+              >
+                <span className="truncate">{tr.topBar.reopenArchived(otherArchived.name)}</span>
+                {!inDemo && <span className="text-[10px] text-text-muted shrink-0">{tr.topBar.reopenArchivedHint}</span>}
+              </button>
+            )}
             <button
               role="menuitem"
               onClick={() => {

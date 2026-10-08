@@ -64,8 +64,8 @@ beforeEach(() => {
   st().acceptAllSuggestions();
 });
 
-describe('sugestões pendentes contam como partes abertas', () => {
-  it('aceitar 1 de N não deixa o pai completo nem pula ele no "próximo"', () => {
+describe('sugestões pendentes ficam fora do progresso (rodada 2)', () => {
+  it('aceitar 1 de N não pula o pai no "próximo", mas o progresso só conta o aceito', () => {
     const vaso = byName('vaso');
     st().stageSuggestions(
       vaso.id,
@@ -76,21 +76,44 @@ describe('sugestões pendentes contam como partes abertas', () => {
     st().toggleTakenAsKnown(byName('substrato').id);
 
     const { project, pendingSuggestions } = st();
-    const p = projectProgress(project, pendingSuggestions);
-    // substrato (resolvido) + 2 pendentes + água
-    expect(p.total).toBe(4);
+    const p = projectProgress(project);
+    // substrato (resolvido) + água — as 2 sugestões não aceitas não contam.
+    expect(p.total).toBe(2);
     expect(p.done).toBe(1);
-    // O pai com sugestões em revisão é o próximo — não "água".
+    // O pai com sugestões em revisão continua sendo o próximo — não "água".
     expect(nextPendingForTutor(project, pendingSuggestions)?.id).toBe(vaso.id);
-    // Sem o staging, o comportamento antigo (pai "completo").
-    expect(nextPendingForTutor(project)?.name).toBe('água');
   });
 
-  it('um pai folha é substituído pelas suas sugestões no total', () => {
+  it('chegar sugestões não muda o denominador', () => {
+    const before = projectProgress(st().project).total;
+    st().stageSuggestions(byName('vaso').id, [staged('a', 's1', 0), staged('b', 's2', 1)], []);
+    expect(projectProgress(st().project).total).toBe(before);
+  });
+});
+
+describe('lotes de sugestões por pai (rodada 2)', () => {
+  it('quebrar outro nó estaciona o lote em revisão; reabrir o pai traz de volta', () => {
     const vaso = byName('vaso');
+    const agua = byName('água');
     st().stageSuggestions(vaso.id, [staged('a', 's1', 0), staged('b', 's2', 1)], []);
-    const p = projectProgress(st().project, st().pendingSuggestions);
-    expect(p.total).toBe(3); // s1 + s2 + água (vaso vira contêiner)
+    st().acceptSuggestion('a');
+    st().stageSuggestions(agua.id, [staged('x', 'cano', 0)], []);
+    expect(st().pendingSuggestions?.parentId).toBe(agua.id);
+    expect(st().parkedSuggestions[vaso.id]?.nodes).toHaveLength(1);
+
+    st().selectNode(vaso.id);
+    expect(st().pendingSuggestions?.parentId).toBe(vaso.id);
+    expect(st().pendingSuggestions?.acceptedMap?.a).toBeDefined();
+    expect(st().parkedSuggestions[agua.id]?.nodes).toHaveLength(1);
+    expect(st().parkedSuggestions[vaso.id]).toBeUndefined();
+  });
+
+  it('apagar o pai descarta o lote estacionado dele', () => {
+    const vaso = byName('vaso');
+    st().stageSuggestions(vaso.id, [staged('a', 's1', 0)], []);
+    st().stageSuggestions(byName('água').id, [staged('x', 'cano', 0)], []);
+    st().deleteNode(vaso.id);
+    expect(st().parkedSuggestions[vaso.id]).toBeUndefined();
   });
 });
 

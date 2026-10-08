@@ -120,6 +120,8 @@ export function ObjectiveScreen() {
   const setObjectiveDraft = useGraphStore((s) => s.setObjectiveDraft);
   const createProjectFromPlan = useGraphStore((s) => s.createProjectFromPlan);
   const loadDemoProject = useGraphStore((s) => s.loadDemoProject);
+  const archivedProject = useGraphStore((s) => s.archivedProject);
+  const undoReset = useGraphStore((s) => s.undoReset);
 
   const [name, setName] = useState(draft0.name);
   const [objective, setObjective] = useState(draft0.objective);
@@ -404,6 +406,18 @@ export function ObjectiveScreen() {
           >
             {tr.objective.seeDemo}
           </button>
+          {/* "Novo projeto" arquiva o atual: daqui dá pra voltar a ele. */}
+          {archivedProject && (
+            <button
+              type="button"
+              onClick={() => void undoReset()}
+              disabled={busy}
+              title={tr.objective.reopenArchivedTitle}
+              className="tap inline-flex items-center text-text-muted hover:text-ai-accent transition-colors disabled:opacity-40 max-w-[260px]"
+            >
+              <span className="truncate">{tr.objective.reopenArchived(archivedProject.name)}</span>
+            </button>
+          )}
           <LanguageToggle className="ml-auto" />
         </div>
 

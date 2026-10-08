@@ -194,8 +194,9 @@ export function DetailPanel() {
       );
       const latest = useGraphStore.getState();
       const parent = latest.project?.nodes[n.id];
-      // Outra rodada de sugestões apareceu no meio: não sobrescreve.
-      if (!parent || latest.pendingSuggestions) return false;
+      // Outra rodada de sugestões DESTE nó apareceu no meio: não sobrescreve.
+      // Lote de outro nó em revisão estaciona (stageSuggestions).
+      if (!parent || latest.pendingSuggestions?.parentId === n.id) return false;
       latest.stageSuggestions(n.id, buildStagedNodes(parent, result.nodes), result.edges);
       return true;
     },
@@ -337,7 +338,8 @@ export function DetailPanel() {
     setNoteDraft('');
   };
 
-  const decomposeDisabled = decompose.running || pending !== null;
+  // Só as sugestões DESTE nó seguram o decompor — as de outro nó estacionam.
+  const decomposeDisabled = decompose.running || pendingHere;
   const decomposeButton = (primary: boolean) => (
     <button
       onClick={handleDecompose}
@@ -345,7 +347,7 @@ export function DetailPanel() {
       title={
         decomposeBusyOn
           ? tr.detail.busyElsewhere(decomposeBusyOn.name)
-          : pending && !decomposing
+          : pendingHere && !decomposing
           ? tr.detail.pendingHint
           : undefined
       }
@@ -356,7 +358,7 @@ export function DetailPanel() {
       <span aria-hidden>◆</span>
       {decomposing
         ? tr.detail.decomposingElapsed(Math.round(decompose.elapsedMs / 1000))
-        : pending && !decomposing
+        : pendingHere && !decomposing
         ? tr.detail.pendingHint
         : tr.detail.decompose}
     </button>
@@ -942,7 +944,7 @@ function ProjectSummary({ project, tr }: { project: Project; tr: Messages }) {
   const selectNode = useGraphStore((s) => s.selectNode);
   const requestCenter = useGraphStore((s) => s.requestCenter);
   const pending = useGraphStore((s) => s.pendingSuggestions);
-  const progress = projectProgress(project, pending);
+  const progress = projectProgress(project);
   const next = nextPendingForTutor(project, pending);
   return (
     <div className="p-4 space-y-4 text-sm">

@@ -1144,7 +1144,6 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
   const clearFailure = useGraphStore((s) => s.clearFailure);
   const setDraft = useGraphStore((s) => s.setDraft);
   const clearDraft = useGraphStore((s) => s.clearDraft);
-  const selectNode = useGraphStore((s) => s.selectNode);
   const draft = useGraphStore((s) => s.drafts[node.id]?.failure ?? '');
   const pendingNode = useGraphStore(pendingParent);
   const jobKind = useGraphStore((s) => s.aiJobs[node.id]?.kind);
@@ -1155,8 +1154,8 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
   );
 
   const failed = Boolean(node.failureContext);
+  // Só as sugestões DESTE nó seguram o replanejar — as de outro nó estacionam.
   const pendingHere = pendingNode?.id === node.id;
-  const pendingElsewhere = pendingNode !== null && !pendingHere;
   void project;
 
   const replan = useAIAction(
@@ -1220,7 +1219,7 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
   );
 
   const runReplan = async (failure: string) => {
-    if (!failure.trim() || pendingNode !== null) return;
+    if (!failure.trim() || useGraphStore.getState().pendingSuggestions?.parentId === node.id) return;
     if (!requireAI()) return;
     const diag = await replan.run(failure.trim());
     if (diag !== undefined) setDiagnosis(diag);
@@ -1234,23 +1233,13 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
     if (!text) return;
     reportFailure(node.id, text);
     setOpening(false);
-    if (andReplan && !pendingElsewhere) void runReplan(text);
+    if (andReplan) void runReplan(text);
   };
 
   const cancelReport = () => {
     setOpening(false);
     clearDraft(node.id, 'failure');
   };
-
-  const goToPending = pendingNode ? (
-    <button
-      type="button"
-      onClick={() => selectNode(pendingNode.id)}
-      className="tap w-full text-[11px] bg-ai-accent/10 hover:bg-ai-accent/25 text-ai-accent border border-ai-accent/40 rounded-sm py-1.5 transition-colors"
-    >
-      {tr.groundTruth.viewPendingIn(pendingNode.name)} →
-    </button>
-  ) : null;
 
   const body = (
     <>
@@ -1277,36 +1266,23 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
             className="w-full bg-bg-primary border border-border-base rounded-sm px-2 py-1 text-xs resize-none focus:border-state-problem outline-none"
           />
           <div className="flex flex-wrap gap-1">
-            {pendingElsewhere ? (
-              <button
-                type="button"
-                onClick={() => record(false)}
-                disabled={!draft.trim()}
-                className="tap flex-1 text-[11px] bg-state-problem/15 hover:bg-state-problem/30 disabled:opacity-40 text-state-problem border border-state-problem/40 rounded-sm py-1 transition-colors"
-              >
-                {tr.groundTruth.recordFailure}
-              </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => record(true)}
-                  disabled={!draft.trim()}
-                  title={tr.groundTruth.submitHint}
-                  className="tap flex-1 text-[11px] bg-state-problem/15 hover:bg-state-problem/30 disabled:opacity-40 text-state-problem border border-state-problem/40 rounded-sm py-1 transition-colors"
-                >
-                  {tr.groundTruth.registerAndReplan}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => record(false)}
-                  disabled={!draft.trim()}
-                  className="tap text-[11px] text-text-muted hover:text-state-problem disabled:opacity-40 border border-border-base rounded-sm px-2 py-1 transition-colors"
-                >
-                  {tr.groundTruth.recordOnly}
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              onClick={() => record(true)}
+              disabled={!draft.trim()}
+              title={tr.groundTruth.submitHint}
+              className="tap flex-1 text-[11px] bg-state-problem/15 hover:bg-state-problem/30 disabled:opacity-40 text-state-problem border border-state-problem/40 rounded-sm py-1 transition-colors"
+            >
+              {tr.groundTruth.registerAndReplan}
+            </button>
+            <button
+              type="button"
+              onClick={() => record(false)}
+              disabled={!draft.trim()}
+              className="tap text-[11px] text-text-muted hover:text-state-problem disabled:opacity-40 border border-border-base rounded-sm px-2 py-1 transition-colors"
+            >
+              {tr.groundTruth.recordOnly}
+            </button>
             <button
               type="button"
               onClick={cancelReport}
@@ -1315,7 +1291,6 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
               {tr.common.cancel.toLowerCase()}
             </button>
           </div>
-          {pendingElsewhere && goToPending}
         </div>
       )}
 
@@ -1348,8 +1323,6 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
               elapsedMs={replan.elapsedMs}
               onCancel={replan.running ? replan.cancel : undefined}
             />
-          ) : pendingElsewhere ? (
-            goToPending
           ) : pendingHere ? (
             <div className="text-[10px] font-mono text-ai-accent text-center">
               {tr.groundTruth.pendingHereHint} ↓

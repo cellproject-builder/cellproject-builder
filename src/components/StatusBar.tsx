@@ -6,10 +6,16 @@ export function StatusBar() {
   const project = useGraphStore((s) => s.project);
   const pending = useGraphStore((s) => s.pendingSuggestions);
   const pendingNode = useGraphStore(pendingParent);
+  const parked = useGraphStore((s) => s.parkedSuggestions);
   const viewMode = useGraphStore((s) => s.viewMode);
   const selectNode = useGraphStore((s) => s.selectNode);
   const requestCenter = useGraphStore((s) => s.requestCenter);
-  const m = projectMetrics(project, pending);
+  const m = projectMetrics(project);
+  // Sugestões fora do progresso: um selo à parte, somando os lotes estacionados.
+  const parkedIds = Object.keys(parked).filter((id) => project?.nodes[id]);
+  const suggestionCount =
+    (pending?.nodes.length ?? 0) + parkedIds.reduce((acc, id) => acc + parked[id].nodes.length, 0);
+  const reviewTarget = pendingNode?.id ?? parkedIds[0] ?? null;
 
   if (!m) return null;
 
@@ -57,19 +63,19 @@ export function StatusBar() {
           </span>
         </>
       )}
-      {pending && (
+      {suggestionCount > 0 && (
         <button
           type="button"
           onClick={() => {
-            if (!pendingNode) return;
-            selectNode(pendingNode.id);
-            if (viewMode === 'graph') requestCenter(pendingNode.id);
+            if (!reviewTarget) return;
+            selectNode(reviewTarget);
+            if (viewMode === 'graph') requestCenter(reviewTarget);
           }}
           title={tr.statusBar.reviewPendingTitle}
           className="ml-auto text-ai-accent flex items-center gap-1.5 hover:underline"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-ai-accent animate-pulse-subtle" />
-          <span>{tr.statusBar.pendingSuggestions(pending.nodes.length)}</span>
+          <span>{tr.statusBar.pendingSuggestions(suggestionCount)}</span>
         </button>
       )}
     </div>
