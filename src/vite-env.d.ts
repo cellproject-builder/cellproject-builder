@@ -10,3 +10,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// Injetado pelo vite.config só em `vite serve` (string vazia no build).
+declare const __DEV_OPENROUTER_KEY__: string;

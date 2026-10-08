@@ -65,11 +65,15 @@ function buildModels(provider: Provider, cfg: ProviderConfig): ResolvedModels {
   };
 }
 
-// "Grok 4.3 high" = modelo x-ai/grok-4.3 + reasoning effort "high" — no
-// OpenRouter o effort vai no corpo da request, não no id do modelo. Restrito
-// aos grok: outros modelos podem rejeitar o parâmetro de reasoning.
-function openrouterSettings(modelId: string): { reasoning?: { effort: 'high' } } {
-  return /(^|\/)grok-/i.test(modelId) ? { reasoning: { effort: 'high' } } : {};
+// O reasoning effort vai no corpo da request do OpenRouter, não no id do
+// modelo. Só mandamos pra famílias que aceitam o parâmetro: GPT-6.x Sol
+// (padrão, effort "medium") e Grok (effort "high"). Outros modelos podem
+// rejeitar o campo.
+type Effort = 'low' | 'medium' | 'high';
+function openrouterSettings(modelId: string): { reasoning?: { effort: Effort } } {
+  if (/(^|\/)gpt-6(\.\d+)?-sol/i.test(modelId)) return { reasoning: { effort: 'medium' } };
+  if (/(^|\/)grok-/i.test(modelId)) return { reasoning: { effort: 'high' } };
+  return {};
 }
 
 function resolve(): ResolvedModels {
