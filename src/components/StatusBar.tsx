@@ -1,5 +1,6 @@
 import { useGraphStore, projectMetrics, pendingParent } from '@/store';
 import { useT } from '@/i18n';
+import { useReviewingParents } from '@/hooks/useReviewingParents';
 
 export function StatusBar() {
   const tr = useT();
@@ -10,7 +11,8 @@ export function StatusBar() {
   const viewMode = useGraphStore((s) => s.viewMode);
   const selectNode = useGraphStore((s) => s.selectNode);
   const requestCenter = useGraphStore((s) => s.requestCenter);
-  const m = projectMetrics(project);
+  const reviewing = useReviewingParents();
+  const m = projectMetrics(project, reviewing);
   // Sugestões fora do progresso: um selo à parte, somando os lotes estacionados.
   const parkedIds = Object.keys(parked).filter((id) => project?.nodes[id]);
   const suggestionCount =

@@ -21,6 +21,7 @@ import { explainNode, decomposeNode } from '@/ai/service';
 import { useKBStore } from '@/kb/store';
 import { requireAI } from '@/ai/availability';
 import { useAIAction } from '@/hooks/useAIAction';
+import { useReviewingParents } from '@/hooks/useReviewingParents';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useT } from '@/i18n';
 import type { Messages } from '@/i18n';
@@ -180,8 +181,14 @@ export function TutorMode() {
 
   // Sugestões em revisão seguram o "próximo pendente" (não pula um pai com
   // sugestões esperando), mas não entram no progresso: só conta o aceito.
-  const next = useMemo(() => nextPendingForTutor(project, pending), [project, pending]);
-  const progress = projectProgress(project);
+  // Um pai com sugestões em revisão (ativas ou estacionadas) conta como parte
+  // aberta no progresso — o mesmo predicado que segura o "próximo pendente".
+  const reviewing = useReviewingParents();
+  const next = useMemo(
+    () => nextPendingForTutor(project, pending, reviewing),
+    [project, pending, reviewing],
+  );
+  const progress = projectProgress(project, reviewing);
   const byParent = useMemo(() => (project ? childrenByParent(project) : null), [project]);
 
   const isMobile = useIsMobile();
@@ -267,7 +274,7 @@ export function TutorMode() {
   for (const n of parkedNodes) suggestionCounts[n.id] = parked[n.id].nodes.length;
   if (pending && pending.nodes.length > 0) suggestionCounts[pending.parentId] = pending.nodes.length;
 
-  const resourceLeaves = effectiveLeavesUnder(project, project.rootId, byParent).filter(
+  const resourceLeaves = effectiveLeavesUnder(project, project.rootId, byParent, undefined, reviewing).filter(
     (n) => n.kind === 'recurso',
   );
   const resourcesConfirmed = resourceLeaves.filter((r) => r.confirmado || r.takenAsKnown).length;
@@ -512,10 +519,12 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
     titleRef.current?.focus({ preventScroll: true });
   }, []);
 
-  const job = aiJobs[node.id];
-  const elapsed = useElapsedSeconds(job?.startedAt);
-  const explainRunning = job?.kind === 'explain';
-  const decomposeRunning = job?.kind === 'decompose';
+  const jobs = aiJobs[node.id];
+  // Qualquer job de IA neste nó (explicar, quebrar, pesquisar, criticar…).
+  const job = jobs ? Object.values(jobs)[0] : undefined;
+  const explainRunning = Boolean(jobs?.explain);
+  const decomposeRunning = Boolean(jobs?.decompose);
+  const elapsed = useElapsedSeconds((jobs?.decompose ?? jobs?.explain)?.startedAt);
 
   const crumbs = breadcrumbFor(project, node.id);
   const { ready, missingKeys } = canConcludeNode(project, node.id);
@@ -553,7 +562,7 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
   // motivo e um atalho até lá. Sugestões em revisão em OUTRO nó não bloqueiam:
   // o lote de lá estaciona e volta quando o usuário reabrir aquele pai.
   const otherDecomposeId = Object.entries(aiJobs).find(
-    ([id, j]) => id !== node.id && (j.kind === 'decompose' || j.kind === 'replan'),
+    ([id, j]) => id !== node.id && Boolean(j.decompose || j.replan),
   )?.[0];
   const decomposeBlocked: { reason: string; go: () => void } | null =
     otherDecomposeId && project.nodes[otherDecomposeId]
@@ -1366,7 +1375,13 @@ function TreeRows({ project, byParent, parentId, depth, currentId, suggestionCou
         }
 
         if (children.length > 0 || node.kind === 'categoria') {
-          const leaves = effectiveLeavesUnder(project, node.id, byParent);
+          const leaves = effectiveLeavesUnder(
+            project,
+            node.id,
+            byParent,
+            undefined,
+            new Set(Object.keys(suggestionCounts)),
+          );
           const done = leaves.filter((l) => l.confirmado || l.takenAsKnown).length;
           return (
             <div key={node.id}>
@@ -1470,7 +1485,7 @@ interface LeafRowProps {
 
 function LeafRow({ node, project, depth, isCurrent, onPick, tr }: LeafRowProps) {
   const confirmNode = useGraphStore((s) => s.confirmNode);
-  const busy = useGraphStore((s) => Boolean(s.aiJobs[node.id]));
+  const busy = useGraphStore((s) => Object.keys(s.aiJobs[node.id] ?? {}).length > 0);
   const rowRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {

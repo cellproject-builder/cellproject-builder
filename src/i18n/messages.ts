@@ -696,6 +696,7 @@ export const en = {
     missingCriterionNotAttested:
       'your criterion is locked but not attested as met yet — or verify a real anchor',
     promotedWithProof: 'Promoted to done with proof.',
+    demotedNoProof: 'Proof removed — back to confirmed without proof.',
     anchorVerifiedWithObs: (label: string, obs: string) =>
       `Anchor "${label}" verified ✓ — checked: ${obs}`,
     criterionUnlocked: 'User criterion unlocked to edit (within 10s of locking).',
@@ -1591,6 +1592,7 @@ export const ptBR: Messages = {
     missingCriterionNotAttested:
       'seu critério está travado mas ainda não foi aferido como atendido — ou verifique uma prova real',
     promotedWithProof: 'Promovido a concluído com prova.',
+    demotedNoProof: 'Prova retirada — voltou a confirmado sem prova.',
     anchorVerifiedWithObs: (label: string, obs: string) =>
       `Prova "${label}" verificada ✓ — conferido: ${obs}`,
     criterionUnlocked: 'Critério do usuário destravado para edição (até 10s após travar).',

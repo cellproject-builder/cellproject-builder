@@ -105,7 +105,9 @@ export function useAIAction<T extends unknown[], R>(
   const activeJobRef = useRef<{ nodeId: string; kind: AIJobKind } | null>(null);
 
   const endActiveJob = () => {
-    if (activeJobRef.current) useGraphStore.getState().endAIJob(activeJobRef.current.nodeId);
+    if (activeJobRef.current) useGraphStore
+        .getState()
+        .endAIJob(activeJobRef.current.nodeId, activeJobRef.current.kind);
     activeJobRef.current = null;
   };
 

@@ -15,7 +15,9 @@ import type {
   AdversarialCritique,
   GroundTruthRef,
   WebResearchDigest,
+  WebSourceRef,
 } from '@/types';
+import { safeHref } from '@/safeHref';
 import { t } from '@/i18n';
 import { buildDemoProject, DEMO_PROJECT_ID } from '@/data/demoProject';
 
@@ -124,16 +126,17 @@ export interface GraphState {
   } | null;
   // Lotes de sugestões estacionados (um por pai): quebrar/replanejar outro nó
   // não descarta nem bloqueia por causa do lote em revisão — ele estaciona e
-  // volta a ser o ativo quando o usuário reabre aquele pai. Não persistido.
+  // volta a ser o ativo quando o usuário reabre aquele pai. Persistido (sobrevive ao reload).
   parkedSuggestions: Record<string, NonNullable<GraphState['pendingSuggestions']>>;
   drafts: Record<string, NodeDrafts>;
   objectiveDraft: ObjectiveDraft;
   lastAction: LastAction | null;
-  aiJobs: Record<string, AIJob>;
+  // Por nó e por tipo: dois jobs diferentes no mesmo nó não se apagam.
+  aiJobs: Record<string, Partial<Record<AIJobKind, AIJob>>>;
   // Projeto arquivado pelo último reset/import — permite desfazer.
   archivedProject: Project | null;
   // Sugestões em staging do projeto arquivado (custaram uma chamada de IA):
-  // voltam junto no desfazer. Não persistido, como o próprio staging.
+  // voltam junto no desfazer. Persistido, como o próprio staging.
   archivedPending: GraphState['pendingSuggestions'];
 
   // `alternatives` podem ser esboços (os não escolhidos ficam no projeto).
@@ -236,7 +239,7 @@ export interface GraphState {
   // desfazer (ou o nó mudou depois da ação).
   undoLastAction: () => boolean;
   startAIJob: (nodeId: string, kind: AIJobKind) => void;
-  endAIJob: (nodeId: string) => void;
+  endAIJob: (nodeId: string, kind?: AIJobKind) => void;
   setLastTutorNode: (id: string | null) => void;
   requestCenter: (nodeId: string) => void;
 
@@ -367,6 +370,21 @@ const swapInParked = (
   return { pendingSuggestions: next ?? null, parkedSuggestions: parked };
 };
 
+// Um lote persistido só volta se for bem formado e o pai existir no projeto.
+const validBatch = (
+  batch: GraphState['pendingSuggestions'] | undefined,
+  project: Project | null,
+): GraphState['pendingSuggestions'] =>
+  batch &&
+  typeof batch === 'object' &&
+  typeof batch.parentId === 'string' &&
+  Array.isArray(batch.nodes) &&
+  batch.nodes.length > 0 &&
+  Array.isArray(batch.edges) &&
+  project?.nodes?.[batch.parentId]
+    ? batch
+    : null;
+
 // Estado efêmero que pertence ao projeto aberto — zerado ao trocar de projeto.
 const freshProjectSession = () => ({
   pendingSuggestions: null,
@@ -387,6 +405,12 @@ const EDIT_FIELDS = ['oQue', 'porQue'] as const;
 
 export const CRITERION_UNLOCK_MS = 10_000;
 
+// Confirmar, "já sei" e escolher opção revelam o critério da IA na hora:
+// marca o momento, e a partir daí o lock do critério do usuário não se desfaz
+// (senão daria para ver o da IA, destravar e copiar).
+const markAICriterionSeen = (node: ConceptNodeData): ConceptNodeData =>
+  node.aiCriterionSeenAt ? node : { ...node, aiCriterionSeenAt: now() };
+
 // Promoção tardia: um nó confirmado sem prova vira 'done' assim que a prova
 // chega (critério aferido, âncora verificada) — o progresso sai do amarelo.
 function promoteIfEarned(project: Project, nodeId: string): Project {
@@ -397,6 +421,20 @@ function promoteIfEarned(project: Project, nodeId: string): Project {
     { ...node, state: 'done', confirmedWithoutSignal: false },
     'state',
     t().store.promotedWithProof,
+  );
+  return putNode(project, next);
+}
+
+// Rebaixamento: um 'done' que perdeu a prova (âncora desmarcada/removida)
+// volta a "confirmado sem prova" — espelho do promoteIfEarned.
+function demoteIfLost(project: Project, nodeId: string): Project {
+  const node = project.nodes[nodeId];
+  if (!node || node.state !== 'done' || !node.confirmado) return project;
+  if (canConcludeNode(project, nodeId).ready) return project;
+  const next = addHistory(
+    { ...node, state: 'validated', confirmedWithoutSignal: true },
+    'state',
+    t().store.demotedNoProof,
   );
   return putNode(project, next);
 }
@@ -448,11 +486,39 @@ function parseImportedProject(json: unknown): Project | null {
   if (!p.edges || typeof p.edges !== 'object') return null;
   if (!p.nodes[p.rootId]) return null;
 
+  // URLs de um JSON importado não são confiáveis: só http(s) sobrevive.
+  const safeSources = (list: unknown): WebSourceRef[] =>
+    Array.isArray(list)
+      ? list.filter(
+          (s): s is WebSourceRef =>
+            !!s && typeof s === 'object' && typeof s.url === 'string' && safeHref(s.url) !== null,
+        )
+      : [];
+
   const nodes: Record<string, ConceptNodeData> = {};
   for (const [id, n] of Object.entries(p.nodes)) {
     if (!n || typeof n !== 'object') return null;
     nodes[id] = {
       ...n,
+      webResearch:
+        n.webResearch && typeof n.webResearch === 'object'
+          ? { ...n.webResearch, sources: safeSources(n.webResearch.sources) }
+          : undefined,
+      critica:
+        n.critica && typeof n.critica === 'object'
+          ? {
+              ...n.critica,
+              fontes: n.critica.fontes ? safeSources(n.critica.fontes) : undefined,
+            }
+          : undefined,
+      groundTruthRefs: Array.isArray(n.groundTruthRefs)
+        ? n.groundTruthRefs.filter(
+            (r) =>
+              !!r &&
+              typeof r === 'object' &&
+              (r.kind !== 'link' || safeHref(String(r.value ?? '')) !== null),
+          )
+        : undefined,
       id,
       parentId: id === p.rootId ? null : (n.parentId ?? null),
       kind: n.kind ?? 'concept',
@@ -487,7 +553,8 @@ function parseImportedProject(json: unknown): Project | null {
     edges[id] = { ...e, id };
   }
   const root = nodes[p.rootId];
-  return {
+  // O gate vale também para o import: 'done' sem sinal real não entra verde.
+  return demoteUnprovenDone({
     ...p,
     id: typeof p.id === 'string' && p.id ? p.id : nanoid(10),
     name:
@@ -500,7 +567,7 @@ function parseImportedProject(json: unknown): Project | null {
     rootId: p.rootId,
     nodes,
     edges,
-  };
+  } as Project);
 }
 
 // Converts AI hints into verifiable refs (addedByAI=true, verificado=false).
@@ -727,14 +794,17 @@ export const useGraphStore = create<GraphState>()(
 
       loadDemoProject: () => {
         const project = buildDemoProject();
-        set({
+        // O projeto real aberto vai pro arquivo (desfazível), nunca é perdido.
+        set((state) => ({
           ...freshProjectSession(),
+          archivedProject: archiveCandidate(state.project, state.archivedProject),
+          archivedPending: archivePendingCandidate(state),
           project,
           selectedNodeId: project.rootId,
           focusedParentId: project.rootId,
           lens: 'structure',
           viewMode: 'graph',
-        });
+        }));
       },
 
       // Rules are the project's challenge boundaries — managed on the project,
@@ -998,7 +1068,7 @@ export const useGraphStore = create<GraphState>()(
           const { ready, missing } = canConcludeNode(state.project, id);
           const earnsDone = ready || opts?.force === true;
           let next: ConceptNodeData = {
-            ...prev,
+            ...markAICriterionSeen(prev),
             confirmado: true,
             state: earnsDone ? ('done' as NodeState) : ('validated' as NodeState),
             confirmedWithoutSignal: !earnsDone,
@@ -1052,7 +1122,7 @@ export const useGraphStore = create<GraphState>()(
           if (!prev) return state;
           const nowKnown = !prev.takenAsKnown;
           const next = addHistory(
-            { ...prev, takenAsKnown: nowKnown },
+            { ...(nowKnown ? markAICriterionSeen(prev) : prev), takenAsKnown: nowKnown },
             'manual',
             nowKnown ? t().store.markedKnown(prev.name) : t().store.reopenedKnown(prev.name),
           );
@@ -1082,7 +1152,7 @@ export const useGraphStore = create<GraphState>()(
           const { ready } = canConcludeNode(state.project, nodeId);
           const next: ConceptNodeData = addHistory(
             {
-              ...prev,
+              ...markAICriterionSeen(prev),
               decisionPickedId: optionId,
               confirmado: true,
               state: ready ? ('done' as NodeState) : ('validated' as NodeState),
@@ -1148,6 +1218,8 @@ export const useGraphStore = create<GraphState>()(
         const prev = state.project?.nodes[id];
         if (!state.project || !prev || !prev.comoConfirmarUsuarioAt) return false;
         if (prev.comoConfirmarAtendido) return false;
+        // O critério da IA já foi exibido (confirmar/"já sei"): não destrava.
+        if (prev.aiCriterionSeenAt) return false;
         if (now() - prev.comoConfirmarUsuarioAt > CRITERION_UNLOCK_MS) return false;
         const text = prev.comoConfirmarUsuario ?? '';
         const rest: ConceptNodeData = { ...prev };
@@ -1302,7 +1374,9 @@ export const useGraphStore = create<GraphState>()(
               : t().store.anchorUnverified(changedLabel),
           );
           const project = putNode(state.project, next);
-          return { project: nowVerified ? promoteIfEarned(project, id) : project };
+          return {
+            project: nowVerified ? promoteIfEarned(project, id) : demoteIfLost(project, id),
+          };
         }),
 
       verifyGroundTruthRef: (id, refId, observacao) =>
@@ -1356,13 +1430,7 @@ export const useGraphStore = create<GraphState>()(
             'ground_truth',
             t().store.anchorRemoved(target.label),
           );
-          return {
-            project: {
-              ...state.project,
-              updatedAt: now(),
-              nodes: { ...state.project.nodes, [id]: next },
-            },
-          };
+          return { project: demoteIfLost(putNode(state.project, next), id) };
         }),
 
       reportFailure: (id, context) =>
@@ -1377,9 +1445,11 @@ export const useGraphStore = create<GraphState>()(
             state: 'problem',
             failureContext: trimmed,
             failureReportedAt: now(),
-            // A real failure invalidates any prior confirmation.
+            // A real failure invalidates any prior confirmation — including
+            // the attestation that the criterion was met (reality refuted it).
             confirmado: false,
             confirmedWithoutSignal: false,
+            comoConfirmarAtendido: undefined,
           };
           next = addHistory(next, 'failure', t().store.failureReported(trimmed));
           if (prev.state !== 'problem') {
@@ -1672,8 +1742,12 @@ export const useGraphStore = create<GraphState>()(
           set({ lastAction: null });
           return false;
         }
+        // O desfazer não "esquece" que o critério da IA já foi visto.
+        const snapshot: ConceptNodeData = current.aiCriterionSeenAt
+          ? { ...lastAction.prevSnapshot, aiCriterionSeenAt: current.aiCriterionSeenAt }
+          : lastAction.prevSnapshot;
         const restored = addHistory(
-          lastAction.prevSnapshot,
+          snapshot,
           'manual',
           t().store.undone(current.name),
         );
@@ -1683,13 +1757,29 @@ export const useGraphStore = create<GraphState>()(
       },
 
       startAIJob: (nodeId, kind) =>
-        set((state) => ({ aiJobs: { ...state.aiJobs, [nodeId]: { kind, startedAt: now() } } })),
+        set((state) => ({
+          aiJobs: {
+            ...state.aiJobs,
+            [nodeId]: { ...state.aiJobs[nodeId], [kind]: { kind, startedAt: now() } },
+          },
+        })),
 
-      endAIJob: (nodeId) =>
+      endAIJob: (nodeId, kind) =>
         set((state) => {
-          if (!state.aiJobs[nodeId]) return state;
+          const jobs = state.aiJobs[nodeId];
+          if (!jobs) return state;
           const aiJobs = { ...state.aiJobs };
-          delete aiJobs[nodeId];
+          // Com `kind`, só encerra o marcador do próprio job — outro job no
+          // mesmo nó segue. Sem `kind`, encerra todos os do nó (cancelamento).
+          if (kind) {
+            if (!jobs[kind]) return state;
+            const rest = { ...jobs };
+            delete rest[kind];
+            if (Object.keys(rest).length > 0) aiJobs[nodeId] = rest;
+            else delete aiJobs[nodeId];
+          } else {
+            delete aiJobs[nodeId];
+          }
           return { aiJobs };
         }),
 
@@ -1788,6 +1878,15 @@ export const useGraphStore = create<GraphState>()(
           },
           archivedProject: p.archivedProject ?? null,
           lastTutorNodeId: p.lastTutorNodeId ?? null,
+          // Sugestões custaram uma chamada de IA (BYOK): sobrevivem ao reload,
+          // mas só se o pai ainda existe no projeto correspondente.
+          pendingSuggestions: validBatch(p.pendingSuggestions, p.project ?? null),
+          parkedSuggestions: Object.fromEntries(
+            Object.entries(p.parkedSuggestions ?? {}).filter(
+              ([pid, b]) => validBatch(b, p.project ?? null) && b.parentId === pid,
+            ),
+          ),
+          archivedPending: validBatch(p.archivedPending, p.archivedProject ?? null),
         };
       },
       partialize: (state) => ({
@@ -1801,6 +1900,9 @@ export const useGraphStore = create<GraphState>()(
         drafts: state.drafts,
         objectiveDraft: state.objectiveDraft,
         archivedProject: state.archivedProject,
+        pendingSuggestions: state.pendingSuggestions,
+        parkedSuggestions: state.parkedSuggestions,
+        archivedPending: state.archivedPending,
       }),
     },
   ),
@@ -1939,14 +2041,31 @@ export const PENDING_LEAF_PREFIX = 'pending:';
  * "completo" enquanto as outras esperam revisão. Um pai ainda sem filhos é
  * substituído pelas suas sugestões, como ficará quando forem aceitas.
  */
+/**
+ * `reviewing`: pais com sugestões ainda em revisão (lote ativo ou estacionado).
+ * Um pai desses que já tem filhos aceitos ganha UMA parte aberta sintética
+ * (ele mesmo, não resolvido): aceitar 1 de 4 sugestões não o deixa "resolvido"
+ * enquanto as outras esperam — o mesmo predicado do nextPendingForTutor, sem
+ * inflar o denominador com cada sugestão.
+ */
 export const effectiveLeavesUnder = (
   project: Project,
   startId: string,
   byParent?: Map<string, ConceptNodeData[]>,
   pending?: PendingRef,
+  reviewing?: ReadonlySet<string>,
 ): ConceptNodeData[] => {
   const map = byParent ?? childrenByParent(project);
   const out: ConceptNodeData[] = [];
+  const pushReviewing = (node: ConceptNodeData) => {
+    out.push({
+      ...node,
+      id: PENDING_LEAF_PREFIX + node.id,
+      confirmado: false,
+      takenAsKnown: false,
+      confirmedWithoutSignal: false,
+    });
+  };
   const walk = (id: string) => {
     for (const child of map.get(id) ?? []) {
       if (child.takenAsKnown) {
@@ -1955,6 +2074,7 @@ export const effectiveLeavesUnder = (
       }
       const kids = map.get(child.id);
       if ((kids && kids.length > 0) || hasPendingAt(pending, child.id)) {
+        if (kids && kids.length > 0 && reviewing?.has(child.id)) pushReviewing(child);
         walk(child.id);
       } else if (ACTIONABLE_KINDS.has(child.kind)) {
         out.push(child);
@@ -1974,8 +2094,23 @@ export const effectiveLeavesUnder = (
       }
     }
   };
+  const start = project.nodes[startId];
+  if (start && reviewing?.has(startId) && (map.get(startId) ?? []).length > 0) {
+    pushReviewing(start);
+  }
   walk(startId);
   return out;
+};
+
+// Pais com sugestões em revisão: lote ativo + estacionados (não vazios).
+export const reviewingParentIds = (
+  pending: GraphState['pendingSuggestions'],
+  parked: GraphState['parkedSuggestions'],
+): Set<string> => {
+  const ids = new Set<string>();
+  if (pending && pending.nodes.length > 0) ids.add(pending.parentId);
+  for (const [id, b] of Object.entries(parked ?? {})) if (b.nodes.length > 0) ids.add(id);
+  return ids;
 };
 
 export const effectiveLeaves = (project: Project, pending?: PendingRef): ConceptNodeData[] =>
@@ -2157,7 +2292,10 @@ const resolvedWithoutSignal = (n: ConceptNodeData, understand: boolean): boolean
 // Só conta o que está em project.nodes: sugestões ainda não aceitas não
 // entram no denominador (nem no total, nem por categoria) — o lote em revisão
 // segura o "próximo" do tutor (nextPendingForTutor), não o progresso.
-export const projectProgress = (project: Project | null) => {
+export const projectProgress = (
+  project: Project | null,
+  reviewing?: ReadonlySet<string>,
+) => {
   if (!project) {
     return { total: 0, done: 0, doneWithSignal: 0, doneWithoutSignal: 0, percent: 0 };
   }
@@ -2166,7 +2304,7 @@ export const projectProgress = (project: Project | null) => {
   // archetype (a concept node the AI produced in a build project is still a
   // part the user must understand or confirm — hiding it from progress let the
   // tutor declare "done" with work pending).
-  const leaves = effectiveLeaves(project);
+  const leaves = effectiveLeavesUnder(project, project.rootId, undefined, undefined, reviewing);
   const total = leaves.length;
   const resolved = leaves.filter((n) => n.confirmado || n.takenAsKnown);
   const done = resolved.length;
@@ -2196,9 +2334,11 @@ export const nodesWithoutSignal = (project: Project | null): string[] => {
 export const nextPendingForTutor = (
   project: Project | null,
   pending?: PendingRef,
+  reviewing?: ReadonlySet<string>,
 ): ConceptNodeData | null => {
   if (!project) return null;
   const byParent = childrenByParent(project);
+  const underReview = (id: string) => hasPendingAt(pending, id) || Boolean(reviewing?.has(id));
   const walk = (id: string): ConceptNodeData | null => {
     for (const child of byParent.get(id) ?? []) {
       if (child.takenAsKnown) continue;
@@ -2207,10 +2347,10 @@ export const nextPendingForTutor = (
         const found = walk(child.id);
         if (found) return found;
         // Filhos resolvidos mas sugestões ainda em revisão: o pai é o pendente.
-        if (hasPendingAt(pending, child.id)) return child;
+        if (underReview(child.id)) return child;
         continue;
       }
-      if (hasPendingAt(pending, child.id)) return child;
+      if (underReview(child.id)) return child;
       if (ACTIONABLE_KINDS.has(child.kind) && !child.confirmado) return child;
     }
     return null;
@@ -2218,7 +2358,7 @@ export const nextPendingForTutor = (
   return walk(project.rootId);
 };
 
-export const projectMetrics = (project: Project | null) => {
+export const projectMetrics = (project: Project | null, reviewing?: ReadonlySet<string>) => {
   if (!project) return null;
   const nodes = Object.values(project.nodes);
   // Risco = trabalho pendente de baixa confiança. Raiz/categorias (100 fixo) e
@@ -2229,7 +2369,7 @@ export const projectMetrics = (project: Project | null) => {
   return {
     nodeCount: nodes.length,
     atRisk,
-    progress: projectProgress(project),
+    progress: projectProgress(project, reviewing),
   };
 };
 

@@ -31,6 +31,7 @@ import {
   type Lens,
 } from '@/store';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useReviewingParents } from '@/hooks/useReviewingParents';
 import { useT } from '@/i18n';
 import type { Messages } from '@/i18n';
 import { ConceptNode } from './ConceptNode';
@@ -411,6 +412,7 @@ export function GraphCanvas() {
   const focusVersion = useGraphStore((s) => s.focusVersion);
   const centerRequest = useGraphStore((s) => s.centerRequest);
   const pending = useGraphStore((s) => s.pendingSuggestions);
+  const reviewing = useReviewingParents();
   const stagingParent = useGraphStore(pendingParent);
   const selectNode = useGraphStore((s) => s.selectNode);
   const focusNode = useGraphStore((s) => s.focusNode);
@@ -672,7 +674,7 @@ export function GraphCanvas() {
       (n) => layout.visible === null || layout.visible.has(n.id),
     );
     const edgeList = Object.values(project.edges);
-    const nextId = nextPendingForTutor(project, pending)?.id ?? null;
+    const nextId = nextPendingForTutor(project, pending, reviewing)?.id ?? null;
 
     const childCountByParent: Record<string, number> = {};
     Object.values(project.nodes).forEach((n) => {
@@ -746,7 +748,7 @@ export function GraphCanvas() {
     }
 
     return base;
-  }, [project, layout, lens, selectedId, pending]);
+  }, [project, layout, lens, selectedId, pending, reviewing]);
 
   // React Flow precisa ser controlado: aplicamos NodeChanges (drag, select,
   // resize) num state local e ressincronizamos sempre que o store recalcular

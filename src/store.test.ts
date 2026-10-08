@@ -592,9 +592,14 @@ describe('honest gate — open failure, AI anchors, late promotion', () => {
     expect(node(id).confirmado).toBe(false);
     expect(node(id).state).toBe('problem');
 
-    // Resolver a falha devolve o 'done' merecido (o gate não conta a falha velha).
+    // A falha refutou a aferição anterior: limpar a falha não devolve o 'done'
+    // com a prova velha — é preciso aferir de novo.
+    expect(node(id).comoConfirmarAtendido).toBeUndefined();
     useGraphStore.getState().clearFailure(id);
     expect(node(id).failureContext).toBeUndefined();
+    expect(node(id).state).toBe('concept');
+    useGraphStore.getState().attestCriterion(id, 'atendido de novo, depois do conserto');
+    useGraphStore.getState().confirmNode(id);
     expect(node(id).state).toBe('done');
   });
 
@@ -925,8 +930,12 @@ describe('objective draft, layout and navigation', () => {
     useGraphStore.getState().createProjectFromPlan('obj', 'J', minimalPlan);
     const catId = categoryId();
     useGraphStore.getState().startAIJob(catId, 'decompose');
-    expect(useGraphStore.getState().aiJobs[catId]?.kind).toBe('decompose');
-    useGraphStore.getState().endAIJob(catId);
+    expect(useGraphStore.getState().aiJobs[catId]?.decompose?.kind).toBe('decompose');
+    // Outro job no mesmo nó não apaga o marcador da quebra.
+    useGraphStore.getState().startAIJob(catId, 'research');
+    useGraphStore.getState().endAIJob(catId, 'research');
+    expect(useGraphStore.getState().aiJobs[catId]?.decompose).toBeTruthy();
+    useGraphStore.getState().endAIJob(catId, 'decompose');
     expect(useGraphStore.getState().aiJobs[catId]).toBeUndefined();
     stageChain();
     expect(pendingParent(useGraphStore.getState())?.id).toBe(catId);

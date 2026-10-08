@@ -1,3 +1,4 @@
+import { safeHref } from '@/safeHref';
 import { useEffect, useRef, useState } from 'react';
 import {
   outlinePlans,
@@ -732,14 +733,18 @@ export function ObjectiveScreen() {
               {research.sources.map((s, i) => (
                 <span key={s.url}>
                   {i > 0 && ', '}
-                  <a
-                    href={s.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline decoration-ai-accent/40 underline-offset-2 hover:text-ai-accent transition-colors duration-120 ease-mac"
-                  >
-                    {s.title}
-                  </a>
+                  {safeHref(s.url) ? (
+                    <a
+                      href={safeHref(s.url) ?? undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline decoration-ai-accent/40 underline-offset-2 hover:text-ai-accent transition-colors duration-120 ease-mac"
+                    >
+                      {s.title}
+                    </a>
+                  ) : (
+                    s.title
+                  )}
                 </span>
               ))}
             </span>

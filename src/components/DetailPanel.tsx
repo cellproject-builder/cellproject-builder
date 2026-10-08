@@ -23,6 +23,7 @@ import { useAIAction } from '@/hooks/useAIAction';
 import { InlineError } from '@/components/ui/InlineError';
 import { toast } from '@/components/ui/Toast';
 import { useT } from '@/i18n';
+import { useReviewingParents } from '@/hooks/useReviewingParents';
 import type { Messages } from '@/i18n';
 import type { ConceptNodeData, Project } from '@/types';
 import { ExplanationContent } from './Markdown';
@@ -937,8 +938,9 @@ function ProjectSummary({ project, tr }: { project: Project; tr: Messages }) {
   const selectNode = useGraphStore((s) => s.selectNode);
   const requestCenter = useGraphStore((s) => s.requestCenter);
   const pending = useGraphStore((s) => s.pendingSuggestions);
-  const progress = projectProgress(project);
-  const next = nextPendingForTutor(project, pending);
+  const reviewing = useReviewingParents();
+  const progress = projectProgress(project, reviewing);
+  const next = nextPendingForTutor(project, pending, reviewing);
   return (
     <div className="px-4 py-4 space-y-5 text-control">
       <div>

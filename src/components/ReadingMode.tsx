@@ -1,3 +1,4 @@
+import { safeHref } from '@/safeHref';
 import { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { ConceptNodeData } from '@/types';
@@ -255,21 +256,28 @@ export function ReadingMode({
                 <ExplanationContent text={research.findings} variant="reading" />
                 {research.sources.length > 0 && (
                   <ul className="mt-5 space-y-2">
-                    {research.sources.map((s) => (
-                      <li key={s.url} className="text-control pl-5 relative">
-                        <span aria-hidden className="absolute left-1 text-text-faint">
-                          •
-                        </span>
-                        <a
-                          href={s.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-accent underline decoration-accent/30 underline-offset-2 hover:decoration-accent transition-colors duration-120 break-all"
-                        >
-                          {s.title || s.url}
-                        </a>
-                      </li>
-                    ))}
+                    {research.sources.map((s) => {
+                      const href = safeHref(s.url);
+                      return (
+                        <li key={s.url} className="text-control pl-5 relative">
+                          <span aria-hidden className="absolute left-1 text-text-faint">
+                            •
+                          </span>
+                          {href ? (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-accent underline decoration-accent/30 underline-offset-2 hover:decoration-accent transition-colors duration-120 break-all"
+                            >
+                              {s.title || s.url}
+                            </a>
+                          ) : (
+                            <span className="break-all text-text-secondary">{s.title || s.url}</span>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </section>

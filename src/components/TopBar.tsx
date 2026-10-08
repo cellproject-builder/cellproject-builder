@@ -10,6 +10,7 @@ import {
 import { useKBStore } from '@/kb/store';
 import { useConfigStore, PROVIDER_LABELS, KNOWN_MODELS } from '@/config/store';
 import { useT } from '@/i18n';
+import { useReviewingParents } from '@/hooks/useReviewingParents';
 import { toast } from '@/components/ui/Toast';
 import { KnowledgeRepo } from './KnowledgeRepo';
 import { ApiKeyGate } from './ApiKeyGate';
@@ -117,7 +118,8 @@ export function TopBar() {
   const crumbs = breadcrumbFor(project, selectedId);
   const shortName = (project?.name ?? '').replace(/^demo\s*[·:\-–—]\s*/i, '');
   // Anel da toolbar: o mesmo seletor de progresso da StatusBar e do tutor.
-  const progress = useMemo(() => projectProgress(project), [project]);
+  const reviewing = useReviewingParents();
+  const progress = useMemo(() => projectProgress(project, reviewing), [project, reviewing]);
   const inDemo = isDemoProject(project);
   const otherArchived = archivedProject && archivedProject.id !== project?.id ? archivedProject : null;
   // Sair da demo não arquiva nada — o arquivado continua intacto.

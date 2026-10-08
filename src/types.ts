@@ -139,6 +139,10 @@ export interface ConceptNodeData {
   // copie o comoConfirmar da IA retroativamente.
   comoConfirmarUsuario?: string;
   comoConfirmarUsuarioAt?: number;
+  // Quando o critério da IA foi exibido pela primeira vez por um caminho que
+  // revela na hora (confirmar, "já sei", escolher opção). Depois disso o lock
+  // do critério do usuário não pode mais ser desfeito.
+  aiCriterionSeenAt?: number;
   // Conflito com uma regra do projeto apontado pela IA (também espelhado em cons).
   ruleConflict?: string;
   // Ground truth (attack a, part 2 — reality CONFIRMED): the user attested the

@@ -6,6 +6,7 @@ import {
   demoteUnprovenDone,
   canRevealAICriterionNow,
   CRITERION_UNLOCK_MS,
+  reviewingParentIds,
 } from './store';
 import type { AIPlan, ConceptNodeData, Project } from './types';
 
@@ -82,6 +83,13 @@ describe('sugestões pendentes ficam fora do progresso (rodada 2)', () => {
     expect(p.done).toBe(1);
     // O pai com sugestões em revisão continua sendo o próximo — não "água".
     expect(nextPendingForTutor(project, pendingSuggestions)?.id).toBe(vaso.id);
+    // Com o conjunto de pais em revisão, o pai conta como UMA parte aberta:
+    // 1 de 4 aceita não deixa o vaso "resolvido".
+    const reviewing = reviewingParentIds(pendingSuggestions, st().parkedSuggestions);
+    const pr = projectProgress(project, reviewing);
+    expect(pr.total).toBe(3);
+    expect(pr.done).toBe(1);
+    expect(nextPendingForTutor(project, null, reviewing)?.id).toBe(vaso.id);
   });
 
   it('chegar sugestões não muda o denominador', () => {
@@ -178,5 +186,55 @@ describe('tutor → grafo abre no nó do tutor', () => {
     st().setViewMode('graph');
     expect(st().selectedNodeId).toBe(byName('água').id);
     expect(st().centerRequest?.nodeId).toBe(byName('água').id);
+  });
+});
+
+describe('correção rodada 1 (overhaul)', () => {
+  it('ver o critério da IA ("já sei") impede destravar o lock, mesmo após desfazer', () => {
+    const vaso = byName('vaso');
+    st().setUserCriterion(vaso.id, 'meu critério');
+    st().toggleTakenAsKnown(vaso.id);
+    expect(st().undoLastAction()).toBe(true);
+    expect(st().unlockCriterion(vaso.id)).toBe(false);
+    expect(byName('vaso').comoConfirmarUsuario).toBe('meu critério');
+  });
+
+  it('desmarcar a única âncora rebaixa o done', () => {
+    const vaso = byName('vaso');
+    st().addGroundTruthRef(vaso.id, { kind: 'medida', label: 'peso', value: '2kg', verificado: false, addedByAI: false });
+    const refId = byName('vaso').groundTruthRefs!.at(-1)!.id;
+    st().toggleGroundTruthVerified(vaso.id, refId);
+    st().confirmNode(vaso.id);
+    expect(byName('vaso').state).toBe('done');
+    st().toggleGroundTruthVerified(vaso.id, refId);
+    expect(byName('vaso').state).toBe('validated');
+    expect(byName('vaso').confirmedWithoutSignal).toBe(true);
+  });
+
+  it('carregar a demo arquiva o projeto real', () => {
+    const id = st().project!.id;
+    st().loadDemoProject();
+    expect(st().archivedProject?.id).toBe(id);
+  });
+
+  it('import descarta URLs não-http e rebaixa done sem prova', () => {
+    const project = st().project!;
+    const vaso = byName('vaso');
+    const json = JSON.parse(JSON.stringify(project));
+    json.nodes[vaso.id].state = 'done';
+    json.nodes[vaso.id].confirmado = true;
+    json.nodes[vaso.id].webResearch = {
+      query: 'q',
+      findings: 'f',
+      searchedAt: 1,
+      sources: [
+        { url: 'javascript:alert(1)', title: 'x' },
+        { url: 'https://ok.example', title: 'ok' },
+      ],
+    };
+    expect(st().importProject(json).ok).toBe(true);
+    const n = byName('vaso');
+    expect(n.webResearch?.sources.map((s) => s.url)).toEqual(['https://ok.example']);
+    expect(n.state).toBe('validated');
   });
 });

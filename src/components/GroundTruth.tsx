@@ -27,17 +27,8 @@ import { ExplanationContent } from './Markdown';
 // critério da IA continua escondido — senão desfazer viraria um jeito de espiar.
 export const CRITERION_UNDO_MS = CRITERION_UNLOCK_MS;
 
-// Só http(s) vira href — nada de javascript:, data: etc. vindos da IA/import.
-export function safeHref(value: string): string | null {
-  const v = value.trim();
-  if (!/^https?:\/\//i.test(v)) return null;
-  try {
-    const url = new URL(v);
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
-  } catch {
-    return null;
-  }
-}
+import { safeHref } from '@/safeHref';
+export { safeHref };
 
 // "www.x.com/..." colado sem protocolo vira https://.
 export function normalizeLinkInput(value: string): string {
@@ -563,7 +554,7 @@ export function CritiqueSection(props: SectionProps) {
 function CritiqueBody({ node, project, collapsible }: SectionProps) {
   const tr = useT();
   const clearCritica = useGraphStore((s) => s.clearCritica);
-  const jobKind = useGraphStore((s) => s.aiJobs[node.id]?.kind);
+  const jobRunning = useGraphStore((s) => Boolean(s.aiJobs[node.id]?.critique));
   const { revealed } = useAIReveal(node);
 
   const action = useAIAction(
@@ -603,7 +594,7 @@ function CritiqueBody({ node, project, collapsible }: SectionProps) {
   };
 
   // Rodando em outra instância do card (troca de nó/view no meio da chamada).
-  const runningElsewhere = !action.running && jobKind === 'critique';
+  const runningElsewhere = !action.running && jobRunning;
   const busy = action.running || runningElsewhere;
   void project;
 
@@ -770,7 +761,7 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
   const tr = useT();
   const addGroundTruthRef = useGraphStore((s) => s.addGroundTruthRef);
   const removeGroundTruthRef = useGraphStore((s) => s.removeGroundTruthRef);
-  const jobKind = useGraphStore((s) => s.aiJobs[node.id]?.kind);
+  const researchJob = useGraphStore((s) => Boolean(s.aiJobs[node.id]?.research));
 
   const [adding, setAdding] = useState(false);
   const [input, setInput] = useState('');
@@ -819,7 +810,7 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
     if (highlightTimer.current) clearTimeout(highlightTimer.current);
     highlightTimer.current = setTimeout(() => setHighlight(new Set()), HIGHLIGHT_MS);
   };
-  const researchingElsewhere = !research.running && jobKind === 'research';
+  const researchingElsewhere = !research.running && researchJob;
   const researching = research.running || researchingElsewhere;
   void project;
 
@@ -1250,7 +1241,7 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
   const clearDraft = useGraphStore((s) => s.clearDraft);
   const draft = useGraphStore((s) => s.drafts[node.id]?.failure ?? '');
   const pendingNode = useGraphStore(pendingParent);
-  const jobKind = useGraphStore((s) => s.aiJobs[node.id]?.kind);
+  const replanJob = useGraphStore((s) => Boolean(s.aiJobs[node.id]?.replan));
 
   const [opening, setOpening] = useState(() => draft.trim() !== '');
   const [diagnosis, setDiagnosis] = useState<string | null>(
@@ -1329,7 +1320,7 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
     if (diag !== undefined) setDiagnosis(diag);
   };
 
-  const replanningElsewhere = !replan.running && jobKind === 'replan';
+  const replanningElsewhere = !replan.running && replanJob;
   const replanning = replan.running || replanningElsewhere;
 
   const record = (andReplan: boolean) => {
