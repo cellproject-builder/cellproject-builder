@@ -1174,7 +1174,9 @@ export const ptBR: Messages = {
     viewInGraph: 'Ver no grafo',
     resourcesLeftWarning: 'Atenção',
     resourcesLeftBody: (remaining: number) =>
-      `Ainda faltam ${remaining} recurso${remaining === 1 ? '' : 's'} por confirmar. Tu pode seguir mesmo assim, mas idealmente junta tudo antes de começar a execução.`,
+      remaining === 1
+        ? 'Ainda falta 1 recurso por confirmar. Você pode seguir mesmo assim, mas o ideal é ter tudo em mãos antes de começar a execução.'
+        : `Ainda faltam ${remaining} recursos por confirmar. Você pode seguir mesmo assim, mas o ideal é ter tudo em mãos antes de começar a execução.`,
     projectDoneTitle: 'Projeto concluído',
     projectWalkedTitle: 'Plano percorrido',
     projectWalkedBody: (n: number) =>
