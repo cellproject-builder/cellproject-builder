@@ -1,8 +1,9 @@
 import { memo } from 'react';
 import { Handle, Position, useStore as useRfStore, type NodeProps } from '@xyflow/react';
 import type { ConceptNodeData, NodeKind } from '@/types';
-import { useGraphStore, confidenceBand } from '@/store';
+import { useGraphStore, confidenceBand, canRevealAICriterion, isActionableKind } from '@/store';
 import { useT } from '@/i18n';
+import type { Messages } from '@/i18n';
 
 const confidenceDot = (band: 'high' | 'mid' | 'low') => {
   if (band === 'high') return 'bg-conf-high';
@@ -10,24 +11,120 @@ const confidenceDot = (band: 'high' | 'mid' | 'low') => {
   return 'bg-conf-low';
 };
 
-const kindAccent: Record<NodeKind, string> = {
-  root: 'text-ai-accent border-ai-accent/60',
-  categoria: 'text-text-primary border-text-primary/40',
-  recurso: 'text-conf-mid border-conf-mid/40',
-  passo: 'text-state-executing border-state-executing/40',
-  decisao: 'text-ai-accent border-ai-accent/60',
-  concept: 'text-text-secondary border-border-base',
+// Tipo = ícone + rótulo traduzido num chip; a BORDA fica só para o estado.
+// Antes tipo e estado disputavam a mesma border-color e quem vencia era a
+// ordem do CSS gerado.
+export const KIND_ICON: Record<NodeKind, string> = {
+  root: '◎',
+  categoria: '▤',
+  recurso: '▪',
+  passo: '▸',
+  decisao: '⑂',
+  concept: '◇',
 };
 
-interface NodeExtras {
+const kindChip: Record<NodeKind, string> = {
+  root: 'text-ai-accent border-ai-accent/40 bg-ai-accent/10',
+  categoria: 'text-text-secondary border-border-base bg-bg-elevated',
+  recurso: 'text-conn-independent border-conn-independent/40 bg-conn-independent/10',
+  passo: 'text-state-executing border-state-executing/40 bg-state-executing/10',
+  decisao: 'text-ai-accent border-ai-accent/40 bg-ai-accent/10',
+  concept: 'text-text-muted border-border-base bg-bg-elevated',
+};
+
+// Estado visual de um nó, derivado do gate de sinal real.
+export type NodeVisualStatus = 'problem' | 'done' | 'noProof' | 'known' | 'open';
+
+export const visualStatusOf = (
+  d: Pick<ConceptNodeData, 'state' | 'failureContext' | 'confirmado' | 'takenAsKnown'>,
+): NodeVisualStatus => {
+  if (d.state === 'problem' || d.failureContext) return 'problem';
+  if (d.state === 'done') return 'done';
+  if (d.takenAsKnown) return 'known';
+  if (d.confirmado) return 'noProof';
+  return 'open';
+};
+
+// Verde = com prova · âmbar tracejado = sem prova · vermelho = problema.
+const statusBorder: Record<NodeVisualStatus, string> = {
+  problem: 'border-state-problem',
+  done: 'border-state-done',
+  noProof: 'border-conf-mid border-dashed',
+  known: 'border-ai-accent/50',
+  open: 'border-border-base',
+};
+
+export interface NodeExtras {
   childCount: number;
   edgeCount: number;
   isSuggestion?: boolean;
   tempId?: string;
   blocked?: boolean;
+  // Posição do passo entre os passos irmãos (o "#n"), via stepSequence.
+  stepNo?: number | null;
+  // Próximo nó pendente do tutor — ganha um anel.
+  isNext?: boolean;
+  // canConcludeNode(...).ready, pré-calculado no GraphCanvas.
+  canConclude?: boolean;
 }
 
 type Props = NodeProps & { data: ConceptNodeData & NodeExtras };
+
+function KindChip({ kind, tr, compact }: { kind: NodeKind; tr: Messages; compact?: boolean }) {
+  const label = tr.conceptNode[kind];
+  return (
+    <span
+      title={label}
+      className={`inline-flex items-center gap-1 shrink-0 border rounded-[2px] font-mono uppercase tracking-wider ${
+        compact ? 'px-1 text-[11px] leading-4' : 'px-1.5 py-[1px] text-[9px]'
+      } ${kindChip[kind] ?? kindChip.concept}`}
+    >
+      <span aria-hidden>{KIND_ICON[kind] ?? '◇'}</span>
+      {!compact && <span>{label}</span>}
+      {compact && <span className="sr-only">{label}</span>}
+    </span>
+  );
+}
+
+function StatusMarks({
+  status,
+  blocked,
+  tr,
+}: {
+  status: NodeVisualStatus;
+  blocked: boolean;
+  tr: Messages;
+}) {
+  return (
+    <>
+      {blocked && (
+        <span className="text-text-muted text-[10px]" title={tr.conceptNode.blocked}>
+          🔒
+        </span>
+      )}
+      {status === 'done' && (
+        <span className="text-state-done text-xs" title={tr.conceptNode.withProof}>
+          ✓
+        </span>
+      )}
+      {status === 'noProof' && (
+        <span className="text-conf-mid text-xs" title={tr.conceptNode.noAnchor}>
+          ✓?
+        </span>
+      )}
+      {status === 'known' && (
+        <span className="text-ai-accent text-xs" title={tr.conceptNode.axiom}>
+          ⊢
+        </span>
+      )}
+      {status === 'problem' && (
+        <span className="text-state-problem text-xs" title={tr.conceptNode.problem}>
+          ⚠
+        </span>
+      )}
+    </>
+  );
+}
 
 function ConceptNodeImpl({ data, selected }: Props) {
   const tr = useT();
@@ -41,54 +138,41 @@ function ConceptNodeImpl({ data, selected }: Props) {
   const rejectSuggestion = useGraphStore((s) => s.rejectSuggestion);
   const confirmNode = useGraphStore((s) => s.confirmNode);
 
-  const kindLabel = tr.conceptNode[data.kind];
   const band = confidenceBand(data.confidence);
-  const isFocused = selected;
   const blocked = !data.confirmado && !!data.blocked;
-
-  const kindStyle = kindAccent[data.kind] ?? kindAccent.concept;
-  // Signal-gated resolution made visible (the ground-truth gate): 'done' =
-  // anchored against real signal (green); confirmado-but-not-done = confirmed
-  // WITHOUT an anchor (amber — a hunch must not look verified); takenAsKnown =
-  // a deliberate axiom / known floor (accent).
-  const anchored = data.state === 'done';
-  const known = !!data.takenAsKnown;
-  const hunch = data.confirmado && !anchored && !known;
-  const confirmedStyle = anchored
-    ? 'opacity-80 border-state-done'
-    : known
-    ? 'opacity-80 border-ai-accent/40'
-    : hunch
-    ? 'opacity-80 border-conf-mid'
-    : blocked
-    ? 'opacity-40 grayscale'
-    : '';
+  const status = visualStatusOf(data);
+  const structural = data.kind === 'root' || data.kind === 'categoria';
+  // Raiz/categoria têm confiança fixa (100) — mostrar o número só confunde.
+  const showConfidence = !structural;
 
   const baseClass = [
     'rounded-sm bg-bg-secondary border-2 font-sans text-text-primary select-none touch-manipulation',
     'transition-[box-shadow,transform,opacity] duration-150',
-    kindStyle,
-    confirmedStyle,
-    isFocused ? 'shadow-[0_0_0_2px_#8b5cf680]' : '',
-    data.isSuggestion ? '!border-dashed !border-ai-accent bg-bg-secondary/70' : '',
+    data.isSuggestion ? 'border-dashed border-ai-accent shadow-lg' : statusBorder[status],
+    // Bloqueado continua legível: só esmaece um pouco e ganha cadeado.
+    blocked ? 'opacity-70' : '',
+    data.isNext && !selected ? 'shadow-[0_0_0_4px_rgba(139,92,246,0.35)]' : '',
+    selected ? 'ring-2 ring-white ring-offset-2 ring-offset-bg-primary' : '',
   ].join(' ');
 
   if (data.isSuggestion) {
     return (
-      <div className={`${baseClass} w-[240px] p-3`}>
+      <div className={`${baseClass} w-[260px] p-3`}>
         <Handle type="target" position={Position.Top} className="!bg-ai-accent !border-none" />
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-ai-accent text-[10px] font-mono uppercase tracking-wider">
-            ◆ {kindLabel}
-          </span>
-          <span className="ml-auto font-mono text-xs text-text-secondary">
-            {data.confidence}%
-          </span>
+          <span className="text-ai-accent text-[10px] font-mono uppercase tracking-wider">◆</span>
+          <KindChip kind={data.kind} tr={tr} />
+          <span className="ml-auto font-mono text-xs text-text-secondary">{data.confidence}%</span>
         </div>
         <div className="font-semibold text-sm mb-1 leading-tight">{data.name}</div>
         <div className="text-[11px] text-text-secondary leading-snug mb-2 line-clamp-2">
           {data.oQue || data.fx}
         </div>
+        {data.ruleConflict && (
+          <div className="text-[11px] text-state-problem leading-snug mb-2 line-clamp-2">
+            ⛓ {data.ruleConflict}
+          </div>
+        )}
         <div className="flex gap-1">
           <button
             onClick={(e) => {
@@ -104,7 +188,8 @@ function ConceptNodeImpl({ data, selected }: Props) {
               e.stopPropagation();
               rejectSuggestion(data.tempId as string);
             }}
-            className="flex-1 bg-bg-elevated hover:bg-state-problem/20 text-text-secondary hover:text-state-problem text-xs py-2 min-h-[36px] rounded-sm border border-border-base transition-colors"
+            aria-label={tr.conceptNode.rejectAria}
+            className="px-3 bg-bg-elevated hover:bg-state-problem/20 text-text-secondary hover:text-state-problem text-xs py-2 min-h-[36px] rounded-sm border border-border-base transition-colors"
           >
             {tr.conceptNode.reject}
           </button>
@@ -115,104 +200,112 @@ function ConceptNodeImpl({ data, selected }: Props) {
   }
 
   // The fast one-click confirm on the canvas is reserved for nodes that already
-  // carry real signal (one of the four anti-loop mechanisms). An unanchored node
-  // must be confirmed through the detail/tutor friction step instead, so the
+  // carry real signal (canConcludeNode.ready). An unanchored node must be
+  // confirmed through the detail/tutor friction step instead, so the
   // unfaithful path is never the easiest click.
-  const nodeHasSignal =
-    !!data.comoConfirmarAtendido ||
-    (data.groundTruthRefs ?? []).some((r) => r.verificado);
   const canQuickConfirm =
     !blocked &&
     !data.confirmado &&
-    nodeHasSignal &&
+    !!data.canConclude &&
     (data.kind === 'recurso' || data.kind === 'passo' || data.kind === 'concept');
 
+  const stepTag =
+    data.kind === 'passo' && data.stepNo ? (
+      <span className="font-mono text-[10px] text-text-muted">#{data.stepNo}</span>
+    ) : null;
+
+  const nextTag = data.isNext ? (
+    <span className="font-mono text-[9px] uppercase tracking-wider text-ai-accent">
+      {tr.conceptNode.next}
+    </span>
+  ) : null;
+
   if (level === 'far') {
+    // Visão geral: tipo pelo ícone, nome em até 2 linhas, cards mais largos.
     return (
-      <div className={`${baseClass} w-[200px] px-3 py-2 flex items-center gap-2`}>
+      <div
+        className={`${baseClass} ${
+          structural ? 'w-[280px] px-3 py-2.5' : 'w-[250px] px-3 py-2'
+        } flex items-center gap-2`}
+      >
         <Handle type="target" position={Position.Top} className="!bg-border-base !border-none" />
-        {anchored ? (
-          <span className="w-2 h-2 rounded-full bg-state-done" />
-        ) : known ? (
-          <span className="text-ai-accent text-[11px] leading-none" title={tr.conceptNode.axiom}>⊢</span>
-        ) : hunch ? (
-          <span className="w-2 h-2 rounded-full bg-conf-mid" title={tr.conceptNode.noAnchor} />
-        ) : (
-          <span className={`w-2 h-2 rounded-full ${confidenceDot(band)}`} />
-        )}
-        <span className="text-sm truncate flex-1">{data.name}</span>
-        {data.kind !== 'categoria' && data.kind !== 'root' && (
-          <span className="font-mono text-[10px] text-text-muted uppercase">
-            {data.kind.slice(0, 3)}
-          </span>
-        )}
+        <KindChip kind={data.kind} tr={tr} compact />
+        <span
+          className={`flex-1 min-w-0 line-clamp-2 leading-tight ${
+            structural ? 'text-[15px] font-semibold' : 'text-sm'
+          }`}
+        >
+          {data.name}
+        </span>
+        <span className="shrink-0 flex items-center gap-1">
+          {stepTag}
+          <StatusMarks status={status} blocked={blocked} tr={tr} />
+          {status === 'open' && !structural && (
+            <span className={`w-2 h-2 rounded-full ${confidenceDot(band)}`} />
+          )}
+        </span>
         <Handle type="source" position={Position.Bottom} className="!bg-border-base !border-none" />
       </div>
     );
   }
+
+  const header = (
+    <div className="flex items-center gap-1.5 mb-1.5">
+      <KindChip kind={data.kind} tr={tr} />
+      {stepTag}
+      {nextTag}
+      <span className="ml-auto flex items-center gap-1.5">
+        <StatusMarks status={status} blocked={blocked} tr={tr} />
+        {showConfidence && (
+          <>
+            {level === 'near' && <span className={`w-2 h-2 rounded-full ${confidenceDot(band)}`} />}
+            <span className="font-mono text-[11px] text-text-secondary">{data.confidence}%</span>
+          </>
+        )}
+      </span>
+    </div>
+  );
+
+  const quickConfirm = canQuickConfirm ? (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        confirmNode(data.id);
+      }}
+      className={`w-full bg-conf-high/15 hover:bg-conf-high/30 text-conf-high rounded-sm border border-conf-high/40 transition-colors font-medium ${
+        level === 'near' ? 'mt-2.5 text-xs py-2.5 min-h-[40px]' : 'mt-2 text-[11px] py-1.5 min-h-[32px]'
+      }`}
+    >
+      {data.kind === 'recurso'
+        ? tr.conceptNode.quickHaveResource
+        : data.kind === 'concept'
+        ? tr.conceptNode.quickUnderstood
+        : tr.conceptNode.quickHaveStep}
+    </button>
+  ) : null;
 
   if (level === 'mid') {
     return (
       <div className={`${baseClass} w-[260px] p-2.5`}>
         <Handle type="target" position={Position.Top} className="!bg-border-base !border-none" />
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-[9px] font-mono uppercase tracking-wider text-text-muted">
-            {kindLabel}
-          </span>
-          {data.kind === 'passo' && (
-            <span className="font-mono text-[10px] text-text-muted">#{data.order + 1}</span>
-          )}
-          <span className="ml-auto flex items-center gap-1.5">
-            {anchored && <span className="text-state-done text-xs">✓</span>}
-            {known && <span className="text-ai-accent text-xs" title={tr.conceptNode.axiom}>⊢</span>}
-            {hunch && <span className="text-conf-mid text-xs" title={tr.conceptNode.noAnchor}>✓</span>}
-            {blocked && <span className="text-text-muted text-[10px]">{tr.conceptNode.blocked}</span>}
-            <span className="font-mono text-[11px] text-text-secondary">{data.confidence}%</span>
-          </span>
-        </div>
+        {header}
         <div className="text-sm font-semibold leading-tight mb-1">{data.name}</div>
-        <div className="text-[11px] text-text-secondary leading-snug line-clamp-2">
-          {data.oQue}
-        </div>
-        {canQuickConfirm && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              confirmNode(data.id);
-            }}
-            className="mt-2 w-full bg-conf-high/10 hover:bg-conf-high/25 text-conf-high text-[11px] py-1 rounded-sm border border-conf-high/30 transition-colors"
-          >
-            {data.kind === 'recurso'
-              ? tr.conceptNode.quickHaveResource
-              : data.kind === 'concept'
-              ? tr.conceptNode.quickUnderstood
-              : tr.conceptNode.quickHaveStep}
-          </button>
-        )}
+        <div className="text-[11px] text-text-secondary leading-snug line-clamp-2">{data.oQue}</div>
+        {quickConfirm}
         <Handle type="source" position={Position.Bottom} className="!bg-border-base !border-none" />
       </div>
     );
   }
 
+  // Critério do usuário ANTES do da IA: o "como saber" da IA só aparece
+  // depois do lock (ou do nó fechado por outro caminho). Zoom não fura o gate.
+  const showCheckLine = !!data.comoConfirmar && isActionableKind(data.kind) && data.kind !== 'decisao';
+  const revealCheck = canRevealAICriterion(data);
+
   return (
     <div className={`${baseClass} w-[300px] p-3`}>
       <Handle type="target" position={Position.Top} className="!bg-border-base !border-none" />
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-[9px] font-mono uppercase tracking-wider text-text-muted">
-          {kindLabel}
-        </span>
-        {data.kind === 'passo' && (
-          <span className="font-mono text-[10px] text-text-muted">#{data.order + 1}</span>
-        )}
-        <span className="ml-auto flex items-center gap-1.5">
-          {anchored && <span className="text-state-done text-xs">✓</span>}
-          {known && <span className="text-ai-accent text-xs" title={tr.conceptNode.axiom}>⊢</span>}
-          {hunch && <span className="text-conf-mid text-xs" title={tr.conceptNode.noAnchor}>✓</span>}
-          {blocked && <span className="text-text-muted text-[10px]">{tr.conceptNode.blocked}</span>}
-          <span className={`w-2 h-2 rounded-full ${confidenceDot(band)}`} />
-          <span className="font-mono text-[11px] text-text-secondary">{data.confidence}%</span>
-        </span>
-      </div>
+      {header}
       <div className="text-sm font-semibold leading-tight mb-2">{data.name}</div>
       <div className="border-t border-border-base pt-2 space-y-1.5">
         {data.oQue && (
@@ -231,31 +324,20 @@ function ConceptNodeImpl({ data, selected }: Props) {
             <span className="text-text-secondary">{data.porQue}</span>
           </div>
         )}
-        {data.comoConfirmar &&
-          (data.kind === 'recurso' || data.kind === 'passo' || data.kind === 'concept') && (
+        {showCheckLine && (
           <div className="text-[11px] leading-snug">
             <span className="text-text-muted font-mono text-[10px] uppercase">
               {tr.conceptNode.checkPrefix}
             </span>{' '}
-            <span className="text-text-secondary italic">{data.comoConfirmar}</span>
+            {revealCheck ? (
+              <span className="text-text-secondary italic">{data.comoConfirmar}</span>
+            ) : (
+              <span className="text-text-muted">{tr.conceptNode.criterionLocked}</span>
+            )}
           </div>
         )}
       </div>
-      {canQuickConfirm && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            confirmNode(data.id);
-          }}
-          className="mt-2.5 w-full bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-xs py-2.5 min-h-[40px] rounded-sm border border-conf-high/40 transition-colors font-medium"
-        >
-          {data.kind === 'recurso'
-            ? tr.detail.alreadyHave
-            : data.kind === 'concept'
-            ? tr.detail.understood
-            : tr.detail.alreadyDid}
-        </button>
-      )}
+      {quickConfirm}
       <Handle type="source" position={Position.Bottom} className="!bg-border-base !border-none" />
     </div>
   );
