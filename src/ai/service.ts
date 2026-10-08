@@ -1,18 +1,30 @@
 import { nanoid } from 'nanoid';
-import { generateObject, generateText, streamObject } from 'ai';
+import {
+  APICallError,
+  JSONParseError,
+  NoObjectGeneratedError,
+  RetryError,
+  TypeValidationError,
+  generateObject,
+  streamObject,
+  streamText,
+} from 'ai';
 import type {
   AdversarialCritique,
   AIPlan,
   AIPlanCategory,
   AISuggestedNode,
   AISuggestedEdge,
+  AISuggestedGroundTruthHint,
   ConstructionStrategy,
+  DecisionOption,
   ProjectArchetype,
   NodeKind,
+  NodeState,
 } from '@/types';
 import type { KBContextEntry } from '@/kb/types';
-import { aiModel, assertAIReady, currentModelIds } from './client';
-import { currentLocaleAIName, t } from '@/i18n';
+import { aiModel, assertAIReady, callOpts, currentModelIds, AIMissingKeyError } from './client';
+import { currentLocale, currentLocaleAIName, t } from '@/i18n';
 import {
   isWebResearchOn,
   runResearch,
@@ -21,8 +33,10 @@ import {
   type ResearchSource,
 } from './research';
 import {
+  PlanSchema,
   PlansResponseSchema,
   DecomposeResponseSchema,
+  ReplanResponseSchema,
   CritiqueResponseSchema,
   type PlansResponse,
   type RawPlan,
@@ -39,6 +53,9 @@ export type DeepPartial<T> = T extends object ? { [K in keyof T]?: DeepPartial<T
 export type PlanProgressPhase =
   | 'researching'
   | 'connecting'
+  // Request aceita mas nenhum pedaço do JSON chegou ainda — o modelo está
+  // raciocinando (o raciocínio do gpt-6.x vem criptografado, invisível).
+  | 'thinking'
   | 'streaming'
   | 'finalizing'
   | 'done'
@@ -47,16 +64,265 @@ export type PlanProgressPhase =
 export interface PlanProgressEvent {
   phase: PlanProgressPhase;
   partial?: DeepPartial<PlansResponse>;
+  /** @deprecated o raciocínio do gpt-6.x vem criptografado — nunca é preenchido. */
   reasoning?: string;
   chunkCount: number;
   elapsedMs: number;
+  // Epoch (Date.now()) do início da geração — a UI roda o relógio local com
+  // isto em vez de depender da chegada de eventos.
+  startedAt?: number;
   error?: string;
+  errorInfo?: AIErrorInfo;
+  // Aviso não-fatal (ex.: planos incompletos descartados na recuperação).
+  warning?: string;
   // Digest da pesquisa web (quando o modo pesquisa está ligado) — a UI mostra
   // as fontes reais consultadas junto dos planos.
   research?: ResearchDigest;
 }
 
 export type PlanProgressCallback = (ev: PlanProgressEvent) => void;
+
+// Campos que o service entrega além do contrato de types.ts. Os tipos são
+// superconjuntos: quem espera AIPlan/AISuggestedNode continua compilando.
+export interface AIPlanEstimates {
+  custo: string;
+  tempo: string;
+  dificuldade: 'iniciante' | 'intermediario' | 'avancado';
+}
+
+export interface AIPlanRuleCheck {
+  rule: string;
+  status: 'cumpre' | 'risco' | 'viola';
+  nota: string;
+}
+
+export type AIPlanOut = AIPlan & { estimates?: AIPlanEstimates; rulesCheck?: AIPlanRuleCheck[] };
+
+// ruleConflict também é espelhado em `cons` (persistido pelo store hoje).
+export type AISuggestedNodeOut = AISuggestedNode & { ruleConflict?: string };
+
+export interface AISuggestionsResult {
+  nodes: AISuggestedNodeOut[];
+  edges: AISuggestedEdge[];
+}
+
+export interface AICallOptions {
+  signal?: AbortSignal;
+}
+
+// ---------------------------------------------------------------------------
+// Erros — classificados e legíveis no idioma do usuário.
+// ---------------------------------------------------------------------------
+
+export type AIErrorKind =
+  | 'auth'
+  | 'credits'
+  | 'model'
+  | 'schema'
+  | 'rate'
+  | 'timeout'
+  | 'network'
+  | 'aborted'
+  | 'unknown';
+
+export interface AIErrorInfo {
+  kind: AIErrorKind;
+  title: string;
+  hint: string;
+  // Detalhe técnico (corpo do provider, mensagem crua) — pra "ver detalhes".
+  detail?: string;
+  status?: number;
+}
+
+// Erro que todos os fluxos de IA lançam. `message` = título + dica, então
+// call sites que só mostram err.message já exibem algo legível.
+export class AIError extends Error {
+  readonly info: AIErrorInfo;
+  constructor(info: AIErrorInfo, cause?: unknown) {
+    super(`${info.title}. ${info.hint}`);
+    this.name = 'AIError';
+    this.info = info;
+    if (cause !== undefined) (this as Error & { cause?: unknown }).cause = cause;
+  }
+}
+
+function errorName(err: unknown): string {
+  return typeof err === 'object' && err !== null && 'name' in err
+    ? String((err as { name: unknown }).name)
+    : '';
+}
+
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
+// APICallError costuma vir com message genérica ("Provider returned error") e
+// o motivo real enterrado no responseBody.
+function providerDetail(err: APICallError): string {
+  const body = err.responseBody;
+  if (typeof body !== 'string' || body.length === 0) return err.message;
+  try {
+    const parsed = JSON.parse(body) as {
+      error?: { message?: string; code?: string | number; metadata?: { raw?: string } };
+    };
+    const raw = parsed.error?.metadata?.raw;
+    const msg = parsed.error?.message;
+    return [msg, raw].filter(Boolean).join(' — ') || body;
+  } catch {
+    return body;
+  }
+}
+
+const FORMAT_RE = /json_schema|response_format|invalid schema|structured output/i;
+const MODEL_RE = /not a valid model|model.*(not found|does not exist)|no endpoints found/i;
+const CREDITS_RE = /insufficient (credits|funds|balance)|requires more credits|payment required/i;
+const NETWORK_RE = /failed to fetch|fetch failed|networkerror|network error|load failed|ECONNRESET|ENOTFOUND/i;
+
+export function classifyAIError(err: unknown): AIErrorInfo {
+  const e = t().ai.errors;
+  if (err instanceof AIError) return err.info;
+  const model = currentModelIds()?.main ?? '?';
+
+  // 429/5xx são retentados pelo SDK e chegam embrulhados num RetryError.
+  if (RetryError.isInstance(err) && err.lastError !== undefined) err = err.lastError;
+
+  const name = errorName(err);
+  if (name === 'TimeoutError') return { kind: 'timeout', title: e.timeoutTitle, hint: e.timeoutHint };
+  if (name === 'AbortError' || name === 'ResponseAborted') {
+    return { kind: 'aborted', title: e.abortedTitle, hint: e.abortedHint };
+  }
+  if (err instanceof AIMissingKeyError) {
+    return { kind: 'auth', title: e.missingKeyTitle, hint: e.missingKeyHint };
+  }
+  if (name === 'AIUnavailableError') {
+    return { kind: 'auth', title: errorMessage(err), hint: e.missingKeyHint };
+  }
+
+  if (APICallError.isInstance(err)) {
+    const status = err.statusCode;
+    const detail = providerDetail(err).slice(0, 600);
+    const base = { status, detail };
+    if (status === 401 || status === 403) return { ...base, kind: 'auth', title: e.authTitle, hint: e.authHint };
+    if (status === 402 || CREDITS_RE.test(detail)) {
+      return { ...base, kind: 'credits', title: e.creditsTitle, hint: e.creditsHint };
+    }
+    if (status === 404 || MODEL_RE.test(detail)) {
+      return { ...base, kind: 'model', title: e.modelTitle(model), hint: e.modelHint };
+    }
+    if (status === 429) return { ...base, kind: 'rate', title: e.rateTitle, hint: e.rateHint };
+    if (status === 408 || status === 504) {
+      return { ...base, kind: 'timeout', title: e.timeoutTitle, hint: e.timeoutHint };
+    }
+    if (FORMAT_RE.test(detail)) {
+      return { ...base, kind: 'schema', title: e.formatTitle(model), hint: e.formatHint };
+    }
+    if (status === undefined && NETWORK_RE.test(`${err.message} ${errorMessage(err.cause)}`)) {
+      return { ...base, kind: 'network', title: e.networkTitle, hint: e.networkHint };
+    }
+    if (status !== undefined) {
+      return { ...base, kind: 'unknown', title: e.providerTitle(status), hint: e.providerHint };
+    }
+    return { ...base, kind: 'unknown', title: e.unknownTitle, hint: e.unknownHint };
+  }
+
+  if (
+    NoObjectGeneratedError.isInstance(err) ||
+    TypeValidationError.isInstance(err) ||
+    JSONParseError.isInstance(err)
+  ) {
+    return {
+      kind: 'schema',
+      title: e.outputTitle,
+      hint: e.outputHint,
+      detail: errorMessage(err).slice(0, 600),
+    };
+  }
+
+  // Erros que chegam como texto (ex.: erro dentro do stream do OpenRouter).
+  const msg = errorMessage(err);
+  const detail = msg.slice(0, 600);
+  if (NETWORK_RE.test(msg)) return { kind: 'network', title: e.networkTitle, hint: e.networkHint, detail };
+  if (FORMAT_RE.test(msg)) return { kind: 'schema', title: e.formatTitle(model), hint: e.formatHint, detail };
+  if (CREDITS_RE.test(msg)) return { kind: 'credits', title: e.creditsTitle, hint: e.creditsHint, detail };
+  if (MODEL_RE.test(msg)) return { kind: 'model', title: e.modelTitle(model), hint: e.modelHint, detail };
+  if (/rate.?limit|too many requests/i.test(msg)) {
+    return { kind: 'rate', title: e.rateTitle, hint: e.rateHint, detail };
+  }
+  return { kind: 'unknown', title: e.unknownTitle, hint: e.unknownHint, detail };
+}
+
+// Wrapper legado: Error com título + dica. Preferir classifyAIError na UI.
+export function readableAIError(err: unknown): Error {
+  return err instanceof AIError ? err : new AIError(classifyAIError(err), err);
+}
+
+// Converte qualquer falha num AIError. Se o signal abortou, o motivo dele
+// manda (o SDK às vezes embrulha o abort num erro genérico).
+function toAIError(err: unknown, signal?: AbortSignal): AIError {
+  if (err instanceof AIError) return err;
+  const source = signal?.aborted ? (signal.reason ?? err) : err;
+  return new AIError(classifyAIError(source), err);
+}
+
+// ---------------------------------------------------------------------------
+// Cancelamento
+// ---------------------------------------------------------------------------
+
+const PLANS_TIMEOUT_MS = 240_000;
+
+function timeoutSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
+  const ctrl = new AbortController();
+  setTimeout(() => ctrl.abort(new DOMException('timeout', 'TimeoutError')), ms);
+  return ctrl.signal;
+}
+
+function anySignal(signals: (AbortSignal | undefined)[]): AbortSignal | undefined {
+  const list = signals.filter((s): s is AbortSignal => !!s);
+  if (list.length <= 1) return list[0];
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any(list);
+  const ctrl = new AbortController();
+  for (const s of list) {
+    if (s.aborted) {
+      ctrl.abort(s.reason);
+      break;
+    }
+    s.addEventListener('abort', () => ctrl.abort(s.reason), { once: true });
+  }
+  return ctrl.signal;
+}
+
+// Rejeita assim que o signal abortar, sem esperar o provider fechar o stream.
+function raceAbort<T>(p: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return p;
+  if (signal.aborted) {
+    p.catch(() => {});
+    return Promise.reject(signal.reason);
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      p.catch(() => {});
+      reject(signal.reason);
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    p.then(
+      (v) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(v);
+      },
+      (err) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(err);
+      },
+    );
+  });
+}
 
 // ---------------------------------------------------------------------------
 // AI service — multi-provider via Vercel AI SDK.
@@ -67,7 +333,7 @@ export type PlanProgressCallback = (ev: PlanProgressEvent) => void;
 // `research` em todos os contextos de nó = digest salvo pela pesquisa POR
 // CÉLULA (node.webResearch). Quem busca é o usuário, explicitamente, uma vez;
 // estes fluxos só reaproveitam o resultado como contexto — custo zero extra.
-interface DecomposeContext {
+export interface DecomposeContext {
   projectName: string;
   projectObjective: string;
   breadcrumb: string[];
@@ -79,9 +345,18 @@ interface DecomposeContext {
   archetype?: ProjectArchetype;
   rules?: string[];
   research?: ResearchDigest | null;
+  // Conteúdo do próprio nó — os filhos cobrem exatamente isto.
+  oQue?: string;
+  porQue?: string;
+  comoConfirmar?: string;
+  comoConfirmarUsuario?: string;
+  // Nomes de nós que o usuário já sabe/fez (takenAsKnown/done), até 15.
+  knownElsewhere?: string[];
+  // Kind da categoria persistido (quando nodeKind = 'categoria').
+  categoryKind?: AIPlanCategory['kind'];
 }
 
-interface ExplainContext {
+export interface ExplainContext {
   projectName: string;
   projectObjective: string;
   breadcrumb: string[];
@@ -90,11 +365,15 @@ interface ExplainContext {
   oQue: string;
   porQue: string;
   comoConfirmar: string;
+  // Critério do usuário antes do da IA: sem lock, o critério da IA NÃO vai
+  // pro prompt e a explicação não traz seção de verificação.
+  criterionLocked?: boolean;
+  comoConfirmarUsuario?: string;
   rules?: string[];
   research?: ResearchDigest | null;
 }
 
-interface CritiqueContext {
+export interface CritiqueContext {
   projectName: string;
   projectObjective: string;
   breadcrumb: string[];
@@ -109,7 +388,7 @@ interface CritiqueContext {
   research?: ResearchDigest | null;
 }
 
-interface ReplanContext {
+export interface ReplanContext {
   projectName: string;
   projectObjective: string;
   breadcrumb: string[];
@@ -123,6 +402,11 @@ interface ReplanContext {
   archetype?: ProjectArchetype;
   rules?: string[];
   research?: ResearchDigest | null;
+  // A decomposição que falhou — o modelo precisa vê-la pra não repeti-la.
+  currentChildren?: { name: string; oQue: string; state: NodeState }[];
+  comoConfirmar?: string;
+  // Âncoras que se provaram falsas ou não foram verificadas.
+  failedAnchors?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -151,16 +435,41 @@ COMPLETENESS — THE TREE MUST CLOSE
 STYLE
 - Always respond in ${lang}.
 - Direct, practical, doer's tone. Zero filler, no marketing speak.
-- Prefer short sentences. Avoid emoji unless they are part of natural technical content.
+- Prefer short, simple sentences. The first time a technical term appears, add a 3–6 word plain-language gloss in parentheses — e.g. "UART (serial port of the board)".
+- Avoid emoji unless they are part of natural technical content.
 - Be specific: "2 bamboo sticks of 40cm" beats "some materials".
 - When the goal is ambiguous, assume the most common scenario and proceed — do not ask the user back.
 
 NODE TAXONOMY
-- categoria: grouping container (e.g. "Resources", "Execution", "Decisions").
+- categoria: grouping container (e.g. "${t().ai.categories.recursos}", "${t().ai.categories.execucao}", "${t().ai.categories.decisoes}").
 - recurso: something that must be available before execution (material, tool, data, access).
 - passo: concrete action in chronological order. Use the 'order' field with an integer.
 - decisao: choice between mutually exclusive paths. Fill 'decisionOptions' with 2 or 3 options.
-- concept: auxiliary conceptual node. Avoid unless necessary.`;
+- concept: auxiliary conceptual node. Avoid unless necessary.
+Fields that do not apply are null: 'order' outside passo, 'decisionOptions' outside decisao, 'ruleConflict' when the node respects every user rule.
+
+CONFIDENCE — use the whole 0-100 scale; it is the chance a user at this level gets the node right on the first try. 90+ only for buying/downloading something standard; 60-80 when it needs care or a new skill; below 50 when beginners usually fail here or it rests on an unverified premise (compatibility, soldering, regulations). Never default every node to 85-95.`;
+}
+
+// Critério de confirmação: UMA checagem observável com limiar.
+const CRITERION_RULES = `
+CONFIRMATION CRITERION (comoConfirmar) — ONE observable check with a pass threshold: what to look at or measure, and which value passes. Max 140 characters, a single condition. If you need two conditions, the node is too big — split it.
+- Good: "Multimeter in continuity mode between BAT+ and BAT−: no beep."
+- Good (understanding): "Re-derive the formula on paper without notes and get the same result."
+- Bad: "Is everything wired correctly, powered and working?" (several conditions, no threshold)`;
+
+// Âncoras: sem pesquisa web, link é proibido (URL de memória não é verificável).
+function groundTruthRules(research: ResearchDigest | null, scope: 'plan' | 'response'): string {
+  const hasSources = !!research && research.sources.length > 0;
+  const linkLine = hasSources
+    ? `- kind="link": ONLY an exact URL from the WEB RESEARCH SOURCES list below — never the same URL twice in one ${scope}.`
+    : `- kind="link": FORBIDDEN — no web search was run, and URLs from memory cannot be verified.`;
+  return `
+GROUND TRUTH (groundTruthHints) — 0 to 2 per node, strongest first, each checkable in the real world:
+- kind="spec": a model / part number, or a specification with unit checkable on a datasheet — e.g. "XT60", "ESP32-WROOM-32", "Phyllostachys aurea, Ø 5-8mm".
+- kind="medida": number + unit + tolerance — e.g. "40cm ± 2cm", "< 15g".
+${linkLine}
+- NEVER an instruction ("test without propellers" is not an anchor). If no natural anchor exists, return an empty array.`;
 }
 
 function criticSystem(): string {
@@ -172,25 +481,37 @@ RULES
 - Respond in ${lang}, dry tone, no performative empathy.
 - No "great point, but". Go straight to what's fragile.
 - DO NOT restate what the plan already says. Your value is finding what it does NOT say.
+- 1 to 3 weaknesses, the most severe first, each under 160 characters.
 - 'criterioAlternativo' MUST be different in form from the original comoConfirmar. If the original asks "is it ready?", yours should measure something external — a number, a proof, a third-party observation.
 - If a user-written criterion exists, treat it as MORE trustworthy than the AI's: your alternative should complement it, not duplicate it.
 - Do not propose solutions. Your output is a diagnosis, not a prescription.`;
 }
 
-const TUTOR_GUIDANCE_TEMPLATE = `
+// Template do tutor com cabeçalhos no idioma do usuário. Sem critério travado,
+// a explicação NÃO sugere como verificar — o usuário escreve o dele primeiro.
+function tutorGuidance(criterionLocked: boolean): string {
+  const h = t().ai.tutorHeaders;
+  const headers = [h.what, h.why, h.how, h.pitfalls, ...(criterionLocked ? [h.verify] : [])]
+    .map((x) => `**${x}**`)
+    .join(', ');
+  const closing = criterionLocked
+    ? `- Finish with **${h.verify}**: how to check the user's criterion in practice (what to measure, which value passes).`
+    : `- Do NOT write a verification/confirmation section or propose how to confirm this node — the user writes their own criterion first.`;
+  return `
 
 YOU ARE IN TUTOR MODE
 Your output is a MARKDOWN EXPLANATION, not JSON. Senior-engineer depth, explaining to someone who has never done this but is capable of learning.
 
 STRUCTURE
-- Section titles in **UPPERCASE BOLD** (e.g. **WHAT IT IS**, **WHY IT MATTERS**, **HOW TO DO IT**, **PITFALLS**, **HOW TO VERIFY**).
+- Section titles in **UPPERCASE BOLD**, exactly these, in this order: ${headers}.
 - Bullet lists with dashes. Short sentences.
 - When there are variants or trade-offs, list each one with the name in **bold** followed by a description.
-- Give real numbers (voltages, sizes, commands, known URLs). No "depends on the case".
+- Give real numbers (voltages, sizes, commands). No "depends on the case".
 - Call out common errors ("pitfalls") and how to diagnose.
-- Finish with a concrete verification criterion.
+${closing}
 
 DO NOT include introductory filler like "of course, I will explain" — go straight to the content.`;
+}
 
 // Adendo quando a célula tem pesquisa web salva: o tutor recebe o bloco WEB
 // RESEARCH no prompt e deve fundamentar números/comandos/URLs nele.
@@ -198,38 +519,103 @@ const TUTOR_RESEARCH_ADDON = `
 
 A WEB RESEARCH block with REAL, current facts and sources is included in the user prompt — it came from an actual web search about this node. Ground your numbers, versions, prices and commands in it. When you use a fact from it, cite the source inline as a markdown link [site](url). Never cite a URL outside that block's SOURCES list.`;
 
+const TUTOR_NO_LINKS_ADDON = `
+
+There is no web research for this node: do not cite URLs from memory.`;
+
 // ---------------------------------------------------------------------------
-// Helpers
+// Helpers — normalização da saída do modelo
 // ---------------------------------------------------------------------------
 
-function materializeNode(raw: RawSuggestedNode, idMap: Map<string, string>): AISuggestedNode {
+const MAX_HINTS_PER_NODE = 2;
+
+// Política de âncoras de UM plano/resposta: links só da pesquisa e sem
+// repetir URL.
+interface AnchorPolicy {
+  allowedUrls: Set<string> | null; // null = sem pesquisa → link proibido
+  seenUrls: Set<string>;
+}
+
+function normalizeUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw.trim());
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    u.hash = '';
+    return u.toString().replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+
+function anchorPolicy(research: ResearchDigest | null | undefined): AnchorPolicy {
+  const sources = research?.sources ?? [];
+  const allowed = sources.map((s) => normalizeUrl(s.url)).filter((u): u is string => !!u);
+  return { allowedUrls: allowed.length > 0 ? new Set(allowed) : null, seenUrls: new Set() };
+}
+
+function sanitizeHints(
+  raw: RawSuggestedNode['groundTruthHints'] | null | undefined,
+  policy: AnchorPolicy,
+): AISuggestedGroundTruthHint[] | undefined {
+  if (!raw) return undefined;
+  const out: AISuggestedGroundTruthHint[] = [];
+  const seenValues = new Set<string>();
+  for (const h of raw) {
+    if (out.length >= MAX_HINTS_PER_NODE) break;
+    const label = h.label?.trim() ?? '';
+    let value = h.value?.trim() ?? '';
+    if (!value) continue;
+    if (h.kind === 'link') {
+      const url = normalizeUrl(value);
+      if (!url || !policy.allowedUrls || !policy.allowedUrls.has(url) || policy.seenUrls.has(url)) continue;
+      policy.seenUrls.add(url);
+      value = url;
+    }
+    const key = `${h.kind}:${value.toLowerCase()}`;
+    if (seenValues.has(key)) continue;
+    seenValues.add(key);
+    out.push({ kind: h.kind, label: label || value, value });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+function materializeNode(
+  raw: RawSuggestedNode,
+  idMap: Map<string, string>,
+  policy: AnchorPolicy,
+): AISuggestedNodeOut {
   const realTempId = idMap.get(raw.tempId) ?? nanoid(6);
   idMap.set(raw.tempId, realTempId);
+  const ruleConflict = raw.ruleConflict?.trim() || undefined;
+  const options = raw.decisionOptions ?? null;
+  const decisionOptions: DecisionOption[] | undefined =
+    options && options.length > 0
+      ? options.map((o) => ({
+          id: nanoid(6),
+          label: o.label,
+          pitch: o.pitch,
+          consequences: o.consequences ?? undefined,
+        }))
+      : undefined;
   return {
     tempId: realTempId,
     kind: raw.kind,
     name: raw.name,
     fx: raw.fx,
-    problem: raw.problem,
-    confidence: clamp(Math.round(raw.confidence), 0, 100),
+    // problem/pros/cons saíram do schema (nunca renderizados); o conflito
+    // com regra é espelhado em cons para continuar persistido pelo store.
+    problem: '',
+    confidence: clamp(Math.round(Number.isFinite(raw.confidence) ? raw.confidence : 50), 0, 100),
     confidenceReason: raw.confidenceReason,
-    pros: raw.pros ?? [],
-    cons: raw.cons ?? [],
+    pros: [],
+    cons: ruleConflict ? [ruleConflict] : [],
+    ruleConflict,
     oQue: raw.oQue,
     porQue: raw.porQue,
     comoConfirmar: raw.comoConfirmar,
-    order: raw.order,
-    decisionOptions: raw.decisionOptions?.map((o) => ({
-      id: nanoid(6),
-      label: o.label,
-      pitch: o.pitch,
-      consequences: o.consequences,
-    })),
-    groundTruthHints: raw.groundTruthHints?.map((h) => ({
-      kind: h.kind,
-      label: h.label,
-      value: h.value,
-    })),
+    order: raw.order == null ? undefined : Math.round(raw.order),
+    decisionOptions,
+    groundTruthHints: sanitizeHints(raw.groundTruthHints, policy),
   };
 }
 
@@ -241,51 +627,42 @@ function materializeEdge(raw: RawSuggestedEdge, idMap: Map<string, string>): AIS
     sourceTempId: source,
     targetTempId: target,
     kind: raw.kind,
-    note: raw.note,
+    note: raw.note ?? undefined,
   };
+}
+
+function materializeSuggestions(
+  object: { nodes: RawSuggestedNode[]; edges: RawSuggestedEdge[] },
+  research: ResearchDigest | null,
+): AISuggestionsResult {
+  const idMap = new Map<string, string>();
+  const policy = anchorPolicy(research);
+  const nodes = object.nodes.map((n) => materializeNode(n, idMap, policy));
+  const edges = object.edges
+    .map((e) => materializeEdge(e, idMap))
+    .filter((e): e is AISuggestedEdge => e !== null);
+  return { nodes, edges };
 }
 
 function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
 }
 
-// APICallError costuma vir com message genérica ("Provider returned error") e
-// o motivo real enterrado no responseBody. Puxa o detalhe pra mensagem que a
-// UI exibe — sem isso o usuário vê um erro opaco (ou pior, nada).
-function readableAIError(err: unknown): Error {
-  if (!(err instanceof Error)) return new Error(String(err));
-  const body = (err as Error & { responseBody?: unknown }).responseBody;
-  if (typeof body !== 'string' || body.length === 0) return err;
-  let detail = body;
-  try {
-    const parsed = JSON.parse(body) as {
-      error?: { message?: string; metadata?: { raw?: string } };
-    };
-    detail = parsed.error?.metadata?.raw ?? parsed.error?.message ?? body;
-  } catch {
-    // corpo não-JSON — usa cru
-  }
-  const friendly = new Error(`${err.message} — ${detail.slice(0, 500)}`);
-  friendly.name = err.name;
-  return friendly;
-}
-
 // Pesquisa web opcional antes de um fluxo estruturado. Falha de pesquisa nunca
-// derruba a geração — degrada para o fluxo sem pesquisa.
-async function maybeResearch(topic: string, focus?: string): Promise<ResearchDigest | null> {
+// derruba a geração — degrada para o fluxo sem pesquisa. Abort propaga.
+async function maybeResearch(
+  topic: string,
+  focus: string | undefined,
+  signal?: AbortSignal,
+): Promise<ResearchDigest | null> {
   if (!isWebResearchOn()) return null;
   try {
-    return await runResearch(topic, focus);
+    return await raceAbort(runResearch(topic, focus, { signal }), signal);
   } catch (err) {
+    if (signal?.aborted) throw err;
     console.warn('[cellproject] web research failed — continuing without it', err);
     return null;
   }
-}
-
-// Quando há pesquisa, os links reais dela podem (e devem) virar âncoras.
-function researchAnchorDirective(research: ResearchDigest | null): string {
-  if (!research || research.sources.length === 0) return '';
-  return `\nWhen a node has a natural link anchor, use one of the WEB RESEARCH source URLs as a groundTruthHint (kind="link", value = the exact URL from the SOURCES list).`;
 }
 
 function formatBreadcrumb(crumbs: string[]) {
@@ -310,7 +687,7 @@ ${list}
 These are non-negotiable boundaries, not preferences. Treat them as a design challenge: the best solution is the one that WINS INSIDE them.
 - EVERY node you propose must comply with EVERY rule. Make compliance concrete and verifiable (real numbers, prices, sources, dates) — never optimistic hand-waving.
 - Quantitative rules (budget, weight, deadline, size): allocate explicitly across resources/steps — state the estimated cost/measure in each node's oQue and add a groundTruthHint (kind="medida") so the user can check it in the real world — and keep the running TOTAL inside the rule with safety margin.
-- If part of the goal cannot fit a rule, do NOT silently violate it: surface the conflict in that node's cons and propose the closest compliant alternative.`;
+- If part of the goal cannot fit a rule, do NOT silently violate it: put the conflict in that node's 'ruleConflict' (one concrete sentence with the number) and propose the closest compliant alternative.`;
 }
 
 // Builds the KNOWLEDGE BASE block injected at the start of user prompts.
@@ -334,7 +711,7 @@ ${blocks.join('\n\n')}\n\n`;
 }
 
 // ---------------------------------------------------------------------------
-// generatePlans — generates 1 to 3 alternative plans for the objective
+// generatePlans — generates 3 alternative plans for the objective
 // ---------------------------------------------------------------------------
 
 // Compact summary of plans already shown — sent back to the model when the
@@ -346,30 +723,170 @@ export interface ExistingPlanSummary {
   rank: number;
 }
 
+export interface GeneratePlansOptions extends AICallOptions {
+  // Teto da geração inteira (pesquisa + planos). Padrão: 240s.
+  timeoutMs?: number;
+}
+
+// Sem nenhum pedaço do JSON após este tempo, a UI passa a mostrar "pensando".
+const THINKING_AFTER_MS = 1_200;
+
+// `kbContext` pode chegar como Promise: a seleção de docs da base (outra
+// chamada de IA) roda em paralelo com a pesquisa web.
 export async function generatePlans(
   objective: string,
   onProgress?: PlanProgressCallback,
-  kbContext?: KBContextEntry[],
+  kbContext?: KBContextEntry[] | Promise<KBContextEntry[] | undefined>,
   rules?: string[],
   existingPlans?: ExistingPlanSummary[],
-): Promise<AIPlan[]> {
-  assertAIReady();
+  opts?: GeneratePlansOptions,
+): Promise<AIPlanOut[]> {
+  const startedAt = Date.now();
+  const elapsed = () => Date.now() - startedAt;
+  const signal = anySignal([opts?.signal, timeoutSignal(opts?.timeoutMs ?? PLANS_TIMEOUT_MS)]);
 
-  const startedAt = performance.now();
-  const elapsed = () => Math.round(performance.now() - startedAt);
-
-  // Pesquisa real ANTES de planejar: fatos atuais (preços, specs, docs) entram
-  // no prompt e as URLs reais viram candidatas a âncora kind="link".
   let research: ResearchDigest | null = null;
-  if (isWebResearchOn()) {
-    onProgress?.({ phase: 'researching', chunkCount: 0, elapsedMs: elapsed() });
-    research = await maybeResearch(
-      objective,
-      rules && rules.length > 0
-        ? `Verify feasibility against these hard constraints: ${rules.join(' · ')}`
-        : undefined,
-    );
+  let chunkCount = 0;
+  let lastPartial: DeepPartial<PlansResponse> | undefined;
+  let thinkingTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const emit = (phase: PlanProgressPhase, extra?: Partial<PlanProgressEvent>) =>
+    onProgress?.({
+      phase,
+      partial: lastPartial,
+      chunkCount,
+      elapsedMs: elapsed(),
+      startedAt,
+      research: research ?? undefined,
+      ...extra,
+    });
+
+  try {
+    assertAIReady();
+
+    // Pesquisa real ANTES de planejar (em paralelo com a seleção da base):
+    // fatos atuais (preços, specs, docs) entram no prompt e as URLs reais
+    // viram as únicas âncoras kind="link" permitidas.
+    let kb: KBContextEntry[] | undefined;
+    if (isWebResearchOn()) {
+      emit('researching');
+      const [kbResolved, digest] = await Promise.all([
+        raceAbort(Promise.resolve(kbContext), signal),
+        maybeResearch(
+          objective,
+          rules && rules.length > 0
+            ? `Verify feasibility against these hard constraints: ${rules.join(' · ')}`
+            : undefined,
+          signal,
+        ),
+      ]);
+      kb = kbResolved;
+      research = digest;
+    } else {
+      kb = await raceAbort(Promise.resolve(kbContext), signal);
+    }
+
+    const userPrompt = buildPlansPrompt(objective, rules, kb, existingPlans, research);
+
+    emit('connecting');
+    thinkingTimer = setTimeout(() => {
+      if (chunkCount === 0 && !signal?.aborted) emit('thinking');
+    }, THINKING_AFTER_MS);
+
+    // Erros do stream NÃO aparecem no partialObjectStream (ele só termina) e
+    // `result.object` PENDURA para sempre em cima de erro de API — sem este
+    // onError a UI congelava em "validando". Capturamos e lançamos nós mesmos.
+    let streamError: unknown = null;
+    const result = streamObject({
+      model: aiModel,
+      schema: PlansResponseSchema,
+      schemaName: 'PlansResponse',
+      system: baseSystem(),
+      prompt: userPrompt,
+      ...callOpts('plans', 0.6),
+      abortSignal: signal,
+      onError: (ev) => {
+        streamError = ev.error;
+      },    });
+
+    const it = result.partialObjectStream[Symbol.asyncIterator]();
+    for (;;) {
+      const next = await raceAbort(it.next(), signal);
+      if (next.done) break;
+      if (chunkCount === 0) clearTimeout(thinkingTimer);
+      chunkCount += 1;
+      lastPartial = next.value as DeepPartial<PlansResponse>;
+      emit('streaming');
+    }
+
+    if (signal?.aborted) throw signal.reason;
+    if (streamError) throw streamError;
+
+    emit('finalizing');
+
+    const finalObject = await raceAbort(result.object, signal);
+    const hydrated = finalObject.plans.map((p) => hydratePlan(p, research));
+    // O schema não impõe min(3) (Gemini rejeita) — defende aqui.
+    if (hydrated.length === 0) {
+      throw new AIError({ kind: 'schema', title: t().notify.noPlansReturned, hint: t().ai.errors.outputHint });
+    }
+
+    emit('done');
+    return hydrated;
+  } catch (err) {
+    // Recuperação parcial: o JSON final não fechou (truncado, campo faltando),
+    // mas os planos que chegaram completos no stream valem o que custaram.
+    if (!signal?.aborted && isOutputError(err)) {
+      const recovered = recoverPlans(lastPartial, research);
+      if (recovered.plans.length > 0) {
+        const warning =
+          recovered.dropped > 0 ? t().ai.errors.partialPlans(recovered.dropped) : undefined;
+        emit('done', { warning });
+        return recovered.plans;
+      }
+    }
+    const friendly = toAIError(err, signal);
+    emit('error', { error: friendly.message, errorInfo: friendly.info });
+    throw friendly;
+  } finally {
+    clearTimeout(thinkingTimer);
   }
+}
+
+function isOutputError(err: unknown): boolean {
+  return (
+    NoObjectGeneratedError.isInstance(err) ||
+    TypeValidationError.isInstance(err) ||
+    JSONParseError.isInstance(err)
+  );
+}
+
+// Valida cada plano parcial isoladamente e hidrata os que passam no schema.
+function recoverPlans(
+  partial: DeepPartial<PlansResponse> | undefined,
+  research: ResearchDigest | null,
+): { plans: AIPlanOut[]; dropped: number } {
+  const items = partial?.plans ?? [];
+  const plans: AIPlanOut[] = [];
+  for (const item of items) {
+    const parsed = PlanSchema.safeParse(item);
+    if (parsed.success) plans.push(hydratePlan(parsed.data, research));
+  }
+  // Conta como descartado só o que começou a chegar (tem título).
+  const started = items.filter((p) => !!p?.title).length;
+  return { plans, dropped: Math.max(0, started - plans.length) };
+}
+
+function buildPlansPrompt(
+  objective: string,
+  rules: string[] | undefined,
+  kb: KBContextEntry[] | undefined,
+  existingPlans: ExistingPlanSummary[] | undefined,
+  research: ResearchDigest | null,
+): string {
+  const hasRules = !!rules && rules.length > 0;
+  const cat = t().ai.categories;
+  const currency = currentLocale() === 'pt-BR' ? 'BRL (R$)' : 'USD ($)';
 
   const hasExisting = !!existingPlans && existingPlans.length > 0;
   const existingBlock = hasExisting
@@ -383,12 +900,12 @@ ${existingPlans!
 The user asked for MORE alternatives. Generate EXACTLY 3 NEW plans with angles clearly different from the above — e.g. cheapest possible, fastest to finish, most robust/professional, most unconventional/creative, most educational. Repeating a 'strategy' enum is fine when the ANGLE is new; never repeat an approach. Keep the SAME archetype as the plans above. Rank each new plan relative to ALL plans including the ones above (rank 1 = better than the current #1; otherwise continue the scale).`
     : '';
 
-  const userPrompt = `USER GOAL:
+  return `USER GOAL:
 """
 ${objective.trim()}
 """
 ${formatRules(rules)}
-${formatKBContext(kbContext)}
+${formatKBContext(kb)}
 
 TASK
 First, classify the goal's ARCHETYPE and tag EVERY plan with it (all plans share the same archetype):
@@ -398,154 +915,51 @@ First, classify the goal's ARCHETYPE and tag EVERY plan with it (all plans share
 Then generate EXACTLY 3 plans with clearly DIFFERENT styles, each tagged with a 'strategy':
 - For "construir": one plan per strategy — "reaproveitar" (reuse/adapt what already exists — the recommended default) · "hibrido" · "do_zero" (build from scratch). If a user rule genuinely forbids one strategy, still deliver 3 plans by varying the angle inside the allowed strategies (cheapest / fastest / most robust) and say so in the approach.
 - For "entender": "reaproveitar" (lean on existing explanations — books, courses, worked derivations) · "do_zero" (derive it yourself from first principles) · "hibrido" (mix). Use the SAME enum values.
-The user picks the style by choosing a plan, so each 'approach' must state clearly HOW (reuse-vs-build, or read-vs-derive).${rules && rules.length > 0 ? `\nWhen USER RULES exist, every plan's 'approach' must state explicitly HOW it satisfies each rule (e.g. a budget rule → a rough cost breakdown that closes under the cap).` : ''}
+The user picks the style by choosing a plan, so each 'approach' must state clearly HOW (reuse-vs-build, or read-vs-derive).${hasRules ? `\nWhen USER RULES exist, every plan's 'approach' must state explicitly HOW it satisfies each rule (e.g. a budget rule → a rough cost breakdown that closes under the cap).` : ''}
 
-RANKING — rank the plans for THIS goal${rules && rules.length > 0 ? ' AND its rules' : ''}:
+RANKING — rank the plans for THIS goal${hasRules ? ' AND its rules' : ''}:
 - 'rank': 1 = your single best recommendation, 2 = runner-up, 3 = third. No ties.
 - 'rankReason': ONE concrete sentence naming the tradeoff that earned the position (cost, time, risk, robustness, learning value). No marketing speak.${existingBlock}
 
-Shape the tree by archetype (2 or 3 categories):
-- "construir": "Recursos" (kind "recursos") · "Execução" (kind "execucao", sequential passos with 'order' from 1) · "Decisões" (kind "decisoes") ONLY on a real trade-off — its children include 'decisionOptions' (2 or 3).
-- "entender": "Fundamentos" (kind "recursos" — concepts/prerequisites to grasp first; children kind="concept") · "Derivação" (kind "execucao" — the ordered chain of reasoning; use kind="concept" for ideas/definitions/premises and kind="passo" with 'order' only for genuinely sequential derivation steps) · optional "Abordagens" (kind "decisoes") only on a real choice of approach.
+COMPARISON FIELDS — so the user can compare plans side by side:
+- 'estimates.custo': realistic total cost range in ${currency} (e.g. "R$ 900–1.300"); for "entender", the cost of books/courses or "R$ 0".
+- 'estimates.tempo': realistic total time to the tested result (e.g. "2 weekends", "~10 h").
+- 'estimates.dificuldade': "iniciante" | "intermediario" | "avancado".
+- 'rulesCheck': ${hasRules ? 'ONE entry per USER RULE, in the same order, copying the rule text. Be honest: "viola" when the plan does not fit, "risco" when it fits only at the limit or on an unverified premise.' : 'empty array (the user set no rules).'}
+
+Shape the tree by archetype (2 or 3 categories, names in the response language):
+- "construir": "${cat.recursos}" (kind "recursos") · "${cat.execucao}" (kind "execucao", sequential passos with 'order' from 1) · "${cat.decisoes}" (kind "decisoes") ONLY on a real trade-off — its children include 'decisionOptions' (2 or 3).
+- "entender": "${cat.fundamentos}" (kind "recursos" — concepts/prerequisites to grasp first; children kind="concept") · "${cat.derivacao}" (kind "execucao" — the ordered chain of reasoning; use kind="concept" for ideas/definitions/premises and kind="passo" with 'order' only for genuinely sequential derivation steps) · optional "${cat.abordagens}" (kind "decisoes") only on a real choice of approach.
 
 COMPLETENESS CHECK — run this on EVERY plan before returning:
 1. Walk the finished thing working end to end and list every subsystem it needs to FUNCTION. For "construir" with electronics that includes: structure, motors/actuators, control board, power (battery + charger), command path (transmitter/receiver or app), wiring/soldering supplies, software/firmware. For "entender": every load-bearing concept the conclusion rests on.
-2. "Recursos" must contain ONE node per subsystem (typically 5 to 8 nodes) — not just the 2 or 3 most obvious. Missing the control board, the battery or the receiver invalidates the plan.
-3. "Execução" must go from loose parts to a WORKING TESTED result (typically 5 to 8 passos), explicitly including the connection step (what gets soldered/plugged where), the configuration/calibration step (what gets flashed/set), and a final functional test. Never compress these into "assemble everything".
+2. The resources category must contain ONE node per subsystem — typically 4 to 6 nodes; group small related items (screws, zip ties, heat-shrink) into one node instead of dropping them. Missing the control board, the battery or the receiver invalidates the plan.
+3. The execution category must go from loose parts to a WORKING TESTED result (typically 4 to 6 passos), explicitly including the connection step (what gets soldered/plugged where), the configuration/calibration step (what gets flashed/set), and a final functional test. Never compress these into "assemble everything".
 
-For each child node fill oQue / porQue / comoConfirmar with concrete didactic content. For "construir", comoConfirmar is a yes/no question about having or finishing the thing; for "entender", it is how the user would know they TRULY understand — "can you re-derive it yourself?", "does the proof close?", "can you explain it without the source?".
+For each child node fill oQue / porQue / comoConfirmar with concrete didactic content in plain words.
 
-GROUND TRUTH: when a node has any anchor verifiable in the real world, fill 'groundTruthHints'. Prefer concrete specifications over generic descriptions. Examples:
-- resource "bamboo": hint with kind="spec" value="Phyllostachys aurea, 40cm ± 2cm, Ø 5-8mm"
-- step "tie return knot": hint with kind="link" value="URL of a known tutorial"
-- any measurement: kind="medida" value="weight < 15g" (always with unit and tolerance when applicable).
-If no natural anchor exists, omit the field — DO NOT invent links.${researchAnchorDirective(research)}
+BREVITY — the user compares 3 plans side by side and every node is a small card, not an essay. Detail comes later, on demand (tutor mode). Hard limits:
+- 4 to 6 nodes per category, never more than 6 — group related items instead of listing them one by one.
+- oQue ≤ 220 characters, porQue ≤ 140, confidenceReason ≤ 80, fx ≤ 80, approach ≤ 400.
+- Category oQue / porQue: one short sentence each.
+- groundTruthHints only when a natural anchor exists — most nodes need 0 or 1.
+${CRITERION_RULES}
+${groundTruthRules(research, 'plan')}
 
 Use short unique tempIds within the plan (e.g. "p1", "r1", "cat1"). Do not generate edges here.${formatResearchBlock(research)}`;
-
-  onProgress?.({
-    phase: 'connecting',
-    chunkCount: 0,
-    elapsedMs: elapsed(),
-    research: research ?? undefined,
-  });
-
-  // Erros do stream NÃO aparecem no partialObjectStream (ele só termina) e
-  // `result.object` PENDURA para sempre em cima de erro de API — sem este
-  // onError a UI congelava em "validando". Capturamos e lançamos nós mesmos.
-  let streamError: unknown = null;
-  const result = streamObject({
-    model: aiModel,
-    schema: PlansResponseSchema,
-    schemaName: 'PlansResponse',
-    system: baseSystem(),
-    prompt: userPrompt,
-    temperature: 0.6,
-    onError: (ev) => {
-      streamError = ev.error;
-    },
-  });
-
-  let chunkCount = 0;
-  let lastPartial: DeepPartial<PlansResponse> | undefined;
-
-  try {
-    for await (const partial of result.partialObjectStream) {
-      chunkCount += 1;
-      lastPartial = partial as DeepPartial<PlansResponse>;
-      onProgress?.({
-        phase: 'streaming',
-        partial: lastPartial,
-        chunkCount,
-        elapsedMs: elapsed(),
-        research: research ?? undefined,
-      });
-    }
-
-    if (streamError) throw streamError;
-
-    onProgress?.({
-      phase: 'finalizing',
-      partial: lastPartial,
-      chunkCount,
-      elapsedMs: elapsed(),
-      research: research ?? undefined,
-    });
-
-    const finalObject = await result.object;
-    const providerMetadata = await result.providerMetadata;
-    const reasoning = extractReasoning(providerMetadata);
-
-    const hydrated = finalObject.plans.map(hydratePlan);
-    // O schema não impõe mais min(3) (Gemini rejeita) — defende aqui.
-    if (hydrated.length === 0) throw new Error(t().notify.noPlansReturned);
-
-    onProgress?.({
-      phase: 'done',
-      partial: lastPartial,
-      reasoning,
-      chunkCount,
-      elapsedMs: elapsed(),
-      research: research ?? undefined,
-    });
-
-    return hydrated;
-  } catch (err) {
-    const friendly = readableAIError(err);
-    onProgress?.({
-      phase: 'error',
-      partial: lastPartial,
-      chunkCount,
-      elapsedMs: elapsed(),
-      error: friendly.message,
-      research: research ?? undefined,
-    });
-    throw friendly;
-  }
 }
 
-// OpenRouter exposes reasoning under providerMetadata.openrouter.reasoning
-// (or similar keys depending on the provider version). Tries a few known
-// paths and returns a single string, or undefined when the provider did not
-// emit reasoning.
-function extractReasoning(meta: unknown): string | undefined {
-  if (!meta || typeof meta !== 'object') return undefined;
-  const root = meta as Record<string, unknown>;
-  const candidates = [
-    root.openrouter,
-    root['openrouter-chat'],
-    root.anthropic,
-    root.openai,
-    root.reasoning,
-  ].filter(Boolean);
-
-  for (const c of candidates) {
-    if (typeof c === 'string' && c.trim()) return c;
-    if (c && typeof c === 'object') {
-      const obj = c as Record<string, unknown>;
-      const r = obj.reasoning ?? obj.reasoningText ?? obj.reasoning_text;
-      if (typeof r === 'string' && r.trim()) return r;
-      if (Array.isArray(r)) {
-        const joined = r
-          .map((x) => (typeof x === 'string' ? x : typeof x === 'object' && x && 'text' in x ? (x as { text?: unknown }).text : ''))
-          .filter((s): s is string => typeof s === 'string' && s.length > 0)
-          .join('\n');
-        if (joined) return joined;
-      }
-    }
-  }
-  return undefined;
-}
-
-function hydratePlan(raw: RawPlan): AIPlan {
+function hydratePlan(raw: RawPlan, research: ResearchDigest | null): AIPlanOut {
   const idMap = new Map<string, string>();
+  // Uma política por plano: a mesma URL não se repete dentro do plano.
+  const policy = anchorPolicy(research);
   const categorias: AIPlanCategory[] = raw.tree.categorias.map((cat) => ({
     tempId: nanoid(6),
     name: cat.name,
     kind: cat.kind,
     oQue: cat.oQue,
     porQue: cat.porQue,
-    children: cat.children.map((c) => materializeNode(c, idMap)),
+    children: cat.children.map((c) => materializeNode(c, idMap, policy)),
   }));
 
   return {
@@ -557,6 +971,14 @@ function hydratePlan(raw: RawPlan): AIPlan {
     archetype: raw.archetype,
     rank: clamp(Math.round(raw.rank), 1, 99),
     rankReason: raw.rankReason,
+    estimates: raw.estimates
+      ? {
+          custo: raw.estimates.custo,
+          tempo: raw.estimates.tempo,
+          dificuldade: raw.estimates.dificuldade,
+        }
+      : undefined,
+    rulesCheck: raw.rulesCheck?.map((r) => ({ rule: r.rule, status: r.status, nota: r.nota })),
     tree: { categorias },
   };
 }
@@ -565,17 +987,46 @@ function hydratePlan(raw: RawPlan): AIPlan {
 // decomposeNode — break an existing node into children + edges
 // ---------------------------------------------------------------------------
 
+const MAX_KNOWN_ELSEWHERE = 15;
+
+// Bloco com o conteúdo do nó + o que o usuário já domina. O critério do
+// usuário (quando travado) manda sobre o da IA.
+function nodeContentBlock(ctx: DecomposeContext): string {
+  const criterion = ctx.comoConfirmarUsuario?.trim() || ctx.comoConfirmar?.trim();
+  const lines = [
+    ctx.oQue?.trim() ? `- What it is: ${ctx.oQue.trim()}` : '',
+    ctx.porQue?.trim() ? `- Why it matters: ${ctx.porQue.trim()}` : '',
+    criterion
+      ? `- Done when${ctx.comoConfirmarUsuario?.trim() ? " (the user's own criterion)" : ''}: ${criterion} — together, the children's checks must imply this.`
+      : '',
+  ].filter(Boolean);
+  const content = lines.length
+    ? `\n\nNODE CONTENT (children cover exactly this — no more, no less)\n${lines.join('\n')}`
+    : '';
+  const known = (ctx.knownElsewhere ?? [])
+    .map((k) => k.trim())
+    .filter(Boolean)
+    .slice(0, MAX_KNOWN_ELSEWHERE);
+  const knownBlock = known.length
+    ? `\n\nUSER ALREADY KNOWS / HAS DONE (never re-teach these; reference them as given)\n${known.map((k) => `- ${k}`).join('\n')}`
+    : '';
+  return content + knownBlock;
+}
+
 // Decompose não dispara busca própria (é o caminho quente do fluxo), mas se a
 // célula já tem pesquisa salva o digest entra como contexto — de graça.
 export async function decomposeNode(
   ctx: DecomposeContext,
   kbContext?: KBContextEntry[],
-): Promise<{ nodes: AISuggestedNode[]; edges: AISuggestedEdge[] }> {
-  assertAIReady();
+  opts?: AICallOptions,
+): Promise<AISuggestionsResult> {
+  const signal = opts?.signal;
+  try {
+    assertAIReady();
+    const research = ctx.research ?? null;
+    const guidance = decomposeGuidance(ctx.nodeKind, ctx.nodeName, ctx.strategy, ctx.archetype, ctx.categoryKind);
 
-  const guidance = decomposeGuidance(ctx.nodeKind, ctx.nodeName, ctx.strategy, ctx.archetype);
-
-  const userPrompt = `PROJECT CONTEXT
+    const userPrompt = `PROJECT CONTEXT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
 - Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${archetypeDirective(ctx.archetype)}${strategyDirective(ctx.strategy)}${formatRules(ctx.rules)}
@@ -583,32 +1034,35 @@ export async function decomposeNode(
 NODE TO DECOMPOSE
 - Name: ${ctx.nodeName}
 - Kind: ${ctx.nodeKind}
-- Function (fx): ${ctx.nodeFx}
+- Function (fx): ${ctx.nodeFx}${nodeContentBlock(ctx)}
 
 EXISTING SIBLINGS (do not repeat)
 ${formatSiblings(ctx.siblings)}
 ${formatKBContext(kbContext)}
 TASK
-${guidance}${researchAnchorDirective(ctx.research ?? null)}
+${guidance}
+${CRITERION_RULES}
+${groundTruthRules(research, 'response')}
 
-Use short unique tempIds (e.g. "a", "b", "c"). If there is order or dependency between the new nodes, create 'direct' edges between them.${formatResearchBlock(ctx.research)}`;
+Use short unique tempIds (e.g. "a", "b", "c"). If there is order or dependency between the new nodes, create 'direct' edges between them.${formatResearchBlock(research)}`;
 
-  const { object } = await generateObject({
-    model: aiModel,
-    schema: DecomposeResponseSchema,
-    schemaName: 'DecomposeResponse',
-    system: baseSystem(),
-    prompt: userPrompt,
-    temperature: 0.5,
-  });
+    const { object } = await raceAbort(
+      generateObject({
+        model: aiModel,
+        schema: DecomposeResponseSchema,
+        schemaName: 'DecomposeResponse',
+        system: baseSystem(),
+        prompt: userPrompt,
+        ...callOpts('decompose', 0.5),
+        abortSignal: signal,
+      }),
+      signal,
+    );
 
-  const idMap = new Map<string, string>();
-  const nodes = object.nodes.map((n) => materializeNode(n, idMap));
-  const edges = object.edges
-    .map((e) => materializeEdge(e, idMap))
-    .filter((e): e is AISuggestedEdge => e !== null);
-
-  return { nodes, edges };
+    return materializeSuggestions(object, research);
+  } catch (err) {
+    throw toAIError(err, signal);
+  }
 }
 
 // Per-project construction strategy chosen by the user at plan selection.
@@ -630,9 +1084,18 @@ function strategyDirective(strategy?: ConstructionStrategy): string {
 // project — conditions decomposition vocabulary.
 function archetypeDirective(archetype?: ProjectArchetype): string {
   if (archetype === 'entender') {
-    return `\nARCHETYPE: UNDERSTAND. The goal is to understand WHY/HOW by decomposing toward first principles. Break this node into the sub-CONCEPTS, definitions, premises and (only when truly sequential) derivation steps one must grasp to understand it — ask "what must one understand BEFORE this?". Prefer kind="concept" for ideas/definitions/premises; use kind="passo" only for ordered derivation steps. If a child is a foundational primitive/axiom (taken as given, not derived), make that explicit in its name so the user can mark it as a floor. comoConfirmar = "can you re-derive / explain this yourself?", never "did you build it".`;
+    return `\nARCHETYPE: UNDERSTAND. The goal is to understand WHY/HOW by decomposing toward first principles. Break this node into the sub-CONCEPTS, definitions, premises and (only when truly sequential) derivation steps one must grasp to understand it — ask "what must one understand BEFORE this?". Prefer kind="concept" for ideas/definitions/premises; use kind="passo" only for ordered derivation steps. If a child is a foundational primitive/axiom (taken as given, not derived), make that explicit in its name so the user can mark it as a floor. comoConfirmar = a self-test with a pass bar ("re-derive it on paper without notes"), never "did you build it".`;
   }
   return '';
+}
+
+// Kind da categoria: o persistido manda; regex no nome é só fallback pra
+// projetos antigos que não guardam o kind.
+function inferCategoryKind(name: string): AIPlanCategory['kind'] | undefined {
+  if (/execu|fluxo|passo|step|flow|deriva/i.test(name)) return 'execucao';
+  if (/recurs|material|ferrament|tool|resource|fundament|foundation/i.test(name)) return 'recursos';
+  if (/decis|decision|abordag|approach/i.test(name)) return 'decisoes';
+  return undefined;
 }
 
 function decomposeGuidance(
@@ -640,6 +1103,7 @@ function decomposeGuidance(
   name: string,
   strategy?: ConstructionStrategy,
   archetype?: ProjectArchetype,
+  categoryKind?: AIPlanCategory['kind'],
 ): string {
   if (archetype === 'entender') {
     if (kind === 'categoria') {
@@ -649,13 +1113,15 @@ function decomposeGuidance(
   }
   const fromScratch = strategy === 'do_zero';
   if (kind === 'categoria') {
-    const isExec = /execu|fluxo|passo|step|flow/i.test(name);
-    const isRec = /recurs|material|ferrament|tool|resource/i.test(name);
-    if (isExec) {
+    const catKind = categoryKind ?? inferCategoryKind(name);
+    if (catKind === 'execucao') {
       return `This is an Execution category. Generate 3 to 6 sequential steps (kind="passo") with increasing 'order'. Connect them with 'direct' edges from step N to step N+1.`;
     }
-    if (isRec) {
-      return `This is a Resources category. Generate 3 to 8 concrete, specific resources (kind="recurso"). Edges are not required.`;
+    if (catKind === 'recursos') {
+      return `This is a Resources category. Generate 3 to 6 concrete, specific resources (kind="recurso"). Edges are not required.`;
+    }
+    if (catKind === 'decisoes') {
+      return `This is a Decisions category. Generate 1 to 3 real trade-offs (kind="decisao"), each with 2 or 3 'decisionOptions'.`;
     }
     return `Generate 3 to 6 children appropriate for this category. Do not repeat the siblings.`;
   }
@@ -680,13 +1146,28 @@ function decomposeGuidance(
 // explainNode — generates a long markdown explanation for tutor mode
 // ---------------------------------------------------------------------------
 
-export async function explainNode(ctx: ExplainContext): Promise<string> {
-  assertAIReady();
+export interface ExplainOptions extends AICallOptions {
+  // Texto acumulado até agora — pra UI renderizar o markdown progressivamente.
+  onDelta?: (textSoFar: string) => void;
+}
 
-  const research = ctx.research ?? null;
-  const systemTutor = `${baseSystem()}${TUTOR_GUIDANCE_TEMPLATE}${research ? TUTOR_RESEARCH_ADDON : ''}`;
+export async function explainNode(ctx: ExplainContext, opts?: ExplainOptions): Promise<string> {
+  const signal = opts?.signal;
+  try {
+    assertAIReady();
 
-  const userPrompt = `PROJECT
+    const research = ctx.research ?? null;
+    const locked = ctx.criterionLocked ?? false;
+    const systemTutor = `${baseSystem()}${tutorGuidance(locked)}${research ? TUTOR_RESEARCH_ADDON : TUTOR_NO_LINKS_ADDON}`;
+
+    // Sem lock, o critério da IA fica FORA do prompt — senão ele vaza na
+    // explicação antes de o usuário escrever o dele.
+    const criterion = locked
+      ? ctx.comoConfirmarUsuario?.trim() || ctx.comoConfirmar
+      : '';
+    const criterionLine = criterion ? `\n- The user's confirmation criterion: ${criterion}` : '';
+
+    const userPrompt = `PROJECT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
 - Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${formatRules(ctx.rules)}
@@ -695,20 +1176,43 @@ NODE
 - Name: ${ctx.nodeName}
 - Kind: ${ctx.nodeKind}
 - What it is (short summary): ${ctx.oQue}
-- Why it matters: ${ctx.porQue}
-- Confirmation criterion: ${ctx.comoConfirmar}
+- Why it matters: ${ctx.porQue}${criterionLine}
 
 Generate the full markdown explanation following the structure above. Focus on letting the user execute this node alone.${ctx.rules && ctx.rules.length > 0 ? ' Every instruction, material and number you give must stay inside the USER RULES above — call out explicitly when a rule shapes a choice.' : ''}${formatResearchBlock(research)}`;
 
-  const { text } = await generateText({
-    model: aiModel,
-    system: systemTutor,
-    prompt: userPrompt,
-    temperature: 0.4,
-  });
+    let streamError: unknown = null;
+    const result = streamText({
+      model: aiModel,
+      system: systemTutor,
+      prompt: userPrompt,
+      ...callOpts('explain', 0.4),
+      abortSignal: signal,
+      onError: (ev) => {
+        streamError = ev.error;
+      },
+    });
 
-  // Quando a célula tem pesquisa, fecha com a seção de referências reais.
-  return research ? appendReferences(text.trim(), research.sources) : text.trim();
+    let text = '';
+    const it = result.textStream[Symbol.asyncIterator]();
+    for (;;) {
+      const next = await raceAbort(it.next(), signal);
+      if (next.done) break;
+      text += next.value;
+      opts?.onDelta?.(text);
+    }
+    if (signal?.aborted) throw signal.reason;
+    if (streamError) throw streamError;
+
+    const final = text.trim();
+    if (!final) {
+      const e = t().ai.errors;
+      throw new AIError({ kind: 'schema', title: e.outputTitle, hint: e.outputHint });
+    }
+    // Quando a célula tem pesquisa, fecha com a seção de referências reais.
+    return research ? appendReferences(final, research.sources) : final;
+  } catch (err) {
+    throw toAIError(err, signal);
+  }
 }
 
 // Seção de referências montada por código a partir de result.sources — URLs
@@ -726,15 +1230,20 @@ function appendReferences(text: string, sources: ResearchSource[]): string {
 // truly independent — that's what actually breaks the closed AI→AI loop.
 // ---------------------------------------------------------------------------
 
-export async function critiqueNode(ctx: CritiqueContext): Promise<AdversarialCritique> {
-  assertAIReady();
+export async function critiqueNode(
+  ctx: CritiqueContext,
+  opts?: AICallOptions,
+): Promise<AdversarialCritique> {
+  const signal = opts?.signal;
+  try {
+    assertAIReady();
 
-  // Cético com evidência real: se o usuário pesquisou esta célula, o digest
-  // entra como evidência — o ataque deixa de ser "IA desconfia da IA" e passa
-  // a citar o mundo.
-  const research = ctx.research ?? null;
+    // Cético com evidência real: se o usuário pesquisou esta célula, o digest
+    // entra como evidência — o ataque deixa de ser "IA desconfia da IA" e
+    // passa a citar o mundo.
+    const research = ctx.research ?? null;
 
-  const userPrompt = `PROJECT
+    const userPrompt = `PROJECT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
 - Path: ${formatBreadcrumb(ctx.breadcrumb)}${formatRules(ctx.rules)}
@@ -749,43 +1258,75 @@ NODE TO CRITIQUE
 ${ctx.comoConfirmarUsuario ? `- User-written criterion: ${ctx.comoConfirmarUsuario}` : '- The user has not written a criterion yet.'}
 
 TASK
-Point out weaknesses, hidden assumptions, and propose an INDEPENDENT alternative criterion that a skeptic would use.${ctx.rules && ctx.rules.length > 0 ? ' Attack RULE COMPLIANCE first: where would this node blow the user rules in practice (real prices, real weights, real deadlines)? An optimistic estimate that busts a rule is a weakness.' : ''}${research ? ' Weigh the WEB RESEARCH facts above the planner\'s optimism — when reality contradicts the node, that contradiction IS the weakness.' : ''}${formatResearchBlock(research)}`;
+Point out weaknesses, hidden assumptions, and propose an INDEPENDENT alternative criterion that a skeptic would use.${ctx.rules && ctx.rules.length > 0 ? ' Attack RULE COMPLIANCE first: where would this node blow the user rules in practice (real prices, real weights, real deadlines)? An optimistic estimate that busts a rule is a weakness.' : ''}${research ? " Weigh the WEB RESEARCH facts above the planner's optimism — when reality contradicts the node, that contradiction IS the weakness." : ''}${formatResearchBlock(research)}`;
 
-  const { object } = await generateObject({
-    model: aiModel,
-    schema: CritiqueResponseSchema,
-    schemaName: 'CritiqueResponse',
-    system: criticSystem(),
-    prompt: userPrompt,
-    temperature: 0.7,
-  });
+    const { object } = await raceAbort(
+      generateObject({
+        model: aiModel,
+        schema: CritiqueResponseSchema,
+        schemaName: 'CritiqueResponse',
+        system: criticSystem(),
+        prompt: userPrompt,
+        ...callOpts('critique', 0.7),
+        abortSignal: signal,
+      }),
+      signal,
+    );
 
-  return {
-    fraquezas: object.fraquezas,
-    premissasOcultas: object.premissasOcultas,
-    criterioAlternativo: object.criterioAlternativo,
-    fontes: research && research.sources.length > 0 ? research.sources : undefined,
-    generatedAt: Date.now(),
-  };
+    return {
+      fraquezas: object.fraquezas,
+      premissasOcultas: object.premissasOcultas,
+      criterioAlternativo: object.criterioAlternativo,
+      fontes: research && research.sources.length > 0 ? research.sources : undefined,
+      generatedAt: Date.now(),
+    };
+  } catch (err) {
+    throw toAIError(err, signal);
+  }
 }
 
 // ---------------------------------------------------------------------------
 // replanFromFailure — replan using real failure context (attack c).
-// Reuses DecomposeResponseSchema so the output flows through the same
-// staging mechanism that decomposeNode uses.
+// Same node shape as decomposeNode so the output flows through the same
+// staging mechanism, plus a one-sentence diagnosis.
 // ---------------------------------------------------------------------------
+
+function previousDecompositionBlock(ctx: ReplanContext): string {
+  const children = ctx.currentChildren ?? [];
+  const anchors = (ctx.failedAnchors ?? []).filter((a) => a.trim());
+  const parts: string[] = [];
+  if (children.length > 0) {
+    parts.push(
+      `PREVIOUS DECOMPOSITION (failed — do not reuse these)\n${children
+        .map((c) => `- ${c.name} [${c.state}] — ${c.oQue}`)
+        .join('\n')}`,
+    );
+  }
+  if (ctx.comoConfirmar?.trim()) {
+    parts.push(`ORIGINAL CONFIRMATION CRITERION (was not met)\n- ${ctx.comoConfirmar.trim()}`);
+  }
+  if (anchors.length > 0) {
+    parts.push(
+      `ANCHORS THAT PROVED FALSE OR UNVERIFIED (do not cite again)\n${anchors.map((a) => `- ${a}`).join('\n')}`,
+    );
+  }
+  return parts.length ? `\n\n${parts.join('\n\n')}` : '';
+}
 
 export async function replanFromFailure(
   ctx: ReplanContext,
   kbContext?: KBContextEntry[],
-): Promise<{ nodes: AISuggestedNode[]; edges: AISuggestedEdge[] }> {
-  assertAIReady();
+  opts?: AICallOptions,
+): Promise<AISuggestionsResult & { diagnosis?: string }> {
+  const signal = opts?.signal;
+  try {
+    assertAIReady();
 
-  // O usuário acabou de queimar tempo numa premissa furada — se a célula tem
-  // pesquisa salva, o replan parte de alternativas que EXISTEM.
-  const research = ctx.research ?? null;
+    // O usuário acabou de queimar tempo numa premissa furada — se a célula
+    // tem pesquisa salva, o replan parte de alternativas que EXISTEM.
+    const research = ctx.research ?? null;
 
-  const userPrompt = `PROJECT CONTEXT
+    const userPrompt = `PROJECT CONTEXT
 - Name: ${ctx.projectName}
 - Goal: ${ctx.projectObjective}
 - Path to the node: ${formatBreadcrumb(ctx.breadcrumb)}${archetypeDirective(ctx.archetype)}${strategyDirective(ctx.strategy)}${formatRules(ctx.rules)}
@@ -799,37 +1340,44 @@ NODE THAT FAILED IN PRACTICE
 WHAT WENT WRONG (reported by the user)
 """
 ${ctx.failureContext.trim()}
-"""
+"""${previousDecompositionBlock(ctx)}
 
 SIBLINGS (context)
 ${formatSiblings(ctx.siblings)}
 ${formatKBContext(kbContext)}
 TASK
 Real execution showed that the original plan didn't work. Re-decompose this node KNOWING what failed. Rules:
-1. DO NOT repeat the same decomposition. If the original path failed, assume part of the premise was wrong.
-2. If the failure was a resource (broken, missing, out of spec), suggest concrete alternatives and/or a new mitigation step.
-3. If the failure was a step, break it into smaller steps covering where it got stuck.
-4. Prefer 2–4 new, highly specific nodes. 'direct' edges in a chain when there is order.
-5. Every new node should bring verifiable groundTruthHints — the user just burned time on something the AI claimed without an anchor.${researchAnchorDirective(research)}
+1. 'diagnosis': ONE sentence naming which premise of the previous path was wrong, given the failure.
+2. DO NOT repeat the previous decomposition. If the original path failed, assume part of the premise was wrong.
+3. If the failure was a resource (broken, missing, out of spec), suggest concrete alternatives and/or a new mitigation step.
+4. If the failure was a step, break it into smaller steps covering where it got stuck.
+5. Prefer 2–4 new, highly specific nodes. 'direct' edges in a chain when there is order.
+6. Give each new node a verifiable anchor when one exists — the user just burned time on something the AI claimed without an anchor.
+${CRITERION_RULES}
+${groundTruthRules(research, 'response')}
 
 Use short unique tempIds (e.g. "a", "b", "c").${formatResearchBlock(research)}`;
 
-  const { object } = await generateObject({
-    model: aiModel,
-    schema: DecomposeResponseSchema,
-    schemaName: 'ReplanResponse',
-    system: baseSystem(),
-    prompt: userPrompt,
-    temperature: 0.4,
-  });
+    const { object } = await raceAbort(
+      generateObject({
+        model: aiModel,
+        schema: ReplanResponseSchema,
+        schemaName: 'ReplanResponse',
+        system: baseSystem(),
+        prompt: userPrompt,
+        ...callOpts('replan', 0.4),
+        abortSignal: signal,
+      }),
+      signal,
+    );
 
-  const idMap = new Map<string, string>();
-  const nodes = object.nodes.map((n) => materializeNode(n, idMap));
-  const edges = object.edges
-    .map((e) => materializeEdge(e, idMap))
-    .filter((e): e is AISuggestedEdge => e !== null);
-
-  return { nodes, edges };
+    return {
+      ...materializeSuggestions(object, research),
+      diagnosis: object.diagnosis?.trim() || undefined,
+    };
+  } catch (err) {
+    throw toAIError(err, signal);
+  }
 }
 
 // Exported for console debugging. Reads the active config at runtime.
