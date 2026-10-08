@@ -34,6 +34,7 @@ import { ReadingMode, type ReadingAction } from './ReadingMode';
 import { InlineError } from './ui/InlineError';
 import { toast } from './ui/Toast';
 import { OverflowMenu, type OverflowMenuItem } from './ui/OverflowMenu';
+import { discardSuggestionsWithUndo, acceptedCount } from './suggestionActions';
 
 // The tutor is the concept's core loop made into a screen: look at ONE part of
 // the decomposition — if you can confirm it against reality, confirm; if you
@@ -468,7 +469,6 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
   const acceptSuggestion = useGraphStore((s) => s.acceptSuggestion);
   const rejectSuggestion = useGraphStore((s) => s.rejectSuggestion);
   const acceptAllSuggestions = useGraphStore((s) => s.acceptAllSuggestions);
-  const rejectAllSuggestions = useGraphStore((s) => s.rejectAllSuggestions);
   const pending = useGraphStore((s) => s.pendingSuggestions);
   const aiJobs = useGraphStore((s) => s.aiJobs);
   const putStream = useExplainStream((s) => s.put);
@@ -505,6 +505,9 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
   const [open, setOpen] = useState(false);
   const [reading, setReading] = useState(false);
   const [confirmingNoSignal, setConfirmingNoSignal] = useState(false);
+  // "Descartar todas" depois de aceitar só parte: avisa antes que o pai passa
+  // a ser resolvido só pelas aceitas.
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   // Decisão: clicar na opção só seleciona; o commit é o botão da barra.
   const [selectedOpt, setSelectedOpt] = useState<string | null>(node.decisionPickedId ?? null);
 
@@ -748,7 +751,18 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
   const barEmpty = hasKids && !pendingHere && !resolved;
   // "…" da barra: o que não é primário nem secundário. No mobile o decompor
   // também mora aqui (no máximo 2 botões de 44px).
+  const offerNoProof =
+    !resolved && !pendingHere && !hasKids && !blocker && !openFailure && !ready && !(isDecision && !pickedOpt);
   const moreItems: OverflowMenuItem[] = [
+    ...(offerNoProof
+      ? [
+          {
+            key: 'noProof',
+            label: isDecision && pickedOpt ? tr.tutor.pickOptionNoProof(pickedOpt.label) : tr.tutor.confirmNoProof,
+            onClick: () => setConfirmingNoSignal(true),
+          },
+        ]
+      : []),
     ...(canDecompose && !decomposeRunning
       ? [
           {
@@ -789,12 +803,24 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
       className="card max-w-[720px] mx-auto scroll-mt-4 animate-card-swap px-4 sm:px-8 pt-5 sm:pt-7"
     >
       {crumbs.length > 1 && (
-        <div className="text-footnote text-text-muted mb-2 truncate">
-          {crumbs
-            .slice(0, -1)
-            .map((c) => c.name)
-            .join(' › ')}
-        </div>
+        <nav aria-label={tr.tutor.breadcrumbAria} className="text-footnote text-text-muted mb-2 truncate">
+          {crumbs.slice(0, -1).map((c, i) => (
+            <span key={c.id}>
+              {i > 0 && <span aria-hidden> › </span>}
+              {isActionableKind(c.kind) ? (
+                <button
+                  type="button"
+                  onClick={() => selectNode(c.id)}
+                  className="hover:text-text-primary hover:underline underline-offset-2 rounded-chip"
+                >
+                  {c.name}
+                </button>
+              ) : (
+                c.name
+              )}
+            </span>
+          ))}
+        </nav>
       )}
       <div className="flex items-center gap-2 mb-2.5 flex-wrap">
         <span className="chip">{kindLabel}</span>
@@ -850,6 +876,11 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
         </div>
       )}
 
+      {node.planReplacedAt && (
+        <p className="mb-4 text-footnote text-conf-mid bg-conf-mid/8 rounded-control px-3 py-2">
+          {tr.tutor.planReplaced}
+        </p>
+      )}
       {node.oQue && (
         <TutorBlock label={tr.tutor.whatIs}>
           <p>{node.oQue}</p>
@@ -1041,9 +1072,17 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
         )}
       </div>
 
-      <div id={GT_WRAPPER_ID}>
-        <GroundTruthInlineTutor node={node} project={project} />
-      </div>
+      {/* Parte em quebra (sugestões em revisão ou já com sub-partes): ela se
+          resolve pelas sub-partes, então o critério/aferição dela não vale
+          como conclusão — some, com o motivo. Um critério já travado antes
+          continua à vista. */}
+      {(pendingHere || hasKids) && !resolved && !node.comoConfirmarUsuarioAt ? (
+        <p className="mt-6 text-footnote text-text-muted">{tr.tutor.resolvedBySubparts}</p>
+      ) : (
+        <div id={GT_WRAPPER_ID}>
+          <GroundTruthInlineTutor node={node} project={project} />
+        </div>
+      )}
 
       {notice}
 
@@ -1109,6 +1148,11 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
         {confirmingNoSignal && !resolved && !pendingHere && !hasKids && !blocker && !openFailure && (
           <div className="text-footnote text-conf-mid">{tr.tutor.confirmNoProofWarning}</div>
         )}
+        {pendingHere && confirmingDiscard && (
+          <div className="text-footnote text-conf-mid" role="alert">
+            {tr.tutor.discardPartialWarning(acceptedCount(pending), pending!.nodes.length)}
+          </div>
+        )}
         {decomposeRunning && canDecompose && (
           <div
             className="flex items-center gap-1.5 pl-2.5 pr-1 min-h-[30px] text-footnote font-medium text-ai-accent bg-ai-accent/8 rounded-control"
@@ -1125,12 +1169,33 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
         )}
 
         <div className="flex items-center gap-2">
-          {pendingHere ? (
+          {pendingHere && confirmingDiscard ? (
+            <>
+              <button
+                onClick={() => {
+                  setConfirmingDiscard(false);
+                  discardSuggestionsWithUndo(tr);
+                }}
+                className="tap btn btn-secondary h-8 flex-1 min-w-0 text-state-problem"
+              >
+                <span className="truncate">{tr.tutor.discardPartialConfirm(pending!.nodes.length)}</span>
+              </button>
+              <button onClick={() => setConfirmingDiscard(false)} className="tap btn btn-ghost h-8 shrink-0">
+                {tr.common.cancel}
+              </button>
+            </>
+          ) : pendingHere ? (
             <>
               <button onClick={acceptAllSuggestions} className="tap btn btn-primary h-8 flex-1 min-w-0">
                 <span className="truncate">{tr.tutor.acceptAllCount(pending!.nodes.length)}</span>
               </button>
-              <button onClick={rejectAllSuggestions} className="tap btn btn-secondary h-8 shrink-0">
+              <button
+                onClick={() => {
+                  if (acceptedCount(pending) > 0) setConfirmingDiscard(true);
+                  else discardSuggestionsWithUndo(tr);
+                }}
+                className="tap btn btn-secondary h-8 shrink-0"
+              >
                 {tr.tutor.rejectAll}
               </button>
             </>
@@ -1195,9 +1260,12 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
                   </button>
                 </>
               ) : (
-                <button onClick={() => setConfirmingNoSignal(true)} className="tap btn btn-secondary h-8 flex-1 min-w-0">
+                // Sem sinal real ainda: o lugar principal leva ao critério/
+                // aferição; "Confirmar sem prova…" fica no "…" (o caminho sem
+                // prova nunca é o botão mais largo).
+                <button onClick={() => goToGT(proofTarget)} className="tap btn btn-secondary h-8 flex-1 min-w-0">
                   <span className="truncate">
-                    {isDecision && pickedOpt ? tr.tutor.pickOptionNoProof(pickedOpt.label) : tr.tutor.confirmNoProof}
+                    {proofTarget === 'criterion' ? tr.tutor.writeCriterionBtn : tr.tutor.attestBtn}
                   </span>
                 </button>
               )}
@@ -1391,6 +1459,8 @@ function TreeRows({ project, byParent, parentId, depth, currentId, suggestionCou
                 done={done}
                 total={leaves.length}
                 suggestions={suggestionCounts[node.id] ?? 0}
+                isCurrent={node.id === currentId}
+                onPick={isActionableKind(node.kind) ? onPick : undefined}
                 tr={tr}
               />
               <TreeRows
@@ -1430,6 +1500,8 @@ function GroupRow({
   done,
   total,
   suggestions,
+  isCurrent,
+  onPick,
   tr,
 }: {
   node: ConceptNodeData;
@@ -1437,14 +1509,17 @@ function GroupRow({
   done: number;
   total: number;
   suggestions: number;
+  isCurrent: boolean;
+  // Parte decomposta (não categoria): abre o card dela — critério, provas e
+  // sugestões em revisão continuam alcançáveis pelo tutor.
+  onPick?: (id: string) => void;
   tr: Messages;
 }) {
   // Nível 0 = cabeçalho de seção da sidebar (como no Finder); abaixo, grupo.
-  return (
-    <div
-      className={`flex items-center gap-2 pr-2 min-h-[28px] ${depth === 0 ? 'mt-3 first:mt-0' : ''}`}
-      style={{ paddingLeft: `${8 + depth * 14}px` }}
-    >
+  const rowClass = `flex items-center gap-2 pr-2 min-h-[28px] ${depth === 0 ? 'mt-3 first:mt-0' : ''}`;
+  const style = { paddingLeft: `${8 + depth * 14}px` };
+  const content = (
+    <>
       <span
         className={`truncate ${
           depth === 0 ? 'text-footnote font-semibold text-text-muted' : 'text-control font-medium text-text-secondary'
@@ -1464,7 +1539,27 @@ function GroupRow({
       >
         {done}/{total}
       </span>
-    </div>
+    </>
+  );
+  if (!onPick) {
+    return (
+      <div className={rowClass} style={style}>
+        {content}
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onPick(node.id)}
+      aria-current={isCurrent ? 'true' : undefined}
+      className={`tap w-full text-left rounded-control [@media(pointer:coarse)]:min-h-[44px] transition-colors duration-120 ease-mac ${rowClass} ${
+        isCurrent ? 'bg-accent/12' : 'hover:bg-bg-elevated/60'
+      }`}
+      style={style}
+    >
+      {content}
+    </button>
   );
 }
 

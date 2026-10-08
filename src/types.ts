@@ -164,6 +164,9 @@ export interface ConceptNodeData {
   // usuário reporta que o nó quebrou na execução; dispara replan contextual.
   failureContext?: string;
   failureReportedAt?: number;
+  // Sub-partes de um replanejamento aceitas: o texto deste nó (o quê, porquê,
+  // explicação) é do plano antigo — a UI avisa e a explicação em cache sai.
+  planReplacedAt?: number;
 
   // Execução
   confirmado: boolean;

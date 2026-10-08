@@ -495,6 +495,10 @@ Fields that do not apply are null: 'order' outside passo, 'decisionOptions' outs
 CONFIDENCE — use the whole 0-100 scale; it is the chance a user at this level gets the node right on the first try. 90+ only for buying/downloading something standard; 60-80 when it needs care or a new skill; below 50 when beginners usually fail here or it rests on an unverified premise (compatibility, soldering, regulations). Never default every node to 85-95.`;
 }
 
+// Escrita: dinheiro como nos chips do app e termos técnicos estabelecidos.
+const WRITING_RULES = `
+- Money in Brazilian reais is written with a space: "R$ 100", "R$ 110–130". Use the established term for a thing, not a loose paraphrase (e.g. the loop that keeps water off an outlet is a "drip loop" — in Portuguese "alça de gotejamento").`;
+
 // Critério de confirmação: UMA checagem observável com limiar.
 const CRITERION_RULES = `
 CONFIRMATION CRITERION (comoConfirmar) — ONE observable check with a pass threshold: what to look at or measure, and which value passes. Max 140 characters, a single condition. If you need two conditions, the node is too big — split it.
@@ -502,7 +506,7 @@ CONFIRMATION CRITERION (comoConfirmar) — ONE observable check with a pass thre
 - Good (understanding): "Re-derive the formula on paper without notes and get the same result."
 - Bad: "Is everything wired correctly, powered and working?" (several conditions, no threshold)
 - It tests THIS node's own item (what its oQue describes) — never a property of the parent, a sibling or the site.
-- The user writes their OWN criterion before seeing yours: never restate the pass threshold (the value that passes) in oQue, porQue or groundTruthHints. Hints identify WHAT the item is; the pass bar lives only in comoConfirmar.`;
+- The user writes their OWN criterion before seeing yours: never restate the pass threshold (the value that passes) in oQue, porQue or groundTruthHints. Hints identify WHAT the item is; the pass bar lives only in comoConfirmar.${WRITING_RULES}`;
 
 // Âncoras: sem pesquisa web, link é proibido (URL de memória não é verificável).
 function groundTruthRules(research: ResearchDigest | null, scope: 'plan' | 'response'): string {
@@ -513,7 +517,8 @@ function groundTruthRules(research: ResearchDigest | null, scope: 'plan' | 'resp
   return `
 GROUND TRUTH (groundTruthHints) — 0 to 2 per node, strongest first, each checkable in the real world:
 - kind="spec": a model / part number, or a specification with unit checkable on a datasheet — e.g. "XT60", "ESP32-WROOM-32", "Phyllostachys aurea, Ø 5-8mm".
-- kind="medida": number + unit + tolerance — e.g. "40cm ± 2cm", "< 15g". The tolerance is never zero: an estimate (a price, a duration) is a RANGE — e.g. "R$100–140" — never "R$100 ± R$0".
+- kind="medida": a physical measurement of the item itself — number + unit + tolerance — e.g. "40cm ± 2cm", "< 15g". The tolerance is never zero.
+- A price, budget or time ESTIMATE is never an anchor (it only restates the plan, there is nothing to check): keep it in oQue, not in groundTruthHints.
 ${linkLine}
 - NEVER an instruction ("test without propellers" is not an anchor). If no natural anchor exists, return an empty array.
 - NEVER a zero or trivial value ("additional cost: 0", "R$0 ± R$0") — that proves nothing. Most steps have no natural anchor: leave them empty.`;
@@ -531,7 +536,7 @@ RULES
 - 1 to 3 weaknesses, the most severe first, each under 160 characters.
 - The alternative criterion MUST be different in form from the original AI criterion. If the original asks "is it ready?", yours should measure something external — a number, a proof, a third-party observation.
 - If a user-written criterion exists, treat it as MORE trustworthy than the AI's: your alternative should complement it, not duplicate it.
-- Do not propose solutions. Your output is a diagnosis, not a prescription.${NO_INTERNAL_NAMES}`;
+- Do not propose solutions. Your output is a diagnosis, not a prescription.${NO_INTERNAL_NAMES}${WRITING_RULES}`;
 }
 
 // Texto lido pelo usuário: o modelo tende a repetir nomes de campo do prompt.
@@ -559,7 +564,7 @@ STRUCTURE
 - When there are variants or trade-offs, list each one with the name in **bold** followed by a description.
 - Give real numbers (voltages, sizes, commands). No "depends on the case".
 - Call out common errors ("pitfalls") and how to diagnose.
-${closing}${NO_INTERNAL_NAMES}
+${closing}${NO_INTERNAL_NAMES}${WRITING_RULES}
 
 DO NOT include introductory filler like "of course, I will explain" — go straight to the content.`;
 }
@@ -634,6 +639,8 @@ function sanitizeHints(
       if (isZeroMeasure(value)) continue;
       // Precisão falsa: "± 0" numa estimativa some (fica só o valor).
       value = stripZeroTolerance(value);
+      // Faixa de preço é estimativa do plano, não medida conferível.
+      if (isPriceEstimate(value)) continue;
     }
     if (h.kind === 'link') {
       const url = normalizeUrl(value);
@@ -644,7 +651,7 @@ function sanitizeHints(
     const key = `${h.kind}:${value.toLowerCase()}`;
     if (seenValues.has(key)) continue;
     seenValues.add(key);
-    out.push({ kind: h.kind, label: label || value, value });
+    out.push({ kind: h.kind, label: normalizeMoney(label || value), value: normalizeMoney(value) });
   }
   return out.length > 0 ? out : undefined;
 }
@@ -670,8 +677,8 @@ function materializeNode(
   return {
     tempId: realTempId,
     kind: raw.kind,
-    name: raw.name,
-    fx: raw.fx,
+    name: normalizeMoney(raw.name),
+    fx: normalizeMoney(raw.fx),
     // problem/pros/cons saíram do schema (nunca renderizados); o conflito
     // com regra é espelhado em cons para continuar persistido pelo store.
     problem: '',
@@ -680,9 +687,9 @@ function materializeNode(
     pros: [],
     cons: ruleConflict ? [ruleConflict] : [],
     ruleConflict,
-    oQue: raw.oQue,
-    porQue: raw.porQue,
-    comoConfirmar: raw.comoConfirmar,
+    oQue: normalizeMoney(raw.oQue),
+    porQue: normalizeMoney(raw.porQue),
+    comoConfirmar: normalizeMoney(raw.comoConfirmar),
     order: raw.order == null ? undefined : Math.round(raw.order),
     decisionOptions,
     groundTruthHints: sanitizeHints(raw.groundTruthHints, policy),
@@ -761,7 +768,7 @@ These are non-negotiable boundaries, not preferences. Treat them as a design cha
 - Quantitative rules (budget, weight, deadline, size): allocate explicitly across resources/steps — ${
     mode === 'prose'
       ? 'state the estimated cost/measure with its unit, as a measurement the user can check in the real world,'
-      : `state the estimated cost/measure in each node's oQue and add a groundTruthHint (kind="medida") so the user can check it in the real world`
+      : `state the estimated cost/measure in each node's oQue (an estimate is not a groundTruthHint — the user's own quote or receipt will be the proof)`
   } — and keep the running TOTAL inside the rule with safety margin.
 - If part of the goal cannot fit a rule, do NOT silently violate it: put the conflict in that node's 'ruleConflict' (one concrete sentence with the number) and propose the closest compliant alternative.`;
 }
@@ -1123,16 +1130,16 @@ function hydrateTree(categorias: RawPlanCategory[], research: ResearchDigest | n
 // Cabeçalho comum (plano completo e esboço) — normaliza rank e opcionais.
 function hydrateHeader(raw: Omit<RawPlan, 'tree'>): Omit<AIPlanOut, 'tree' | 'id'> {
   return {
-    title: raw.title,
-    pitch: raw.pitch,
-    approach: raw.approach,
+    title: normalizeMoney(raw.title),
+    pitch: normalizeMoney(raw.pitch),
+    approach: normalizeMoney(raw.approach),
     strategy: raw.strategy,
     archetype: raw.archetype,
     rank: clamp(Math.round(raw.rank), 1, 99),
     rankReason: raw.rankReason,
     estimates: raw.estimates
       ? {
-          custo: raw.estimates.custo,
+          custo: normalizeMoney(raw.estimates.custo),
           tempo: raw.estimates.tempo,
           dificuldade: raw.estimates.dificuldade,
         }
@@ -1669,9 +1676,22 @@ Generate the full markdown explanation following the structure above. Focus on l
 
 // Rede de segurança: nome de campo que ainda vaze vira termo do usuário.
 export function scrubInternalNames(text: string): string {
-  return text
-    .replace(/\s*\(?\bkind\s*=\s*"[\w-]+"\)?/g, '')
-    .replace(/\bgroundTruthHints?\b/g, t().ai.anchorWord);
+  return normalizeMoney(
+    text
+      .replace(/\s*\(?\bkind\s*=\s*"[\w-]+"\)?/g, '')
+      .replace(/\bgroundTruthHints?\b/g, t().ai.anchorWord),
+  );
+}
+
+// "R$60" → "R$ 60": o mesmo formato dos chips do app.
+export function normalizeMoney(text: string): string {
+  return text.replace(/R\$(?=\d)/g, 'R$ ');
+}
+
+// Faixa de preço/orçamento ("R$ 110–130", "$80-100"): estimativa, não prova.
+const PRICE_RANGE_RE = /(R\$|US\$|\$|€|£)\s?\d[\d.,]*\s*(–|—|-|a|to|até)\s*(R\$|US\$|\$|€|£)?\s?\d/i;
+export function isPriceEstimate(value: string): boolean {
+  return PRICE_RANGE_RE.test(value);
 }
 
 function formatPlanOverview(list: PlanOverviewEntry[] | undefined, header: string): string {

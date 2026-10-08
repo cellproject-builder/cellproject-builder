@@ -416,7 +416,7 @@ export function TopBar() {
             >
               {tr.topBar.exportJson}
             </button>
-            <div role="separator" className="divider my-1 mx-2.5" />
+            <div role="separator" className="divider my-1 mx-2.5 md:hidden" />
             <button
               role="menuitem"
               onClick={() => {

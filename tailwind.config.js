@@ -99,7 +99,9 @@ export default {
         'sheet-in': `sheet-in 180ms ${EASE_MAC} both`,
         'scrim-in': `scrim-in 180ms ${EASE_MAC} both`,
         'toast-in': 'toast-in 260ms cubic-bezier(.2,1.25,.35,1) both',
-        'card-swap': `card-swap 240ms ${EASE_MAC} both`,
+        // backwards: nenhum transform residual depois da animação (ele quebrava a
+        // pintura da barra sticky do tutor).
+        'card-swap': `card-swap 240ms ${EASE_MAC} backwards`,
         'check-draw': `check-draw 200ms ${EASE_MAC} both`,
       },
       keyframes: {

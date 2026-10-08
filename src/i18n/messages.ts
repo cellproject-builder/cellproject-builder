@@ -286,6 +286,10 @@ export const en = {
     writingExplain: (s: number) => `Writing the explanation… ${s}s`,
     rejectAll: 'Discard all',
     acceptAllCount: (n: number) => `✓ Accept all (${n})`,
+    discardPartialWarning: (accepted: number, rest: number) =>
+      `Only ${accepted} of ${accepted + rest} parts were accepted. This part will then be resolved by ${accepted === 1 ? 'that one alone' : 'those alone'} — whatever the other ${rest} covered stops being tracked.`,
+    discardPartialConfirm: (rest: number) => `Discard the other ${rest}`,
+    suggestionsDiscarded: (n: number) => (n === 1 ? '1 suggestion discarded' : `${n} suggestions discarded`),
     confirmNoProof: 'Confirm without proof…',
     confirmNoProofConfirm: '✓ Confirm without proof',
     confirmNoProofWarning:
@@ -311,6 +315,11 @@ export const en = {
     statusNoProof: '✓ confirmed (no proof)',
     missingOneThing: 'One thing left to make it done: prove the criterion or verify an anchor.',
     proveNow: 'Prove now',
+    writeCriterionBtn: 'Write my criterion',
+    planReplaced: 'Replanned after the failure: the text below is from the old plan — the new plan is in the sub-parts.',
+    attestBtn: 'Say if it was met',
+    resolvedBySubparts: 'This part is resolved by its sub-parts — the criterion and the proof live in each of them.',
+    breadcrumbAria: 'Where this part sits',
     failedInPractice: 'Did it fail in practice?',
     nextPendingBtn: 'Next pending',
     toastDone: (name: string) => `${name} done (with proof)`,
@@ -337,7 +346,7 @@ export const en = {
     aiCriterion: 'AI criterion',
     writeYoursFirst: 'Write your criterion first — the AI’s appears after you lock yours.',
     explanation: 'Detailed explanation',
-    noExplanation: 'This cell has no in-depth explanation yet.',
+    noExplanation: 'This part has no in-depth explanation yet.',
     research: 'Web research',
     contents: 'Contents',
     generate: 'Explain in depth',
@@ -396,7 +405,7 @@ export const en = {
     readingClose: 'Close reading mode (Esc)',
     readingHowToConfirm: 'How to confirm',
     readingExplanation: 'Detailed explanation',
-    readingNoExplanation: 'This cell has no in-depth explanation yet.',
+    readingNoExplanation: 'This part has no in-depth explanation yet.',
     readingResearch: 'Web research',
     sheetFallbackTitle: 'Node details',
     collapsePanel: 'Hide panel — graph only',
@@ -460,7 +469,7 @@ export const en = {
     },
     risk: {
       low: 'High risk, below 40%',
-      mid: 'Medium risk',
+      mid: 'Medium risk, 40–69%',
       high: 'Low risk, 70% or more',
     },
     stagingSummary: (n: number, parent: string) =>
@@ -470,6 +479,7 @@ export const en = {
     viewStaging: 'View',
     lensEmpty: 'No parts to show in this lens yet.',
     noCrossLinks: 'This plan has no links between parts beyond the decomposition yet.',
+    noCrossLinksAction: 'Show the Structure',
     legendBorderDone: 'border: done with proof',
     legendBorderNoProof: 'dashed border: confirmed without proof',
     legendBorderProblem: 'border: problem',
@@ -506,6 +516,8 @@ export const en = {
     rejectAria: 'Reject suggestion',
     next: 'Next',
     criterionLocked: '🔒 lock your own criterion first',
+    confidenceLevel: (level: 'low' | 'mid' | 'high') =>
+      `AI estimate: ${level === 'high' ? 'high' : level === 'mid' ? 'medium' : 'low'} confidence`,
   },
   groundTruth: {
     sectionTitle: 'How to know it worked',
@@ -513,9 +525,9 @@ export const en = {
     yourCriterion: 'Your criterion',
     locked: 'Locked',
     criterionPlaceholder:
-      'How would YOU know this node is done? Write yours before seeing the AI’s.',
+      'How would you know this node is done? Write yours before seeing the AI’s.',
     criterionPlaceholderUnderstand:
-      'How would YOU know you truly understood this? (e.g. "I can re-derive it without the source"). Write yours before seeing the AI’s.',
+      'How would you know you truly understood this? (e.g. "I can re-derive it without the source"). Write yours before seeing the AI’s.',
     lockBtn: 'Lock criterion',
     criterionMet: 'Met',
     criterionMetPrompt: 'Prove it: what did you observe?',
@@ -529,7 +541,7 @@ export const en = {
     writeYoursFirst: 'Write yours first — that is what keeps the process honest.',
     convergenceCopy:
       "Your criterion is nearly identical to the AI's — that is not an independent check.",
-    convergenceIndependent: 'Independent criteria — a real second check.',
+    convergenceIndependent: "Your criterion is not a copy of the AI's — it still counts as your own check.",
     adversarial: 'Skeptical second opinion',
     generatedOn: (date: string) => `Generated ${date}`,
     askSecondOpinion: 'Ask for a skeptical second opinion',
@@ -1183,6 +1195,10 @@ export const ptBR: Messages = {
     writingExplain: (s: number) => `Escrevendo a explicação… ${s}s`,
     rejectAll: 'Descartar todas',
     acceptAllCount: (n: number) => `✓ Aceitar todas (${n})`,
+    discardPartialWarning: (accepted: number, rest: number) =>
+      `Só ${accepted} de ${accepted + rest} partes foram aceitas. Esta parte passa a ser resolvida só ${accepted === 1 ? 'por ela' : 'por elas'} — o que as outras ${rest} cobriam deixa de ser acompanhado.`,
+    discardPartialConfirm: (rest: number) => `Descartar as outras ${rest}`,
+    suggestionsDiscarded: (n: number) => (n === 1 ? '1 sugestão descartada' : `${n} sugestões descartadas`),
     confirmNoProof: 'Confirmar sem prova…',
     confirmNoProofConfirm: '✓ Confirmar sem prova',
     confirmNoProofWarning:
@@ -1208,6 +1224,11 @@ export const ptBR: Messages = {
     statusNoProof: '✓ confirmado (sem prova)',
     missingOneThing: 'Falta 1 coisa para virar concluído: comprovar o critério ou verificar uma prova.',
     proveNow: 'Comprovar agora',
+    writeCriterionBtn: 'Escrever meu critério',
+    planReplaced: 'Replanejada depois da falha: o texto abaixo é do plano antigo — o plano novo está nas sub-partes.',
+    attestBtn: 'Dizer se foi atendido',
+    resolvedBySubparts: 'Esta parte se resolve pelas sub-partes — o critério e a prova ficam em cada uma delas.',
+    breadcrumbAria: 'Onde esta parte fica',
     failedInPractice: 'Deu errado na prática?',
     nextPendingBtn: 'Próximo pendente',
     toastDone: (name: string) => `${name} concluído (com prova)`,
@@ -1234,7 +1255,7 @@ export const ptBR: Messages = {
     aiCriterion: 'Critério da IA',
     writeYoursFirst: 'Escreva seu critério primeiro — o da IA aparece depois que você travar o seu.',
     explanation: 'Explicação detalhada',
-    noExplanation: 'Esta célula ainda não tem uma explicação detalhada.',
+    noExplanation: 'Esta parte ainda não tem uma explicação detalhada.',
     research: 'Pesquisa web',
     contents: 'Índice',
     generate: 'Explicar em detalhes',
@@ -1293,7 +1314,7 @@ export const ptBR: Messages = {
     readingClose: 'Fechar modo leitura (Esc)',
     readingHowToConfirm: 'Como confirmar',
     readingExplanation: 'Explicação detalhada',
-    readingNoExplanation: 'Esta célula ainda não tem explicação detalhada.',
+    readingNoExplanation: 'Esta parte ainda não tem explicação detalhada.',
     readingResearch: 'Pesquisa na web',
     sheetFallbackTitle: 'Detalhes do nó',
     collapsePanel: 'Recolher painel — só o grafo',
@@ -1357,7 +1378,7 @@ export const ptBR: Messages = {
     },
     risk: {
       low: 'Risco alto, abaixo de 40%',
-      mid: 'Risco médio',
+      mid: 'Risco médio, de 40% a 69%',
       high: 'Risco baixo, 70% ou mais',
     },
     stagingSummary: (n: number, parent: string) =>
@@ -1367,6 +1388,7 @@ export const ptBR: Messages = {
     viewStaging: 'Ver',
     lensEmpty: 'Ainda não há partes para mostrar nesta lente.',
     noCrossLinks: 'Este plano ainda não tem ligações entre partes além da decomposição.',
+    noCrossLinksAction: 'Ver a Estrutura',
     legendBorderDone: 'borda: concluído com prova',
     legendBorderNoProof: 'borda tracejada: confirmado sem prova',
     legendBorderProblem: 'borda: problema',
@@ -1403,6 +1425,8 @@ export const ptBR: Messages = {
     rejectAria: 'Rejeitar sugestão',
     next: 'Próximo',
     criterionLocked: '🔒 trave o seu critério primeiro',
+    confidenceLevel: (level: 'low' | 'mid' | 'high') =>
+      `Estimativa da IA: confiança ${level === 'high' ? 'alta' : level === 'mid' ? 'média' : 'baixa'}`,
   },
   groundTruth: {
     sectionTitle: 'Como saber que deu certo',
@@ -1410,9 +1434,9 @@ export const ptBR: Messages = {
     yourCriterion: 'Seu critério',
     locked: 'Travado',
     criterionPlaceholder:
-      'Como VOCÊ saberia que este nó está concluído? Escreva antes de ver o da IA.',
+      'Como você saberia que este nó está concluído? Escreva antes de ver o da IA.',
     criterionPlaceholderUnderstand:
-      'Como VOCÊ saberia que entendeu isso de verdade? (ex: "consigo rederivar sem olhar a fonte"). Escreva antes de ver o da IA.',
+      'Como você saberia que entendeu isso de verdade? (ex: "consigo rederivar sem olhar a fonte"). Escreva antes de ver o da IA.',
     lockBtn: 'Travar critério',
     criterionMet: 'Atendido',
     criterionMetPrompt: 'Comprove: o que você observou?',
@@ -1426,7 +1450,7 @@ export const ptBR: Messages = {
     writeYoursFirst: 'Escreva o seu primeiro — é o que mantém o processo honesto.',
     convergenceCopy:
       'Seu critério ficou quase igual ao da IA — isso não é checagem independente.',
-    convergenceIndependent: 'Seu critério e o da IA checam coisas diferentes — uma segunda checagem de verdade.',
+    convergenceIndependent: 'Seu critério não é cópia do da IA — continua sendo uma checagem sua.',
     adversarial: 'Segunda opinião cética',
     generatedOn: (date: string) => `Gerada ${date}`,
     askSecondOpinion: 'Pedir segunda opinião cética',

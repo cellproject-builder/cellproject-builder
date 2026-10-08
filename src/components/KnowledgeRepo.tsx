@@ -282,12 +282,10 @@ export function KnowledgeRepo({ open, onClose }: Props) {
           />
         )}
 
-        <div className="-mx-5 divide-y divide-border-base/70 border-t border-border-base/70">
-          {docs.length === 0 && (
-            <div className="px-5 py-10 text-center text-control text-text-muted">
-              {tr.kbModal.emptyState}
-            </div>
-          )}
+        {/* Vazio: a dropzone acima já diz o que fazer — sem segunda mensagem. */}
+        <div
+          className={`-mx-5 divide-y divide-border-base/70 ${docs.length > 0 ? 'border-t border-border-base/70' : ''}`}
+        >
           {docs.length > 0 && visibleDocs.length === 0 && (
             <div className="px-5 py-8 text-center text-control text-text-muted">
               {tr.kb.filterEmpty}

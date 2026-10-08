@@ -123,6 +123,14 @@ export function DetailPanel() {
 
   const node = project && selectedId ? project.nodes[selectedId] ?? null : null;
 
+  // O grafo precisa saber se o sheet cobre a metade de baixo (enquadramento).
+  const setMobileSheetOpen = useGraphStore((s) => s.setMobileSheetOpen);
+  const sheetOpen = isMobile && !!node && !drawerDismissed;
+  useEffect(() => {
+    setMobileSheetOpen(sheetOpen);
+  }, [sheetOpen, setMobileSheetOpen]);
+  useEffect(() => () => setMobileSheetOpen(false), [setMobileSheetOpen]);
+
   // -------------------------------------------------------------------------
   // IA — explicar e quebrar em partes. O hook vive no painel (que não remonta
   // ao trocar de nó), então guardamos para qual nó cada chamada foi feita.
@@ -579,6 +587,11 @@ export function DetailPanel() {
       {actionSection}
 
       <section className="px-4 py-3.5 border-b border-border-base/70 space-y-3.5">
+        {node.planReplacedAt && (
+          <p className="text-footnote text-conf-mid bg-conf-mid/8 rounded-control px-3 py-2">
+            {tr.tutor.planReplaced}
+          </p>
+        )}
         <EduField
           key={`${node.id}:oQue`}
           label={tr.detail.whatIs}
@@ -904,7 +917,13 @@ export function DetailPanel() {
       <MobileSheet
         open={!drawerDismissed}
         onOpenChange={(o) => {
-          if (!o) setDrawerDismissed(true);
+          if (!o) {
+            setDrawerDismissed(true);
+            // Sem o sheet, o canvas inteiro fica livre: reenquadra o nó nele
+            // depois da animação de fechar.
+            const id = node.id;
+            window.setTimeout(() => useGraphStore.getState().requestCenter(id), 360);
+          }
         }}
         title={node.name || tr.detail.sheetFallbackTitle}
         footer={footer}

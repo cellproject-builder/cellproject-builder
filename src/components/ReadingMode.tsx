@@ -1,5 +1,5 @@
 import { safeHref } from '@/safeHref';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ConceptNodeData } from '@/types';
 import { useAIReveal } from '@/hooks/useAIReveal';
@@ -61,6 +61,16 @@ export function ReadingMode({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const h1Ref = useRef<HTMLHeadingElement>(null);
+  const [titleInBar, setTitleInBar] = useState(false);
+  useEffect(() => {
+    const h1 = h1Ref.current;
+    const root = scrollRef.current;
+    if (!h1 || !root || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([e]) => setTitleInBar(!e.isIntersecting), { root, threshold: 0 });
+    io.observe(h1);
+    return () => io.disconnect();
+  }, []);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -157,7 +167,13 @@ export function ReadingMode({
               <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
           </button>
-          <div className="min-w-0 text-center text-control font-semibold text-text-primary truncate">
+          {/* O título só aparece na barra depois que o h1 sai da tela. */}
+          <div
+            aria-hidden={!titleInBar}
+            className={`min-w-0 text-center text-control font-semibold text-text-primary truncate transition-opacity duration-180 ease-mac ${
+              titleInBar ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
             {node.name}
           </div>
           <span className="w-[30px]" aria-hidden />
@@ -170,7 +186,9 @@ export function ReadingMode({
             <div className="label mb-2">
               {tr.reading.kicker} · {tr.conceptNode[node.kind]}
             </div>
-            <h1 className="text-title2 sm:text-title1 font-bold text-text-primary">{node.name}</h1>
+            <h1 ref={h1Ref} className="text-title2 sm:text-title1 font-bold text-text-primary">
+              {node.name}
+            </h1>
             {/* O h1 já diz o nome: o caminho para no pai. */}
             {trail.length > 0 && (
               <div className="text-footnote text-text-muted mt-2 truncate">{trail.join(' › ')}</div>

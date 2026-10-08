@@ -28,6 +28,7 @@ import {
   isActionableKind,
   nextPendingForTutor,
   pendingParent,
+  isLeafGridParent,
   type Lens,
   LAYOUT_Y_GAP,
 } from '@/store';
@@ -35,7 +36,8 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useReviewingParents } from '@/hooks/useReviewingParents';
 import { useT } from '@/i18n';
 import type { Messages } from '@/i18n';
-import { ConceptNode } from './ConceptNode';
+import { ConceptNode, SIDE_HANDLE } from './ConceptNode';
+import { discardSuggestionsWithUndo } from './suggestionActions';
 import type { ConceptEdgeData, ConceptNodeData, Project } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -107,12 +109,21 @@ const EDGE_IDLE_OPACITY = 0.6;
 const EDGE_DIMMED_OPACITY = 0.3;
 
 // Zoom mínimo do enquadramento automático: abaixo disso o texto dos cards
-// fica ilegível. "Ver o grafo inteiro" continua livre.
+// fica ilegível. "Ver o grafo inteiro" (⤢) usa o encaixe real, com piso de
+// FIT_ALL_MIN_ZOOM.
 const READABLE_MIN_ZOOM = 0.7;
+// Lentes de colunas: todas as colunas à vista importam mais que o tamanho do
+// texto (0.6 ainda é o nível "mid" do card).
+const COLUMNS_MIN_ZOOM = 0.6;
 const CONNECTIONS_MIN_ZOOM = 0.5;
+const FIT_ALL_MIN_ZOOM = 0.15;
 // Cromo flutuante sobre o canvas (px de tela): faixa dos botões do topo
 // (Organizar, zoom, Legenda). O enquadramento automático desconta isso.
 const CHROME_TOP = 44;
+// Mobile: a pílula de lente/legenda tem alvos de 44px (mais alta) e os
+// controles de zoom ocupam o canto de baixo à esquerda.
+const CHROME_TOP_MOBILE = 64;
+const MOBILE_CONTROLS_W = 60;
 const STAGING_BANNER_H = 56;
 // Minimapa só quando o grafo é grande o bastante para precisar dele.
 const MINIMAP_MIN_NODES = 40;
@@ -187,9 +198,9 @@ const FLOW_EDGE_PREFIX = 'flow-seq-';
 // Colunas: largura de um card + folga; colunas longas quebram em sub-colunas
 // para não virarem uma tira de 8000px que o fitView reduz a pílulas.
 const COL_W = 340;
-const COL_GAP = 120;
+const COL_GAP = 72;
 const ROW_H = 230;
-const MAX_ROWS = 7;
+const MAX_ROWS = 5;
 const CARD_W = 300;
 
 const columnsLayout = (
@@ -351,29 +362,35 @@ const lensLayout = (lens: Lens, project: Project, tr: Messages): LensLayout => {
         width: gridWidth,
       });
     }
-    const stepsX = others.length > 0 ? gridWidth + COL_GAP * 2 : 0;
-    const byLayer: Record<number, string[]> = {};
-    steps.forEach((n) => (byLayer[depth[n.id]] ||= []).push(n.id));
-    let maxLayer = 1;
-    Object.entries(byLayer).forEach(([d, ids]) => {
-      ids.sort(byOrder);
-      maxLayer = Math.max(maxLayer, ids.length);
+    // Uma coluna por sequência (passos irmãos), com o nome do pai no
+    // cabeçalho: "Passo #1" de duas sequências nunca fica lado a lado sem
+    // contexto. Dentro da coluna, a ordem é a da sequência (profundidade e
+    // depois `order`).
+    let colX = others.length > 0 ? gridWidth + COL_GAP * 2 : 0;
+    const groups = [...stepsByParent.entries()].sort(([, a], [, b]) => byOrder(a[0].id, b[0].id));
+    for (const [parentId, arr] of groups) {
+      const ids = arr.map((n) => n.id).sort((a, b) => (depth[a] ?? 0) - (depth[b] ?? 0) || byOrder(a, b));
       ids.forEach((id, i) => {
-        positions[id] = { x: stepsX + i * COL_W, y: Number(d) * 260 };
+        positions[id] = { x: colX, y: i * ROW_H };
       });
-    });
-    if (steps.length > 0) {
       headers.push({
-        id: `${HEADER_PREFIX}flow-steps`,
-        label: tr.graph.flowSteps,
-        count: steps.length,
+        id: `${HEADER_PREFIX}flow-steps-${parentId || 'root'}`,
+        label: project.nodes[parentId]?.name || tr.graph.flowSteps,
+        count: ids.length,
         tone: 'bg-text-faint/50',
-        x: stepsX,
+        x: colX,
         y: -90,
-        width: (maxLayer - 1) * COL_W + CARD_W,
+        width: CARD_W,
       });
+      colX += CARD_W + COL_GAP;
     }
     return { positions, visible, headers, flowEdges };
+  }
+
+  // Conexões sem nenhuma ligação além da decomposição: nada a mapear (o
+  // mapa radial só espalharia a árvore). O canvas mostra um estado vazio.
+  if (!edges.some((e) => !isHierarchyEdge(project, e))) {
+    return { positions: {}, visible: new Set(), headers: [] };
   }
 
   // connections: radial simples por grau; o raio cresce com o número de nós.
@@ -431,7 +448,6 @@ export function GraphCanvas() {
   const updateNodePosition = useGraphStore((s) => s.updateNodePosition);
   const applyLayoutPositions = useGraphStore((s) => s.applyLayoutPositions);
   const acceptAllSuggestions = useGraphStore((s) => s.acceptAllSuggestions);
-  const rejectAllSuggestions = useGraphStore((s) => s.rejectAllSuggestions);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -467,39 +483,64 @@ export function GraphCanvas() {
     // dela (não cobre cabeçalhos de coluna nem a raiz).
     const p = useGraphStore.getState().pendingSuggestions;
     const banner = p && p.nodes.length > 0 ? STAGING_BANNER_H : 0;
+    let bottom = pad;
+    if (isMobile && useGraphStore.getState().mobileSheetOpen) {
+      // O sheet de detalhe cobre a parte de baixo: no mínimo o snap baixo
+      // (45%); se ele já estiver mais alto, mede onde começa. Sem sheet,
+      // sobra a área inteira.
+      bottom = H * 0.45 + 8;
+      const sheet = document.querySelector('[data-vaul-drawer][data-state="open"]');
+      const rect = el?.getBoundingClientRect();
+      const sheetTop = sheet?.getBoundingClientRect().top;
+      if (rect && sheetTop !== undefined && sheetTop < rect.bottom) {
+        bottom = Math.max(bottom, rect.bottom - sheetTop + 8);
+      }
+    }
     return {
       W,
       H,
-      left: pad,
+      left: isMobile ? MOBILE_CONTROLS_W : pad,
       right: pad,
-      top: pad + CHROME_TOP + banner,
-      bottom: isMobile ? H * 0.5 : pad,
+      top: pad + (isMobile ? CHROME_TOP_MOBILE : CHROME_TOP) + banner,
+      bottom,
     };
   }, [isMobile]);
 
-  // Enquadra `ids` (num zoom legível) dentro da área livre. Se não couberem,
-  // fica no zoom mínimo legível centrado em `focusId`.
+  // Enquadra `ids` (num zoom legível) dentro da área livre, com `focusId` no
+  // centro: o recorte é simétrico em volta dele, então o nó em foco nunca
+  // fica colado na borda. Se não couber, tenta `fallbackIds` (contexto
+  // menor) e, por fim, o zoom mínimo legível só no nó.
   const frameIds = useCallback(
-    (ids: string[], focusId: string, duration = 300) => {
-      const present = ids.filter((id) => getNode(id));
-      if (present.length === 0) return;
+    (ids: string[], focusId: string, duration = 300, fallbackIds?: string[]) => {
       const a = safeArea();
       const availW = Math.max(120, a.W - a.left - a.right);
       const availH = Math.max(120, a.H - a.top - a.bottom);
-      const b = getNodesBounds(present);
-      const fit = Math.min(availW / Math.max(1, b.width), availH / Math.max(1, b.height));
-      const zoom = Math.min(1, Math.max(READABLE_MIN_ZOOM, fit));
-      let cx = b.x + b.width / 2;
-      let cy = b.y + b.height / 2;
-      if (fit < READABLE_MIN_ZOOM) {
-        const f = getNode(focusId);
-        if (f) {
-          cx = f.position.x + (f.measured?.width ?? 260) / 2;
-          cy = f.position.y + (f.measured?.height ?? 120) / 2;
+      const hasFocus = !!getNode(focusId);
+      const fitAround = (list: string[]) => {
+        const present = list.filter((id) => getNode(id));
+        if (present.length === 0) return null;
+        const b = getNodesBounds(present);
+        if (!hasFocus) {
+          const fit = Math.min(availW / Math.max(1, b.width), availH / Math.max(1, b.height));
+          return { fit, cx: b.x + b.width / 2, cy: b.y + b.height / 2 };
         }
+        const fb = getNodesBounds([focusId]);
+        const cx = fb.x + fb.width / 2;
+        const cy = fb.y + fb.height / 2;
+        const hw = Math.max(cx - b.x, b.x + b.width - cx);
+        const hh = Math.max(cy - b.y, b.y + b.height - cy);
+        const fit = Math.min(availW / Math.max(1, 2 * hw), availH / Math.max(1, 2 * hh));
+        return { fit, cx, cy };
+      };
+      let r = fitAround(ids);
+      if (!r) return;
+      if (r.fit < READABLE_MIN_ZOOM && fallbackIds) {
+        const r2 = fitAround(fallbackIds);
+        if (r2) r = r2;
       }
+      const zoom = Math.min(1, Math.max(READABLE_MIN_ZOOM, r.fit));
       void setViewport(
-        { x: a.left + availW / 2 - cx * zoom, y: a.top + availH / 2 - cy * zoom, zoom },
+        { x: a.left + availW / 2 - r.cx * zoom, y: a.top + availH / 2 - r.cy * zoom, zoom },
         { duration },
       );
     },
@@ -507,28 +548,42 @@ export function GraphCanvas() {
   );
 
   // Foco num nó: ele com o pai e os irmãos (contexto), não só o nó em zoom 1.
+  // Se o contexto inteiro não couber legível, fica com o pai e os dois
+  // irmãos vizinhos.
   const centerOn = useCallback(
     (id: string) => {
       const proj = useGraphStore.getState().project;
       const node = proj?.nodes[id];
+      const onCanvas = (x: string) => {
+        const v = layoutRef.current?.visible ?? null;
+        return x === id || v === null || v.has(x);
+      };
       const ids = [id];
+      const near = [id];
       if (proj && node?.parentId) {
         ids.push(node.parentId);
-        for (const n of Object.values(proj.nodes)) {
-          if (n.parentId === node.parentId && n.id !== id) ids.push(n.id);
-        }
+        near.push(node.parentId);
+        const sibs = Object.values(proj.nodes)
+          .filter((n) => n.parentId === node.parentId)
+          .sort((a, b) => a.order - b.order);
+        const at = sibs.findIndex((n) => n.id === id);
+        sibs.forEach((n, i) => {
+          if (n.id === id) return;
+          ids.push(n.id);
+          if (Math.abs(i - at) === 1) near.push(n.id);
+        });
       }
-      frameIds(ids.filter((x) => x === id || (layoutRef.current?.visible ?? null) === null || layoutRef.current!.visible!.has(x)), id);
+      frameIds(ids.filter(onCanvas), id, 300, near.filter(onCanvas));
     },
     [frameIds],
   );
 
+  // Enquadra um grupo inteiro (sem foco num nó só).
   const fitIds = useCallback(
-    (ids: string[], padding = 0.25) => {
+    (ids: string[]) => {
       const present = ids.filter((id) => getNode(id));
       if (present.length === 0) return;
-      void padding;
-      frameIds(present, present[0], 350);
+      frameIds(present, '', 350);
     },
     [frameIds, getNode],
   );
@@ -537,7 +592,7 @@ export function GraphCanvas() {
   // fica no zoom mínimo legível e ancora no começo (topo da raiz na Estrutura,
   // canto superior esquerdo nas colunas, centro nas Conexões).
   const frameOverview = useCallback(
-    (duration = 350) => {
+    (duration = 350, whole = false) => {
       const el = containerRef.current;
       const st = useGraphStore.getState();
       const proj = st.project;
@@ -547,19 +602,26 @@ export function GraphCanvas() {
       const a = safeArea();
       // Origem e tamanho da área livre (descontado o cromo flutuante).
       const W = a.W - a.left - a.right;
-      const H = (isMobile ? a.H : a.H - a.bottom) - a.top;
+      const H = a.H - a.bottom - a.top;
       const pad = 0;
       const b = getNodesBounds(all.map((n) => n.id));
       if (b.width <= 0 || b.height <= 0) return;
       const fit = Math.min(W / b.width, H / b.height);
       // Conexões é um mapa de relações: precisa caber inteiro, com piso menor.
-      const floor = st.lens === 'connections' ? CONNECTIONS_MIN_ZOOM : READABLE_MIN_ZOOM;
+      // "Ver o grafo inteiro" (whole) encaixa de verdade.
+      const floor = whole
+        ? FIT_ALL_MIN_ZOOM
+        : st.lens === 'connections'
+        ? CONNECTIONS_MIN_ZOOM
+        : st.lens === 'structure'
+        ? READABLE_MIN_ZOOM
+        : COLUMNS_MIN_ZOOM;
       const zoom = Math.min(1, Math.max(floor, fit));
       const fitsX = b.width * zoom <= W - pad * 2;
       const fitsY = b.height * zoom <= H - pad * 2;
       let x: number;
       let y: number;
-      if (st.lens === 'connections') {
+      if (st.lens === 'connections' || (whole && fitsX && fitsY)) {
         x = W / 2 - (b.x + b.width / 2) * zoom;
         y = H / 2 - (b.y + b.height / 2) * zoom;
       } else if (st.lens === 'structure') {
@@ -586,7 +648,7 @@ export function GraphCanvas() {
       }
       void setViewport({ x: x + a.left, y: y + a.top, zoom }, { duration });
     },
-    [getNodes, getNodesBounds, getNode, setViewport, safeArea, isMobile],
+    [getNodes, getNodesBounds, getNode, setViewport, safeArea],
   );
 
   // Timers de câmera em refs: um re-render no meio (projeto mudou) não pode
@@ -614,7 +676,7 @@ export function GraphCanvas() {
   const frameStaging = useCallback(() => {
     const p = useGraphStore.getState().pendingSuggestions;
     if (!p) return;
-    fitIds([p.parentId, ...p.nodes.map((n) => `${SUGGESTION_PREFIX}${n.tempId}`)], 0.3);
+    fitIds([p.parentId, ...p.nodes.map((n) => `${SUGGESTION_PREFIX}${n.tempId}`)]);
   }, [fitIds]);
 
   // Montagem: com um nó útil selecionado (vindo do tutor, por exemplo),
@@ -670,7 +732,7 @@ export function GraphCanvas() {
           .map((n) => n.id),
       ].filter(isOnCanvas);
       action = () => {
-        if (ids.length > 1) fitIds(ids, 0.2);
+        if (ids.length > 1) fitIds(ids);
         else if (ids.length === 1) centerOn(ids[0]);
       };
     } else if (centerVersion !== p.centerVersion && centerRequest) {
@@ -719,7 +781,7 @@ export function GraphCanvas() {
   const zoomButtons = [
     { label: tr.graph.zoomIn, glyph: '+', onClick: () => void zoomIn({ duration: 200 }) },
     { label: tr.graph.zoomOut, glyph: '−', onClick: () => void zoomOut({ duration: 200 }) },
-    { label: tr.graph.fitAll, glyph: '⤢', onClick: () => frameOverview(300) },
+    { label: tr.graph.fitAll, glyph: '⤢', onClick: () => frameOverview(300, true) },
   ] as const;
 
   // Esc limpa a seleção (o painel passa a mostrar o resumo do projeto).
@@ -896,6 +958,36 @@ export function GraphCanvas() {
     const shown = (id: string) => layout.visible === null || layout.visible.has(id);
     const focusIds = new Set([selectedId, hoveredId].filter(Boolean) as string[]);
     const dimmable = lens === 'connections' || lens === 'flow';
+    const pos = (id: string) => layout.positions[id] ?? project.nodes[id]?.position;
+    const byParent = childrenByParent(project);
+    // Roteamento: aresta entre cards na mesma fileira sai/entra pelo lado
+    // (senão o bezier de baixo→cima faz uma laçada); filhos da grade de
+    // folhas recebem a aresta pelo lado de dentro, num barramento no vão.
+    const routeOf = (source: string, target: string, hierarchy: boolean): Partial<Edge> => {
+      const s0 = pos(source);
+      const t0 = pos(target);
+      if (!s0 || !t0) return {};
+      if (
+        hierarchy &&
+        lens === 'structure' &&
+        isLeafGridParent(byParent, source) &&
+        Math.abs(Math.abs(t0.x - s0.x) - 190) < 2
+      ) {
+        return {
+          type: 'smoothstep',
+          targetHandle: t0.x < s0.x ? SIDE_HANDLE.targetRight : SIDE_HANDLE.targetLeft,
+        };
+      }
+      if (!hierarchy && Math.abs(t0.y - s0.y) < 120 && Math.abs(t0.x - s0.x) > 60) {
+        const right = t0.x > s0.x;
+        return {
+          type: 'smoothstep',
+          sourceHandle: right ? SIDE_HANDLE.sourceRight : SIDE_HANDLE.sourceLeft,
+          targetHandle: right ? SIDE_HANDLE.targetLeft : SIDE_HANDLE.targetRight,
+        };
+      }
+      return {};
+    };
     const dimOpacity = (touches: boolean) =>
       touches ? 1 : focusIds.size > 0 ? EDGE_DIMMED_OPACITY : EDGE_IDLE_OPACITY;
     const base: Edge[] = [];
@@ -917,6 +1009,7 @@ export function GraphCanvas() {
         id: e.id,
         source: e.source,
         target: e.target,
+        ...routeOf(e.source, e.target, hierarchy),
         style: dimmable ? { ...baseStyle, opacity: dimOpacity(touchesFocus) } : baseStyle,
         animated: !isMobile && !hierarchy && touchesFocus,
         // Sempre sob os nós: a aresta destacada não risca títulos de cards.
@@ -931,6 +1024,7 @@ export function GraphCanvas() {
           id: fe.id,
           source: fe.source,
           target: fe.target,
+          ...routeOf(fe.source, fe.target, false),
           style: { ...edgeStyleByKind.direct, opacity: dimOpacity(touchesFocus) },
           animated: !isMobile && touchesFocus,
           zIndex: 0,
@@ -1112,7 +1206,7 @@ export function GraphCanvas() {
                 >
                   {tr.graph.viewStaging}
                 </button>
-                <button onClick={rejectAllSuggestions} className="tap btn btn-secondary">
+                <button onClick={() => discardSuggestionsWithUndo(tr)} className="tap btn btn-secondary">
                   {tr.graph.rejectAll}
                 </button>
                 <button
@@ -1130,14 +1224,17 @@ export function GraphCanvas() {
             </div>
           </Panel>
         )}
-        {noCrossLinks && !emptyLens && (
-          <Panel position="bottom-center" className="!mb-4">
-            <div className="glass border rounded-card shadow-mac px-4 py-2.5 text-control text-text-muted">
-              {tr.graph.noCrossLinks}
+        {noCrossLinks ? (
+          // Estado vazio centrado (não um mapa radial da árvore).
+          <div className="absolute inset-0 z-[5] flex items-center justify-center p-6 pointer-events-none">
+            <div className="pointer-events-auto max-w-sm text-center space-y-3">
+              <p className="text-body text-text-secondary">{tr.graph.noCrossLinks}</p>
+              <button onClick={() => setLens('structure')} className="tap btn btn-secondary">
+                {tr.graph.noCrossLinksAction}
+              </button>
             </div>
-          </Panel>
-        )}
-        {emptyLens && (
+          </div>
+        ) : emptyLens && (
           <Panel position="top-center" className="!mt-24">
             <div className="glass border rounded-card shadow-mac px-4 py-2.5 text-control text-text-muted">
               {tr.graph.lensEmpty}

@@ -278,7 +278,7 @@ function Fold({
       onToggle={(e) => setOpen(e.currentTarget.open)}
       className="group/fold scroll-mt-4 border-t border-border-base/70"
     >
-      <summary className="tap flex min-h-[40px] cursor-pointer select-none list-none items-center gap-2.5 px-4 py-2 transition-colors duration-120 ease-mac hover:bg-bg-elevated/50 [&::-webkit-details-marker]:hidden">
+      <summary className="tap flex min-h-[40px] [@media(pointer:coarse)]:min-h-11 cursor-pointer select-none list-none items-center gap-2.5 px-4 py-2 transition-colors duration-120 ease-mac hover:bg-bg-elevated/50 [&::-webkit-details-marker]:hidden">
         <Chevron className="text-text-faint transition-transform duration-180 ease-mac group-open/fold:rotate-90" />
         <span className="min-w-0 flex-1 text-control font-medium text-text-primary">{title}</span>
         <span
@@ -363,9 +363,8 @@ function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
     const text = draft.trim();
     if (!text) return;
     setUserCriterion(node.id, text);
-    // Um só desfazer: o inline, junto ao critério (mesma contagem do lock).
-    // O toast é só a confirmação, curta e sem botão.
-    toast.show({ message: tr.groundTruth.lockedToast, tone: 'ok', durationMs: 2500 });
+    // Sem toast: o selo "Travado" + Desfazer inline já confirmam (o toast
+    // cobria a linha logo abaixo).
     // Aferir é o passo seguinte, logo abaixo.
     requestAnimationFrame(() => metRef.current?.focus());
   };
@@ -835,7 +834,8 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
     if (!canAdd) return;
     addGroundTruthRef(node.id, {
       kind,
-      label: label.trim() || defaultLabel || value,
+      // Sem rótulo: o rótulo é o valor inteiro (o card mostra uma linha só).
+      label: label.trim() || (kind === 'link' ? defaultLabel : value) || value,
       value,
       verificado: false,
       addedByAI: false,
@@ -1068,7 +1068,11 @@ function RefRow({
 
   const href = refData.kind === 'link' ? safeHref(refData.value) : null;
   // Prova sem rótulo próprio: o rótulo É o valor — não repete a linha.
-  const valueIsLabel = refData.kind !== 'link' && refData.value.trim() === refData.label.trim();
+  // Rótulo antigo gerado como valor truncado ("…") também conta como sem rótulo.
+  const lbl = refData.label.trim();
+  const val = refData.value.trim();
+  const valueIsLabel =
+    refData.kind !== 'link' && (val === lbl || (lbl.endsWith('…') && val.startsWith(lbl.slice(0, -1))));
   // Prova da IA com link: só dá pra conferir depois de abrir a fonte.
   const mustOpenFirst = refData.addedByAI && href !== null && !refData.openedAt;
   const counts = refCountsAsSignal(refData);
@@ -1129,7 +1133,7 @@ function RefRow({
             <span
               className={`min-w-0 text-control text-text-primary ${valueIsLabel ? 'break-words' : 'truncate'}`}
             >
-              {refData.label}
+              {valueIsLabel ? (refData.kind === 'medida' ? stripZeroTolerance(refData.value) : refData.value) : refData.label}
             </span>
             {refData.addedByAI && (
               <span className="chip ml-auto h-[18px] shrink-0 gap-1 bg-ai-accent/12 px-1.5 text-ai-accent">

@@ -112,6 +112,10 @@ export interface GraphState {
   viewMode: ViewMode;
   // Desktop detail panel collapsed to a thin rail → the graph gets the room.
   detailPanelOpen: boolean;
+  // Mobile: o sheet de detalhe está aberto (cobre a metade de baixo do grafo).
+  // Efêmero — o enquadramento do canvas desconta a área dele.
+  mobileSheetOpen: boolean;
+  setMobileSheetOpen: (open: boolean) => void;
   pendingSuggestions: {
     parentId: string;
     nodes: Array<{
@@ -215,6 +219,9 @@ export interface GraphState {
   acceptAllSuggestions: () => void;
   rejectSuggestion: (tempId: string) => void;
   rejectAllSuggestions: () => void;
+  // Desfazer do "Descartar todas": devolve o lote descartado (se o pai ainda
+  // existe). O lote ativo de outro pai, se houver, estaciona.
+  restoreSuggestions: (batch: NonNullable<GraphState['pendingSuggestions']>) => boolean;
   // Torna ativo o lote estacionado deste pai (estacionando o ativo atual).
   resumeSuggestions: (parentId: string) => boolean;
 
@@ -368,6 +375,15 @@ const swapInParked = (
   const cur = s.pendingSuggestions;
   if (cur && cur.parentId !== parentId && cur.nodes.length > 0) parked[cur.parentId] = cur;
   return { pendingSuggestions: next ?? null, parkedSuggestions: parked };
+};
+
+// Aceitar sub-partes de um nó com falha registrada = aceitar o replanejamento:
+// o texto do pai é do plano antigo. Marca (a UI avisa) e tira a explicação em
+// cache, que recomendaria o que falhou. Muta `project.nodes` de um objeto novo.
+const markReplaced = (project: Project, parentId: string) => {
+  const parent = project.nodes[parentId];
+  if (!parent?.failureContext || parent.planReplacedAt) return;
+  project.nodes[parentId] = { ...parent, planReplacedAt: now(), explicacao: undefined };
 };
 
 // Um lote persistido só volta se for bem formado e o pai existir no projeto.
@@ -641,6 +657,7 @@ export const useGraphStore = create<GraphState>()(
       lens: 'structure',
       viewMode: 'tutor',
       detailPanelOpen: true,
+      mobileSheetOpen: false,
       pendingSuggestions: null,
       parkedSuggestions: {},
       drafts: {},
@@ -888,6 +905,9 @@ export const useGraphStore = create<GraphState>()(
           };
         }),
       setDetailPanelOpen: (open) => set({ detailPanelOpen: open }),
+      setMobileSheetOpen: (open) => {
+        if (get().mobileSheetOpen !== open) set({ mobileSheetOpen: open });
+      },
 
       updateNode: (id, patch, opts) =>
         set((state) => {
@@ -1586,6 +1606,7 @@ export const useGraphStore = create<GraphState>()(
           nodes: { ...project.nodes, [id]: node },
           edges: { ...project.edges, ...newEdges },
         };
+        markReplaced(merged, pending.parentId);
         set({
           project: merged.manualLayout === true ? merged : withTreeLayout(merged),
           pendingSuggestions:
@@ -1645,6 +1666,7 @@ export const useGraphStore = create<GraphState>()(
           nodes: { ...project.nodes, ...newNodes },
           edges: { ...project.edges, ...newEdges },
         };
+        markReplaced(merged, pending.parentId);
         set({
           project: merged.manualLayout === true ? merged : withTreeLayout(merged),
           pendingSuggestions: null,
@@ -1671,6 +1693,18 @@ export const useGraphStore = create<GraphState>()(
       },
 
       rejectAllSuggestions: () => set({ pendingSuggestions: null }),
+
+      restoreSuggestions: (batch) => {
+        const s = get();
+        if (!validBatch(batch, s.project)) return false;
+        const cur = s.pendingSuggestions;
+        if (cur && cur.parentId === batch.parentId) return false;
+        const parked = { ...s.parkedSuggestions };
+        if (cur && cur.nodes.length > 0) parked[cur.parentId] = cur;
+        delete parked[batch.parentId];
+        set({ pendingSuggestions: batch, parkedSuggestions: parked });
+        return true;
+      },
 
       setDraft: (nodeId, field, value) =>
         set((state) => {
@@ -2146,6 +2180,21 @@ export const effectiveLeaves = (project: Project, pending?: PendingRef): Concept
 export const LAYOUT_X_GAP = 340;
 export const LAYOUT_Y_GAP = 300;
 
+// Pai cujos filhos são todos folhas e passam de LEAF_GRID_MIN: os filhos vão
+// em duas colunas sob ele (barramento no vão do meio), não numa fileira só
+// que estica a árvore por milhares de px.
+const LEAF_GRID_MIN = 4;
+// Meio vão entre as duas colunas da grade, medido do x do pai (o x é o canto
+// esquerdo do card): coluna esquerda em x-190, direita em x+190 → vão de 80px
+// para as arestas descerem sem atravessar cards.
+const LEAF_GRID_HALF = 190;
+export const LEAF_GRID_ROW = 280;
+
+export const isLeafGridParent = (byParent: Map<string, ConceptNodeData[]>, id: string): boolean => {
+  const kids = byParent.get(id) ?? [];
+  return kids.length >= LEAF_GRID_MIN && kids.every((k) => (byParent.get(k.id) ?? []).length === 0);
+};
+
 export function computeTreeLayout(project: Project): Record<string, { x: number; y: number }> {
   const byParent = childrenByParent(project);
   const widths = new Map<string, number>(); // subtree width in leaf slots
@@ -2153,7 +2202,12 @@ export function computeTreeLayout(project: Project): Record<string, { x: number;
     const cached = widths.get(id);
     if (cached !== undefined) return cached;
     const kids = byParent.get(id) ?? [];
-    const w = kids.length === 0 ? 1 : kids.reduce((acc, k) => acc + widthOf(k.id), 0);
+    const w =
+      kids.length === 0
+        ? 1
+        : isLeafGridParent(byParent, id)
+        ? 2
+        : kids.reduce((acc, k) => acc + widthOf(k.id), 0);
     widths.set(id, w);
     return w;
   };
@@ -2161,6 +2215,16 @@ export function computeTreeLayout(project: Project): Record<string, { x: number;
   const positions: Record<string, { x: number; y: number }> = {};
   const place = (id: string, depth: number, left: number) => {
     positions[id] = { x: (left + widthOf(id) / 2) * LAYOUT_X_GAP, y: depth * LAYOUT_Y_GAP };
+    if (isLeafGridParent(byParent, id)) {
+      const px = positions[id].x;
+      (byParent.get(id) ?? []).forEach((kid, i) => {
+        positions[kid.id] = {
+          x: px + (i % 2 === 0 ? -LEAF_GRID_HALF : LEAF_GRID_HALF),
+          y: (depth + 1) * LAYOUT_Y_GAP + Math.floor(i / 2) * LEAF_GRID_ROW,
+        };
+      });
+      return;
+    }
     let cursor = left;
     for (const kid of byParent.get(id) ?? []) {
       place(kid.id, depth + 1, cursor);

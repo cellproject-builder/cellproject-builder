@@ -806,7 +806,9 @@ export function ObjectiveScreen() {
                 rows={4}
                 className="field text-body px-3 py-2.5 min-h-[112px]"
               />
-              <div className="mt-3 flex gap-1.5 flex-wrap items-center">
+              {/* No toque, as fileiras ficam a 44px uma da outra: os alvos
+                  ampliados (after) dos chips não se sobrepõem. */}
+              <div className="mt-3 flex gap-x-1.5 gap-y-2 [@media(pointer:coarse)]:gap-y-5 flex-wrap items-center">
                 <span className="text-footnote text-text-muted mr-0.5">{tr.objective.examplesLabel}</span>
                 {tr.objective.examples.map((ex) => (
                   <button
@@ -1099,7 +1101,9 @@ export function ObjectiveScreen() {
                 mobile a barra encosta no rodapé e cobre até a safe area. */}
             {selectedOutline ? (
               <div className="sticky bottom-0 z-10 -mx-4 sm:mx-auto w-auto sm:w-full sm:max-w-md sm:bottom-[max(env(safe-area-inset-bottom),0.75rem)]">
-                <div className="glass border-t sm:border sm:rounded-window shadow-mac-lg px-4 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] sm:p-2">
+                {/* Docado no mobile: sólido (os títulos dos cards não vazam por
+                    baixo). Vidro só na pílula flutuante de sm+. */}
+                <div className="bar-solid sm:glass border-t sm:border sm:rounded-window shadow-mac-lg px-4 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] sm:p-2">
                   <button
                     type="button"
                     onClick={handleConfirm}
@@ -1742,12 +1746,13 @@ function StartingView({
   );
 }
 
-function Chip({ label, children }: { label: string; children: React.ReactNode }) {
+function Chip({ label, children }: { label: string; children: string }) {
   return (
-    // Quebra linha em vez de truncar (ex.: "2–3 h de montagem + 3 meses de…").
-    <span title={label} className="chip max-w-full !h-auto min-h-5 py-0.5 !whitespace-normal">
+    // Uma linha só (chip não vira bloco): o texto longo trunca e o completo
+    // fica no title.
+    <span title={`${label}: ${children}`} className="chip max-w-full min-w-0">
       <span className="sr-only">{label}: </span>
-      <span>{children}</span>
+      <span className="truncate">{children}</span>
     </span>
   );
 }

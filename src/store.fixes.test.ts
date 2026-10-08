@@ -238,3 +238,30 @@ describe('correção rodada 1 (overhaul)', () => {
     expect(n.state).toBe('validated');
   });
 });
+
+describe('correção rodada 2 (e2e com IA real)', () => {
+  it('"Descartar todas" pode ser desfeito: restoreSuggestions devolve o lote', () => {
+    const vaso = byName('vaso');
+    st().stageSuggestions(vaso.id, [staged('a', 'substrato', 0), staged('b', 'mudas', 1)], []);
+    st().acceptSuggestion('a');
+    const batch = st().pendingSuggestions!;
+    expect(Object.keys(batch.acceptedMap ?? {})).toHaveLength(1);
+    st().rejectAllSuggestions();
+    expect(st().pendingSuggestions).toBeNull();
+    expect(st().restoreSuggestions(batch)).toBe(true);
+    expect(st().pendingSuggestions?.nodes.map((n) => n.data.name)).toEqual(['mudas']);
+    // Já restaurado: um segundo desfazer não duplica.
+    expect(st().restoreSuggestions(batch)).toBe(false);
+  });
+
+  it('aceitar o replanejamento de um nó com falha marca o texto do pai como antigo e tira a explicação', () => {
+    const vaso = byName('vaso');
+    st().setNodeExplanation(vaso.id, 'explicação do plano antigo');
+    st().reportFailure(vaso.id, 'rachou');
+    st().stageSuggestions(vaso.id, [staged('a', 'vaso novo', 0)], []);
+    st().acceptAllSuggestions();
+    const after = byName('vaso');
+    expect(after.planReplacedAt).toBeTypeOf('number');
+    expect(after.explicacao).toBeUndefined();
+  });
+});

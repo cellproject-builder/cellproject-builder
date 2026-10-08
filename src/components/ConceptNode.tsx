@@ -49,8 +49,45 @@ const statusDot: Record<NodeVisualStatus, string> = {
   open: 'ring-1 ring-inset ring-text-faint/60',
 };
 
-const confidenceText = (band: 'high' | 'mid' | 'low') =>
-  band === 'high' ? 'text-conf-high' : band === 'mid' ? 'text-conf-mid' : 'text-conf-low';
+// Alças laterais invisíveis: as arestas entre irmãos na mesma fileira e as do
+// barramento pai→filhos (grade de folhas) entram pelo lado, sem laçadas nem
+// atravessar outros cards. Vêm depois das de cima/baixo, que seguem padrão.
+export const SIDE_HANDLE = { sourceLeft: 'sl', sourceRight: 'sr', targetLeft: 'tl', targetRight: 'tr' } as const;
+function SideHandles() {
+  const cls = '!opacity-0 !pointer-events-none';
+  return (
+    <>
+      <Handle id={SIDE_HANDLE.sourceLeft} type="source" position={Position.Left} className={cls} isConnectable={false} />
+      <Handle id={SIDE_HANDLE.sourceRight} type="source" position={Position.Right} className={cls} isConnectable={false} />
+      <Handle id={SIDE_HANDLE.targetLeft} type="target" position={Position.Left} className={cls} isConnectable={false} />
+      <Handle id={SIDE_HANDLE.targetRight} type="target" position={Position.Right} className={cls} isConnectable={false} />
+    </>
+  );
+}
+
+// Três barras crescentes; preenchidas conforme a faixa (baixa 1, média 2, alta 3).
+function ConfidenceBars({
+  band,
+  label,
+  className = '',
+}: {
+  band: 'high' | 'mid' | 'low';
+  label: string;
+  className?: string;
+}) {
+  const filled = band === 'high' ? 3 : band === 'mid' ? 2 : 1;
+  return (
+    <span role="img" aria-label={label} title={label} className={`inline-flex items-end gap-[2px] h-2.5 shrink-0 ${className}`}>
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className={`w-[3px] rounded-[1px] ${i < filled ? 'bg-text-muted' : 'bg-text-faint/30'}`}
+          style={{ height: `${4 + i * 3}px` }}
+        />
+      ))}
+    </span>
+  );
+}
 
 export interface NodeExtras {
   childCount: number;
@@ -156,7 +193,7 @@ function ConceptNodeImpl({ data, selected }: Props) {
             ✦
           </span>
           <KindTag kind={data.kind} tr={tr} />
-          <span className="ml-auto font-mono text-caption tabular-nums text-text-muted">{data.confidence}%</span>
+          <ConfidenceBars band={band} label={tr.conceptNode.confidenceLevel(band)} className="ml-auto" />
         </div>
         <div className="font-semibold text-control mb-1">{data.name}</div>
         <div className="text-footnote text-text-secondary mb-2.5 line-clamp-2">{data.oQue || data.fx}</div>
@@ -232,6 +269,7 @@ function ConceptNodeImpl({ data, selected }: Props) {
           {blocked && <LockMark tr={tr} />}
         </span>
         <Handle type="source" position={Position.Bottom} />
+        <SideHandles />
       </div>
     );
   }
@@ -244,15 +282,10 @@ function ConceptNodeImpl({ data, selected }: Props) {
       {nextTag}
       <span className="ml-auto flex items-center gap-1.5">
         {blocked && <LockMark tr={tr} />}
-        {showConfidence && (
-          <span
-            title={tr.detail.confidence}
-            className={`font-mono text-caption tabular-nums ${
-              status === 'open' ? confidenceText(band) : 'text-text-muted'
-            }`}
-          >
-            {data.confidence}%
-          </span>
+        {/* Estimativa da IA em 3 níveis, neutra: o número exato fica no
+            painel de detalhe, e a cor não compete com o sinal de prova. */}
+        {showConfidence && status === 'open' && (
+          <ConfidenceBars band={band} label={tr.conceptNode.confidenceLevel(band)} />
         )}
       </span>
     </div>
@@ -283,6 +316,7 @@ function ConceptNodeImpl({ data, selected }: Props) {
         <div className="text-footnote text-text-secondary line-clamp-2">{data.oQue}</div>
         {quickConfirm}
         <Handle type="source" position={Position.Bottom} />
+        <SideHandles />
       </div>
     );
   }
@@ -324,6 +358,7 @@ function ConceptNodeImpl({ data, selected }: Props) {
       )}
       {quickConfirm}
       <Handle type="source" position={Position.Bottom} />
+        <SideHandles />
     </div>
   );
 }

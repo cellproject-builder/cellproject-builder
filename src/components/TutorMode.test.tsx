@@ -145,7 +145,10 @@ describe('TutorMode — confirmar com toast e desfazer', () => {
     expect(title()).toBe('Passo pai');
     const btn = (re: RegExp) => [...container.querySelectorAll('button')].find((b) => re.test(b.textContent ?? ''));
 
-    // Gate: sem critério, o botão é "Confirmar sem prova…" e pede o 2º passo.
+    // Gate: sem critério, o lugar principal leva ao critério; "Confirmar sem
+    // prova…" mora no "…" e ainda pede o 2º passo.
+    expect(btn(/Escrever meu critério|Write my criterion/)).toBeTruthy();
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click());
     act(() => btn(/sem prova…|without proof…/)!.click());
     act(() => btn(/✓ Confirmar sem prova|✓ Confirm without proof/)!.click());
 
