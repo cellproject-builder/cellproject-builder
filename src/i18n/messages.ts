@@ -469,6 +469,7 @@ export const en = {
     rejectAll: 'Reject',
     viewStaging: 'View',
     lensEmpty: 'No parts to show in this lens yet.',
+    noCrossLinks: 'This plan has no links between parts beyond the decomposition yet.',
     legendBorderDone: 'border: done with proof',
     legendBorderNoProof: 'dashed border: confirmed without proof',
     legendBorderProblem: 'border: problem',
@@ -476,6 +477,7 @@ export const en = {
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
     fitAll: 'Show the whole graph',
+    zoomGroup: 'Zoom',
     // correção rodada 1
     flowResources: 'Resources and concepts',
     flowSteps: 'Steps in order',
@@ -1364,6 +1366,7 @@ export const ptBR: Messages = {
     rejectAll: 'Rejeitar',
     viewStaging: 'Ver',
     lensEmpty: 'Ainda não há partes para mostrar nesta lente.',
+    noCrossLinks: 'Este plano ainda não tem ligações entre partes além da decomposição.',
     legendBorderDone: 'borda: concluído com prova',
     legendBorderNoProof: 'borda tracejada: confirmado sem prova',
     legendBorderProblem: 'borda: problema',
@@ -1371,6 +1374,7 @@ export const ptBR: Messages = {
     zoomIn: 'Aproximar',
     zoomOut: 'Afastar',
     fitAll: 'Ver o grafo inteiro',
+    zoomGroup: 'Zoom',
     // correção rodada 1
     flowResources: 'Recursos e conceitos',
     flowSteps: 'Passos em ordem',

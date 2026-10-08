@@ -29,6 +29,7 @@ import {
   nextPendingForTutor,
   pendingParent,
   type Lens,
+  LAYOUT_Y_GAP,
 } from '@/store';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useReviewingParents } from '@/hooks/useReviewingParents';
@@ -80,7 +81,9 @@ const LENS_LABEL_KEY = {
 const edgeStyleByKind: Record<ConceptEdgeData['kind'], { stroke: string; strokeWidth: number; strokeDasharray?: string }> = {
   // Cor opaca (mistura com o fundo) em vez de alpha: arestas sobrepostas não
   // escurecem onde se cruzam.
-  direct: { stroke: 'color-mix(in srgb, rgb(var(--text-muted)) 70%, rgb(var(--bg-primary)))', strokeWidth: 1.5 },
+  // Sequência direta: mais grossa e mais clara que o esqueleto da
+  // decomposição — na legenda e no canvas as duas não se confundem.
+  direct: { stroke: 'color-mix(in srgb, rgb(var(--text-muted)) 85%, rgb(var(--bg-primary)))', strokeWidth: 2.25 },
   middleware: { stroke: 'rgb(var(--conn-middleware))', strokeWidth: 1.5, strokeDasharray: '4 3' },
   independent: { stroke: 'rgb(var(--conn-independent))', strokeWidth: 1.5, strokeDasharray: '6 4' },
   optional: { stroke: 'rgb(var(--conn-optional))', strokeWidth: 1.25, strokeDasharray: '2 3' },
@@ -94,19 +97,25 @@ const SUGGESTION_EDGE_STYLE = { stroke: 'rgb(var(--ai-accent))', strokeWidth: 1.
 // Opaca pelo mesmo motivo: as arestas categoria→filho que descem pela mesma
 // coluna não viram uma barra grossa e escura.
 const DECOMPOSITION_EDGE_STYLE = {
-  stroke: 'color-mix(in srgb, rgb(var(--text-faint)) 45%, rgb(var(--bg-primary)))',
-  strokeWidth: 1.25,
+  stroke: 'color-mix(in srgb, rgb(var(--text-faint)) 60%, rgb(var(--bg-primary)))',
+  strokeWidth: 1.5,
 };
 
 // Lentes Conexões/Fluxo: sem foco, as arestas ficam a meia força; com um nó
 // em foco (hover/seleção), só as dele em cor cheia e o resto quase some.
-const EDGE_IDLE_OPACITY = 0.5;
-const EDGE_DIMMED_OPACITY = 0.15;
+const EDGE_IDLE_OPACITY = 0.6;
+const EDGE_DIMMED_OPACITY = 0.3;
 
 // Zoom mínimo do enquadramento automático: abaixo disso o texto dos cards
 // fica ilegível. "Ver o grafo inteiro" continua livre.
 const READABLE_MIN_ZOOM = 0.7;
 const CONNECTIONS_MIN_ZOOM = 0.5;
+// Cromo flutuante sobre o canvas (px de tela): faixa dos botões do topo
+// (Organizar, zoom, Legenda). O enquadramento automático desconta isso.
+const CHROME_TOP = 44;
+const STAGING_BANNER_H = 56;
+// Minimapa só quando o grafo é grande o bastante para precisar dele.
+const MINIMAP_MIN_NODES = 40;
 // Folga mínima entre cards empilhados numa coluna (lentes de colunas).
 const STACK_GAP = 28;
 
@@ -191,9 +200,11 @@ const columnsLayout = (
   let x = 0;
   for (const g of groups) {
     if (g.ids.length === 0) continue; // sem colunas vazias
+    // Sub-colunas equilibradas sob o mesmo cabeçalho (8 → 4 + 4, não 7 + 1).
     const subCols = Math.ceil(g.ids.length / MAX_ROWS);
+    const rows = Math.ceil(g.ids.length / subCols);
     g.ids.forEach((id, i) => {
-      positions[id] = { x: x + Math.floor(i / MAX_ROWS) * COL_W, y: (i % MAX_ROWS) * ROW_H };
+      positions[id] = { x: x + Math.floor(i / rows) * COL_W, y: (i % rows) * ROW_H };
     });
     const width = (subCols - 1) * COL_W + CARD_W;
     headers.push({
@@ -401,7 +412,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 export function GraphCanvas() {
   const tr = useT();
   const isMobile = useIsMobile();
-  const { fitView, setCenter, setViewport, getZoom, getNode, getNodes, getNodesBounds, zoomIn, zoomOut } =
+  const { setViewport, getNode, getNodes, getNodesBounds, zoomIn, zoomOut } =
     useReactFlow();
   const nodesInitialized = useNodesInitialized();
   const project = useGraphStore((s) => s.project);
@@ -437,36 +448,89 @@ export function GraphCanvas() {
   // Câmera
   // -------------------------------------------------------------------------
 
+  const layoutRef = useRef<LensLayout | null>(null);
+  layoutRef.current = layout;
+
   const isOnCanvas = useCallback(
     (id: string) => !!layout && (layout.visible === null || layout.visible.has(id)),
     [layout],
   );
 
+  // Área livre do canvas: o cromo flutuante (botões no topo, zoom à
+  // esquerda) e, no mobile, o sheet que cobre a metade de baixo.
+  const safeArea = useCallback(() => {
+    const el = containerRef.current;
+    const W = el?.clientWidth ?? window.innerWidth;
+    const H = el?.clientHeight ?? window.innerHeight;
+    const pad = W < 640 ? 16 : 32;
+    // Faixa "N partes sugeridas" flutua no topo: o enquadramento desce abaixo
+    // dela (não cobre cabeçalhos de coluna nem a raiz).
+    const p = useGraphStore.getState().pendingSuggestions;
+    const banner = p && p.nodes.length > 0 ? STAGING_BANNER_H : 0;
+    return {
+      W,
+      H,
+      left: pad,
+      right: pad,
+      top: pad + CHROME_TOP + banner,
+      bottom: isMobile ? H * 0.5 : pad,
+    };
+  }, [isMobile]);
+
+  // Enquadra `ids` (num zoom legível) dentro da área livre. Se não couberem,
+  // fica no zoom mínimo legível centrado em `focusId`.
+  const frameIds = useCallback(
+    (ids: string[], focusId: string, duration = 300) => {
+      const present = ids.filter((id) => getNode(id));
+      if (present.length === 0) return;
+      const a = safeArea();
+      const availW = Math.max(120, a.W - a.left - a.right);
+      const availH = Math.max(120, a.H - a.top - a.bottom);
+      const b = getNodesBounds(present);
+      const fit = Math.min(availW / Math.max(1, b.width), availH / Math.max(1, b.height));
+      const zoom = Math.min(1, Math.max(READABLE_MIN_ZOOM, fit));
+      let cx = b.x + b.width / 2;
+      let cy = b.y + b.height / 2;
+      if (fit < READABLE_MIN_ZOOM) {
+        const f = getNode(focusId);
+        if (f) {
+          cx = f.position.x + (f.measured?.width ?? 260) / 2;
+          cy = f.position.y + (f.measured?.height ?? 120) / 2;
+        }
+      }
+      void setViewport(
+        { x: a.left + availW / 2 - cx * zoom, y: a.top + availH / 2 - cy * zoom, zoom },
+        { duration },
+      );
+    },
+    [getNode, getNodesBounds, safeArea, setViewport],
+  );
+
+  // Foco num nó: ele com o pai e os irmãos (contexto), não só o nó em zoom 1.
   const centerOn = useCallback(
     (id: string) => {
-      const n = getNode(id);
-      if (!n) return;
-      const w = n.measured?.width ?? n.width ?? 260;
-      const h = n.measured?.height ?? n.height ?? 120;
-      const zoom = Math.max(getZoom(), 0.9);
-      let cy = n.position.y + h / 2;
-      // No mobile o sheet cobre a metade de baixo: o nó sobe 25% da tela.
-      if (isMobile) {
-        const vh = containerRef.current?.clientHeight ?? window.innerHeight;
-        cy += (vh * 0.25) / zoom;
+      const proj = useGraphStore.getState().project;
+      const node = proj?.nodes[id];
+      const ids = [id];
+      if (proj && node?.parentId) {
+        ids.push(node.parentId);
+        for (const n of Object.values(proj.nodes)) {
+          if (n.parentId === node.parentId && n.id !== id) ids.push(n.id);
+        }
       }
-      setCenter(n.position.x + w / 2, cy, { zoom, duration: 300 });
+      frameIds(ids.filter((x) => x === id || (layoutRef.current?.visible ?? null) === null || layoutRef.current!.visible!.has(x)), id);
     },
-    [getNode, getZoom, setCenter, isMobile],
+    [frameIds],
   );
 
   const fitIds = useCallback(
     (ids: string[], padding = 0.25) => {
       const present = ids.filter((id) => getNode(id));
       if (present.length === 0) return;
-      void fitView({ nodes: present.map((id) => ({ id })), padding, duration: 350, maxZoom: 1.2 });
+      void padding;
+      frameIds(present, present[0], 350);
     },
-    [fitView, getNode],
+    [frameIds, getNode],
   );
 
   // Enquadramento legível: encaixa tudo se couber num zoom de leitura; senão
@@ -480,12 +544,14 @@ export function GraphCanvas() {
       if (!el || !proj) return;
       const all = getNodes().filter((n) => !n.hidden && !n.id.startsWith(SUGGESTION_PREFIX));
       if (all.length === 0) return;
-      const W = el.clientWidth;
-      const H = el.clientHeight;
-      const pad = W < 640 ? 24 : 48;
+      const a = safeArea();
+      // Origem e tamanho da área livre (descontado o cromo flutuante).
+      const W = a.W - a.left - a.right;
+      const H = (isMobile ? a.H : a.H - a.bottom) - a.top;
+      const pad = 0;
       const b = getNodesBounds(all.map((n) => n.id));
       if (b.width <= 0 || b.height <= 0) return;
-      const fit = Math.min((W - pad * 2) / b.width, (H - pad * 2) / b.height);
+      const fit = Math.min(W / b.width, H / b.height);
       // Conexões é um mapa de relações: precisa caber inteiro, com piso menor.
       const floor = st.lens === 'connections' ? CONNECTIONS_MIN_ZOOM : READABLE_MIN_ZOOM;
       const zoom = Math.min(1, Math.max(floor, fit));
@@ -505,14 +571,22 @@ export function GraphCanvas() {
         const fb = firstLevel.length > 0 ? getNodesBounds(firstLevel) : b;
         const cx = fitsX ? b.x + b.width / 2 : fb.x + fb.width / 2;
         x = W / 2 - cx * zoom;
+        // Não cabe na largura: começa pela borda esquerda (a 1ª coluna não
+        // nasce cortada) desde que a raiz continue à vista.
+        if (!fitsX) {
+          const rb = getNode(proj.rootId) ? getNodesBounds([proj.rootId]) : null;
+          const xLeft = -b.x * zoom;
+          if (rb && (rb.x + rb.width) * zoom + xLeft <= W) x = xLeft;
+        }
         y = fitsY ? (H - b.height * zoom) / 2 - b.y * zoom : pad - b.y * zoom;
       } else {
         x = fitsX ? (W - b.width * zoom) / 2 - b.x * zoom : pad - b.x * zoom;
-        y = fitsY ? (H - b.height * zoom) / 2 - b.y * zoom : pad - b.y * zoom;
+        // Colunas leem de cima: cabeçalhos no topo, sem vão acima deles.
+        y = pad - b.y * zoom;
       }
-      void setViewport({ x, y, zoom }, { duration });
+      void setViewport({ x: x + a.left, y: y + a.top, zoom }, { duration });
     },
-    [getNodes, getNodesBounds, getNode, setViewport],
+    [getNodes, getNodesBounds, getNode, setViewport, safeArea, isMobile],
   );
 
   // Timers de câmera em refs: um re-render no meio (projeto mudou) não pode
@@ -642,6 +716,12 @@ export function GraphCanvas() {
     schedule(stageTimer, frameStaging, 80);
   }, [stagingKey, setLens, frameStaging, schedule]);
 
+  const zoomButtons = [
+    { label: tr.graph.zoomIn, glyph: '+', onClick: () => void zoomIn({ duration: 200 }) },
+    { label: tr.graph.zoomOut, glyph: '−', onClick: () => void zoomOut({ duration: 200 }) },
+    { label: tr.graph.fitAll, glyph: '⤢', onClick: () => frameOverview(300) },
+  ] as const;
+
   // Esc limpa a seleção (o painel passa a mostrar o resumo do projeto).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -661,8 +741,8 @@ export function GraphCanvas() {
     if (!project) return;
     applyLayoutPositions(computeTreeLayout(project));
     if (lens !== 'structure') setLens('structure');
-    else schedule(camTimer, () => void fitView({ padding: 0.15, duration: 350 }), 50);
-  }, [project, lens, applyLayoutPositions, setLens, fitView, schedule]);
+    else schedule(camTimer, () => frameOverview(350), 50);
+  }, [project, lens, applyLayoutPositions, setLens, frameOverview, schedule]);
 
   // -------------------------------------------------------------------------
   // Nós
@@ -726,8 +806,24 @@ export function GraphCanvas() {
 
     // Sugestões só existem na Estrutura (a posição delas é relativa ao pai lá).
     if (pending && lens === 'structure') {
-      pending.nodes.forEach((p) => {
-        const pos = p.data.position as { x: number; y: number };
+      // As posições sugeridas ficam sob o pai; se a fileira colidir com um
+      // nó existente (outra subárvore), desce em degraus até ficar livre.
+      const SUG_W = CARD_W + 20;
+      const SUG_H = 190;
+      const raw = pending.nodes.map((p) => p.data.position as { x: number; y: number });
+      const existing = Object.values(project.nodes).map((n) => n.position);
+      let dy = 0;
+      for (let step = 0; step < 12; step++) {
+        const hit = raw.some((r) =>
+          existing.some(
+            (e) => Math.abs(e.x - r.x) < SUG_W && Math.abs(e.y - (r.y + dy)) < SUG_H,
+          ),
+        );
+        if (!hit) break;
+        dy += LAYOUT_Y_GAP / 2;
+      }
+      pending.nodes.forEach((p, i) => {
+        const pos = { x: raw[i].x, y: raw[i].y + dy };
         base.push({
           id: `${SUGGESTION_PREFIX}${p.tempId}`,
           type: 'concept',
@@ -886,6 +982,12 @@ export function GraphCanvas() {
   const onNodeMouseLeave = useCallback(() => setHoveredId(null), []);
 
   const emptyLens = !!layout && layout.visible !== null && layout.visible.size === 0;
+  // Conexões sem nenhuma ligação além da decomposição: avisa, senão a lente
+  // parece só cartões soltos.
+  const noCrossLinks =
+    lens === 'connections' &&
+    !!project &&
+    !Object.values(project.edges).some((e) => !isHierarchyEdge(project, e));
 
   return (
     <div ref={containerRef} className="flex-1 relative bg-bg-primary">
@@ -907,26 +1009,24 @@ export function GraphCanvas() {
       >
         {/* size 2: o React Flow escala o ponto pelo zoom; com 1 ele some abaixo de 100%. */}
         <Background variant={BackgroundVariant.Dots} gap={20} size={2} />
-        {/* Controles próprios: no mobile os botões têm 44px de alvo de toque. */}
-        <Controls showZoom={false} showFitView={false} showInteractive={false}>
-          {(
-            [
-              { label: tr.graph.zoomIn, glyph: '+', onClick: () => void zoomIn({ duration: 200 }) },
-              { label: tr.graph.zoomOut, glyph: '−', onClick: () => void zoomOut({ duration: 200 }) },
-              { label: tr.graph.fitAll, glyph: '⤢', onClick: () => void fitView({ padding: 0.15, duration: 300 }) },
-            ] as const
-          ).map((b) => (
-            <ControlButton
-              key={b.glyph}
-              onClick={b.onClick}
-              title={b.label}
-              aria-label={b.label}
-              className={`!text-[15px] !leading-none ${isMobile ? '!w-11 !h-11' : '!w-8 !h-8'}`}
-            >
-              <span aria-hidden>{b.glyph}</span>
-            </ControlButton>
-          ))}
-        </Controls>
+        {/* Controles próprios: no mobile os botões têm 44px de alvo de toque.
+            No desktop eles moram numa pílula de vidro no topo (junto do
+            "Organizar"), fora da área dos cards. */}
+        {isMobile && (
+          <Controls showZoom={false} showFitView={false} showInteractive={false}>
+            {zoomButtons.map((b) => (
+              <ControlButton
+                key={b.glyph}
+                onClick={b.onClick}
+                title={b.label}
+                aria-label={b.label}
+                className="!text-[15px] !leading-none !w-11 !h-11"
+              >
+                <span aria-hidden>{b.glyph}</span>
+              </ControlButton>
+            ))}
+          </Controls>
+        )}
         {isMobile ? (
           // Mobile: os três controles numa única barra de vidro (sem frestas
           // por onde o texto dos cards aparecia), todos com 44px de alvo.
@@ -968,6 +1068,19 @@ export function GraphCanvas() {
                 <TidyIcon />
                 {tr.graph.tidy}
               </button>
+              <div role="group" aria-label={tr.graph.zoomGroup} className="glass border rounded-control shadow-mac flex items-center p-0.5">
+                {zoomButtons.map((b) => (
+                  <button
+                    key={b.glyph}
+                    onClick={b.onClick}
+                    title={b.label}
+                    aria-label={b.label}
+                    className="tap btn btn-ghost btn-icon !h-7 !w-7 text-[15px] leading-none text-text-primary"
+                  >
+                    <span aria-hidden>{b.glyph}</span>
+                  </button>
+                ))}
+              </div>
             </Panel>
             <Panel position="top-right">
               {/* key=lens: trocar de lente fecha a legenda (não cobre colunas novas). */}
@@ -1017,6 +1130,13 @@ export function GraphCanvas() {
             </div>
           </Panel>
         )}
+        {noCrossLinks && !emptyLens && (
+          <Panel position="bottom-center" className="!mb-4">
+            <div className="glass border rounded-card shadow-mac px-4 py-2.5 text-control text-text-muted">
+              {tr.graph.noCrossLinks}
+            </div>
+          </Panel>
+        )}
         {emptyLens && (
           <Panel position="top-center" className="!mt-24">
             <div className="glass border rounded-card shadow-mac px-4 py-2.5 text-control text-text-muted">
@@ -1024,8 +1144,9 @@ export function GraphCanvas() {
             </div>
           </Panel>
         )}
-        {/* The minimap eats a big slice of a phone screen for little return. */}
-        {!isMobile && (
+        {/* The minimap eats a big slice of a phone screen for little return —
+            and on a small graph it only covers cards. */}
+        {!isMobile && nodes.length >= MINIMAP_MIN_NODES && (
           <MiniMap
             maskStrokeWidth={1}
             nodeColor={(n) => {
