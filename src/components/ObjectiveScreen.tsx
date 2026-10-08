@@ -341,6 +341,19 @@ export function ObjectiveScreen() {
 
   const mountedRef = useRef(true);
   const moreProgressRef = useRef<HTMLDivElement>(null);
+  // Progresso da 1ª geração: fica abaixo do formulário — ao começar, rola até
+  // ele (no mobile ficava abaixo da dobra, sem retorno visível do clique).
+  const genProgressRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!gen.running) return;
+    const id = requestAnimationFrame(() => {
+      const el = genProgressRef.current;
+      if (!el) return;
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [gen.running]);
   const cancelRef = useRef<() => void>(() => {});
   cancelRef.current = () => {
     gen.cancel();
@@ -629,7 +642,7 @@ export function ObjectiveScreen() {
               type="button"
               onClick={() => openSettings(false)}
               title={`${tr.objective.modelButtonTitle}${model?.effort ? ` · ${model.effort}` : ''}`}
-              className="tap btn btn-ghost btn-sm min-w-0 max-w-full sm:max-w-[220px]"
+              className="tap btn btn-ghost btn-sm min-w-0 max-w-full sm:max-w-[220px] sm:shrink-0"
             >
               <GearIcon />
               <span className="truncate">{tr.objective.modelButton(model ? model.label : '—')}</span>
@@ -649,7 +662,7 @@ export function ObjectiveScreen() {
                 onClick={() => void undoReset()}
                 disabled={busy}
                 title={tr.objective.reopenArchivedTitle}
-                className="tap btn btn-ghost btn-sm max-w-[260px] hidden sm:inline-flex"
+                className="tap btn btn-ghost btn-sm min-w-0 max-w-[260px] hidden sm:inline-flex"
               >
                 <span className="truncate">{tr.objective.reopenArchived(archivedProject.name)}</span>
               </button>
@@ -916,13 +929,15 @@ export function ObjectiveScreen() {
             </div>
 
             {gen.running ? (
-              <GenerationProgress
-                progress={progress}
-                elapsedMs={gen.elapsedMs}
-                withResearch={webResearch}
-                onCancel={handleCancel}
-                tr={tr}
-              />
+              <div ref={genProgressRef} className="scroll-mt-4">
+                <GenerationProgress
+                  progress={progress}
+                  elapsedMs={gen.elapsedMs}
+                  withResearch={webResearch}
+                  onCancel={handleCancel}
+                  tr={tr}
+                />
+              </div>
             ) : sameInputs ? (
               <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-1">
                 <button
@@ -993,6 +1008,8 @@ export function ObjectiveScreen() {
                     : tr.objective.pickStrategyTitle}
                 </h1>
                 <p className="text-control text-text-secondary mt-1">{tr.objective.pickStrategyHint}</p>
+                {/* Dito uma vez (não em cada card): os cards são resumos. */}
+                <p className="text-footnote text-text-muted mt-1">{tr.ai.twoPhase.outlineOnly}</p>
               </div>
               <button
                 type="button"
@@ -1076,21 +1093,24 @@ export function ObjectiveScreen() {
               />
             )}
 
-            {/* CTA fixo: barra de vidro flutuando sobre os cards, sempre à mão. */}
-            <div className="sticky bottom-[max(env(safe-area-inset-bottom),0.75rem)] z-10 mx-auto w-full max-w-md">
-              <div className="glass border rounded-window shadow-mac-lg p-2">
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  disabled={!selectedOutline}
-                  className="btn btn-primary h-9 w-full min-w-0 px-4"
-                >
-                  <span className="truncate">
-                    {selectedOutline ? tr.objective.startWith(selectedOutline.title) : tr.objective.pickFirst}
-                  </span>
-                </button>
+            {/* CTA fixo só depois de escolher um plano: antes, uma dica simples
+                (uma barra desabilitada fixa só tomava tela no mobile). No
+                mobile a barra encosta no rodapé e cobre até a safe area. */}
+            {selectedOutline ? (
+              <div className="sticky bottom-0 z-10 -mx-4 sm:mx-auto w-auto sm:w-full sm:max-w-md sm:bottom-[max(env(safe-area-inset-bottom),0.75rem)]">
+                <div className="glass border-t sm:border sm:rounded-window shadow-mac-lg px-4 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] sm:p-2">
+                  <button
+                    type="button"
+                    onClick={handleConfirm}
+                    className="tap btn btn-primary h-9 w-full min-w-0 px-4"
+                  >
+                    <span className="truncate">{tr.objective.startWith(selectedOutline.title)}</span>
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <p className="text-center text-footnote text-text-muted">{tr.objective.pickFirst}</p>
+            )}
           </div>
         )}
       </div>
@@ -1455,6 +1475,18 @@ function TreeList({
   );
 }
 
+function keepOutlineNames(outline: AIPlanOutline, tree: TreeView[]): TreeView[] {
+  return tree.map((cat, i) => {
+    const oc = outline.outline.categorias[i];
+    if (!oc) return cat;
+    return {
+      ...cat,
+      name: oc.name || cat.name,
+      nodes: cat.nodes.map((n, j) => (oc.nodes[j]?.name ? { ...n, name: oc.nodes[j].name } : n)),
+    };
+  });
+}
+
 function treeFromPlan(plan: AIPlan): TreeView[] {
   return plan.tree.categorias.map((c, i) => ({
     key: c.tempId || `c${i}`,
@@ -1496,9 +1528,16 @@ function PlanCard({
   const collapsed = collapsible && !detailsOpen && !selected;
 
   const assembling = expansion?.kind === 'running';
-  const tree = plan
-    ? treeFromPlan(plan)
-    : assembleTree(p, assembling ? expansion.progress?.partial : undefined);
+  // Os nomes que o usuário leu no esboço ficam: a expansão só marca o
+  // progresso (e acrescenta partes novas no fim de cada categoria).
+  const tree = keepOutlineNames(
+    p,
+    plan ? treeFromPlan(plan) : assembleTree(p, assembling ? expansion.progress?.partial : undefined),
+  );
+  // Começou a detalhar com a lista aberta: ela não recolhe ao terminar.
+  useEffect(() => {
+    if (assembling) setFullOpen(true);
+  }, [assembling]);
   const totalNodes = plan
     ? tree.reduce((n, c) => n + c.nodes.length, 0)
     : countOutlineNodes(p);
@@ -1580,13 +1619,7 @@ function PlanCard({
       {!collapsed && (
         <>
           {p.rankReason && (
-            <p
-              className={`mt-2 text-footnote ${
-                p.rank === 1 ? 'text-conf-high' : 'text-text-muted'
-              }`}
-            >
-              {p.rankReason}
-            </p>
+            <p className="mt-2 text-footnote text-text-secondary">{p.rankReason}</p>
           )}
 
           {p.approach && (
@@ -1640,8 +1673,6 @@ function PlanCard({
             </p>
           ) : assembling ? (
             <p className="mt-3 text-footnote text-text-muted">{tr.ai.twoPhase.expandingHint}</p>
-          ) : expansion?.kind !== 'error' ? (
-            <p className="mt-3 text-footnote text-text-muted">{tr.ai.twoPhase.outlineOnly}</p>
           ) : null}
         </>
       )}
@@ -1712,9 +1743,10 @@ function StartingView({
 
 function Chip({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <span title={label} className="chip max-w-full">
+    // Quebra linha em vez de truncar (ex.: "2–3 h de montagem + 3 meses de…").
+    <span title={label} className="chip max-w-full !h-auto min-h-5 py-0.5 !whitespace-normal">
       <span className="sr-only">{label}: </span>
-      <span className="truncate">{children}</span>
+      <span>{children}</span>
     </span>
   );
 }
