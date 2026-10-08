@@ -10,8 +10,11 @@ export default {
         'bg-elevated': '#27272a',
         'border-base': '#3f3f46',
         'text-primary': '#f4f4f5',
-        'text-secondary': '#a1a1aa',
-        'text-muted': '#71717a',
+        // Contraste AA sobre bg-primary/secondary: secondary ~13:1, muted ~7:1,
+        // faint ~5:1 (o antigo #71717a ficava abaixo de 4.5:1 em bg-elevated).
+        'text-secondary': '#d4d4d8',
+        'text-muted': '#a1a1aa',
+        'text-faint': '#8b8b94',
         'conf-high': '#22c55e',
         'conf-mid': '#f59e0b',
         'conf-low': '#ef4444',

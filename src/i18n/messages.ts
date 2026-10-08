@@ -14,6 +14,12 @@ export const en = {
     back: 'Back',
     show: 'Show',
     hide: 'Hide',
+    retry: 'Try again',
+    undo: 'Undo',
+    dismiss: 'Dismiss',
+    technicalDetails: 'technical details',
+    cancelRunning: 'Cancel',
+    thinking: (s: number) => `thinking… ${s}s`,
   },
   language: {
     label: 'Language',
@@ -415,9 +421,30 @@ export const en = {
     suggestionAccepted: 'AI suggestion accepted',
     suggestionAcceptedBatch: 'AI suggestion accepted (batch)',
     missingBlocked: 'confirm the previous steps first',
-    missingSignal: 'attest the criterion as met, or verify a real anchor',
+    missingSignal: 'write and lock your criterion, then attest it as met — or verify a real anchor',
     ruleAdded: (r: string) => `Rule added: "${r}"`,
     ruleRemoved: (r: string) => `Rule removed: "${r}"`,
+    missingOpenFailure: 'resolve the reported failure first',
+    missingCriterionNotAttested:
+      'your criterion is locked but not attested as met yet — or verify a real anchor',
+    promotedWithProof: 'Promoted to done with proof.',
+    anchorVerifiedWithObs: (label: string, obs: string) =>
+      `Anchor "${label}" verified ✓ — checked: ${obs}`,
+    criterionUnlocked: 'User criterion unlocked to edit (within 10s of locking).',
+    edited: (field: string, prev: string) =>
+      `${field} edited. Before: "${prev.length > 160 ? `${prev.slice(0, 160)}…` : prev}"`,
+    fieldLabels: { oQue: 'What it is', porQue: 'Why it is needed' },
+    undone: (name: string) => `Undone: last action on "${name}"`,
+    importInvalid:
+      'This file is not a Cellproject export (missing rootId, nodes or edges).',
+    stateLabels: {
+      concept: 'concept',
+      validated: 'validated',
+      executing: 'in progress',
+      done: 'done',
+      problem: 'problem',
+      discarded: 'discarded',
+    } as Record<string, string>,
   },
   notify: {
     objectivePromptLabel: (objective: string) => `Objective: ${objective}`,
@@ -431,6 +458,41 @@ export const en = {
     aiMissingKey:
       'No API key configured. Open ⚙ Settings and add one.',
     noPlansReturned: 'The model returned no plans. Try generating again.',
+  },
+  toast: {
+    regionLabel: 'Notifications',
+    undone: 'Undone.',
+    nothingToUndo: 'Nothing to undo anymore — the item changed after that.',
+  },
+  app: {
+    loading: 'Opening your project…',
+    // Fallback local do useAIAction até o classificador do pacote de IA entrar.
+    aiError: {
+      auth: { title: 'API key rejected', hint: 'Check or replace your key in ⚙ Settings.' },
+      credits: {
+        title: 'Out of credits',
+        hint: 'Your provider account has no balance left. Add credits and try again.',
+      },
+      model: {
+        title: 'Model unavailable',
+        hint: 'The configured model does not exist or is not enabled for your key. Pick another in ⚙.',
+      },
+      schema: {
+        title: 'The model answered in the wrong format',
+        hint: 'Try again — if it keeps happening, switch to another model in ⚙.',
+      },
+      rate: {
+        title: 'Too many requests',
+        hint: 'The provider is rate-limiting you. Wait a few seconds and try again.',
+      },
+      timeout: { title: 'The model took too long', hint: 'Try again in a moment.' },
+      network: {
+        title: 'No connection to the provider',
+        hint: 'Check your internet connection and try again.',
+      },
+      aborted: { title: 'Cancelled', hint: 'You cancelled this request.' },
+      unknown: { title: 'Something went wrong', hint: 'Try again. Details below.' },
+    },
   },
 };
 
@@ -449,6 +511,12 @@ export const ptBR: Messages = {
     back: 'Voltar',
     show: 'Mostrar',
     hide: 'Ocultar',
+    retry: 'Tentar de novo',
+    undo: 'Desfazer',
+    dismiss: 'Dispensar',
+    technicalDetails: 'detalhes técnicos',
+    cancelRunning: 'Cancelar',
+    thinking: (s: number) => `pensando… ${s}s`,
   },
   language: {
     label: 'Idioma',
@@ -852,9 +920,31 @@ export const ptBR: Messages = {
     suggestionAccepted: 'Sugestão AI aceita',
     suggestionAcceptedBatch: 'Sugestão AI aceita (lote)',
     missingBlocked: 'confirme os passos anteriores primeiro',
-    missingSignal: 'afira que o critério foi atendido, ou verifique uma âncora real',
+    missingSignal:
+      'escreva e trave o seu critério, depois afira que foi atendido — ou verifique uma âncora real',
     ruleAdded: (r: string) => `Regra adicionada: "${r}"`,
     ruleRemoved: (r: string) => `Regra removida: "${r}"`,
+    missingOpenFailure: 'resolva a falha reportada primeiro',
+    missingCriterionNotAttested:
+      'seu critério está travado mas ainda não foi aferido como atendido — ou verifique uma âncora real',
+    promotedWithProof: 'Promovido a concluído com prova.',
+    anchorVerifiedWithObs: (label: string, obs: string) =>
+      `Âncora "${label}" verificada ✓ — conferido: ${obs}`,
+    criterionUnlocked: 'Critério do usuário destravado para edição (até 10s após travar).',
+    edited: (field: string, prev: string) =>
+      `${field} editado. Antes: "${prev.length > 160 ? `${prev.slice(0, 160)}…` : prev}"`,
+    fieldLabels: { oQue: 'O que é', porQue: 'Por que precisa' },
+    undone: (name: string) => `Desfeito: última ação em "${name}"`,
+    importInvalid:
+      'Este arquivo não é uma exportação do Cellproject (faltam rootId, nodes ou edges).',
+    stateLabels: {
+      concept: 'conceito',
+      validated: 'validado',
+      executing: 'em execução',
+      done: 'concluído',
+      problem: 'problema',
+      discarded: 'descartado',
+    } as Record<string, string>,
   },
   notify: {
     objectivePromptLabel: (objective: string) => `Objetivo: ${objective}`,
@@ -868,5 +958,39 @@ export const ptBR: Messages = {
     aiMissingKey:
       'Nenhuma chave de API configurada. Abra ⚙ Configurações e adicione uma.',
     noPlansReturned: 'O modelo não retornou nenhum plano. Tente gerar de novo.',
+  },
+  toast: {
+    regionLabel: 'Notificações',
+    undone: 'Desfeito.',
+    nothingToUndo: 'Não há mais o que desfazer — o item mudou depois disso.',
+  },
+  app: {
+    loading: 'Abrindo seu projeto…',
+    aiError: {
+      auth: { title: 'Chave de API recusada', hint: 'Confira ou troque sua chave em ⚙ Configurações.' },
+      credits: {
+        title: 'Sem créditos',
+        hint: 'A conta no provider ficou sem saldo. Adicione créditos e tente de novo.',
+      },
+      model: {
+        title: 'Modelo indisponível',
+        hint: 'O modelo configurado não existe ou não está liberado para sua chave. Escolha outro em ⚙.',
+      },
+      schema: {
+        title: 'O modelo respondeu no formato errado',
+        hint: 'Tente de novo — se continuar, troque de modelo em ⚙.',
+      },
+      rate: {
+        title: 'Muitas requisições',
+        hint: 'O provider está limitando suas chamadas. Espere alguns segundos e tente de novo.',
+      },
+      timeout: { title: 'O modelo demorou demais', hint: 'Tente de novo daqui a pouco.' },
+      network: {
+        title: 'Sem conexão com o provider',
+        hint: 'Confira sua internet e tente de novo.',
+      },
+      aborted: { title: 'Cancelado', hint: 'Você cancelou esta chamada.' },
+      unknown: { title: 'Algo deu errado', hint: 'Tente de novo. Detalhes abaixo.' },
+    },
   },
 };
