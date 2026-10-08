@@ -1,8 +1,14 @@
-import { generateText, type LanguageModel, type ToolSet } from 'ai';
+import { APICallError, generateText, type LanguageModel, type ToolSet } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { getActiveConfig, useConfigStore } from '@/config/store';
+import {
+  getActiveConfig,
+  researchModelId,
+  useConfigStore,
+  AIMissingKeyError,
+} from '@/config/store';
+import { callOpts, openrouterSettings } from './client';
 import { currentLocaleAIName } from '@/i18n';
 import type { WebResearchDigest, WebSourceRef } from '@/types';
 
@@ -32,22 +38,30 @@ const MAX_SOURCES = 6;
 
 interface ResearchCall {
   model: LanguageModel;
+  modelId: string;
   tools?: ToolSet;
 }
 
+// Qual modelo pesquisa: 'research' = researchModel/kbModel (digest é extração,
+// não raciocínio — mais barato e rápido); 'main' = fallback quando o modelo
+// barato não suporta busca, com reasoning effort "low".
+type ResearchTier = 'research' | 'main';
+
 // Monta modelo+tools com web search para o provider ativo. Lança se não há
 // config — os call sites já passaram por assertAIReady/requireAI.
-function buildResearchCall(): ResearchCall {
+function buildResearchCall(tier: ResearchTier): ResearchCall {
   const active = getActiveConfig();
-  if (!active) throw new Error('No AI provider configured for web research.');
+  if (!active) throw new AIMissingKeyError();
   const { provider, config } = active;
+  const modelId = tier === 'research' ? researchModelId(config) : config.mainModel;
 
   if (provider === 'openai') {
     const client = createOpenAI({ apiKey: config.apiKey });
     return {
       // Web search só existe na Responses API — o chat() usado no resto do app
       // não suporta a tool.
-      model: client.responses(config.mainModel),
+      model: client.responses(modelId),
+      modelId,
       // Cast: @ai-sdk/openai v2 exporta Tool da spec v2 e o pacote `ai` v6 tipa
       // ToolSet contra a v3. Em runtime a tool é provider-executed (só vai
       // serializada na request) — o conflito é puramente de tipos.
@@ -62,7 +76,8 @@ function buildResearchCall(): ResearchCall {
       headers: { 'anthropic-dangerous-direct-browser-access': 'true' },
     });
     return {
-      model: client(config.mainModel),
+      model: client(modelId),
+      modelId,
       // Mesmo cast da OpenAI acima — skew de spec v2/v3, runtime ok.
       tools: {
         web_search: client.tools.webSearch_20250305({ maxUses: 4 }),
@@ -77,10 +92,20 @@ function buildResearchCall(): ResearchCall {
     appUrl: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173',
   });
   return {
-    model: client.chat(config.mainModel, {
+    model: client.chat(modelId, {
       plugins: [{ id: 'web', max_results: 5, engine: 'exa' }],
+      ...(tier === 'main' ? openrouterSettings(modelId, 'low') : {}),
     }),
+    modelId,
   };
+}
+
+// O modelo barato pode não suportar busca (400) ou ter saído do ar (404):
+// aí vale tentar o principal. Chave, crédito, limite e abort não mudam com
+// outro modelo — propagam direto.
+function shouldFallbackToMain(err: unknown): boolean {
+  if (!APICallError.isInstance(err)) return false;
+  return err.statusCode === 400 || err.statusCode === 404;
 }
 
 function researchSystem(): string {
@@ -133,21 +158,40 @@ export async function groundedText(opts: {
   system: string;
   prompt: string;
   temperature?: number;
+  signal?: AbortSignal;
 }): Promise<GroundedTextResult> {
-  const { model, tools } = buildResearchCall();
-  const result = await generateText({
-    model,
-    ...(tools ? { tools } : {}),
-    system: opts.system,
-    prompt: opts.prompt,
-    temperature: opts.temperature ?? 0.4,
-  });
+  const run = async (tier: ResearchTier) => {
+    const { model, modelId, tools } = buildResearchCall(tier);
+    return generateText({
+      model,
+      ...(tools ? { tools } : {}),
+      system: opts.system,
+      prompt: opts.prompt,
+      ...callOpts('research', opts.temperature ?? 0.4, modelId),
+      abortSignal: opts.signal,
+    });
+  };
+
+  const active = getActiveConfig();
+  const sameModel = !!active && researchModelId(active.config) === active.config.mainModel;
+  let result: Awaited<ReturnType<typeof run>>;
+  try {
+    result = await run('research');
+  } catch (err) {
+    if (sameModel || opts.signal?.aborted || !shouldFallbackToMain(err)) throw err;
+    console.warn('[cellproject] research model failed — retrying with the main model', err);
+    result = await run('main');
+  }
   return { text: result.text.trim(), sources: normalizeSources(result.sources) };
 }
 
 // Roda UMA pesquisa sobre o tópico. `focus` afina o ângulo (ex.: "verificar
 // preços e disponibilidade", "documentação oficial e versões atuais").
-export async function runResearch(topic: string, focus?: string): Promise<ResearchDigest> {
+export async function runResearch(
+  topic: string,
+  focus?: string,
+  opts?: { signal?: AbortSignal },
+): Promise<ResearchDigest> {
   const prompt = `RESEARCH TOPIC:
 """
 ${topic.trim()}
@@ -155,7 +199,12 @@ ${topic.trim()}
 ${focus ? `\nFOCUS: ${focus.trim()}\n` : ''}
 Search the web and produce the digest now.`;
 
-  const result = await groundedText({ system: researchSystem(), prompt, temperature: 0.3 });
+  const result = await groundedText({
+    system: researchSystem(),
+    prompt,
+    temperature: 0.3,
+    signal: opts?.signal,
+  });
 
   return {
     query: topic.trim(),

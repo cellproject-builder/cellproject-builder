@@ -1,0 +1,150 @@
+// @vitest-environment node
+import { existsSync, readFileSync } from 'node:fs';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { useConfigStore, PROVIDER_DEFAULTS } from '@/config/store';
+import { useLocaleStore } from '@/i18n';
+import {
+  generatePlans,
+  decomposeNode,
+  replanFromFailure,
+  explainNode,
+  critiqueNode,
+  type PlanProgressEvent,
+} from './service';
+import { runResearch } from './research';
+
+// Validação AO VIVO contra o OpenRouter — pulada por padrão (custa créditos).
+// Rodar com:  LIVE_OPENROUTER_KEY=sk-or-... npx vitest run src/ai/live.test.ts
+//        ou:  LIVE_ENV_FILE=caminho/.env (lê a linha OPENROUTER=)
+// Opcional:   LIVE_MODEL=openai/gpt-6.1-sol (padrão = default do OpenRouter)
+function readKey(): string | undefined {
+  if (process.env.LIVE_OPENROUTER_KEY) return process.env.LIVE_OPENROUTER_KEY;
+  const file = process.env.LIVE_ENV_FILE;
+  if (!file || !existsSync(file)) return undefined;
+  const line = readFileSync(file, 'utf8')
+    .split(/\r?\n/)
+    .find((l) => l.startsWith('OPENROUTER='));
+  return line?.slice('OPENROUTER='.length).trim().replace(/^["']|["']$/g, '') || undefined;
+}
+const key = readKey();
+const model = process.env.LIVE_MODEL ?? PROVIDER_DEFAULTS.openrouter.mainModel;
+
+describe.skipIf(!key)(`IA ao vivo (${model})`, () => {
+  beforeAll(() => {
+    useLocaleStore.getState().setLocale('pt-BR');
+    useConfigStore.getState().saveProviderConfig('openrouter', {
+      apiKey: key!,
+      ...PROVIDER_DEFAULTS.openrouter,
+      mainModel: model,
+    });
+    useConfigStore.getState().setActiveProvider('openrouter');
+  });
+
+  const ctxBase = {
+    projectName: 'Drone FPV',
+    projectObjective: 'Montar meu primeiro drone FPV 5 polegadas para voar no parque',
+    breadcrumb: ['Drone FPV', 'Execução'],
+    siblings: [{ name: 'Comprar peças', fx: 'nada → peças em mãos' }],
+    strategy: 'reaproveitar' as const,
+    archetype: 'construir' as const,
+    rules: ['orçamento máximo R$ 1500'],
+  };
+
+  it('generatePlans → planos válidos', async () => {
+    const phases: PlanProgressEvent['phase'][] = [];
+    const t0 = Date.now();
+    const plans = await generatePlans(
+      ctxBase.projectObjective,
+      (ev) => {
+        if (phases.at(-1) !== ev.phase) phases.push(ev.phase);
+      },
+      undefined,
+      ctxBase.rules,
+    );
+    const ms = Date.now() - t0;
+    const nodes = plans.flatMap((p) => p.tree.categorias.flatMap((c) => c.children));
+    const hints = nodes.flatMap((n) => n.groundTruthHints ?? []);
+    console.log(
+      `[live] generatePlans ${ms}ms · ${plans.length} planos · ${nodes.length} nós · ${hints.length} âncoras · fases ${phases.join('>')}`,
+    );
+    console.log('[live] estimates', JSON.stringify(plans.map((p) => p.estimates)));
+    console.log('[live] rulesCheck', JSON.stringify(plans.map((p) => p.rulesCheck)));
+    console.log('[live] comoConfirmar', JSON.stringify(nodes.slice(0, 6).map((n) => n.comoConfirmar)));
+    console.log('[live] confidence', JSON.stringify(nodes.map((n) => n.confidence)));
+    expect(plans.length).toBeGreaterThan(0);
+    expect(hints.some((h) => h.kind === 'link')).toBe(false);
+    expect(nodes.every((n) => (n.groundTruthHints?.length ?? 0) <= 2)).toBe(true);
+  }, 300_000);
+
+  it('decomposeNode → nós válidos', async () => {
+    const t0 = Date.now();
+    const res = await decomposeNode({
+      ...ctxBase,
+      nodeName: 'Soldar ESC e controladora',
+      nodeKind: 'passo',
+      nodeFx: 'peças soltas → eletrônica soldada',
+      oQue: 'Soldar o ESC 4-em-1 na controladora (stack 30x30) e o XT60 nos pads de bateria.',
+      comoConfirmar: 'Multímetro em continuidade entre BAT+ e BAT−: não apita.',
+      knownElsewhere: ['Estanhar fios'],
+    });
+    console.log(`[live] decomposeNode ${Date.now() - t0}ms · ${res.nodes.length} nós · ${res.edges.length} arestas`);
+    console.log('[live] decompose nomes', JSON.stringify(res.nodes.map((n) => n.name)));
+    expect(res.nodes.length).toBeGreaterThan(0);
+  }, 180_000);
+
+  it('replanFromFailure → diagnóstico + nós', async () => {
+    const t0 = Date.now();
+    const res = await replanFromFailure({
+      ...ctxBase,
+      nodeName: 'Vincular rádio ao receptor',
+      nodeKind: 'passo',
+      nodeFx: 'rádio e receptor separados → vinculados',
+      oQue: 'Entrar em modo bind no receptor ELRS e no rádio.',
+      failureContext: 'O LED do receptor fica piscando rápido e nunca vincula. Versões do ELRS diferentes?',
+      currentChildren: [{ name: 'Apertar bind no rádio', oQue: 'menu ELRS → Bind', state: 'problem' }],
+      comoConfirmar: 'LED do receptor fica sólido.',
+    });
+    console.log(`[live] replan ${Date.now() - t0}ms · diagnosis="${res.diagnosis}" · ${res.nodes.length} nós`);
+    expect(res.nodes.length).toBeGreaterThan(0);
+    expect(res.diagnosis).toBeTruthy();
+  }, 180_000);
+
+  it('runResearch → digest com fontes reais (modelo de pesquisa)', async () => {
+    const t0 = Date.now();
+    const digest = await runResearch('Conector XT60 especificação de corrente', 'datasheet oficial');
+    console.log(`[live] research ${Date.now() - t0}ms · ${digest.sources.length} fontes · ${digest.findings.length} chars`);
+    expect(digest.findings.length).toBeGreaterThan(0);
+  }, 180_000);
+
+  it('explainNode (stream) e critiqueNode', async () => {
+    let deltas = 0;
+    const t0 = Date.now();
+    const text = await explainNode(
+      {
+        ...ctxBase,
+        nodeName: 'Soldar XT60',
+        nodeKind: 'passo',
+        oQue: 'Soldar o conector XT60 nos pads de bateria do ESC.',
+        porQue: 'Sem ele o drone não recebe energia.',
+        comoConfirmar: 'CRITERIO-IA',
+        criterionLocked: false,
+      },
+      { onDelta: () => deltas++ },
+    );
+    console.log(`[live] explain ${Date.now() - t0}ms · ${text.length} chars · ${deltas} deltas`);
+    expect(text.length).toBeGreaterThan(100);
+
+    const t1 = Date.now();
+    const crit = await critiqueNode({
+      ...ctxBase,
+      nodeName: 'Soldar XT60',
+      nodeKind: 'passo',
+      nodeFx: 'sem conector → conector soldado',
+      oQue: 'Soldar o conector XT60 nos pads de bateria do ESC.',
+      porQue: 'Sem ele o drone não recebe energia.',
+      comoConfirmar: 'Conector firme?',
+    });
+    console.log(`[live] critique ${Date.now() - t1}ms · ${crit.fraquezas.length} fraquezas`);
+    expect(crit.criterioAlternativo).toBeTruthy();
+  }, 240_000);
+});
