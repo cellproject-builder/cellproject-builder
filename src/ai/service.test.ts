@@ -28,12 +28,18 @@ vi.mock('./client', async (importOriginal) => {
 
 import {
   generatePlans,
+  outlinePlans,
+  expandPlan,
+  countOutlineNodes,
   decomposeNode,
   explainNode,
   replanFromFailure,
   classifyAIError,
   AIError,
   type PlanProgressEvent,
+  type OutlineProgressEvent,
+  type ExpandProgressEvent,
+  type PlanOutline,
 } from './service';
 
 const usage = {
@@ -233,6 +239,312 @@ describe('generatePlans', () => {
     ]);
     await generatePlans('objetivo', undefined, kb as never);
     expect(JSON.stringify(model.doStreamCalls[0].prompt)).toContain('[doc1]');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Planejamento em duas fases
+// ---------------------------------------------------------------------------
+
+function outline(title: string, rank: number, strategy = 'reaproveitar') {
+  const { tree: _tree, ...header } = plan(title, rank);
+  return {
+    ...header,
+    strategy,
+    outline: {
+      categorias: [
+        {
+          name: 'Recursos',
+          kind: 'recursos',
+          nodes: [
+            { name: 'Bateria 4S', kind: 'recurso' },
+            { name: '  ', kind: 'recurso' },
+          ],
+        },
+        {
+          name: 'Execução',
+          kind: 'execucao',
+          nodes: [
+            { name: 'Soldar XT60', kind: 'passo' },
+            { name: 'Testar', kind: 'passo' },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+function chosenOutline(): PlanOutline {
+  return {
+    id: 'out1',
+    title: 'Drone usado',
+    pitch: 'pitch',
+    approach: 'APPROACH-ESCOLHIDA',
+    strategy: 'hibrido',
+    archetype: 'construir',
+    rank: 1,
+    rankReason: 'motivo',
+    estimates: { custo: 'R$ 1.200', tempo: '2 semanas', dificuldade: 'intermediario' },
+    rulesCheck: [{ rule: 'orçamento R$ 1500', status: 'cumpre', nota: 'cabe' }],
+    outline: {
+      categorias: [
+        { name: 'Recursos', kind: 'recursos', nodes: [{ name: 'Bateria 4S', kind: 'recurso' }] },
+        {
+          name: 'Execução',
+          kind: 'execucao',
+          nodes: [
+            { name: 'Soldar XT60', kind: 'passo' },
+            { name: 'Testar voo', kind: 'passo' },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+function expandJson() {
+  return {
+    categorias: [
+      {
+        tempId: 'cat1',
+        name: 'Recursos',
+        kind: 'recursos',
+        oQue: 'o',
+        porQue: 'p',
+        children: [node('r1', { name: 'Bateria 4S' })],
+      },
+      {
+        tempId: 'cat2',
+        name: 'Execução',
+        kind: 'execucao',
+        oQue: 'o',
+        porQue: 'p',
+        children: [
+          node('p1', { kind: 'passo', order: 1, name: 'Soldar XT60' }),
+          node('p2', { kind: 'passo', order: 2, name: 'Testar voo' }),
+        ],
+      },
+    ],
+  };
+}
+
+function silentModel() {
+  // Stream que nunca entrega nada — simula o modelo raciocinando.
+  const model = new MockLanguageModelV3({
+    doStream: async () => ({
+      stream: new ReadableStream<LanguageModelV3StreamPart>({
+        start(c) {
+          c.enqueue({ type: 'stream-start', warnings: [] });
+        },
+      }),
+    }),
+  });
+  holder.model = model as unknown as Record<string | symbol, unknown>;
+  return model;
+}
+
+describe('outlinePlans', () => {
+  it('devolve esboços leves com o cabeçalho completo e só nomes nos nós', async () => {
+    const json = JSON.stringify({
+      plans: [outline('A', 1), outline('B', 2, 'hibrido'), outline('C', 3, 'do_zero')],
+    });
+    const model = useStreamModel([json.slice(0, 150), json.slice(150)]);
+    const events: OutlineProgressEvent[] = [];
+    const outlines = await outlinePlans('objetivo', (ev) => events.push(ev), undefined, ['regra 1']);
+
+    expect(outlines.map((o) => o.title)).toEqual(['A', 'B', 'C']);
+    expect(outlines.map((o) => o.strategy)).toEqual(['reaproveitar', 'hibrido', 'do_zero']);
+    const o = outlines[0];
+    expect(o.id).toBeTruthy();
+    expect(o.rankReason).toBe('motivo');
+    expect(o.estimates?.custo).toBe('R$ 100–200');
+    expect(o.rulesCheck).toEqual([]);
+    expect('tree' in o).toBe(false);
+    // Nome em branco é descartado; só name + kind por nó.
+    expect(o.outline.categorias[0].nodes).toEqual([{ name: 'Bateria 4S', kind: 'recurso' }]);
+    expect(countOutlineNodes(o)).toBe(3);
+
+    // Schema e prompt do esboço — sem os campos didáticos dos nós.
+    const call = model.doStreamCalls[0];
+    expect(JSON.stringify(call.prompt)).toContain('OUTLINE MODE');
+    expect(JSON.stringify(call.prompt)).toContain('regra 1');
+    const fmt = call.responseFormat as { type: string; name?: string; schema?: unknown };
+    expect(fmt.name).toBe('OutlinesResponse');
+    expect(JSON.stringify(fmt.schema)).not.toContain('comoConfirmar');
+
+    expect(events.some((e) => e.phase === 'streaming' && (e.partial?.plans?.length ?? 0) > 0)).toBe(true);
+    expect(events.every((e) => typeof e.startedAt === 'number')).toBe(true);
+    expect(events.at(-1)?.phase).toBe('done');
+  });
+
+  it('manda os esboços já mostrados quando o usuário pede mais', async () => {
+    const model = useStreamModel([JSON.stringify({ plans: [outline('D', 4)] })]);
+    await outlinePlans('objetivo', undefined, undefined, undefined, [
+      { title: 'JA-MOSTRADO', strategy: 'reaproveitar', approach: 'x', rank: 1 },
+    ]);
+    const prompt = JSON.stringify(model.doStreamCalls[0].prompt);
+    expect(prompt).toContain('PLANS ALREADY SHOWN');
+    expect(prompt).toContain('JA-MOSTRADO');
+  });
+
+  it('recupera os esboços completos quando o JSON final não fecha', async () => {
+    const full = JSON.stringify({ plans: [outline('A', 1), outline('B', 2), outline('C', 3)] });
+    const cut = full.slice(0, full.lastIndexOf('"title":"C"') + 40);
+    useStreamModel([cut], 'length');
+    const events: OutlineProgressEvent[] = [];
+    const outlines = await outlinePlans('objetivo', (ev) => events.push(ev));
+    expect(outlines.map((o) => o.title)).toEqual(['A', 'B']);
+    expect(events.at(-1)?.phase).toBe('done');
+    expect(events.at(-1)?.warning).toMatch(/1/);
+  });
+
+  it('emite "thinking" quando nada chega logo após conectar', async () => {
+    useStreamModel([JSON.stringify({ plans: [outline('A', 1)] })], 'stop', 1500);
+    const phases: string[] = [];
+    await outlinePlans('objetivo', (ev) => phases.push(ev.phase));
+    expect(phases).toContain('thinking');
+    expect(phases.indexOf('thinking')).toBeGreaterThan(phases.indexOf('connecting'));
+  });
+
+  it('abortar cancela em <1s com kind "aborted"', async () => {
+    const model = silentModel();
+    const ctrl = new AbortController();
+    const t0 = Date.now();
+    setTimeout(() => ctrl.abort(), 50);
+    const events: OutlineProgressEvent[] = [];
+    const err = await outlinePlans('objetivo', (ev) => events.push(ev), undefined, undefined, undefined, {
+      signal: ctrl.signal,
+    }).catch((e) => e);
+    expect(Date.now() - t0).toBeLessThan(1000);
+    expect((err as AIError).info.kind).toBe('aborted');
+    expect(events.at(-1)?.phase).toBe('error');
+    expect(model.doStreamCalls[0].abortSignal?.aborted).toBe(true);
+  });
+});
+
+describe('expandPlan', () => {
+  it('gera a árvore do esboço escolhido, com o id e o cabeçalho do esboço', async () => {
+    const json = JSON.stringify(expandJson());
+    const model = useStreamModel([json.slice(0, 300), json.slice(300, 700), json.slice(700)]);
+    const events: ExpandProgressEvent[] = [];
+    const p = await expandPlan(
+      'objetivo',
+      chosenOutline(),
+      (ev) => events.push(ev),
+      undefined,
+      ['orçamento R$ 1500'],
+      { research: null },
+    );
+
+    expect(p.id).toBe('out1');
+    expect(p.title).toBe('Drone usado');
+    expect(p.strategy).toBe('hibrido');
+    expect(p.rulesCheck?.[0].status).toBe('cumpre');
+    expect('outline' in p).toBe(false);
+    expect(p.tree.categorias.map((c) => c.children.length)).toEqual([1, 2]);
+    const passo = p.tree.categorias[1].children[0];
+    expect(passo.order).toBe(1);
+    expect(passo.decisionOptions).toBeUndefined();
+    expect(passo.cons).toEqual([]);
+
+    // O prompt leva o esboço (nós em ordem) e a estratégia escolhida.
+    const prompt = JSON.stringify(model.doStreamCalls[0].prompt);
+    expect(prompt).toContain('THE PLAN THE USER CHOSE');
+    expect(prompt).toContain('APPROACH-ESCOLHIDA');
+    expect(prompt).toContain('2. (passo) Testar voo');
+    expect(prompt).toContain('HYBRID');
+    expect((model.doStreamCalls[0].responseFormat as { name?: string }).name).toBe('ExpandResponse');
+
+    // Progresso: nós prontos crescem até o total do esboço.
+    const ready = events.filter((e) => e.phase === 'streaming').map((e) => e.nodesReady ?? 0);
+    expect(ready.at(-1)).toBe(3);
+    expect(ready).toEqual([...ready].sort((a, b) => a - b));
+    expect(events.every((e) => e.nodesTotal === 3)).toBe(true);
+    expect(events.at(-1)?.phase).toBe('done');
+  });
+
+  it('o resultado tem o formato que createProjectFromPlan hidrata', async () => {
+    useStreamModel([JSON.stringify(expandJson())]);
+    const p = await expandPlan('objetivo', chosenOutline());
+    const n = p.tree.categorias[0].children[0];
+    for (const k of ['tempId', 'kind', 'name', 'fx', 'oQue', 'porQue', 'comoConfirmar', 'confidence'] as const) {
+      expect(n[k]).toBeDefined();
+    }
+    expect(typeof p.tree.categorias[0].tempId).toBe('string');
+  });
+
+  it('recupera a árvore parcial quando o JSON corta e já há nós suficientes', async () => {
+    const full = JSON.stringify(expandJson());
+    // Corta no meio do último nó.
+    const cut = full.slice(0, full.lastIndexOf('"tempId":"p2"') + 30);
+    useStreamModel([cut], 'length');
+    const events: ExpandProgressEvent[] = [];
+    const p = await expandPlan('objetivo', chosenOutline(), (ev) => events.push(ev), undefined, undefined, {
+      research: null,
+    });
+    expect(p.tree.categorias.flatMap((c) => c.children.map((x) => x.name))).toEqual([
+      'Bateria 4S',
+      'Soldar XT60',
+    ]);
+    expect(events.at(-1)?.phase).toBe('done');
+    expect(events.at(-1)?.warning).toMatch(/1/);
+  });
+
+  it('sem nós suficientes no parcial, falha com kind "schema"', async () => {
+    const full = JSON.stringify(expandJson());
+    const cut = full.slice(0, full.indexOf('"tempId":"r1"') + 20);
+    useStreamModel([cut], 'length');
+    const err = await expandPlan('objetivo', chosenOutline()).catch((e) => e);
+    expect(err).toBeInstanceOf(AIError);
+    expect((err as AIError).info.kind).toBe('schema');
+  });
+
+  it('abortar (troca de seleção) cancela em <1s', async () => {
+    const model = silentModel();
+    const ctrl = new AbortController();
+    const t0 = Date.now();
+    setTimeout(() => ctrl.abort(), 50);
+    const err = await expandPlan('objetivo', chosenOutline(), undefined, undefined, undefined, {
+      signal: ctrl.signal,
+    }).catch((e) => e);
+    expect(Date.now() - t0).toBeLessThan(1000);
+    expect((err as AIError).info.kind).toBe('aborted');
+    expect(model.doStreamCalls[0].abortSignal?.aborted).toBe(true);
+  });
+
+  it('estoura o timeout com kind "timeout"', async () => {
+    holder.model = new MockLanguageModelV3({
+      doStream: async () => ({
+        stream: new ReadableStream<LanguageModelV3StreamPart>({ start() {} }),
+      }),
+    }) as unknown as Record<string | symbol, unknown>;
+    const err = await expandPlan('objetivo', chosenOutline(), undefined, undefined, undefined, {
+      timeoutMs: 60,
+    }).catch((e) => e);
+    expect((err as AIError).info.kind).toBe('timeout');
+  });
+
+  it('reaproveita o digest da pesquisa dos esboços: link só das fontes', async () => {
+    const json = expandJson();
+    json.categorias[0].children[0] = node('r1', {
+      groundTruthHints: [
+        { kind: 'link', label: 'ok', value: 'https://real.example/doc' },
+        { kind: 'link', label: 'inventado', value: 'https://fake.example' },
+      ],
+    });
+    const model = useStreamModel([JSON.stringify(json)]);
+    const p = await expandPlan('objetivo', chosenOutline(), undefined, undefined, undefined, {
+      research: {
+        query: 'q',
+        findings: 'FATOS-DA-PESQUISA',
+        sources: [{ url: 'https://real.example/doc', title: 'Doc' }],
+        searchedAt: 0,
+      },
+    });
+    expect(JSON.stringify(model.doStreamCalls[0].prompt)).toContain('FATOS-DA-PESQUISA');
+    expect(p.tree.categorias[0].children[0].groundTruthHints).toEqual([
+      { kind: 'link', label: 'ok', value: 'https://real.example/doc' },
+    ]);
   });
 });
 

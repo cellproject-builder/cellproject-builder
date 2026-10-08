@@ -215,7 +215,8 @@ export interface Project {
   // back-compat; treated as 'construir' when absent.
   archetype?: ProjectArchetype;
   // Planos que o usuário viu e não escolheu — guardados para comparar depois.
-  alternativePlans?: AIPlan[];
+  // Podem ser esboços (planejamento em duas fases) — só o completo tem `tree`.
+  alternativePlans?: (AIPlan | AIPlanOutline)[];
   // true depois que o usuário arrastou um nó: a partir daí o layout automático
   // não reposiciona mais a árvore ao aceitar sugestões.
   manualLayout?: boolean;
@@ -289,4 +290,27 @@ export interface AIPlanCategory {
   oQue: string;
   porQue: string;
   children: AISuggestedNode[];
+}
+
+// ---- Planejamento em duas fases -------------------------------------------
+// Esboço leve de um plano alternativo: o mesmo cabeçalho do AIPlan, mas a
+// árvore só com os NOMES dos nós. A árvore completa vem de expandPlan.
+
+export interface AIPlanOutlineNode {
+  name: string;
+  kind: NodeKind;
+}
+
+export interface AIPlanOutlineCategory {
+  name: string;
+  kind: AIPlanCategory['kind'];
+  nodes: AIPlanOutlineNode[];
+}
+
+export interface AIPlanOutline extends Omit<AIPlan, 'tree'> {
+  outline: { categorias: AIPlanOutlineCategory[] };
+}
+
+export function isPlanOutline(p: AIPlan | AIPlanOutline): p is AIPlanOutline {
+  return 'outline' in p && !('tree' in p);
 }

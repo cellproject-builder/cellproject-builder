@@ -125,7 +125,8 @@ const RuleCheckSchema = z.object({
   nota: z.string().describe('1 frase com o número/fato que sustenta o status.'),
 });
 
-export const PlanSchema = z.object({
+// Cabeçalho do plano — comum ao plano completo e ao esboço (outline).
+const PlanHeaderSchema = z.object({
   title: z.string().describe('Título curto e memorável do plano (2–6 palavras).'),
   pitch: z.string().describe('1–2 frases resumindo a abordagem.'),
   approach: z.string().describe('2–3 frases (≤ 400 caracteres) deixando claro COMO se constrói (reaproveitar vs do zero).'),
@@ -149,17 +150,57 @@ export const PlanSchema = z.object({
   rulesCheck: z
     .array(RuleCheckSchema)
     .describe('Uma entrada por regra do usuário, na mesma ordem. Vazio se não há regras.'),
-  tree: z.object({
-    categorias: z
-      .array(PlanCategorySchema)
-      .describe('2 ou 3 categorias. Sempre inclua "recursos" e "execucao". "decisoes" só se houver tradeoff real.'),
-  }),
+});
+
+const PlanCategoriesSchema = z
+  .array(PlanCategorySchema)
+  .describe('2 ou 3 categorias. Sempre inclua "recursos" e "execucao". "decisoes" só se houver tradeoff real.');
+
+export const PlanSchema = PlanHeaderSchema.extend({
+  tree: z.object({ categorias: PlanCategoriesSchema }),
 });
 
 export const PlansResponseSchema = z.object({
   plans: z
     .array(PlanSchema)
     .describe('EXATAMENTE 3 planos alternativos, com estilos claramente diferentes e ranqueados.'),
+});
+
+// ---------------------------------------------------------------------------
+// Planejamento em duas fases: (1) esboços leves dos planos alternativos — só o
+// cabeçalho + nomes dos nós; (2) expansão da árvore completa de UM esboço.
+// ---------------------------------------------------------------------------
+
+const OutlineNodeSchema = z.object({
+  name: z.string().describe('Nome curto e específico do nó (2–6 palavras).'),
+  kind: NodeKindSchema,
+});
+
+const OutlineCategorySchema = z.object({
+  name: z.string().describe('Nome legível da categoria, no idioma da resposta.'),
+  kind: CategoryKindSchema,
+  nodes: z
+    .array(OutlineNodeSchema)
+    .describe('4 a 6 nós da categoria, na ordem (passos em ordem cronológica). Só nome e kind.'),
+});
+
+export const PlanOutlineSchema = PlanHeaderSchema.extend({
+  outline: z.object({
+    categorias: z
+      .array(OutlineCategorySchema)
+      .describe('2 ou 3 categorias. Sempre inclua "recursos" e "execucao". "decisoes" só se houver tradeoff real.'),
+  }),
+});
+
+export const OutlinesResponseSchema = z.object({
+  plans: z
+    .array(PlanOutlineSchema)
+    .describe('EXATAMENTE 3 esboços de planos alternativos, com estilos claramente diferentes e ranqueados.'),
+});
+
+// Expansão: a árvore completa de UM plano, seguindo o esboço escolhido.
+export const ExpandResponseSchema = z.object({
+  categorias: PlanCategoriesSchema,
 });
 
 export const DecomposeResponseSchema = z.object({
@@ -196,6 +237,8 @@ export const CritiqueResponseSchema = z.object({
 // Todos os schemas de resposta — percorridos pelo schemas.test.ts.
 export const RESPONSE_SCHEMAS = {
   PlansResponse: PlansResponseSchema,
+  OutlinesResponse: OutlinesResponseSchema,
+  ExpandResponse: ExpandResponseSchema,
   DecomposeResponse: DecomposeResponseSchema,
   ReplanResponse: ReplanResponseSchema,
   CritiqueResponse: CritiqueResponseSchema,
@@ -205,6 +248,10 @@ export type PlansResponse = z.infer<typeof PlansResponseSchema>;
 export type DecomposeResponse = z.infer<typeof DecomposeResponseSchema>;
 export type ReplanResponse = z.infer<typeof ReplanResponseSchema>;
 export type CritiqueResponse = z.infer<typeof CritiqueResponseSchema>;
+export type OutlinesResponse = z.infer<typeof OutlinesResponseSchema>;
+export type ExpandResponse = z.infer<typeof ExpandResponseSchema>;
 export type RawPlan = z.infer<typeof PlanSchema>;
+export type RawPlanOutline = z.infer<typeof PlanOutlineSchema>;
+export type RawPlanCategory = z.infer<typeof PlanCategorySchema>;
 export type RawSuggestedNode = z.infer<typeof SuggestedNodeSchema>;
 export type RawSuggestedEdge = z.infer<typeof SuggestedEdgeSchema>;

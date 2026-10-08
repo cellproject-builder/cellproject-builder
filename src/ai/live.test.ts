@@ -5,6 +5,9 @@ import { useConfigStore, PROVIDER_DEFAULTS } from '@/config/store';
 import { useLocaleStore } from '@/i18n';
 import {
   generatePlans,
+  outlinePlans,
+  expandPlan,
+  countOutlineNodes,
   decomposeNode,
   replanFromFailure,
   explainNode,
@@ -75,6 +78,74 @@ describe.skipIf(!key)(`IA ao vivo (${model})`, () => {
     expect(hints.some((h) => h.kind === 'link')).toBe(false);
     expect(nodes.every((n) => (n.groundTruthHints?.length ?? 0) <= 2)).toBe(true);
   }, 300_000);
+
+  // Planejamento em duas fases: mede o primeiro parcial e o total de cada
+  // fase. Opcional: LIVE_OUTLINE_EFFORT=low|medium|high|model (model = padrão
+  // do modelo) e LIVE_EXPAND_EFFORT idem.
+  it('outlinePlans + expandPlan → tempos e árvore', async () => {
+    const effortEnv = (v: string | undefined) =>
+      v === 'model' ? null : (v as 'low' | 'medium' | 'high' | undefined);
+    const t0 = Date.now();
+    let firstChunk = 0;
+    let firstCard = 0;
+    const phases: string[] = [];
+    const outlines = await outlinePlans(
+      ctxBase.projectObjective,
+      (ev) => {
+        if (phases.at(-1) !== ev.phase) phases.push(ev.phase);
+        if (ev.phase === 'streaming' && !firstChunk) firstChunk = Date.now() - t0;
+        // Primeiro card "mostrável": título + ao menos uma categoria com nós.
+        if (!firstCard && (ev.partial?.plans?.length ?? 0) > 1) firstCard = Date.now() - t0;
+      },
+      undefined,
+      ctxBase.rules,
+      undefined,
+      { effort: effortEnv(process.env.LIVE_OUTLINE_EFFORT) },
+    );
+    const outlineMs = Date.now() - t0;
+    console.log(
+      `[live] outlinePlans total ${outlineMs}ms · 1º parcial ${firstChunk}ms · 1º card completo ${firstCard}ms · ${outlines.length} esboços · fases ${phases.join('>')}`,
+    );
+    for (const o of outlines) {
+      console.log(
+        `[live]  #${o.rank} ${o.strategy} "${o.title}" · ${o.estimates?.custo} · ${o.estimates?.tempo} · ${countOutlineNodes(o)} nós`,
+      );
+      console.log(
+        `[live]    ${o.outline.categorias.map((c) => `${c.name}: ${c.nodes.map((n) => n.name).join(' | ')}`).join(' // ')}`,
+      );
+    }
+    expect(outlines.length).toBeGreaterThan(0);
+
+    const chosen = [...outlines].sort((a, b) => a.rank - b.rank)[0];
+    const t1 = Date.now();
+    let firstExpand = 0;
+    let firstNode = 0;
+    let lastReady = 0;
+    const plan = await expandPlan(
+      ctxBase.projectObjective,
+      chosen,
+      (ev) => {
+        if (ev.phase === 'streaming' && !firstExpand) firstExpand = Date.now() - t1;
+        if ((ev.nodesReady ?? 0) > 0 && !firstNode) firstNode = Date.now() - t1;
+        lastReady = ev.nodesReady ?? lastReady;
+      },
+      undefined,
+      ctxBase.rules,
+      { research: null, effort: effortEnv(process.env.LIVE_EXPAND_EFFORT) },
+    );
+    const expandMs = Date.now() - t1;
+    const nodes = plan.tree.categorias.flatMap((c) => c.children);
+    console.log(
+      `[live] expandPlan total ${expandMs}ms · 1º parcial ${firstExpand}ms · 1º nó completo ${firstNode}ms · ${nodes.length} nós (esboço ${countOutlineNodes(chosen)}, último nodesReady ${lastReady})`,
+    );
+    console.log(`[live]  nomes ${JSON.stringify(nodes.map((n) => n.name))}`);
+    console.log(`[live]  comoConfirmar ${JSON.stringify(nodes.slice(0, 4).map((n) => n.comoConfirmar))}`);
+    console.log(`[live]  oQue ${JSON.stringify(nodes.slice(0, 3).map((n) => n.oQue))}`);
+    console.log(`[live] TOTAL duas fases ${outlineMs + expandMs}ms`);
+    expect(plan.id).toBe(chosen.id);
+    expect(nodes.length).toBeGreaterThan(0);
+    expect(nodes.flatMap((n) => n.groundTruthHints ?? []).some((h) => h.kind === 'link')).toBe(false);
+  }, 400_000);
 
   it('decomposeNode → nós válidos', async () => {
     const t0 = Date.now();

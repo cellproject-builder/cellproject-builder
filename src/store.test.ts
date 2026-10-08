@@ -17,7 +17,8 @@ import {
   flushGraphPersistence,
   EMPTY_OBJECTIVE_DRAFT,
 } from './store';
-import type { AIPlan, ConceptNodeData } from './types';
+import type { AIPlan, AIPlanOutline, ConceptNodeData } from './types';
+import { isPlanOutline } from './types';
 
 const minimalPlan: AIPlan = {
   id: 'p1',
@@ -1024,5 +1025,139 @@ describe('persistence — drafts survive a reload', () => {
     expect(useGraphStore.getState().drafts[catId]).toEqual({ failure: 'algo estranho' });
     expect(useGraphStore.getState().objectiveDraft.objective).toBe('meu objetivo');
     expect(useGraphStore.getState().objectiveDraft.ruleDraft).toBe('regra');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Planejamento em duas fases — esboços + cache de expansão no rascunho
+// ---------------------------------------------------------------------------
+
+function makeOutline(id: string, title = `Esboço ${id}`): AIPlanOutline {
+  const { tree: _tree, ...header } = minimalPlan;
+  return {
+    ...header,
+    id,
+    title,
+    outline: {
+      categorias: [{ name: 'Execução', kind: 'execucao', nodes: [{ name: 'Passo 1', kind: 'passo' }] }],
+    },
+  };
+}
+
+function expandedFor(id: string): AIPlan {
+  // O service devolve id = id do esboço; aqui um id diferente prova que o
+  // store força a chave.
+  return { ...minimalPlan, id: `outro-${id}`, title: `Esboço ${id}` };
+}
+
+describe('objective draft — two-phase planning (outlines + expansion cache)', () => {
+  beforeEach(() => {
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().clearObjectiveDraft();
+  });
+
+  it('setOutlines → setExpansion → setExpandedPlan caches the tree by outline id', () => {
+    const s = useGraphStore.getState();
+    s.setOutlines([makeOutline('a'), makeOutline('b')], { objective: 'obj', rules: ['r'] });
+    s.setExpansion('a');
+    expect(useGraphStore.getState().objectiveDraft.expansion?.outlineId).toBe('a');
+
+    s.setExpandedPlan('a', expandedFor('a'));
+    const d = useGraphStore.getState().objectiveDraft;
+    expect(d.expanded.a.id).toBe('a');
+    expect(d.expansion).toBeNull();
+    expect(d.plansFor).toEqual({ objective: 'obj', rules: ['r'] });
+  });
+
+  it('a finished expansion of another outline does not clear the one in progress', () => {
+    const s = useGraphStore.getState();
+    s.setOutlines([makeOutline('a'), makeOutline('b')]);
+    s.setExpansion('b');
+    s.setExpandedPlan('a', expandedFor('a'));
+    expect(useGraphStore.getState().objectiveDraft.expansion?.outlineId).toBe('b');
+  });
+
+  it('setOutlines prunes cached trees, the expansion and the selection of outlines that left', () => {
+    const s = useGraphStore.getState();
+    s.setOutlines([makeOutline('a'), makeOutline('b')]);
+    s.setExpandedPlan('a', expandedFor('a'));
+    s.setExpandedPlan('b', expandedFor('b'));
+    s.setExpansion('a');
+    s.setObjectiveDraft({ selectedId: 'a' });
+
+    // "Gerar mais" fundido: b fica, a sai, c entra.
+    s.setOutlines([makeOutline('b'), makeOutline('c')]);
+    const d = useGraphStore.getState().objectiveDraft;
+    expect(Object.keys(d.expanded)).toEqual(['b']);
+    expect(d.expansion).toBeNull();
+    expect(d.selectedId).toBeNull();
+    expect(d.outlines?.map((o) => o.id)).toEqual(['b', 'c']);
+  });
+
+  it('createProjectFromOutline uses the cached tree; alternatives keep outlines or their trees', () => {
+    const s = useGraphStore.getState();
+    s.setOutlines([makeOutline('a'), makeOutline('b'), makeOutline('c')]);
+    expect(s.createProjectFromOutline('obj', '', 'a')).toBe(false);
+    expect(useGraphStore.getState().project).toBeNull();
+
+    s.setExpandedPlan('a', expandedFor('a'));
+    s.setExpandedPlan('c', expandedFor('c'));
+    expect(s.createProjectFromOutline('obj', 'Meu', 'a', ['r'])).toBe(true);
+
+    const project = useGraphStore.getState().project!;
+    expect(project.name).toBe('Meu');
+    expect(project.rules).toEqual(['r']);
+    const alts = project.alternativePlans ?? [];
+    expect(alts.map((p) => p.id)).toEqual(['b', 'c']);
+    expect(isPlanOutline(alts[0])).toBe(true);
+    expect(isPlanOutline(alts[1])).toBe(false);
+    expect(useGraphStore.getState().objectiveDraft).toEqual(EMPTY_OBJECTIVE_DRAFT);
+  });
+
+  it('createProjectFromPlan accepts outlines as alternatives', () => {
+    useGraphStore
+      .getState()
+      .createProjectFromPlan('obj', 'P', minimalPlan, [], [minimalPlan, makeOutline('x')]);
+    expect(useGraphStore.getState().project!.alternativePlans?.map((p) => p.id)).toEqual(['x']);
+  });
+
+  it('outlines and the expansion cache survive a reload', async () => {
+    const s = useGraphStore.getState();
+    s.setOutlines([makeOutline('a')], { objective: 'obj', rules: [] });
+    s.setExpandedPlan('a', expandedFor('a'));
+    await flushGraphPersistence();
+    const raw = await idbGet<string>('cellproject-graph');
+
+    useGraphStore.setState({ objectiveDraft: EMPTY_OBJECTIVE_DRAFT });
+    await flushGraphPersistence();
+    await idbSet('cellproject-graph', raw!);
+    await useGraphStore.persist.rehydrate();
+    const d = useGraphStore.getState().objectiveDraft;
+    expect(d.outlines?.[0].id).toBe('a');
+    expect(d.expanded.a.tree.categorias).toHaveLength(1);
+  });
+
+  it('a v5 snapshot (no outline fields) migrates with the new defaults', async () => {
+    const oldDraft = {
+      name: 'n',
+      objective: 'objetivo antigo',
+      rules: [],
+      ruleDraft: '',
+      plans: [minimalPlan],
+      plansFor: { objective: 'objetivo antigo', rules: [] },
+      selectedId: null,
+      generatingSince: null,
+      updatedAt: 1,
+    };
+    await flushGraphPersistence();
+    await idbSet('cellproject-graph', JSON.stringify({ state: { objectiveDraft: oldDraft }, version: 5 }));
+    await useGraphStore.persist.rehydrate();
+    const d = useGraphStore.getState().objectiveDraft;
+    expect(d.objective).toBe('objetivo antigo');
+    expect(d.plans).toHaveLength(1);
+    expect(d.outlines).toBeNull();
+    expect(d.expanded).toEqual({});
+    expect(d.expansion).toBeNull();
+    expect(d.outlineResearch).toBeNull();
   });
 });

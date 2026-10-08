@@ -9,10 +9,12 @@ import {
   streamObject,
   streamText,
 } from 'ai';
+import type { z } from 'zod';
 import type {
   AdversarialCritique,
   AIPlan,
   AIPlanCategory,
+  AIPlanOutline,
   AISuggestedNode,
   AISuggestedEdge,
   AISuggestedGroundTruthHint,
@@ -23,7 +25,16 @@ import type {
   NodeState,
 } from '@/types';
 import type { KBContextEntry } from '@/kb/types';
-import { aiModel, assertAIReady, callOpts, currentModelIds, AIMissingKeyError } from './client';
+import {
+  aiModel,
+  assertAIReady,
+  callOpts,
+  currentModelIds,
+  effortProviderOptions,
+  AIMissingKeyError,
+  type AICallKind,
+  type Effort,
+} from './client';
 import { currentLocale, currentLocaleAIName, t } from '@/i18n';
 import {
   isWebResearchOn,
@@ -35,11 +46,19 @@ import {
 import {
   PlanSchema,
   PlansResponseSchema,
+  PlanOutlineSchema,
+  OutlinesResponseSchema,
+  ExpandResponseSchema,
+  SuggestedNodeSchema,
   DecomposeResponseSchema,
   ReplanResponseSchema,
   CritiqueResponseSchema,
   type PlansResponse,
+  type OutlinesResponse,
+  type ExpandResponse,
   type RawPlan,
+  type RawPlanOutline,
+  type RawPlanCategory,
   type RawSuggestedNode,
   type RawSuggestedEdge,
 } from './schemas';
@@ -61,9 +80,11 @@ export type PlanProgressPhase =
   | 'done'
   | 'error';
 
-export interface PlanProgressEvent {
+// Genérico no parcial: generatePlans (planos completos), outlinePlans
+// (esboços) e expandPlan (árvore de um plano) usam o mesmo modelo de eventos.
+export interface PlanProgressEvent<TPartial = DeepPartial<PlansResponse>> {
   phase: PlanProgressPhase;
-  partial?: DeepPartial<PlansResponse>;
+  partial?: TPartial;
   /** @deprecated o raciocínio do gpt-6.x vem criptografado — nunca é preenchido. */
   reasoning?: string;
   chunkCount: number;
@@ -78,6 +99,9 @@ export interface PlanProgressEvent {
   // Digest da pesquisa web (quando o modo pesquisa está ligado) — a UI mostra
   // as fontes reais consultadas junto dos planos.
   research?: ResearchDigest;
+  // Só na expansão: nós completos já recebidos / total de nós do esboço.
+  nodesReady?: number;
+  nodesTotal?: number;
 }
 
 export type PlanProgressCallback = (ev: PlanProgressEvent) => void;
@@ -726,7 +750,9 @@ ${blocks.join('\n\n')}\n\n`;
 }
 
 // ---------------------------------------------------------------------------
-// generatePlans — generates 3 alternative plans for the objective
+// Planejamento — infraestrutura comum a generatePlans / outlinePlans /
+// expandPlan: pesquisa + KB, eventos de progresso, "pensando", cancelamento,
+// timeout e erros do stream.
 // ---------------------------------------------------------------------------
 
 // Compact summary of plans already shown — sent back to the model when the
@@ -746,126 +772,135 @@ export interface GeneratePlansOptions extends AICallOptions {
 // Sem nenhum pedaço do JSON após este tempo, a UI passa a mostrar "pensando".
 const THINKING_AFTER_MS = 1_200;
 
-// `kbContext` pode chegar como Promise: a seleção de docs da base (outra
-// chamada de IA) roda em paralelo com a pesquisa web.
-export async function generatePlans(
-  objective: string,
-  onProgress?: PlanProgressCallback,
-  kbContext?: KBContextEntry[] | Promise<KBContextEntry[] | undefined>,
-  rules?: string[],
-  existingPlans?: ExistingPlanSummary[],
-  opts?: GeneratePlansOptions,
-): Promise<AIPlanOut[]> {
+interface PlanningRun<TPartial> {
+  startedAt: number;
+  signal?: AbortSignal;
+  research: ResearchDigest | null;
+  chunkCount: number;
+  lastPartial?: TPartial;
+  emit: (phase: PlanProgressPhase, extra?: Partial<PlanProgressEvent<TPartial>>) => void;
+}
+
+function createRun<TPartial>(
+  onProgress: ((ev: PlanProgressEvent<TPartial>) => void) | undefined,
+  opts: GeneratePlansOptions | undefined,
+  defaultTimeoutMs: number,
+  // Campos derivados do parcial (ex.: nós prontos na expansão).
+  decorate?: (partial: TPartial | undefined) => Partial<PlanProgressEvent<TPartial>>,
+): PlanningRun<TPartial> {
   const startedAt = Date.now();
-  const elapsed = () => Date.now() - startedAt;
-  const signal = anySignal([opts?.signal, timeoutSignal(opts?.timeoutMs ?? PLANS_TIMEOUT_MS)]);
+  const run: PlanningRun<TPartial> = {
+    startedAt,
+    signal: anySignal([opts?.signal, timeoutSignal(opts?.timeoutMs ?? defaultTimeoutMs)]),
+    research: null,
+    chunkCount: 0,
+    lastPartial: undefined,
+    emit: (phase, extra) =>
+      onProgress?.({
+        phase,
+        partial: run.lastPartial,
+        chunkCount: run.chunkCount,
+        elapsedMs: Date.now() - startedAt,
+        startedAt,
+        research: run.research ?? undefined,
+        ...decorate?.(run.lastPartial),
+        ...extra,
+      }),
+  };
+  return run;
+}
 
-  let research: ResearchDigest | null = null;
-  let chunkCount = 0;
-  let lastPartial: DeepPartial<PlansResponse> | undefined;
-  let thinkingTimer: ReturnType<typeof setTimeout> | undefined;
+// Pesquisa real ANTES de planejar (em paralelo com a seleção da base): fatos
+// atuais (preços, specs, docs) entram no prompt e as URLs reais viram as
+// únicas âncoras kind="link" permitidas. `preset` = digest já obtido numa fase
+// anterior (esboços → expansão): reaproveita sem nova busca.
+async function resolvePlanningContext<T>(
+  run: PlanningRun<T>,
+  objective: string,
+  rules: string[] | undefined,
+  kbContext: KBContextEntry[] | Promise<KBContextEntry[] | undefined> | undefined,
+  preset?: ResearchDigest | null,
+): Promise<KBContextEntry[] | undefined> {
+  if (preset !== undefined || !isWebResearchOn()) {
+    run.research = preset ?? null;
+    return raceAbort(Promise.resolve(kbContext), run.signal);
+  }
+  run.emit('researching');
+  const [kb, digest] = await Promise.all([
+    raceAbort(Promise.resolve(kbContext), run.signal),
+    maybeResearch(
+      objective,
+      rules && rules.length > 0
+        ? `Verify feasibility against these hard constraints: ${rules.join(' · ')}`
+        : undefined,
+      run.signal,
+    ),
+  ]);
+  run.research = digest;
+  return kb;
+}
 
-  const emit = (phase: PlanProgressPhase, extra?: Partial<PlanProgressEvent>) =>
-    onProgress?.({
-      phase,
-      partial: lastPartial,
-      chunkCount,
-      elapsedMs: elapsed(),
-      startedAt,
-      research: research ?? undefined,
-      ...extra,
-    });
-
+// Stream estruturado com eventos de progresso. Erros do stream NÃO aparecem
+// no partialObjectStream (ele só termina) e `result.object` PENDURA para
+// sempre em cima de erro de API — sem o onError a UI congelava em
+// "validando". Capturamos e lançamos nós mesmos.
+async function streamPlanning<T, TPartial>(
+  run: PlanningRun<TPartial>,
+  args: {
+    schema: z.ZodType<T>;
+    schemaName: string;
+    prompt: string;
+    kind: AICallKind;
+    temperature: number;
+    effort?: Effort;
+  },
+): Promise<T> {
+  run.emit('connecting');
+  const thinkingTimer = setTimeout(() => {
+    if (run.chunkCount === 0 && !run.signal?.aborted) run.emit('thinking');
+  }, THINKING_AFTER_MS);
   try {
-    assertAIReady();
-
-    // Pesquisa real ANTES de planejar (em paralelo com a seleção da base):
-    // fatos atuais (preços, specs, docs) entram no prompt e as URLs reais
-    // viram as únicas âncoras kind="link" permitidas.
-    let kb: KBContextEntry[] | undefined;
-    if (isWebResearchOn()) {
-      emit('researching');
-      const [kbResolved, digest] = await Promise.all([
-        raceAbort(Promise.resolve(kbContext), signal),
-        maybeResearch(
-          objective,
-          rules && rules.length > 0
-            ? `Verify feasibility against these hard constraints: ${rules.join(' · ')}`
-            : undefined,
-          signal,
-        ),
-      ]);
-      kb = kbResolved;
-      research = digest;
-    } else {
-      kb = await raceAbort(Promise.resolve(kbContext), signal);
-    }
-
-    const userPrompt = buildPlansPrompt(objective, rules, kb, existingPlans, research);
-
-    emit('connecting');
-    thinkingTimer = setTimeout(() => {
-      if (chunkCount === 0 && !signal?.aborted) emit('thinking');
-    }, THINKING_AFTER_MS);
-
-    // Erros do stream NÃO aparecem no partialObjectStream (ele só termina) e
-    // `result.object` PENDURA para sempre em cima de erro de API — sem este
-    // onError a UI congelava em "validando". Capturamos e lançamos nós mesmos.
     let streamError: unknown = null;
+    const providerOptions = args.effort ? effortProviderOptions(args.effort) : undefined;
     const result = streamObject({
       model: aiModel,
-      schema: PlansResponseSchema,
-      schemaName: 'PlansResponse',
+      schema: args.schema,
+      schemaName: args.schemaName,
       system: baseSystem(),
-      prompt: userPrompt,
-      ...callOpts('plans', 0.6),
-      abortSignal: signal,
+      prompt: args.prompt,
+      ...callOpts(args.kind, args.temperature),
+      ...(providerOptions ? { providerOptions } : {}),
+      abortSignal: run.signal,
       onError: (ev) => {
         streamError = ev.error;
-      },    });
+      },
+    });
 
     const it = result.partialObjectStream[Symbol.asyncIterator]();
     for (;;) {
-      const next = await raceAbort(it.next(), signal);
+      const next = await raceAbort(it.next(), run.signal);
       if (next.done) break;
-      if (chunkCount === 0) clearTimeout(thinkingTimer);
-      chunkCount += 1;
-      lastPartial = next.value as DeepPartial<PlansResponse>;
-      emit('streaming');
+      if (run.chunkCount === 0) clearTimeout(thinkingTimer);
+      run.chunkCount += 1;
+      run.lastPartial = next.value as TPartial;
+      run.emit('streaming');
     }
 
-    if (signal?.aborted) throw signal.reason;
+    if (run.signal?.aborted) throw run.signal.reason;
     if (streamError) throw streamError;
 
-    emit('finalizing');
-
-    const finalObject = await raceAbort(result.object, signal);
-    const hydrated = finalObject.plans.map((p) => hydratePlan(p, research));
-    // O schema não impõe min(3) (Gemini rejeita) — defende aqui.
-    if (hydrated.length === 0) {
-      throw new AIError({ kind: 'schema', title: t().notify.noPlansReturned, hint: t().ai.errors.outputHint });
-    }
-
-    emit('done');
-    return hydrated;
-  } catch (err) {
-    // Recuperação parcial: o JSON final não fechou (truncado, campo faltando),
-    // mas os planos que chegaram completos no stream valem o que custaram.
-    if (!signal?.aborted && isOutputError(err)) {
-      const recovered = recoverPlans(lastPartial, research);
-      if (recovered.plans.length > 0) {
-        const warning =
-          recovered.dropped > 0 ? t().ai.errors.partialPlans(recovered.dropped) : undefined;
-        emit('done', { warning });
-        return recovered.plans;
-      }
-    }
-    const friendly = toAIError(err, signal);
-    emit('error', { error: friendly.message, errorInfo: friendly.info });
-    throw friendly;
+    run.emit('finalizing');
+    return (await raceAbort(result.object, run.signal)) as T;
   } finally {
     clearTimeout(thinkingTimer);
   }
+}
+
+// Falha final de um fluxo de planejamento: classifica, emite e devolve o erro.
+function failRun<T>(run: PlanningRun<T>, err: unknown): AIError {
+  const friendly = toAIError(err, run.signal);
+  run.emit('error', { error: friendly.message, errorInfo: friendly.info });
+  return friendly;
 }
 
 function isOutputError(err: unknown): boolean {
@@ -876,53 +911,90 @@ function isOutputError(err: unknown): boolean {
   );
 }
 
-// Valida cada plano parcial isoladamente e hidrata os que passam no schema.
-function recoverPlans(
-  partial: DeepPartial<PlansResponse> | undefined,
-  research: ResearchDigest | null,
-): { plans: AIPlanOut[]; dropped: number } {
-  const items = partial?.plans ?? [];
-  const plans: AIPlanOut[] = [];
-  for (const item of items) {
-    const parsed = PlanSchema.safeParse(item);
-    if (parsed.success) plans.push(hydratePlan(parsed.data, research));
-  }
-  // Conta como descartado só o que começou a chegar (tem título).
-  const started = items.filter((p) => !!p?.title).length;
-  return { plans, dropped: Math.max(0, started - plans.length) };
+function noPlansError(): AIError {
+  return new AIError({ kind: 'schema', title: t().notify.noPlansReturned, hint: t().ai.errors.outputHint });
 }
 
-function buildPlansPrompt(
-  objective: string,
-  rules: string[] | undefined,
-  kb: KBContextEntry[] | undefined,
-  existingPlans: ExistingPlanSummary[] | undefined,
-  research: ResearchDigest | null,
-): string {
-  const hasRules = !!rules && rules.length > 0;
-  const cat = t().ai.categories;
-  const currency = currentLocale() === 'pt-BR' ? 'BRL (R$)' : 'USD ($)';
+// ---------------------------------------------------------------------------
+// generatePlans — 3 planos COMPLETOS numa chamada só (legado/compatibilidade).
+// O caminho principal é outlinePlans (esboços) + expandPlan (um plano).
+// ---------------------------------------------------------------------------
 
-  const hasExisting = !!existingPlans && existingPlans.length > 0;
-  const existingBlock = hasExisting
-    ? `
+// `kbContext` pode chegar como Promise: a seleção de docs da base (outra
+// chamada de IA) roda em paralelo com a pesquisa web.
+export async function generatePlans(
+  objective: string,
+  onProgress?: PlanProgressCallback,
+  kbContext?: KBContextEntry[] | Promise<KBContextEntry[] | undefined>,
+  rules?: string[],
+  existingPlans?: ExistingPlanSummary[],
+  opts?: GeneratePlansOptions,
+): Promise<AIPlanOut[]> {
+  const run = createRun<DeepPartial<PlansResponse>>(onProgress, opts, PLANS_TIMEOUT_MS);
+  try {
+    assertAIReady();
+    const kb = await resolvePlanningContext(run, objective, rules, kbContext);
+    const finalObject = await streamPlanning(run, {
+      schema: PlansResponseSchema,
+      schemaName: 'PlansResponse',
+      prompt: buildPlansPrompt(objective, rules, kb, existingPlans, run.research),
+      kind: 'plans',
+      temperature: 0.6,
+    });
+    const hydrated = finalObject.plans.map((p) => hydratePlan(p, run.research));
+    // O schema não impõe min(3) (Gemini rejeita) — defende aqui.
+    if (hydrated.length === 0) throw noPlansError();
+    run.emit('done');
+    return hydrated;
+  } catch (err) {
+    // Recuperação parcial: o JSON final não fechou (truncado, campo faltando),
+    // mas os planos que chegaram completos no stream valem o que custaram.
+    if (!run.signal?.aborted && isOutputError(err)) {
+      const recovered = recoverItems(run.lastPartial?.plans, PlanSchema, (p) => hydratePlan(p, run.research));
+      if (recovered.items.length > 0) {
+        const warning = recovered.dropped > 0 ? t().ai.errors.partialPlans(recovered.dropped) : undefined;
+        run.emit('done', { warning });
+        return recovered.items;
+      }
+    }
+    throw failRun(run, err);
+  }
+}
+
+// Valida cada item parcial isoladamente e hidrata os que passam no schema.
+// Conta como descartado só o que começou a chegar (tem título).
+function recoverItems<Raw, Out>(
+  items: (DeepPartial<Raw> | undefined)[] | undefined,
+  schema: z.ZodType<Raw>,
+  hydrate: (raw: Raw) => Out,
+): { items: Out[]; dropped: number } {
+  const list = items ?? [];
+  const out: Out[] = [];
+  for (const item of list) {
+    const parsed = schema.safeParse(item);
+    if (parsed.success) out.push(hydrate(parsed.data));
+  }
+  const started = list.filter((p) => !!(p as { title?: unknown } | undefined)?.title).length;
+  return { items: out, dropped: Math.max(0, started - out.length) };
+}
+
+// --- Blocos de prompt compartilhados entre planos completos e esboços ------
+
+function existingPlansBlock(existingPlans: ExistingPlanSummary[] | undefined): string {
+  if (!existingPlans || existingPlans.length === 0) return '';
+  return `
 
 PLANS ALREADY SHOWN TO THE USER (do NOT repeat these approaches):
-${existingPlans!
-  .map((p) => `- [rank ${p.rank}] "${p.title}" (${p.strategy}) — ${p.approach}`)
-  .join('\n')}
+${existingPlans.map((p) => `- [rank ${p.rank}] "${p.title}" (${p.strategy}) — ${p.approach}`).join('\n')}
 
-The user asked for MORE alternatives. Generate EXACTLY 3 NEW plans with angles clearly different from the above — e.g. cheapest possible, fastest to finish, most robust/professional, most unconventional/creative, most educational. Repeating a 'strategy' enum is fine when the ANGLE is new; never repeat an approach. Keep the SAME archetype as the plans above. Rank each new plan relative to ALL plans including the ones above (rank 1 = better than the current #1; otherwise continue the scale).`
-    : '';
+The user asked for MORE alternatives. Generate EXACTLY 3 NEW plans with angles clearly different from the above — e.g. cheapest possible, fastest to finish, most robust/professional, most unconventional/creative, most educational. Repeating a 'strategy' enum is fine when the ANGLE is new; never repeat an approach. Keep the SAME archetype as the plans above. Rank each new plan relative to ALL plans including the ones above (rank 1 = better than the current #1; otherwise continue the scale).`;
+}
 
-  return `USER GOAL:
-"""
-${objective.trim()}
-"""
-${formatRules(rules)}
-${formatKBContext(kb)}
-
-TASK
+// Arquétipo, estratégias, ranking e campos de comparação (o cabeçalho).
+function planHeaderBlock(rules: string[] | undefined, existingPlans: ExistingPlanSummary[] | undefined): string {
+  const hasRules = !!rules && rules.length > 0;
+  const currency = currentLocale() === 'pt-BR' ? 'BRL (R$)' : 'USD ($)';
+  return `TASK
 First, classify the goal's ARCHETYPE and tag EVERY plan with it (all plans share the same archetype):
 - "construir" — the goal is to MAKE / BUILD / achieve something concrete.
 - "entender" — the goal is to UNDERSTAND why something is true or how it works, decomposing toward first principles.
@@ -934,41 +1006,74 @@ The user picks the style by choosing a plan, so each 'approach' must state clear
 
 RANKING — rank the plans for THIS goal${hasRules ? ' AND its rules' : ''}:
 - 'rank': 1 = your single best recommendation, 2 = runner-up, 3 = third. No ties.
-- 'rankReason': ONE concrete sentence naming the tradeoff that earned the position (cost, time, risk, robustness, learning value). No marketing speak.${existingBlock}
+- 'rankReason': ONE concrete sentence naming the tradeoff that earned the position (cost, time, risk, robustness, learning value). No marketing speak.${existingPlansBlock(existingPlans)}
 
 COMPARISON FIELDS — so the user can compare plans side by side:
 - 'estimates.custo': realistic total cost range in ${currency} (e.g. "R$ 900–1.300"); for "entender", the cost of books/courses or "R$ 0".
 - 'estimates.tempo': realistic total time to the tested result (e.g. "2 weekends", "~10 h").
 - 'estimates.dificuldade': "iniciante" | "intermediario" | "avancado".
-- 'rulesCheck': ${hasRules ? 'ONE entry per USER RULE, in the same order, copying the rule text. Be honest: "viola" when the plan does not fit, "risco" when it fits only at the limit or on an unverified premise.' : 'empty array (the user set no rules).'}
+- 'rulesCheck': ${hasRules ? 'ONE entry per USER RULE, in the same order, copying the rule text. Be honest: "viola" when the plan does not fit, "risco" when it fits only at the limit or on an unverified premise.' : 'empty array (the user set no rules).'}`;
+}
 
-Shape the tree by archetype (2 or 3 categories, names in the response language):
+// Forma da árvore por arquétipo (categorias e kinds dos nós).
+function treeShapeBlock(): string {
+  const cat = t().ai.categories;
+  return `Shape the tree by archetype (2 or 3 categories, names in the response language):
 - "construir": "${cat.recursos}" (kind "recursos") · "${cat.execucao}" (kind "execucao", sequential passos with 'order' from 1) · "${cat.decisoes}" (kind "decisoes") ONLY on a real trade-off — its children include 'decisionOptions' (2 or 3).
-- "entender": "${cat.fundamentos}" (kind "recursos" — concepts/prerequisites to grasp first; children kind="concept") · "${cat.derivacao}" (kind "execucao" — the ordered chain of reasoning; use kind="concept" for ideas/definitions/premises and kind="passo" with 'order' only for genuinely sequential derivation steps) · optional "${cat.abordagens}" (kind "decisoes") only on a real choice of approach.
+- "entender": "${cat.fundamentos}" (kind "recursos" — concepts/prerequisites to grasp first; children kind="concept") · "${cat.derivacao}" (kind "execucao" — the ordered chain of reasoning; use kind="concept" for ideas/definitions/premises and kind="passo" with 'order' only for genuinely sequential derivation steps) · optional "${cat.abordagens}" (kind "decisoes") only on a real choice of approach.`;
+}
 
-COMPLETENESS CHECK — run this on EVERY plan before returning:
+function completenessBlock(scope: 'EVERY plan' | 'the WHOLE tree'): string {
+  return `COMPLETENESS CHECK — run this on ${scope} before returning:
 1. Walk the finished thing working end to end and list every subsystem it needs to FUNCTION. For "construir" with electronics that includes: structure, motors/actuators, control board, power (battery + charger), command path (transmitter/receiver or app), wiring/soldering supplies, software/firmware. For "entender": every load-bearing concept the conclusion rests on.
 2. The resources category must contain ONE node per subsystem — typically 4 to 6 nodes; group small related items (screws, zip ties, heat-shrink) into one node instead of dropping them. Missing the control board, the battery or the receiver invalidates the plan.
-3. The execution category must go from loose parts to a WORKING TESTED result (typically 4 to 6 passos), explicitly including the connection step (what gets soldered/plugged where), the configuration/calibration step (what gets flashed/set), and a final functional test. Never compress these into "assemble everything".
+3. The execution category must go from loose parts to a WORKING TESTED result (typically 4 to 6 passos), explicitly including the connection step (what gets soldered/plugged where), the configuration/calibration step (what gets flashed/set), and a final functional test. Never compress these into "assemble everything".`;
+}
 
-For each child node fill oQue / porQue / comoConfirmar with concrete didactic content in plain words.
+// Campos didáticos de cada nó + limites de tamanho (planos completos e expansão).
+function nodeFieldsBlock(research: ResearchDigest | null, intro: string): string {
+  return `For each child node fill oQue / porQue / comoConfirmar with concrete didactic content in plain words.
 
-BREVITY — the user compares 3 plans side by side and every node is a small card, not an essay. Detail comes later, on demand (tutor mode). Hard limits:
+BREVITY — ${intro} Detail comes later, on demand (tutor mode). Hard limits:
 - 4 to 6 nodes per category, never more than 6 — group related items instead of listing them one by one.
 - oQue ≤ 220 characters, porQue ≤ 140, confidenceReason ≤ 80, fx ≤ 80, approach ≤ 400.
 - Category oQue / porQue: one short sentence each.
 - groundTruthHints only when a natural anchor exists — most nodes need 0 or 1.
 ${CRITERION_RULES}
-${groundTruthRules(research, 'plan')}
+${groundTruthRules(research, 'plan')}`;
+}
+
+function buildPlansPrompt(
+  objective: string,
+  rules: string[] | undefined,
+  kb: KBContextEntry[] | undefined,
+  existingPlans: ExistingPlanSummary[] | undefined,
+  research: ResearchDigest | null,
+): string {
+  return `USER GOAL:
+"""
+${objective.trim()}
+"""
+${formatRules(rules)}
+${formatKBContext(kb)}
+
+${planHeaderBlock(rules, existingPlans)}
+
+${treeShapeBlock()}
+
+${completenessBlock('EVERY plan')}
+
+${nodeFieldsBlock(research, 'the user compares 3 plans side by side and every node is a small card, not an essay.')}
 
 Use short unique tempIds within the plan (e.g. "p1", "r1", "cat1"). Do not generate edges here.${formatResearchBlock(research)}`;
 }
 
-function hydratePlan(raw: RawPlan, research: ResearchDigest | null): AIPlanOut {
+// Árvore de um plano: tempIds do modelo → ids locais, âncoras sob a política.
+function hydrateTree(categorias: RawPlanCategory[], research: ResearchDigest | null): AIPlanCategory[] {
   const idMap = new Map<string, string>();
   // Uma política por plano: a mesma URL não se repete dentro do plano.
   const policy = anchorPolicy(research);
-  const categorias: AIPlanCategory[] = raw.tree.categorias.map((cat) => ({
+  return categorias.map((cat) => ({
     tempId: nanoid(6),
     name: cat.name,
     kind: cat.kind,
@@ -976,9 +1081,11 @@ function hydratePlan(raw: RawPlan, research: ResearchDigest | null): AIPlanOut {
     porQue: cat.porQue,
     children: cat.children.map((c) => materializeNode(c, idMap, policy)),
   }));
+}
 
+// Cabeçalho comum (plano completo e esboço) — normaliza rank e opcionais.
+function hydrateHeader(raw: Omit<RawPlan, 'tree'>): Omit<AIPlanOut, 'tree' | 'id'> {
   return {
-    id: nanoid(8),
     title: raw.title,
     pitch: raw.pitch,
     approach: raw.approach,
@@ -994,8 +1101,299 @@ function hydratePlan(raw: RawPlan, research: ResearchDigest | null): AIPlanOut {
         }
       : undefined,
     rulesCheck: raw.rulesCheck?.map((r) => ({ rule: r.rule, status: r.status, nota: r.nota })),
-    tree: { categorias },
   };
+}
+
+function hydratePlan(raw: RawPlan, research: ResearchDigest | null): AIPlanOut {
+  return {
+    id: nanoid(8),
+    ...hydrateHeader(raw),
+    tree: { categorias: hydrateTree(raw.tree.categorias, research) },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Planejamento em duas fases.
+// 1. outlinePlans — os 3 planos alternativos LEVES (cabeçalho + nomes dos
+//    nós). Rápido: é o que a tela de objetivo mostra nos cards.
+// 2. expandPlan — a árvore completa de UM esboço (o escolhido), no mesmo
+//    formato que createProjectFromPlan hidrata hoje.
+// ---------------------------------------------------------------------------
+
+export type PlanOutline = AIPlanOutline;
+
+const OUTLINE_TIMEOUT_MS = 120_000;
+const EXPAND_TIMEOUT_MS = 180_000;
+
+export interface OutlinePlansOptions extends GeneratePlansOptions {
+  // Reasoning effort só desta chamada (modelos que aceitam). Padrão: 'low' —
+  // o esboço é curto e o primeiro card precisa aparecer em segundos.
+  effort?: Effort | null;
+}
+
+export interface ExpandPlanOptions extends GeneratePlansOptions {
+  // Digest da pesquisa já feita na fase de esboços: reaproveita sem nova
+  // busca. undefined = pesquisa de novo (se o modo estiver ligado); null = sem.
+  research?: ResearchDigest | null;
+  // Padrão: 'low' — o esboço já fixou a estratégia e os nós; medido ao vivo,
+  // 'medium' só acrescenta ~20s de raciocínio antes do primeiro nó.
+  // null = effort padrão do modelo.
+  effort?: Effort | null;
+}
+
+export type OutlineProgressEvent = PlanProgressEvent<DeepPartial<OutlinesResponse>>;
+export type OutlineProgressCallback = (ev: OutlineProgressEvent) => void;
+export type ExpandProgressEvent = PlanProgressEvent<DeepPartial<ExpandResponse>>;
+export type ExpandProgressCallback = (ev: ExpandProgressEvent) => void;
+
+const DEFAULT_OUTLINE_EFFORT: Effort = 'low';
+const DEFAULT_EXPAND_EFFORT: Effort = 'low';
+
+// undefined → padrão do fluxo; null → effort padrão do modelo.
+function pickEffort(value: Effort | null | undefined, fallback: Effort): Effort | undefined {
+  return value === undefined ? fallback : (value ?? undefined);
+}
+
+export async function outlinePlans(
+  objective: string,
+  onProgress?: OutlineProgressCallback,
+  kbContext?: KBContextEntry[] | Promise<KBContextEntry[] | undefined>,
+  rules?: string[],
+  existingOutlines?: ExistingPlanSummary[],
+  opts?: OutlinePlansOptions,
+): Promise<PlanOutline[]> {
+  const run = createRun<DeepPartial<OutlinesResponse>>(onProgress, opts, OUTLINE_TIMEOUT_MS);
+  try {
+    assertAIReady();
+    const kb = await resolvePlanningContext(run, objective, rules, kbContext);
+    const finalObject = await streamPlanning(run, {
+      schema: OutlinesResponseSchema,
+      schemaName: 'OutlinesResponse',
+      prompt: buildOutlinePrompt(objective, rules, kb, existingOutlines, run.research),
+      kind: 'outline',
+      temperature: 0.6,
+      effort: pickEffort(opts?.effort, DEFAULT_OUTLINE_EFFORT),
+    });
+    const outlines = finalObject.plans.map(hydrateOutline).filter(hasOutlineNodes);
+    if (outlines.length === 0) throw noPlansError();
+    run.emit('done');
+    return outlines;
+  } catch (err) {
+    if (!run.signal?.aborted && isOutputError(err)) {
+      const recovered = recoverItems(run.lastPartial?.plans, PlanOutlineSchema, hydrateOutline);
+      const items = recovered.items.filter(hasOutlineNodes);
+      if (items.length > 0) {
+        const dropped = recovered.dropped + (recovered.items.length - items.length);
+        const warning = dropped > 0 ? t().ai.errors.partialPlans(dropped) : undefined;
+        run.emit('done', { warning });
+        return items;
+      }
+    }
+    throw failRun(run, err);
+  }
+}
+
+function hydrateOutline(raw: RawPlanOutline): PlanOutline {
+  return {
+    id: nanoid(8),
+    ...hydrateHeader(raw),
+    outline: {
+      categorias: raw.outline.categorias
+        .map((c) => ({
+          name: c.name.trim(),
+          kind: c.kind,
+          nodes: c.nodes
+            .map((n) => ({ name: n.name.trim(), kind: n.kind }))
+            .filter((n) => n.name.length > 0),
+        }))
+        .filter((c) => c.nodes.length > 0),
+    },
+  };
+}
+
+function hasOutlineNodes(o: PlanOutline): boolean {
+  return o.outline.categorias.length > 0;
+}
+
+export function countOutlineNodes(o: PlanOutline): number {
+  return o.outline.categorias.reduce((n, c) => n + c.nodes.length, 0);
+}
+
+function buildOutlinePrompt(
+  objective: string,
+  rules: string[] | undefined,
+  kb: KBContextEntry[] | undefined,
+  existingOutlines: ExistingPlanSummary[] | undefined,
+  research: ResearchDigest | null,
+): string {
+  return `USER GOAL:
+"""
+${objective.trim()}
+"""
+${formatRules(rules)}
+${formatKBContext(kb)}
+
+OUTLINE MODE — the user first compares 3 plan OUTLINES side by side and picks one; only the chosen plan is expanded into full detail afterwards. So each plan here is LIGHT: the header fields plus the tree skeleton (categories → node NAMES and kinds). No node details at all. Keep it short and decide fast — but the skeleton must already be COMPLETE and correct, because the full plan will follow it.
+
+${planHeaderBlock(rules, existingOutlines)}
+
+${treeShapeBlock()}
+
+${completenessBlock('EVERY plan')}
+
+SKELETON RULES
+- 4 to 6 nodes per category, never more than 6 — group related items instead of listing them one by one.
+- Node names are short and specific (2–6 words): "Used 2207 motors (4x)" beats "Motors". In the execution category, list the passos in chronological order.
+- Use the node kinds of the taxonomy (recurso, passo, decisao, concept). A "decisoes" category holds only decisao nodes.
+- approach ≤ 400 characters; pitch and rankReason one sentence each.${formatResearchBlock(research)}`;
+}
+
+// --- expandPlan -------------------------------------------------------------
+
+export async function expandPlan(
+  objective: string,
+  outline: PlanOutline,
+  onProgress?: ExpandProgressCallback,
+  kbContext?: KBContextEntry[] | Promise<KBContextEntry[] | undefined>,
+  rules?: string[],
+  opts?: ExpandPlanOptions,
+): Promise<AIPlanOut> {
+  const total = countOutlineNodes(outline);
+  const run = createRun<DeepPartial<ExpandResponse>>(onProgress, opts, EXPAND_TIMEOUT_MS, (partial) => ({
+    nodesReady: countReadyNodes(partial),
+    nodesTotal: total,
+  }));
+  try {
+    assertAIReady();
+    const kb = await resolvePlanningContext(run, objective, rules, kbContext, opts?.research);
+    const finalObject = await streamPlanning(run, {
+      schema: ExpandResponseSchema,
+      schemaName: 'ExpandResponse',
+      prompt: buildExpandPrompt(objective, outline, rules, kb, run.research),
+      kind: 'expand',
+      temperature: 0.5,
+      effort: pickEffort(opts?.effort, DEFAULT_EXPAND_EFFORT),
+    });
+    const categorias = hydrateTree(finalObject.categorias, run.research).filter((c) => c.children.length > 0);
+    if (categorias.length === 0) throw noPlansError();
+    run.emit('done');
+    return expandedPlan(outline, categorias);
+  } catch (err) {
+    // Recuperação parcial: com pelo menos metade dos nós do esboço completos,
+    // a árvore ainda serve — o resto o usuário decompõe depois.
+    if (!run.signal?.aborted && isOutputError(err)) {
+      const recovered = recoverTree(run.lastPartial, run.research);
+      if (recovered && recovered.ready * 2 >= Math.max(1, total)) {
+        // Faltantes contra o esboço: o nó cortado pode nem ter começado.
+        const dropped = Math.max(recovered.dropped, total - recovered.ready);
+        const warning = dropped > 0 ? t().ai.twoPhase.partialExpand(dropped) : undefined;
+        run.emit('done', { warning });
+        return expandedPlan(outline, recovered.categorias);
+      }
+    }
+    throw failRun(run, err);
+  }
+}
+
+// O plano expandido mantém o id do esboço — é a chave do cache na UI/store.
+function expandedPlan(outline: PlanOutline, categorias: AIPlanCategory[]): AIPlanOut {
+  const { outline: _skeleton, ...header } = outline;
+  return { ...header, tree: { categorias } };
+}
+
+// Nós completos (passam no schema) no parcial — progresso da árvore montando.
+function countReadyNodes(partial: DeepPartial<ExpandResponse> | undefined): number {
+  let n = 0;
+  for (const cat of partial?.categorias ?? []) {
+    for (const child of cat?.children ?? []) {
+      if (SuggestedNodeSchema.safeParse(child).success) n += 1;
+    }
+  }
+  return n;
+}
+
+function recoverTree(
+  partial: DeepPartial<ExpandResponse> | undefined,
+  research: ResearchDigest | null,
+): { categorias: AIPlanCategory[]; ready: number; dropped: number } | null {
+  let ready = 0;
+  let started = 0;
+  const raw: RawPlanCategory[] = [];
+  for (const cat of partial?.categorias ?? []) {
+    if (!cat?.name || !cat.kind) continue;
+    const children: RawSuggestedNode[] = [];
+    for (const child of cat.children ?? []) {
+      if (!child?.name) continue;
+      started += 1;
+      const parsed = SuggestedNodeSchema.safeParse(child);
+      if (parsed.success) children.push(parsed.data);
+    }
+    if (children.length === 0) continue;
+    ready += children.length;
+    raw.push({
+      tempId: cat.tempId ?? nanoid(4),
+      name: cat.name,
+      kind: cat.kind,
+      oQue: cat.oQue ?? '',
+      porQue: cat.porQue ?? '',
+      children,
+    });
+  }
+  if (raw.length === 0) return null;
+  return { categorias: hydrateTree(raw, research), ready, dropped: Math.max(0, started - ready) };
+}
+
+function formatOutlineForPrompt(outline: PlanOutline): string {
+  const lines: string[] = [];
+  outline.outline.categorias.forEach((c) => {
+    lines.push(`- [${c.kind}] ${c.name}`);
+    c.nodes.forEach((n, i) => lines.push(`  ${i + 1}. (${n.kind}) ${n.name}`));
+  });
+  return lines.join('\n');
+}
+
+function buildExpandPrompt(
+  objective: string,
+  outline: PlanOutline,
+  rules: string[] | undefined,
+  kb: KBContextEntry[] | undefined,
+  research: ResearchDigest | null,
+): string {
+  const est = outline.estimates;
+  const estimates = est ? `\n- Estimates: cost ${est.custo} · time ${est.tempo} · difficulty ${est.dificuldade}` : '';
+  const checks = (outline.rulesCheck ?? []).length
+    ? `\n- Rules check: ${outline.rulesCheck!.map((r) => `"${r.rule}" → ${r.status} (${r.nota})`).join(' · ')}`
+    : '';
+  return `USER GOAL:
+"""
+${objective.trim()}
+"""
+${formatRules(rules)}
+${formatKBContext(kb)}${archetypeDirective(outline.archetype)}${strategyDirective(outline.strategy)}
+
+THE PLAN THE USER CHOSE
+- Title: ${outline.title}
+- Strategy: ${outline.strategy} · Archetype: ${outline.archetype}
+- Pitch: ${outline.pitch}
+- Approach: ${outline.approach}${estimates}${checks}
+
+ITS SKELETON (categories → nodes, in order)
+${formatOutlineForPrompt(outline)}
+
+TASK
+Expand THIS plan into its full tree. Follow the skeleton:
+- Same categories (same kind, same order, same names) and the same nodes in the same order — one node per skeleton line, same kind.
+- You may sharpen a node name to make it more specific; never change what it is.
+- Add a node only if the completeness check below finds a missing subsystem or step; drop or merge one only if it is a duplicate. Stay within 6 nodes per category.
+- Prices, quantities and specs must stay consistent with the approach and estimates above. State each part's own price plainly inside its oQue (e.g. "~R$ 350"); never accounting talk ("allocate R$ X of the R$ Y", "budget split").
+
+${treeShapeBlock()}
+
+${completenessBlock('the WHOLE tree')}
+
+${nodeFieldsBlock(research, 'every node is a small card, not an essay.')}
+
+Use short unique tempIds within the plan (e.g. "p1", "r1", "cat1"). Do not generate edges here.${formatResearchBlock(research)}`;
 }
 
 // ---------------------------------------------------------------------------

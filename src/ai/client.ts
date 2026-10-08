@@ -1,7 +1,7 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import type { LanguageModel } from 'ai';
+import type { JSONValue, LanguageModel } from 'ai';
 import {
   getActiveConfig,
   assertAIReady,
@@ -87,10 +87,22 @@ export function openrouterSettings(
 //   orçamento inclui os tokens de pensamento, então somamos uma folga.
 // ---------------------------------------------------------------------------
 
-export type AICallKind = 'plans' | 'decompose' | 'replan' | 'explain' | 'critique' | 'research';
+export type AICallKind =
+  | 'plans'
+  | 'outline'
+  | 'expand'
+  | 'decompose'
+  | 'replan'
+  | 'explain'
+  | 'critique'
+  | 'research';
 
 const OUTPUT_BUDGET: Record<AICallKind, number> = {
   plans: 12_000,
+  // Esboços: 3 cabeçalhos + nomes dos nós (~1.5k tokens de saída).
+  outline: 4_000,
+  // Árvore completa de UM plano (~12–18 nós).
+  expand: 6_000,
   decompose: 3_000,
   replan: 3_000,
   explain: 3_000,
@@ -111,6 +123,23 @@ export function callOpts(
   const reasoning = !!modelId && isReasoningModel(modelId);
   const maxOutputTokens = OUTPUT_BUDGET[kind] + (reasoning ? REASONING_HEADROOM : 0);
   return reasoning ? { maxOutputTokens } : { temperature, maxOutputTokens };
+}
+
+// Sobrescreve o reasoning effort numa chamada só (providerOptions), sem trocar
+// o modelo. Só para os modelos/provedores que aceitam o parâmetro; nos demais
+// devolve undefined e a chamada segue com o padrão do modelo.
+export function effortProviderOptions(
+  effort: Effort,
+): Record<string, Record<string, JSONValue>> | undefined {
+  const active = currentModelIds();
+  if (!active) return undefined;
+  if (active.provider === 'openrouter') {
+    return openrouterSettings(active.main).reasoning ? { openrouter: { reasoning: { effort } } } : undefined;
+  }
+  if (active.provider === 'openai' && isReasoningModel(active.main)) {
+    return { openai: { reasoningEffort: effort } };
+  }
+  return undefined;
 }
 
 function resolve(): ResolvedModels {

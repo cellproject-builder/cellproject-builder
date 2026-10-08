@@ -7,6 +7,7 @@ import type {
   ConceptNodeData,
   ConceptEdgeData,
   AIPlan,
+  AIPlanOutline,
   AISuggestedNode,
   NodeState,
   NodeKind,
@@ -28,12 +29,27 @@ export type NodeDrafts = Partial<Record<DraftField, string>>;
 
 // Rascunho da tela de objetivo — o usuário não perde planos gerados (e pagos)
 // se recarregar a página no meio da escolha.
+// Planejamento em duas fases: `outlines` são os esboços leves mostrados nos
+// cards; `expanded` é o cache das árvores completas já geradas (chave = id do
+// esboço); `expansion` marca a expansão em andamento (sobrevive ao reload
+// para a UI saber que foi interrompida — como `generatingSince`).
+// `plans` (planos completos de generatePlans) segue para compatibilidade.
+export interface ObjectiveExpansion {
+  outlineId: string;
+  startedAt: number;
+}
+
 export interface ObjectiveDraft {
   name: string;
   objective: string;
   rules: string[];
   ruleDraft: string;
   plans: AIPlan[] | null;
+  outlines: AIPlanOutline[] | null;
+  expanded: Record<string, AIPlan>;
+  expansion: ObjectiveExpansion | null;
+  // Digest da pesquisa web feita com os esboços — a expansão reaproveita.
+  outlineResearch: WebResearchDigest | null;
   plansFor: { objective: string; rules: string[] } | null;
   selectedId: string | null;
   generatingSince: number | null;
@@ -46,6 +62,10 @@ export const EMPTY_OBJECTIVE_DRAFT: ObjectiveDraft = {
   rules: [],
   ruleDraft: '',
   plans: null,
+  outlines: null,
+  expanded: {},
+  expansion: null,
+  outlineResearch: null,
   plansFor: null,
   selectedId: null,
   generatingSince: null,
@@ -116,13 +136,23 @@ export interface GraphState {
   // voltam junto no desfazer. Não persistido, como o próprio staging.
   archivedPending: GraphState['pendingSuggestions'];
 
+  // `alternatives` podem ser esboços (os não escolhidos ficam no projeto).
   createProjectFromPlan: (
     objective: string,
     name: string,
     plan: AIPlan,
     rules?: string[],
-    alternatives?: AIPlan[],
+    alternatives?: (AIPlan | AIPlanOutline)[],
   ) => void;
+  // Cria o projeto a partir do esboço já expandido (cache do rascunho). As
+  // alternativas são os outros esboços (ou suas árvores, se já expandidas).
+  // false quando a árvore desse esboço ainda não está no cache.
+  createProjectFromOutline: (
+    objective: string,
+    name: string,
+    outlineId: string,
+    rules?: string[],
+  ) => boolean;
   loadDemoProject: () => void;
   addRule: (text: string) => void;
   removeRule: (text: string) => void;
@@ -189,6 +219,18 @@ export interface GraphState {
   clearDraft: (nodeId: string, field?: DraftField) => void;
   setObjectiveDraft: (partial: Partial<Omit<ObjectiveDraft, 'updatedAt'>>) => void;
   clearObjectiveDraft: () => void;
+  // Troca o conjunto de esboços (nova geração ou "gerar mais" já fundido).
+  // Poda do cache as árvores e a expansão de esboços que saíram.
+  setOutlines: (
+    outlines: AIPlanOutline[] | null,
+    plansFor?: ObjectiveDraft['plansFor'],
+    research?: WebResearchDigest | null,
+  ) => void;
+  // Guarda a árvore completa de um esboço (id forçado = id do esboço) e
+  // encerra a expansão dele, se era a em andamento.
+  setExpandedPlan: (outlineId: string, plan: AIPlan) => void;
+  // Marca/desmarca a expansão em andamento (null = nenhuma).
+  setExpansion: (outlineId: string | null) => void;
 
   // Desfaz confirmar / já sei / escolher. Retorna false se não havia o que
   // desfazer (ou o nó mudou depois da ação).
@@ -670,6 +712,17 @@ export const useGraphStore = create<GraphState>()(
           viewMode: 'tutor',
           objectiveDraft: EMPTY_OBJECTIVE_DRAFT,
         });
+      },
+
+      createProjectFromOutline: (objective, name, outlineId, rules) => {
+        const draft = get().objectiveDraft;
+        const plan = draft.expanded[outlineId];
+        if (!plan) return false;
+        const alternatives = (draft.outlines ?? [])
+          .filter((o) => o.id !== outlineId)
+          .map((o) => draft.expanded[o.id] ?? o);
+        get().createProjectFromPlan(objective, name, plan, rules, alternatives);
+        return true;
       },
 
       loadDemoProject: () => {
@@ -1568,6 +1621,47 @@ export const useGraphStore = create<GraphState>()(
 
       clearObjectiveDraft: () => set({ objectiveDraft: EMPTY_OBJECTIVE_DRAFT }),
 
+      setOutlines: (outlines, plansFor, research) =>
+        set((state) => {
+          const d = state.objectiveDraft;
+          const ids = new Set((outlines ?? []).map((o) => o.id));
+          const expanded = Object.fromEntries(Object.entries(d.expanded).filter(([id]) => ids.has(id)));
+          return {
+            objectiveDraft: {
+              ...d,
+              outlines,
+              expanded,
+              expansion: d.expansion && ids.has(d.expansion.outlineId) ? d.expansion : null,
+              plansFor: plansFor === undefined ? d.plansFor : plansFor,
+              outlineResearch: research === undefined ? d.outlineResearch : research,
+              selectedId: d.selectedId && ids.has(d.selectedId) ? d.selectedId : null,
+              updatedAt: now(),
+            },
+          };
+        }),
+
+      setExpandedPlan: (outlineId, plan) =>
+        set((state) => {
+          const d = state.objectiveDraft;
+          return {
+            objectiveDraft: {
+              ...d,
+              expanded: { ...d.expanded, [outlineId]: { ...plan, id: outlineId } },
+              expansion: d.expansion?.outlineId === outlineId ? null : d.expansion,
+              updatedAt: now(),
+            },
+          };
+        }),
+
+      setExpansion: (outlineId) =>
+        set((state) => ({
+          objectiveDraft: {
+            ...state.objectiveDraft,
+            expansion: outlineId ? { outlineId, startedAt: now() } : null,
+            updatedAt: now(),
+          },
+        })),
+
       undoLastAction: () => {
         const { lastAction, project } = get();
         if (!lastAction || !project) return false;
@@ -1656,7 +1750,7 @@ export const useGraphStore = create<GraphState>()(
     }),
     {
       name: 'cellproject-graph',
-      version: 5, // v4: drafts, objectiveDraft, archivedProject, lastTutorNodeId; v5: gate da âncora da IA
+      version: 6, // v4: drafts, objectiveDraft, archivedProject, lastTutorNodeId; v5: gate da âncora da IA; v6: esboços + cache de expansão no objectiveDraft
       storage: createJSONStorage(() => idbStorage),
       // Pass-through migrate: NEVER drop a user's project on a version bump.
       // zustand discards persisted state on version mismatch when no migrate is
@@ -1664,14 +1758,21 @@ export const useGraphStore = create<GraphState>()(
       // and the UI's `?? []` / archetype defaults cover the missing ones.
       // v<5: o gate passou a exigir observação nas âncoras da IA — nós que
       // ficaram 'done' só por uma delas voltam a "confirmado sem prova".
+      // v<6: o objectiveDraft ganhou outlines/expanded/expansion/
+      // outlineResearch — completados com os defaults (planos antigos ficam).
       migrate: (persisted, version) => {
-        const p = (persisted ?? {}) as Partial<GraphState>;
-        if (version >= 5) return p as GraphState;
-        return {
-          ...p,
-          project: p.project ? demoteUnprovenDone(p.project) : p.project,
-          archivedProject: p.archivedProject ? demoteUnprovenDone(p.archivedProject) : p.archivedProject,
-        } as GraphState;
+        let p = (persisted ?? {}) as Partial<GraphState>;
+        if (version < 5) {
+          p = {
+            ...p,
+            project: p.project ? demoteUnprovenDone(p.project) : p.project,
+            archivedProject: p.archivedProject ? demoteUnprovenDone(p.archivedProject) : p.archivedProject,
+          };
+        }
+        if (version < 6 && p.objectiveDraft) {
+          p = { ...p, objectiveDraft: { ...EMPTY_OBJECTIVE_DRAFT, ...p.objectiveDraft } };
+        }
+        return p as GraphState;
       },
       // Campos novos ausentes num snapshot antigo caem no default do estado.
       merge: (persisted, current) => {
@@ -1680,7 +1781,11 @@ export const useGraphStore = create<GraphState>()(
           ...current,
           ...p,
           drafts: p.drafts ?? current.drafts,
-          objectiveDraft: { ...EMPTY_OBJECTIVE_DRAFT, ...(p.objectiveDraft ?? {}) },
+          objectiveDraft: {
+            ...EMPTY_OBJECTIVE_DRAFT,
+            ...(p.objectiveDraft ?? {}),
+            expanded: p.objectiveDraft?.expanded ?? {},
+          },
           archivedProject: p.archivedProject ?? null,
           lastTutorNodeId: p.lastTutorNodeId ?? null,
         };
