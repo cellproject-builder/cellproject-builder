@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGraphStore, breadcrumbFor, isDemoProject, type Lens, type ViewMode } from '@/store';
 import { useKBStore } from '@/kb/store';
-import { useConfigStore, PROVIDER_LABELS } from '@/config/store';
+import { useConfigStore, PROVIDER_LABELS, KNOWN_MODELS } from '@/config/store';
 import { useT } from '@/i18n';
+import { toast } from '@/components/ui/Toast';
 import { KnowledgeRepo } from './KnowledgeRepo';
 import { ApiKeyGate } from './ApiKeyGate';
 import { Logo } from './Logo';
+
+// Nome curto do modelo ativo: rótulo conhecido, senão o id sem o prefixo do
+// provider ("openai/gpt-6.1-sol" → "gpt-6.1-sol").
+const modelLabel = (provider: keyof typeof KNOWN_MODELS, id: string): string =>
+  KNOWN_MODELS[provider]?.find((m) => m.id === id)?.label ?? id.split('/').pop() ?? id;
 
 export function TopBar() {
   const tr = useT();
@@ -18,12 +24,19 @@ export function TopBar() {
   const selectNode = useGraphStore((s) => s.selectNode);
   const focusNode = useGraphStore((s) => s.focusNode);
   const resetProject = useGraphStore((s) => s.resetProject);
+  const undoReset = useGraphStore((s) => s.undoReset);
+  const importProject = useGraphStore((s) => s.importProject);
   const kbCount = useKBStore((s) => Object.keys(s.docs).length);
   const activeProvider = useConfigStore((s) => s.activeProvider);
+  const activeModel = useConfigStore((s) =>
+    s.activeProvider ? s.providers[s.activeProvider]?.mainModel ?? null : null,
+  );
   const [kbOpen, setKbOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [overflowOpen, setOverflowOpen] = useState(false);
-  const overflowRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const LENSES: { value: Lens; label: string; key: string }[] = [
     { value: 'structure', label: tr.topBar.lensStructure, key: '1' },
@@ -38,20 +51,41 @@ export function TopBar() {
     { value: 'graph', label: tr.topBar.viewGraph },
   ];
 
+  // Menu ⋯: fecha no clique fora e no Esc (devolvendo o foco ao botão);
+  // setas navegam entre os itens.
   useEffect(() => {
-    if (!overflowOpen) return;
-    const handler = (e: MouseEvent | TouchEvent) => {
-      if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) {
-        setOverflowOpen(false);
+    if (!menuOpen) return;
+    const items = () =>
+      Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+    items()[0]?.focus();
+    const onPointer = (e: MouseEvent | TouchEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+        return;
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const list = items();
+        const i = list.indexOf(document.activeElement as HTMLElement);
+        const next = e.key === 'ArrowDown' ? (i + 1) % list.length : (i - 1 + list.length) % list.length;
+        list[next]?.focus();
       }
     };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('touchstart', handler);
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('touchstart', onPointer);
+    window.addEventListener('keydown', onKey, true);
     return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('touchstart', handler);
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('touchstart', onPointer);
+      window.removeEventListener('keydown', onKey, true);
     };
-  }, [overflowOpen]);
+  }, [menuOpen]);
 
   const crumbs = breadcrumbFor(project, selectedId);
   const inDemo = isDemoProject(project);
@@ -67,12 +101,56 @@ export function TopBar() {
     URL.revokeObjectURL(url);
   };
 
-  const handleReset = () => {
-    const msg = inDemo ? tr.topBar.demoExitConfirm : tr.topBar.resetConfirm;
-    if (confirm(msg)) {
-      resetProject();
+  // "Novo projeto" não destrói: o atual vai pro arquivo e o toast desfaz.
+  // A demo não é arquivada (não há o que perder).
+  const handleNewProject = () => {
+    const wasDemo = inDemo;
+    resetProject();
+    if (wasDemo) {
+      toast.show({ message: tr.topBar.demoClosed, tone: 'info' });
+      return;
     }
+    toast.show({
+      message: tr.topBar.projectArchived,
+      tone: 'info',
+      durationMs: 10000,
+      action: { label: tr.common.undo, onClick: () => void undoReset() },
+    });
   };
+
+  const handleImportFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onerror = () => toast.show({ message: tr.topBar.importReadError, tone: 'warn' });
+    reader.onload = () => {
+      let json: unknown;
+      try {
+        json = JSON.parse(String(reader.result ?? ''));
+      } catch {
+        toast.show({ message: tr.topBar.importNotJson, tone: 'warn' });
+        return;
+      }
+      const hadProject = Boolean(useGraphStore.getState().project) && !inDemo;
+      const result = importProject(json);
+      if (!result.ok) {
+        toast.show({ message: tr.topBar.importFailed(result.error), tone: 'warn' });
+        return;
+      }
+      const name = useGraphStore.getState().project?.name ?? '';
+      toast.show({
+        message: tr.topBar.imported(name),
+        tone: 'ok',
+        durationMs: hadProject ? 10000 : undefined,
+        // O projeto anterior foi arquivado pelo import — dá pra voltar.
+        action: hadProject ? { label: tr.common.undo, onClick: () => void undoReset() } : undefined,
+      });
+    };
+    reader.readAsText(file);
+  };
+
+  const menuItemClass =
+    'w-full text-left px-3 py-2.5 min-h-[40px] text-xs text-text-secondary hover:bg-bg-elevated focus:bg-bg-elevated outline-none transition-colors flex items-center justify-between gap-2';
+
+  const modelName = activeProvider && activeModel ? modelLabel(activeProvider, activeModel) : null;
 
   return (
     <div className="min-h-11 shrink-0 border-b border-border-base bg-bg-secondary flex items-center px-2 sm:px-3 gap-2 sm:gap-3 text-sm pt-[env(safe-area-inset-top)]">
@@ -87,18 +165,24 @@ export function TopBar() {
             {tr.topBar.demoBadge}
           </span>
         )}
-        {viewMode === 'graph' && (
-          <div className="hidden md:flex items-center gap-1 min-w-0 overflow-hidden">
+        {viewMode === 'graph' && crumbs.length > 0 && (
+          <nav
+            aria-label={tr.topBar.breadcrumbAria}
+            className="hidden md:flex items-center gap-1 min-w-0 overflow-hidden"
+          >
             <span className="text-text-muted mx-1">/</span>
             {crumbs.map((c, i) => (
               <div key={c.id} className="flex items-center gap-1 min-w-0">
                 {i > 0 && <span className="text-text-muted text-xs">›</span>}
                 <button
                   onClick={() => {
+                    // Seleciona e enquadra a subárvore (o GraphCanvas consome
+                    // focusVersion).
                     selectNode(c.id);
                     focusNode(c.id);
                   }}
-                  className={`text-xs truncate hover:text-text-primary transition-colors ${
+                  title={tr.topBar.breadcrumbTitle(c.name)}
+                  className={`text-xs truncate max-w-[180px] hover:text-text-primary transition-colors ${
                     i === crumbs.length - 1 ? 'text-text-primary' : 'text-text-muted'
                   }`}
                 >
@@ -106,7 +190,7 @@ export function TopBar() {
                 </button>
               </div>
             ))}
-          </div>
+          </nav>
         )}
       </div>
 
@@ -117,6 +201,7 @@ export function TopBar() {
           <button
             key={v.value}
             onClick={() => setViewMode(v.value)}
+            aria-pressed={viewMode === v.value}
             className={`px-2.5 py-1 text-[11px] font-mono rounded-[2px] transition-colors min-h-[28px] ${
               viewMode === v.value
                 ? 'bg-bg-elevated text-text-primary'
@@ -148,6 +233,7 @@ export function TopBar() {
                 key={l.value}
                 onClick={() => setLens(l.value)}
                 title={tr.topBar.lensTitle(l.label, l.key)}
+                aria-pressed={lens === l.value}
                 className={`px-2 py-0.5 text-[11px] font-mono rounded-[2px] transition-colors ${
                   lens === l.value
                     ? 'bg-bg-elevated text-text-primary'
@@ -163,10 +249,10 @@ export function TopBar() {
 
       <button
         onClick={() => setKbOpen(true)}
-        className="px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors flex items-center gap-1.5 shrink-0 min-h-[32px]"
+        className="hidden sm:flex px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors items-center gap-1.5 shrink-0 min-h-[32px]"
         title={tr.topBar.kbTitle}
       >
-        <span>{tr.topBar.kb}</span>
+        <span>{tr.topBar.myPdfs}</span>
         {kbCount > 0 && (
           <span className="font-mono text-[10px] text-ai-accent bg-ai-accent/10 px-1 rounded-[2px]">
             {kbCount}
@@ -175,89 +261,110 @@ export function TopBar() {
       </button>
 
       <button
-        onClick={exportJson}
-        className="hidden md:block px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-secondary hover:text-text-primary hover:border-text-muted transition-colors shrink-0"
-      >
-        {tr.topBar.export}
-      </button>
-
-      <button
         onClick={() => setSettingsOpen(true)}
-        className="hidden md:flex px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors items-center gap-1.5 shrink-0"
+        className="hidden md:flex px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors items-center gap-1.5 shrink-0 min-h-[32px] max-w-[220px]"
         title={
           activeProvider
-            ? tr.topBar.settingsTitle(PROVIDER_LABELS[activeProvider])
+            ? tr.topBar.modelTitle(PROVIDER_LABELS[activeProvider], activeModel ?? '')
             : tr.topBar.settingsTitleEmpty
         }
+        aria-label={tr.topBar.settings}
       >
-        <span>⚙</span>
-        {activeProvider && (
-          <span className="font-mono text-[10px] text-ai-accent uppercase">
-            {activeProvider}
-          </span>
+        <span aria-hidden>⚙</span>
+        {modelName && (
+          <span className="font-mono text-[10px] text-ai-accent truncate">{modelName}</span>
         )}
       </button>
 
-      <button
-        onClick={handleReset}
-        className={`hidden md:block px-2.5 py-1 text-xs border rounded-sm transition-colors shrink-0 ${
-          inDemo
-            ? 'border-ai-accent/40 text-ai-accent hover:bg-ai-accent/10'
-            : 'border-border-base text-text-muted hover:text-state-problem hover:border-state-problem/40'
-        }`}
-      >
-        {inDemo ? tr.topBar.demoExit : tr.topBar.reset}
-      </button>
-
-      <div className="md:hidden relative shrink-0" ref={overflowRef}>
+      <div className="relative shrink-0" ref={menuRef}>
         <button
-          onClick={() => setOverflowOpen((o) => !o)}
+          ref={menuButtonRef}
+          onClick={() => setMenuOpen((o) => !o)}
           aria-label={tr.topBar.moreActions}
-          aria-expanded={overflowOpen}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
           className="px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-secondary hover:text-text-primary hover:border-text-muted transition-colors min-h-[32px] min-w-[32px]"
         >
           ⋯
         </button>
-        {overflowOpen && (
-          <div className="absolute right-0 top-full mt-1 w-48 bg-bg-secondary border border-border-base rounded-sm shadow-lg z-30 py-1">
+        {menuOpen && (
+          <div
+            role="menu"
+            aria-label={tr.topBar.moreActions}
+            className="absolute right-0 top-full mt-1 w-56 bg-bg-secondary border border-border-base rounded-sm shadow-lg z-30 py-1"
+          >
             <button
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                handleNewProject();
+              }}
+              className={`${menuItemClass} ${inDemo ? 'text-ai-accent' : ''}`}
+            >
+              <span>{inDemo ? tr.topBar.demoExit : tr.topBar.newProject}</span>
+              {!inDemo && <span className="text-[10px] text-text-muted">{tr.topBar.newProjectHint}</span>}
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                fileInputRef.current?.click();
+              }}
+              className={menuItemClass}
+            >
+              {tr.topBar.importJson}
+            </button>
+            <button
+              role="menuitem"
               onClick={() => {
                 exportJson();
-                setOverflowOpen(false);
+                setMenuOpen(false);
               }}
-              className="w-full text-left px-3 py-2.5 text-xs text-text-secondary hover:bg-bg-elevated transition-colors"
+              className={menuItemClass}
             >
               {tr.topBar.exportJson}
             </button>
+            <div role="separator" className="my-1 border-t border-border-base" />
             <button
+              role="menuitem"
+              onClick={() => {
+                setKbOpen(true);
+                setMenuOpen(false);
+              }}
+              className={`${menuItemClass} sm:hidden`}
+            >
+              <span>{tr.topBar.myPdfs}</span>
+              {kbCount > 0 && <span className="font-mono text-[10px] text-ai-accent">{kbCount}</span>}
+            </button>
+            <button
+              role="menuitem"
               onClick={() => {
                 setSettingsOpen(true);
-                setOverflowOpen(false);
+                setMenuOpen(false);
               }}
-              className="w-full text-left px-3 py-2.5 text-xs text-text-secondary hover:bg-bg-elevated transition-colors flex items-center justify-between"
+              className={menuItemClass}
             >
               <span>{tr.topBar.settingsAction}</span>
-              {activeProvider && (
-                <span className="font-mono text-[10px] text-ai-accent uppercase">
-                  {activeProvider}
+              {modelName && (
+                <span className="font-mono text-[10px] text-ai-accent truncate max-w-[110px]">
+                  {modelName}
                 </span>
               )}
             </button>
-            <button
-              onClick={() => {
-                handleReset();
-                setOverflowOpen(false);
-              }}
-              className={`w-full text-left px-3 py-2.5 text-xs hover:bg-bg-elevated transition-colors ${
-                inDemo
-                  ? 'text-ai-accent'
-                  : 'text-text-muted hover:text-state-problem'
-              }`}
-            >
-              {inDemo ? tr.topBar.demoExit : tr.topBar.reset}
-            </button>
           </div>
         )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleImportFile(file);
+            // Permite reimportar o mesmo arquivo.
+            e.target.value = '';
+          }}
+        />
       </div>
 
       <KnowledgeRepo open={kbOpen} onClose={() => setKbOpen(false)} />
