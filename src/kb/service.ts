@@ -1,5 +1,5 @@
-import { generateObject } from 'ai';
-import { kbModel, assertAIReady } from '@/ai/client';
+import { generateObject, NoObjectGeneratedError } from 'ai';
+import { kbModel, assertAIReady, currentModelIds, isReasoningModel } from '@/ai/client';
 import { currentLocaleAIName } from '@/i18n';
 import { KBSummarySchema, RelevancePickSchema } from './schemas';
 import type { KBContextEntry, KBDocument, KBSummary } from './types';
@@ -12,7 +12,38 @@ import type { KBContextEntry, KBDocument, KBSummary } from './types';
 // up the prompt.
 // ---------------------------------------------------------------------------
 
-const MAX_CHARS = 40_000;
+export const MAX_CHARS = 40_000;
+
+// Parâmetros das chamadas do kbModel: modelos de raciocínio ignoram/rejeitam
+// temperature; o teto de saída ganha folga pros tokens de pensamento.
+function kbCallOpts(
+  temperature: number,
+  budget: number,
+): { temperature?: number; maxOutputTokens: number } {
+  const id = currentModelIds()?.kb;
+  const reasoning = !!id && isReasoningModel(id);
+  return reasoning
+    ? { maxOutputTokens: budget + 4_000 }
+    : { temperature, maxOutputTokens: budget };
+}
+
+// O kbModel padrão (gemini flash-lite via OpenRouter) às vezes corta a
+// resposta no meio (finishReason "other", JSON inválido). É transitório:
+// repetimos uma vez antes de mostrar erro ao usuário.
+async function withOneRetry<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (signal?.aborted || !NoObjectGeneratedError.isInstance(e)) throw e;
+    return await fn();
+  }
+}
+
+// O trecho exato do texto que vai pro modelo no resumo — a UI mostra isso em
+// "ver texto enviado", pra privacidade ser verificável e não só prometida.
+export function textSentToModel(text: string): string {
+  return clipText(text);
+}
 
 function clipText(text: string): string {
   if (text.length <= MAX_CHARS) return text;
@@ -33,33 +64,48 @@ RULES
 - Stay faithful to the text. DO NOT invent facts that are not there.
 - 'dominio' must be short and specific — "analog electronics" is useful, "science" is useless.
 - 'fatos' should contain VERIFIABLE claims: measurements with units, limits, explicit rules from the author. If the text is purely conceptual, return an empty array.
-- If authors are not mentioned in the text, omit the field. Do not invent.`;
+- If authors are not mentioned in the text, return null for 'autores'. Do not invent.
+- In 'fatos', 'valor' is the isolated value when there is one, otherwise null.`;
 }
 
-export async function summarizeDocument(extractedText: string): Promise<KBSummary> {
+export async function summarizeDocument(
+  extractedText: string,
+  opts: { signal?: AbortSignal } = {},
+): Promise<KBSummary> {
   assertAIReady();
   const clipped = clipText(extractedText);
-  const { object } = await generateObject({
-    model: kbModel,
-    schema: KBSummarySchema,
-    schemaName: 'KBSummary',
-    system: summarySystem(),
-    prompt: `DOCUMENT (extracted text, may be clipped):
+  const prompt = `DOCUMENT (extracted text, may be clipped):
 """
 ${clipped}
 """
 
 TASK
-Generate the structured summary for this document.`,
-    temperature: 0.3,
-  });
+Generate the structured summary for this document.`;
+  const { object } = await withOneRetry(
+    () =>
+      generateObject({
+        model: kbModel,
+        schema: KBSummarySchema,
+        schemaName: 'KBSummary',
+        system: summarySystem(),
+        prompt,
+        ...kbCallOpts(0.3, 2_500),
+        abortSignal: opts.signal,
+      }),
+    opts.signal,
+  );
+  // null (strict schema) → ausente no tipo persistido.
   return {
     titulo: object.titulo,
-    autores: object.autores,
+    autores: object.autores?.trim() || undefined,
     dominio: object.dominio,
     tags: object.tags,
     resumo: object.resumo,
-    fatos: object.fatos,
+    fatos: object.fatos.map((f) => ({
+      claim: f.claim,
+      tipo: f.tipo,
+      ...(f.valor?.trim() ? { valor: f.valor.trim() } : {}),
+    })),
     nivel: object.nivel,
   };
 }
@@ -75,6 +121,9 @@ export interface PickContext {
   // Usage context: project goal + breadcrumb + optional node name.
   label: string;
   extra?: string;
+  // Chave estável do contexto (ex.: id do nó). Sem ela, o store deriva uma
+  // chave de label/extra — sem o texto da falha. Ver kb/store.ts.
+  cacheKey?: string;
 }
 
 function judgeSystem(): string {
@@ -92,6 +141,7 @@ export async function pickRelevantDocs(
   ctx: PickContext,
   docs: KBDocument[],
   max = 2,
+  opts: { signal?: AbortSignal } = {},
 ): Promise<{ docId: string; reason: string }[]> {
   if (docs.length === 0) return [];
   assertAIReady();
@@ -107,12 +157,7 @@ export async function pickRelevantDocs(
     )
     .join('\n');
 
-  const { object } = await generateObject({
-    model: kbModel,
-    schema: RelevancePickSchema,
-    schemaName: 'RelevancePick',
-    system: judgeSystem(),
-    prompt: `USAGE CONTEXT
+  const prompt = `USAGE CONTEXT
 ${ctx.label}
 ${ctx.extra ? `\nDetail: ${ctx.extra}` : ''}
 
@@ -120,9 +165,20 @@ AVAILABLE REPOSITORY
 ${catalog}
 
 TASK
-Pick up to ${max} docs whose content directly applies to the context. Empty if none applies.`,
-    temperature: 0.2,
-  });
+Pick up to ${max} docs whose content directly applies to the context. Empty if none applies.`;
+  const { object } = await withOneRetry(
+    () =>
+      generateObject({
+        model: kbModel,
+        schema: RelevancePickSchema,
+        schemaName: 'RelevancePick',
+        system: judgeSystem(),
+        prompt,
+        ...kbCallOpts(0.2, 600),
+        abortSignal: opts.signal,
+      }),
+    opts.signal,
+  );
 
   // Defensive filter: drop invalid ids (model may hallucinate).
   const validIds = new Set(docs.map((d) => d.id));
@@ -133,7 +189,10 @@ Pick up to ${max} docs whose content directly applies to the context. Empty if n
 // Helper: builds KBContextEntry[] to inject into ai/service.ts prompts
 // ---------------------------------------------------------------------------
 
-export function toContextEntries(docs: KBDocument[]): KBContextEntry[] {
+export function toContextEntries(
+  docs: KBDocument[],
+  reasons?: Record<string, string>,
+): KBContextEntry[] {
   return docs.map((d) => ({
     docId: d.id,
     titulo: d.summary.titulo,
@@ -141,5 +200,6 @@ export function toContextEntries(docs: KBDocument[]): KBContextEntry[] {
     resumo: d.summary.resumo,
     fatos: d.summary.fatos,
     tags: d.summary.tags,
+    ...(reasons?.[d.id] ? { reason: reasons[d.id] } : {}),
   }));
 }
