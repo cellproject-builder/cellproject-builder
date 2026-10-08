@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+// Strict json_schema (gpt-6.x-sol via OpenRouter): toda propriedade precisa
+// estar em `required` → campos opcionais são .nullable(), nunca .optional().
+
 const NivelSchema = z.enum(['iniciante', 'intermediario', 'avancado']);
 const FatoTipoSchema = z.enum(['medida', 'spec', 'regra', 'link']);
 
@@ -10,13 +13,13 @@ export const KBFatoSchema = z.object({
   tipo: FatoTipoSchema,
   valor: z
     .string()
-    .optional()
-    .describe('Valor isolado quando aplicável. Ex: "10km/h", "40cm ± 2cm".'),
+    .nullable()
+    .describe('Valor isolado quando aplicável, senão null. Ex: "10km/h", "40cm ± 2cm".'),
 });
 
 export const KBSummarySchema = z.object({
   titulo: z.string().describe('Título legível do documento (não o filename).'),
-  autores: z.string().optional().describe('Autores se detectáveis no texto.'),
+  autores: z.string().nullable().describe('Autores se detectáveis no texto, senão null.'),
   dominio: z
     .string()
     .describe(
@@ -54,3 +57,9 @@ export const RelevancePickSchema = z.object({
 
 export type RawKBSummary = z.infer<typeof KBSummarySchema>;
 export type RelevancePickResponse = z.infer<typeof RelevancePickSchema>;
+
+// Exposto pro teste de compatibilidade com strict json_schema.
+export const KB_RESPONSE_SCHEMAS = {
+  KBSummary: KBSummarySchema,
+  RelevancePick: RelevancePickSchema,
+} as const;

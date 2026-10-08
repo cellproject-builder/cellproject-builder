@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
+import { t } from '@/i18n';
 
 // ---------------------------------------------------------------------------
 // Config store — BYOK (Bring Your Own Key).
@@ -14,6 +15,9 @@ export interface ProviderConfig {
   apiKey: string;
   mainModel: string;
   kbModel: string;
+  // Modelo da pesquisa web (digest = extração, não raciocínio). Ausente →
+  // usa o kbModel, mais barato e rápido. Ver researchModelId().
+  researchModel?: string;
 }
 
 export const PROVIDER_LABELS: Record<Provider, string> = {
@@ -22,24 +26,66 @@ export const PROVIDER_LABELS: Record<Provider, string> = {
   openrouter: 'OpenRouter',
 };
 
-export const PROVIDER_KEY_HINTS: Record<Provider, string> = {
-  openai: 'sk-proj-... (https://platform.openai.com/api-keys)',
-  anthropic: 'sk-ant-... (https://console.anthropic.com/settings/keys)',
-  openrouter: 'sk-or-v1-... (https://openrouter.ai/keys)',
+// Prefixo da chave e onde gerá-la — separados pra UI montar link clicável.
+export const PROVIDER_KEY_INFO: Record<Provider, { prefix: string; url: string }> = {
+  openai: { prefix: 'sk-proj-...', url: 'https://platform.openai.com/api-keys' },
+  anthropic: { prefix: 'sk-ant-...', url: 'https://console.anthropic.com/settings/keys' },
+  openrouter: { prefix: 'sk-or-v1-...', url: 'https://openrouter.ai/keys' },
 };
+
+// Legado (texto único "prefixo (url)") — mantido pros call sites antigos.
+export const PROVIDER_KEY_HINTS: Record<Provider, string> = {
+  openai: `${PROVIDER_KEY_INFO.openai.prefix} (${PROVIDER_KEY_INFO.openai.url})`,
+  anthropic: `${PROVIDER_KEY_INFO.anthropic.prefix} (${PROVIDER_KEY_INFO.anthropic.url})`,
+  openrouter: `${PROVIDER_KEY_INFO.openrouter.prefix} (${PROVIDER_KEY_INFO.openrouter.url})`,
+};
+
+// Modelos conhecidos por provider, pro select do ApiKeyGate. `effort` é o
+// reasoning effort que o client manda (ver ai/client.ts openrouterSettings);
+// o rótulo traduzido vem de t().ai.models.effort(effort). `role` diz em qual
+// campo o modelo faz sentido (principal, base/pesquisa ou ambos).
+export interface KnownModel {
+  id: string;
+  label: string;
+  effort?: 'low' | 'medium' | 'high';
+  role: 'main' | 'kb' | 'both';
+}
+
+export const KNOWN_MODELS: Record<Provider, KnownModel[]> = {
+  openrouter: [
+    { id: 'openai/gpt-6.1-sol', label: 'GPT-6.1 Sol', effort: 'medium', role: 'main' },
+    { id: 'x-ai/grok-4.3', label: 'Grok 4.3', effort: 'high', role: 'main' },
+    { id: 'google/gemini-3.5-flash', label: 'Gemini 3.5 Flash', role: 'both' },
+    { id: 'google/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', role: 'kb' },
+  ],
+  openai: [
+    { id: 'gpt-4o', label: 'GPT-4o', role: 'main' },
+    { id: 'gpt-4o-mini', label: 'GPT-4o mini', role: 'kb' },
+  ],
+  anthropic: [
+    { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', role: 'main' },
+    { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', role: 'kb' },
+  ],
+};
+
+export function researchModelId(cfg: ProviderConfig): string {
+  return cfg.researchModel?.trim() || cfg.kbModel;
+}
 
 export const PROVIDER_DEFAULTS: Record<Provider, { mainModel: string; kbModel: string }> = {
   openai: { mainModel: 'gpt-4o', kbModel: 'gpt-4o-mini' },
   anthropic: { mainModel: 'claude-sonnet-4-5', kbModel: 'claude-haiku-4-5' },
-  // Grok 4.3 com reasoning effort "high" — o effort é parâmetro de request
-  // (ver ai/client.ts), não faz parte do id do modelo.
-  openrouter: { mainModel: 'x-ai/grok-4.3', kbModel: 'google/gemini-2.5-flash-lite' },
+  // GPT-6.1 Sol com reasoning effort "medium" — o effort é parâmetro de
+  // request (ver ai/client.ts), não faz parte do id do modelo.
+  openrouter: { mainModel: 'openai/gpt-6.1-sol', kbModel: 'google/gemini-2.5-flash-lite' },
 };
 
 // kbModel default antigo que saiu do ar no OpenRouter — migrado no persist.
 const DEAD_OPENROUTER_KB_MODEL = 'google/gemini-2.0-flash-001';
 // mainModel default da era gemini — config persistida volta pro grok no v3.
 const OLD_OPENROUTER_MAIN_MODEL = 'google/gemini-3.5-flash';
+// defaults anteriores que migram pro gpt-6.1-sol no v4.
+const PRE_V4_OPENROUTER_MAIN_MODELS = ['x-ai/grok-4.3', OLD_OPENROUTER_MAIN_MODEL];
 
 interface ConfigState {
   activeProvider: Provider | null;
@@ -96,7 +142,7 @@ export const useConfigStore = create<ConfigState>()(
     }),
     {
       name: 'cellproject-config',
-      version: 3, // v3: mainModel do OpenRouter de volta pro grok-4.3 (high)
+      version: 4, // v4: mainModel do OpenRouter → gpt-6.1-sol (medium)
       storage: createJSONStorage(() => idbStorage),
       migrate: (persisted, version) => {
         const state = persisted as Partial<ConfigState>;
@@ -112,11 +158,32 @@ export const useConfigStore = create<ConfigState>()(
             or.mainModel = PROVIDER_DEFAULTS.openrouter.mainModel;
           }
         }
+        if (version < 4) {
+          const or = state.providers?.openrouter;
+          if (or && PRE_V4_OPENROUTER_MAIN_MODELS.includes(or.mainModel)) {
+            or.mainModel = PROVIDER_DEFAULTS.openrouter.mainModel;
+          }
+        }
         return state as ConfigState;
       },
     },
   ),
 );
+
+// Dev-only: sem provider configurado, semeia o OpenRouter com a chave do
+// .env (ver vite.config). Em produção __DEV_OPENROUTER_KEY__ é '' e isto é no-op.
+export function seedDevKey() {
+  const key = typeof __DEV_OPENROUTER_KEY__ === 'string' ? __DEV_OPENROUTER_KEY__ : '';
+  if (!key) return;
+  const run = () => {
+    const s = useConfigStore.getState();
+    if (s.activeProvider && s.providers[s.activeProvider]?.apiKey) return;
+    s.saveProviderConfig('openrouter', { apiKey: key, ...PROVIDER_DEFAULTS.openrouter });
+    useConfigStore.getState().setActiveProvider('openrouter');
+  };
+  if (useConfigStore.persist.hasHydrated()) run();
+  else useConfigStore.persist.onFinishHydration(run);
+}
 
 export function getActiveConfig(): { provider: Provider; config: ProviderConfig } | null {
   const s = useConfigStore.getState();
@@ -128,7 +195,8 @@ export function getActiveConfig(): { provider: Provider; config: ProviderConfig 
 
 export class AIMissingKeyError extends Error {
   constructor() {
-    super('Nenhuma chave de API configurada. Abra as configurações e adicione uma.');
+    const e = t().ai.errors;
+    super(`${e.missingKeyTitle}. ${e.missingKeyHint}`);
     this.name = 'AIMissingKeyError';
   }
 }

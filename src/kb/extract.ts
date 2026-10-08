@@ -1,6 +1,6 @@
 // Extração local de texto de PDF via pdf.js (Mozilla).
-// Roda 100% no browser — o PDF nunca sai do dispositivo até a etapa opcional
-// de resumo, onde apenas o texto extraído é enviado ao modelo.
+// Roda 100% no browser — o arquivo nunca sai do dispositivo. Na etapa de
+// resumo, o texto extraído (recortado em ~40k caracteres) vai pro modelo.
 
 import * as pdfjs from 'pdfjs-dist';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';

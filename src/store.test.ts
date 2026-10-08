@@ -1,12 +1,24 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { get as idbGet, set as idbSet } from 'idb-keyval';
 import {
   useGraphStore,
   projectProgress,
   nextPendingForTutor,
   isBlocked,
   computeTreeLayout,
+  canConcludeNode,
+  canRevealAICriterion,
+  refCountsAsSignal,
+  nodesWithoutSignal,
+  projectMetrics,
+  stepSequence,
+  firstBlockerOf,
+  pendingParent,
+  flushGraphPersistence,
+  EMPTY_OBJECTIVE_DRAFT,
 } from './store';
-import type { AIPlan, ConceptNodeData } from './types';
+import type { AIPlan, AIPlanOutline, ConceptNodeData } from './types';
+import { isPlanOutline } from './types';
 
 const minimalPlan: AIPlan = {
   id: 'p1',
@@ -532,5 +544,644 @@ describe('project rules — hard constraints carried by the project', () => {
 
     const rootHistory = project.nodes[project.rootId].history.map((h) => h.message);
     expect(rootHistory.some((m) => m.includes('prazo: 2 fins de semana'))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Gate honesto — falha aberta, âncora da IA sem observação, promoção tardia
+// ---------------------------------------------------------------------------
+
+describe('honest gate — open failure, AI anchors, late promotion', () => {
+  beforeEach(() => {
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().createProjectFromPlan('obj', 'Gate', minimalPlan);
+  });
+
+  function singlePasso(): string {
+    const catId = categoryId();
+    useGraphStore.getState().stageSuggestions(catId, [makeSuggestionNode('a', 'passo 1', 0)], []);
+    useGraphStore.getState().acceptSuggestion('a');
+    return passosOrdered()[0].id;
+  }
+
+  const node = (id: string): ConceptNodeData => useGraphStore.getState().project!.nodes[id];
+  const gate = (id: string) => canConcludeNode(useGraphStore.getState().project, id);
+
+  function addAIAnchor(id: string): string {
+    useGraphStore.getState().addGroundTruthRef(id, {
+      kind: 'link',
+      label: 'doc',
+      value: 'https://exemplo.com',
+      verificado: false,
+      addedByAI: true,
+    });
+    const refs = node(id).groundTruthRefs!;
+    return refs[refs.length - 1].id;
+  }
+
+  it('an open failure blocks confirm (even forced) and shows up as openFailure', () => {
+    const id = singlePasso();
+    useGraphStore.getState().setUserCriterion(id, 'critério');
+    useGraphStore.getState().attestCriterion(id, 'atendido');
+    useGraphStore.getState().reportFailure(id, 'quebrou');
+    expect(gate(id).ready).toBe(false);
+    expect(gate(id).missingKeys).toContain('openFailure');
+
+    useGraphStore.getState().confirmNode(id);
+    useGraphStore.getState().confirmNode(id, { force: true });
+    expect(node(id).confirmado).toBe(false);
+    expect(node(id).state).toBe('problem');
+
+    // A falha refutou a aferição anterior: limpar a falha não devolve o 'done'
+    // com a prova velha — é preciso aferir de novo.
+    expect(node(id).comoConfirmarAtendido).toBeUndefined();
+    useGraphStore.getState().clearFailure(id);
+    expect(node(id).failureContext).toBeUndefined();
+    expect(node(id).state).toBe('concept');
+    useGraphStore.getState().attestCriterion(id, 'atendido de novo, depois do conserto');
+    useGraphStore.getState().confirmNode(id);
+    expect(node(id).state).toBe('done');
+  });
+
+  it('an open failure also blocks picking a decision option', () => {
+    const catId = categoryId();
+    useGraphStore.getState().stageSuggestions(
+      catId,
+      [
+        {
+          ...makeSuggestionNode('d', 'qual', 0),
+          kind: 'decisao',
+          decisionOptions: [{ id: 'o1', label: 'A', pitch: 'a' }],
+        },
+      ],
+      [],
+    );
+    useGraphStore.getState().acceptSuggestion('d');
+    const id = Object.values(useGraphStore.getState().project!.nodes).find(
+      (n) => n.kind === 'decisao',
+    )!.id;
+    useGraphStore.getState().reportFailure(id, 'não serve');
+    useGraphStore.getState().pickDecisionOption(id, 'o1');
+    expect(node(id).decisionPickedId).toBeUndefined();
+    expect(node(id).confirmado).toBe(false);
+  });
+
+  it('missingKeys tells "not locked" apart from "locked but not attested"', () => {
+    const id = singlePasso();
+    expect(gate(id).missingKeys).toEqual(['criterionNotLocked', 'noSignal']);
+    useGraphStore.getState().setUserCriterion(id, 'critério');
+    expect(gate(id).missingKeys).toEqual(['criterionNotAttested', 'noSignal']);
+    useGraphStore.getState().attestCriterion(id, 'ok');
+    expect(gate(id)).toMatchObject({ ready: true, missingKeys: [] });
+  });
+
+  it('an AI anchor ticked WITHOUT an observation does not earn done', () => {
+    const id = singlePasso();
+    const refId = addAIAnchor(id);
+    useGraphStore.getState().toggleGroundTruthVerified(id, refId);
+    expect(node(id).groundTruthRefs![0].verificado).toBe(true);
+    expect(gate(id).ready).toBe(false);
+    useGraphStore.getState().confirmNode(id);
+    expect(node(id).state).toBe('validated');
+  });
+
+  it('verifyGroundTruthRef refuses an AI anchor without observation, accepts with one', () => {
+    const id = singlePasso();
+    const refId = addAIAnchor(id);
+    useGraphStore.getState().verifyGroundTruthRef(id, refId, '   ');
+    expect(node(id).groundTruthRefs![0].verificado).toBe(false);
+    useGraphStore.getState().verifyGroundTruthRef(id, refId, 'li a seção 3: bate');
+    const ref = node(id).groundTruthRefs![0];
+    expect(ref.verificado).toBe(true);
+    expect(ref.observacao).toBe('li a seção 3: bate');
+    expect(refCountsAsSignal(ref)).toBe(true);
+    useGraphStore.getState().confirmNode(id);
+    expect(node(id).state).toBe('done');
+  });
+
+  it('a user-added anchor still counts with a plain toggle', () => {
+    const id = singlePasso();
+    useGraphStore.getState().addGroundTruthRef(id, {
+      kind: 'medida',
+      label: 'massa',
+      value: '178g',
+      verificado: false,
+      addedByAI: false,
+    });
+    useGraphStore.getState().toggleGroundTruthVerified(id, node(id).groundTruthRefs![0].id);
+    expect(gate(id).ready).toBe(true);
+  });
+
+  it('markRefOpened records when the user opened the source', () => {
+    const id = singlePasso();
+    const refId = addAIAnchor(id);
+    useGraphStore.getState().markRefOpened(id, refId);
+    expect(node(id).groundTruthRefs![0].openedAt).toBeTypeOf('number');
+    expect(node(id).groundTruthRefs![0].verificado).toBe(false);
+  });
+
+  it('late promotion: attesting a "confirmed without proof" node turns it done', () => {
+    const id = singlePasso();
+    useGraphStore.getState().confirmNode(id);
+    expect(node(id).confirmedWithoutSignal).toBe(true);
+    let p = projectProgress(useGraphStore.getState().project);
+    expect(p.doneWithoutSignal).toBe(1);
+
+    useGraphStore.getState().setUserCriterion(id, 'critério');
+    useGraphStore.getState().attestCriterion(id, 'atendido');
+    expect(node(id).state).toBe('done');
+    expect(node(id).confirmedWithoutSignal).toBe(false);
+    expect(node(id).history.at(-1)!.kind).toBe('state');
+    p = projectProgress(useGraphStore.getState().project);
+    expect(p.doneWithoutSignal).toBe(0);
+    expect(p.doneWithSignal).toBe(1);
+  });
+
+  it('late promotion also happens when an anchor is verified with observation', () => {
+    const id = singlePasso();
+    useGraphStore.getState().confirmNode(id);
+    const refId = addAIAnchor(id);
+    useGraphStore.getState().verifyGroundTruthRef(id, refId, 'conferi o preço');
+    expect(node(id).state).toBe('done');
+    expect(nodesWithoutSignal(useGraphStore.getState().project)).toEqual([]);
+  });
+
+  it('no promotion for an unconfirmed node — proof alone does not conclude', () => {
+    const id = singlePasso();
+    useGraphStore.getState().setUserCriterion(id, 'c');
+    useGraphStore.getState().attestCriterion(id, 'ok');
+    expect(node(id).confirmado).toBe(false);
+    expect(node(id).state).toBe('concept');
+  });
+
+  it('nodesWithoutSignal lists resolved leaves without proof; atRisk counts pending low-confidence leaves', () => {
+    const catId = categoryId();
+    useGraphStore.getState().stageSuggestions(
+      catId,
+      [
+        { ...makeSuggestionNode('a', 'p1', 0), confidence: 20 },
+        { ...makeSuggestionNode('b', 'p2', 1), confidence: 30 },
+      ],
+      [],
+    );
+    useGraphStore.getState().acceptAllSuggestions();
+    const [p1] = passosOrdered();
+    expect(projectMetrics(useGraphStore.getState().project)!.atRisk).toBe(2);
+    useGraphStore.getState().confirmNode(p1.id);
+    expect(nodesWithoutSignal(useGraphStore.getState().project)).toEqual([p1.id]);
+    // Resolvido sai do risco; o pendente continua.
+    expect(projectMetrics(useGraphStore.getState().project)!.atRisk).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Desfazer, critério destravável, rascunhos, histórico de edição
+// ---------------------------------------------------------------------------
+
+describe('undo, drafts and edit history', () => {
+  beforeEach(() => {
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().createProjectFromPlan('obj', 'Undo', minimalPlan);
+    const catId = categoryId();
+    useGraphStore.getState().stageSuggestions(catId, [makeSuggestionNode('a', 'passo 1', 0)], []);
+    useGraphStore.getState().acceptSuggestion('a');
+  });
+
+  const id = () => passosOrdered()[0].id;
+  const node = (): ConceptNodeData => useGraphStore.getState().project!.nodes[id()];
+
+  it('undoLastAction restores the node before confirm and selects it', () => {
+    const before = node();
+    useGraphStore.getState().selectNode(null);
+    useGraphStore.getState().confirmNode(id());
+    expect(node().confirmado).toBe(true);
+    expect(useGraphStore.getState().undoLastAction()).toBe(true);
+    expect(node().confirmado).toBe(false);
+    expect(node().state).toBe(before.state);
+    expect(useGraphStore.getState().selectedNodeId).toBe(id());
+    expect(useGraphStore.getState().lastAction).toBeNull();
+  });
+
+  it('undo works for takenAsKnown and refuses when the node changed afterwards', () => {
+    useGraphStore.getState().toggleTakenAsKnown(id());
+    expect(useGraphStore.getState().undoLastAction()).toBe(true);
+    expect(node().takenAsKnown).toBeFalsy();
+
+    useGraphStore.getState().confirmNode(id());
+    useGraphStore.getState().addManualHistory(id(), 'mexi depois');
+    expect(useGraphStore.getState().undoLastAction()).toBe(false);
+    expect(node().confirmado).toBe(true);
+  });
+
+  it('unlockCriterion reopens a just-locked criterion and puts the text back in the draft', () => {
+    useGraphStore.getState().setUserCriterion(id(), 'meu critério');
+    expect(useGraphStore.getState().unlockCriterion(id())).toBe(true);
+    expect(node().comoConfirmarUsuarioAt).toBeUndefined();
+    expect(useGraphStore.getState().drafts[id()]?.criterion).toBe('meu critério');
+  });
+
+  it('drafts are set, cleared on empty, and auto-cleared by the matching action', () => {
+    const s = useGraphStore.getState();
+    s.setDraft(id(), 'criterion', 'rascunho');
+    s.setDraft(id(), 'failure', 'quebrou?');
+    expect(useGraphStore.getState().drafts[id()]).toEqual({
+      criterion: 'rascunho',
+      failure: 'quebrou?',
+    });
+    useGraphStore.getState().setUserCriterion(id(), 'rascunho');
+    expect(useGraphStore.getState().drafts[id()]).toEqual({ failure: 'quebrou?' });
+    useGraphStore.getState().setDraft(id(), 'met', 'medi');
+    useGraphStore.getState().attestCriterion(id(), 'medi');
+    useGraphStore.getState().reportFailure(id(), 'quebrou');
+    expect(useGraphStore.getState().drafts[id()]).toBeUndefined();
+    useGraphStore.getState().setDraft(id(), 'met', '   ');
+    expect(useGraphStore.getState().drafts[id()]).toBeUndefined();
+  });
+
+  it('typing a 10-letter name produces at most one rename entry', () => {
+    const before = node().history.length;
+    const word = 'Carburador';
+    for (let i = 1; i <= word.length; i++) {
+      useGraphStore.getState().updateNode(id(), { name: word.slice(0, i) });
+    }
+    const renames = node().history.slice(before).filter((h) => h.kind === 'rename');
+    expect(renames).toHaveLength(1);
+    expect(renames[0].message).toContain('passo 1');
+    expect(renames[0].message).toContain('Carburador');
+  });
+
+  it('oQue edits record one "edit" entry with the value from before the edit, on commit', () => {
+    const original = node().oQue;
+    useGraphStore.getState().updateNode(id(), { oQue: 'novo t' });
+    useGraphStore.getState().updateNode(id(), { oQue: 'novo texto' });
+    expect(node().history.filter((h) => h.kind === 'edit')).toHaveLength(0);
+    useGraphStore.getState().updateNode(id(), { oQue: 'novo texto final' }, { commit: true });
+    const edits = node().history.filter((h) => h.kind === 'edit');
+    expect(edits).toHaveLength(1);
+    expect(edits[0].field).toBe('oQue');
+    expect(edits[0].prevValue).toBe(original);
+  });
+
+  it('state changes are written to history with translated labels', () => {
+    useGraphStore.getState().updateNode(id(), { state: 'executing' });
+    const msg = node().history.at(-1)!.message;
+    expect(msg).not.toContain('executing');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Objetivo, layout, navegação
+// ---------------------------------------------------------------------------
+
+describe('objective draft, layout and navigation', () => {
+  beforeEach(() => {
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().clearObjectiveDraft();
+  });
+
+  it('createProjectFromPlan clears the objective draft and keeps the other plans', () => {
+    const alt: AIPlan = { ...minimalPlan, id: 'p2', title: 'Outro' };
+    useGraphStore.getState().setObjectiveDraft({ objective: 'obj', plans: [minimalPlan, alt] });
+    expect(useGraphStore.getState().objectiveDraft.plans).toHaveLength(2);
+    useGraphStore.getState().createProjectFromPlan('obj', '', minimalPlan, [], [minimalPlan, alt]);
+    const project = useGraphStore.getState().project!;
+    expect(project.alternativePlans?.map((p) => p.id)).toEqual(['p2']);
+    expect(project.name).toBeTruthy(); // fallback traduzido
+    expect(useGraphStore.getState().objectiveDraft).toEqual(EMPTY_OBJECTIVE_DRAFT);
+  });
+
+  it('a new project is laid out with the tidy tree', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'L', minimalPlan);
+    const project = useGraphStore.getState().project!;
+    const pos = computeTreeLayout(project);
+    for (const [nid, p] of Object.entries(pos)) {
+      expect(project.nodes[nid].position).toEqual(p);
+    }
+  });
+
+  it('accepting suggestions re-lays out the tree until the user drags a node', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'L', minimalPlan);
+    stageChain();
+    useGraphStore.getState().acceptAllSuggestions();
+    const [p1, p2] = passosOrdered();
+    expect(p2.position.x - p1.position.x).toBeGreaterThanOrEqual(300);
+
+    useGraphStore.getState().updateNodePosition(p1.id, { x: 999, y: 999 });
+    expect(useGraphStore.getState().project!.manualLayout).toBe(true);
+    useGraphStore.getState().stageSuggestions(p2.id, [makeSuggestionNode('x', 'sub', 0)], []);
+    useGraphStore.getState().acceptSuggestion('x');
+    expect(useGraphStore.getState().project!.nodes[p1.id].position).toEqual({ x: 999, y: 999 });
+  });
+
+  it('stepSequence and firstBlockerOf follow sibling order', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'S', minimalPlan);
+    stageChain();
+    useGraphStore.getState().acceptAllSuggestions();
+    const project = () => useGraphStore.getState().project;
+    const [p1, p2, p3] = passosOrdered();
+    expect([p1, p2, p3].map((p) => stepSequence(project(), p.id))).toEqual([1, 2, 3]);
+    expect(firstBlockerOf(project(), p3.id)?.id).toBe(p1.id);
+    useGraphStore.getState().confirmNode(p1.id);
+    expect(firstBlockerOf(project(), p3.id)?.id).toBe(p2.id);
+    expect(firstBlockerOf(project(), p2.id)).toBeNull();
+    expect(stepSequence(project(), project()!.rootId)).toBeNull();
+  });
+
+  it('canRevealAICriterion only after the user locked theirs (or closed the node)', () => {
+    const base = { comoConfirmarUsuarioAt: undefined, confirmado: false, takenAsKnown: false };
+    expect(canRevealAICriterion(base)).toBe(false);
+    expect(canRevealAICriterion({ ...base, comoConfirmarUsuarioAt: 1 })).toBe(true);
+    expect(canRevealAICriterion({ ...base, confirmado: true })).toBe(true);
+    expect(canRevealAICriterion({ ...base, takenAsKnown: true })).toBe(true);
+  });
+
+  it('switching to the graph without a selection opens the tutor node', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'N', minimalPlan);
+    stageChain();
+    useGraphStore.getState().acceptAllSuggestions();
+    const [, p2] = passosOrdered();
+    useGraphStore.getState().setLastTutorNode(p2.id);
+    useGraphStore.getState().selectNode(null);
+    useGraphStore.getState().setViewMode('graph');
+    expect(useGraphStore.getState().selectedNodeId).toBe(p2.id);
+    expect(useGraphStore.getState().centerRequest?.nodeId).toBe(p2.id);
+
+    // Sem nó do tutor: cai no próximo pendente.
+    useGraphStore.getState().setViewMode('tutor');
+    useGraphStore.getState().setLastTutorNode(null);
+    useGraphStore.getState().selectNode(null);
+    useGraphStore.getState().setViewMode('graph');
+    expect(useGraphStore.getState().selectedNodeId).toBe(passosOrdered()[0].id);
+  });
+
+  it('focusNode bumps focusVersion; requestCenter bumps the center version', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'F', minimalPlan);
+    const v = useGraphStore.getState().focusVersion;
+    useGraphStore.getState().focusNode(categoryId());
+    useGraphStore.getState().focusNode(categoryId());
+    expect(useGraphStore.getState().focusVersion).toBe(v + 2);
+    useGraphStore.getState().requestCenter(categoryId());
+    const c1 = useGraphStore.getState().centerRequest!.version;
+    useGraphStore.getState().requestCenter(categoryId());
+    expect(useGraphStore.getState().centerRequest!.version).toBe(c1 + 1);
+  });
+
+  it('aiJobs track running AI calls per node; pendingParent resolves the staging parent', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'J', minimalPlan);
+    const catId = categoryId();
+    useGraphStore.getState().startAIJob(catId, 'decompose');
+    expect(useGraphStore.getState().aiJobs[catId]?.decompose?.kind).toBe('decompose');
+    // Outro job no mesmo nó não apaga o marcador da quebra.
+    useGraphStore.getState().startAIJob(catId, 'research');
+    useGraphStore.getState().endAIJob(catId, 'research');
+    expect(useGraphStore.getState().aiJobs[catId]?.decompose).toBeTruthy();
+    useGraphStore.getState().endAIJob(catId, 'decompose');
+    expect(useGraphStore.getState().aiJobs[catId]).toBeUndefined();
+    stageChain();
+    expect(pendingParent(useGraphStore.getState())?.id).toBe(catId);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reset seguro, import e persistência
+// ---------------------------------------------------------------------------
+
+describe('safe reset and import', () => {
+  beforeEach(() => {
+    useGraphStore.getState().resetProject();
+    useGraphStore.setState({ archivedProject: null, replacedArchive: null });
+  });
+
+  it('resetProject archives the project and undoReset brings it back', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'Arquivo', minimalPlan);
+    const before = useGraphStore.getState().project!;
+    useGraphStore.getState().resetProject();
+    expect(useGraphStore.getState().project).toBeNull();
+    expect(useGraphStore.getState().archivedProject?.id).toBe(before.id);
+    expect(useGraphStore.getState().undoReset()).toBe(true);
+    expect(useGraphStore.getState().project?.id).toBe(before.id);
+    expect(useGraphStore.getState().archivedProject).toBeNull();
+  });
+
+  it('undoReset keeps the previously archived project instead of losing it', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'Antigo', minimalPlan);
+    const old = useGraphStore.getState().project!;
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().createProjectFromPlan('obj', 'Ativo', minimalPlan);
+    const active = useGraphStore.getState().project!;
+    expect(useGraphStore.getState().archivedProject?.id).toBe(old.id);
+
+    useGraphStore.getState().resetProject();
+    expect(useGraphStore.getState().archivedProject?.id).toBe(active.id);
+    expect(useGraphStore.getState().undoReset()).toBe(true);
+    expect(useGraphStore.getState().project?.id).toBe(active.id);
+    expect(useGraphStore.getState().archivedProject?.id).toBe(old.id);
+  });
+
+  it('leaving the demo does not overwrite the archived real project', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'Real', minimalPlan);
+    const real = useGraphStore.getState().project!;
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().loadDemoProject();
+    useGraphStore.getState().resetProject();
+    expect(useGraphStore.getState().archivedProject?.id).toBe(real.id);
+  });
+
+  it('importProject accepts the exported JSON and archives the current project', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'Export', minimalPlan);
+    stageChain();
+    useGraphStore.getState().acceptAllSuggestions();
+    const original = useGraphStore.getState().project!;
+    const exported = JSON.stringify(original, null, 2);
+
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().createProjectFromPlan('obj', 'Atual', minimalPlan);
+    const current = useGraphStore.getState().project!;
+
+    expect(useGraphStore.getState().importProject(exported)).toEqual({ ok: true });
+    const imported = useGraphStore.getState().project!;
+    expect(imported.id).toBe(original.id);
+    expect(Object.keys(imported.nodes)).toHaveLength(Object.keys(original.nodes).length);
+    expect(Object.keys(imported.edges)).toHaveLength(Object.keys(original.edges).length);
+    expect(useGraphStore.getState().archivedProject?.id).toBe(current.id);
+  });
+
+  it('importProject rejects invalid input without touching the current project', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'Fica', minimalPlan);
+    const current = useGraphStore.getState().project!;
+    for (const bad of ['nem json', '{}', JSON.stringify({ rootId: 'x', nodes: {}, edges: {} }), 42]) {
+      expect(useGraphStore.getState().importProject(bad).ok).toBe(false);
+    }
+    expect(useGraphStore.getState().project?.id).toBe(current.id);
+  });
+
+  it('the demo keeps the gate honest: every done node has real proof', () => {
+    useGraphStore.getState().loadDemoProject();
+    const project = useGraphStore.getState().project!;
+    for (const n of Object.values(project.nodes)) {
+      if (n.state === 'done' && !n.failureContext) {
+        expect(canConcludeNode(project, n.id).missingKeys).not.toContain('noSignal');
+      }
+    }
+  });
+});
+
+describe('persistence — drafts survive a reload', () => {
+  it('drafts and the objective draft come back after rehydrate', async () => {
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().createProjectFromPlan('obj', 'P', minimalPlan);
+    const catId = categoryId();
+    useGraphStore.getState().setDraft(catId, 'failure', 'algo estranho');
+    useGraphStore.getState().setObjectiveDraft({ objective: 'meu objetivo', ruleDraft: 'regra' });
+    await flushGraphPersistence();
+
+    // O que está no IndexedDB é o que um reload vai ler.
+    const raw = await idbGet<string>('cellproject-graph');
+    const stored = JSON.parse(raw!).state;
+    expect(stored.drafts[catId]).toEqual({ failure: 'algo estranho' });
+    expect(stored.objectiveDraft.objective).toBe('meu objetivo');
+
+    // "Reload": zera a memória e reidrata do IndexedDB.
+    useGraphStore.setState({ drafts: {}, objectiveDraft: EMPTY_OBJECTIVE_DRAFT });
+    await flushGraphPersistence();
+    await idbSet('cellproject-graph', raw!);
+    await useGraphStore.persist.rehydrate();
+    expect(useGraphStore.getState().drafts[catId]).toEqual({ failure: 'algo estranho' });
+    expect(useGraphStore.getState().objectiveDraft.objective).toBe('meu objetivo');
+    expect(useGraphStore.getState().objectiveDraft.ruleDraft).toBe('regra');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Planejamento em duas fases — esboços + cache de expansão no rascunho
+// ---------------------------------------------------------------------------
+
+function makeOutline(id: string, title = `Esboço ${id}`): AIPlanOutline {
+  const { tree: _tree, ...header } = minimalPlan;
+  return {
+    ...header,
+    id,
+    title,
+    outline: {
+      categorias: [{ name: 'Execução', kind: 'execucao', nodes: [{ name: 'Passo 1', kind: 'passo' }] }],
+    },
+  };
+}
+
+function expandedFor(id: string): AIPlan {
+  // O service devolve id = id do esboço; aqui um id diferente prova que o
+  // store força a chave.
+  return { ...minimalPlan, id: `outro-${id}`, title: `Esboço ${id}` };
+}
+
+describe('objective draft — two-phase planning (outlines + expansion cache)', () => {
+  beforeEach(() => {
+    useGraphStore.getState().resetProject();
+    useGraphStore.getState().clearObjectiveDraft();
+  });
+
+  it('setOutlines → setExpansion → setExpandedPlan caches the tree by outline id', () => {
+    const s = useGraphStore.getState();
+    s.setOutlines([makeOutline('a'), makeOutline('b')], { objective: 'obj', rules: ['r'] });
+    s.setExpansion('a');
+    expect(useGraphStore.getState().objectiveDraft.expansion?.outlineId).toBe('a');
+
+    s.setExpandedPlan('a', expandedFor('a'));
+    const d = useGraphStore.getState().objectiveDraft;
+    expect(d.expanded.a.id).toBe('a');
+    expect(d.expansion).toBeNull();
+    expect(d.plansFor).toEqual({ objective: 'obj', rules: ['r'] });
+  });
+
+  it('a finished expansion of another outline does not clear the one in progress', () => {
+    const s = useGraphStore.getState();
+    s.setOutlines([makeOutline('a'), makeOutline('b')]);
+    s.setExpansion('b');
+    s.setExpandedPlan('a', expandedFor('a'));
+    expect(useGraphStore.getState().objectiveDraft.expansion?.outlineId).toBe('b');
+  });
+
+  it('setOutlines prunes cached trees, the expansion and the selection of outlines that left', () => {
+    const s = useGraphStore.getState();
+    s.setOutlines([makeOutline('a'), makeOutline('b')]);
+    s.setExpandedPlan('a', expandedFor('a'));
+    s.setExpandedPlan('b', expandedFor('b'));
+    s.setExpansion('a');
+    s.setObjectiveDraft({ selectedId: 'a' });
+
+    // "Gerar mais" fundido: b fica, a sai, c entra.
+    s.setOutlines([makeOutline('b'), makeOutline('c')]);
+    const d = useGraphStore.getState().objectiveDraft;
+    expect(Object.keys(d.expanded)).toEqual(['b']);
+    expect(d.expansion).toBeNull();
+    expect(d.selectedId).toBeNull();
+    expect(d.outlines?.map((o) => o.id)).toEqual(['b', 'c']);
+  });
+
+  it('createProjectFromOutline uses the cached tree; alternatives keep outlines or their trees', () => {
+    const s = useGraphStore.getState();
+    s.setOutlines([makeOutline('a'), makeOutline('b'), makeOutline('c')]);
+    expect(s.createProjectFromOutline('obj', '', 'a')).toBe(false);
+    expect(useGraphStore.getState().project).toBeNull();
+
+    s.setExpandedPlan('a', expandedFor('a'));
+    s.setExpandedPlan('c', expandedFor('c'));
+    expect(s.createProjectFromOutline('obj', 'Meu', 'a', ['r'])).toBe(true);
+
+    const project = useGraphStore.getState().project!;
+    expect(project.name).toBe('Meu');
+    expect(project.rules).toEqual(['r']);
+    const alts = project.alternativePlans ?? [];
+    expect(alts.map((p) => p.id)).toEqual(['b', 'c']);
+    expect(isPlanOutline(alts[0])).toBe(true);
+    expect(isPlanOutline(alts[1])).toBe(false);
+    expect(useGraphStore.getState().objectiveDraft).toEqual(EMPTY_OBJECTIVE_DRAFT);
+  });
+
+  it('createProjectFromPlan accepts outlines as alternatives', () => {
+    useGraphStore
+      .getState()
+      .createProjectFromPlan('obj', 'P', minimalPlan, [], [minimalPlan, makeOutline('x')]);
+    expect(useGraphStore.getState().project!.alternativePlans?.map((p) => p.id)).toEqual(['x']);
+  });
+
+  it('outlines and the expansion cache survive a reload', async () => {
+    const s = useGraphStore.getState();
+    s.setOutlines([makeOutline('a')], { objective: 'obj', rules: [] });
+    s.setExpandedPlan('a', expandedFor('a'));
+    await flushGraphPersistence();
+    const raw = await idbGet<string>('cellproject-graph');
+
+    useGraphStore.setState({ objectiveDraft: EMPTY_OBJECTIVE_DRAFT });
+    await flushGraphPersistence();
+    await idbSet('cellproject-graph', raw!);
+    await useGraphStore.persist.rehydrate();
+    const d = useGraphStore.getState().objectiveDraft;
+    expect(d.outlines?.[0].id).toBe('a');
+    expect(d.expanded.a.tree.categorias).toHaveLength(1);
+  });
+
+  it('a v5 snapshot (no outline fields) migrates with the new defaults', async () => {
+    const oldDraft = {
+      name: 'n',
+      objective: 'objetivo antigo',
+      rules: [],
+      ruleDraft: '',
+      plans: [minimalPlan],
+      plansFor: { objective: 'objetivo antigo', rules: [] },
+      selectedId: null,
+      generatingSince: null,
+      updatedAt: 1,
+    };
+    await flushGraphPersistence();
+    await idbSet('cellproject-graph', JSON.stringify({ state: { objectiveDraft: oldDraft }, version: 5 }));
+    await useGraphStore.persist.rehydrate();
+    const d = useGraphStore.getState().objectiveDraft;
+    expect(d.objective).toBe('objetivo antigo');
+    expect(d.plans).toHaveLength(1);
+    expect(d.outlines).toBeNull();
+    expect(d.expanded).toEqual({});
+    expect(d.expansion).toBeNull();
+    expect(d.outlineResearch).toBeNull();
   });
 });

@@ -521,8 +521,8 @@ function TreeVisual() {
       <svg viewBox="0 0 400 400" className="w-full h-full" aria-hidden="true">
         <defs>
           <linearGradient id="lg-edge" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#8b5cf6" stopOpacity="0.6" />
-            <stop offset="1" stopColor="#8b5cf6" stopOpacity="0.15" />
+            <stop offset="0" style={{ stopColor: 'rgb(var(--ai-accent))', stopOpacity: 0.6 }} />
+            <stop offset="1" style={{ stopColor: 'rgb(var(--ai-accent))', stopOpacity: 0.15 }} />
           </linearGradient>
         </defs>
 
@@ -546,23 +546,23 @@ function TreeVisual() {
 
         {/* root */}
         <g>
-          <circle cx="200" cy="60" r="14" fill="#8b5cf6" />
-          <circle cx="200" cy="60" r="22" fill="none" stroke="#8b5cf6" strokeOpacity="0.3" strokeWidth="1" />
-          <text x="200" y="36" textAnchor="middle" fontSize="9" fill="#a1a1aa" fontFamily="monospace">
+          <circle cx="200" cy="60" r="14" style={{ fill: 'rgb(var(--ai-accent))' }} />
+          <circle cx="200" cy="60" r="22" fill="none" style={{ stroke: 'rgb(var(--ai-accent) / .3)' }} strokeWidth="1" />
+          <text x="200" y="36" textAnchor="middle" fontSize="9" style={{ fill: 'rgb(var(--text-muted))' }} fontFamily="monospace">
             f(X) = ?
           </text>
         </g>
 
         {/* categories */}
         <g>
-          <rect x="68" y="172" width="44" height="22" rx="2" fill="#18181b" stroke="#3f3f46" />
-          <text x="90" y="187" textAnchor="middle" fontSize="8" fill="#a1a1aa" fontFamily="monospace">RES</text>
+          <rect x="68" y="172" width="44" height="22" rx="2" style={{ fill: 'rgb(var(--bg-secondary))', stroke: 'rgb(var(--border-base))' }} />
+          <text x="90" y="187" textAnchor="middle" fontSize="8" style={{ fill: 'rgb(var(--text-muted))' }} fontFamily="monospace">RES</text>
 
-          <rect x="178" y="172" width="44" height="22" rx="2" fill="#18181b" stroke="#3f3f46" />
-          <text x="200" y="187" textAnchor="middle" fontSize="8" fill="#a1a1aa" fontFamily="monospace">EXEC</text>
+          <rect x="178" y="172" width="44" height="22" rx="2" style={{ fill: 'rgb(var(--bg-secondary))', stroke: 'rgb(var(--border-base))' }} />
+          <text x="200" y="187" textAnchor="middle" fontSize="8" style={{ fill: 'rgb(var(--text-muted))' }} fontFamily="monospace">EXEC</text>
 
-          <rect x="288" y="172" width="44" height="22" rx="2" fill="#18181b" stroke="#3f3f46" />
-          <text x="310" y="187" textAnchor="middle" fontSize="8" fill="#a1a1aa" fontFamily="monospace">DEC</text>
+          <rect x="288" y="172" width="44" height="22" rx="2" style={{ fill: 'rgb(var(--bg-secondary))', stroke: 'rgb(var(--border-base))' }} />
+          <text x="310" y="187" textAnchor="middle" fontSize="8" style={{ fill: 'rgb(var(--text-muted))' }} fontFamily="monospace">DEC</text>
         </g>
 
         {/* leaves */}
@@ -572,14 +572,14 @@ function TreeVisual() {
             [170, 310], [230, 310], [200, 330],
             [270, 310], [350, 310],
           ].map(([x, y], i) => (
-            <circle key={i} cx={x} cy={y} r="6" fill="#27272a" stroke="#3f3f46" />
+            <circle key={i} cx={x} cy={y} r="6" style={{ fill: 'rgb(var(--bg-elevated))', stroke: 'rgb(var(--border-base))' }} />
           ))}
           {/* one validated */}
-          <circle cx="130" cy="310" r="6" fill="#22c55e" />
+          <circle cx="130" cy="310" r="6" style={{ fill: 'rgb(var(--state-done))' }} />
           {/* one executing */}
-          <circle cx="200" cy="330" r="6" fill="#3b82f6" />
+          <circle cx="200" cy="330" r="6" style={{ fill: 'rgb(var(--state-executing))' }} />
           {/* one problem */}
-          <circle cx="270" cy="310" r="6" fill="#ef4444" />
+          <circle cx="270" cy="310" r="6" style={{ fill: 'rgb(var(--state-problem))' }} />
         </g>
       </svg>
     </div>

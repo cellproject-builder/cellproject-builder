@@ -1,7 +1,6 @@
 import { useGraphStore, isDemoProject } from '@/store';
 import { getActiveConfig } from '@/config/store';
-import { useLocaleStore } from '@/i18n/store';
-import { en, ptBR } from '@/i18n/messages';
+import { t } from '@/i18n';
 
 export type AIBlockReason = 'demo' | 'no-key' | null;
 
@@ -15,13 +14,42 @@ export function aiBlockReason(): AIBlockReason {
   return null;
 }
 
-// Gate every AI call site with this. Shows a friendly alert in the user's
-// locale and returns false when blocked; returns true when the AI can run.
-export function requireAI(): boolean {
+// Erro tipado pra UI mostrar inline/toast com CTA "Configurar chave" em vez
+// do alert() nativo. `message` já vem no idioma do usuário.
+export class AIUnavailableError extends Error {
+  readonly reason: Exclude<AIBlockReason, null>;
+  constructor(opts: { reason: Exclude<AIBlockReason, null> }) {
+    const n = t().notify;
+    super((opts.reason === 'demo' ? n.aiBlockedDemo : n.aiMissingKey).replace(/\.{2,}$/, '.'));
+    this.name = 'AIUnavailableError';
+    this.reason = opts.reason;
+  }
+}
+
+// Versão sem efeito colateral: null quando a IA pode rodar.
+export function checkAI(): AIUnavailableError | null {
   const reason = aiBlockReason();
-  if (!reason) return true;
-  const messages = useLocaleStore.getState().locale === 'pt-BR' ? ptBR : en;
-  const msg = reason === 'demo' ? messages.notify.aiBlockedDemo : messages.notify.aiMissingKey;
-  if (typeof window !== 'undefined') alert(msg);
+  return reason ? new AIUnavailableError({ reason }) : null;
+}
+
+// Quem mostra o bloqueio. A UI registra um handler (toast com CTA) via
+// setAIUnavailableHandler; sem handler, cai no alert() como antes.
+type UnavailableHandler = (err: AIUnavailableError) => void;
+let unavailableHandler: UnavailableHandler | null = null;
+
+export function setAIUnavailableHandler(handler: UnavailableHandler | null): () => void {
+  unavailableHandler = handler;
+  return () => {
+    if (unavailableHandler === handler) unavailableHandler = null;
+  };
+}
+
+// Gate every AI call site with this. Notifies the user (handler or alert)
+// and returns false when blocked; returns true when the AI can run.
+export function requireAI(): boolean {
+  const err = checkAI();
+  if (!err) return true;
+  if (unavailableHandler) unavailableHandler(err);
+  else if (typeof window !== 'undefined') alert(err.message);
   return false;
 }

@@ -36,7 +36,7 @@
 ## How it works
 
 1. You write a concrete goal.
-2. The AI proposes 1–3 alternative plans via streaming.
+2. The AI sketches 3 alternative plans in streaming (a short summary of each, ready in about 30 s). When you select one, it details that plan's full tree in the background, so only the plan you choose is written out in full.
 3. You pick one → it becomes a navigable tree in React Flow.
 4. Detail each node with AI when needed (`Detail with AI`).
 5. Execute in tutor mode, one part at a time: **confirm** it against reality, **break it into parts** when you can't confirm yet, or mark it **already known** (the recursion floor). Decisions are picked right in the flow.
@@ -61,7 +61,7 @@ Open [http://localhost:5173](http://localhost:5173). On first run a setup screen
 
 | Provider | Get a key | Default model |
 |----------|-----------|---------------|
-| **OpenRouter** *(recommended)* | https://openrouter.ai/keys | `x-ai/grok-4.3` (reasoning effort high) |
+| **OpenRouter** *(recommended)* | https://openrouter.ai/keys | `openai/gpt-6.1-sol` (reasoning effort medium) |
 | **OpenAI** | https://platform.openai.com/api-keys | `gpt-4o` |
 | **Anthropic** | https://console.anthropic.com/settings/keys | `claude-sonnet-4-5` |
 

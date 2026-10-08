@@ -51,6 +51,14 @@ const gtRef = (
   ...partial,
 });
 
+// Critério do usuário travado e depois aferido como atendido — a prova (a)
+// que dá o 'done' verde. Mantém a demo coerente com o gate real.
+const attested = (criterion: string, observacao: string, lockedAt: number, metAt: number) => ({
+  comoConfirmarUsuario: criterion,
+  comoConfirmarUsuarioAt: lockedAt,
+  comoConfirmarAtendido: { observacao, at: metAt },
+});
+
 // ---------------------------------------------------------------------------
 // IDs fixos por papel — facilita escrever as arestas referenciando-os.
 // ---------------------------------------------------------------------------
@@ -96,21 +104,22 @@ const DEC_MCU = 'demo-dec-mcu';
 
 const POS = {
   root: { x: 0, y: 0 },
-  catRec: { x: -700, y: 240 },
+  catRec: { x: -770, y: 240 },
   catExe: { x: 0, y: 240 },
   catDec: { x: 700, y: 240 },
 
-  // Recursos — 3 colunas × ~4 linhas
-  chassi: { x: -950, y: 500 },
-  motores: { x: -700, y: 500 },
-  driver: { x: -450, y: 500 },
-  mcu: { x: -950, y: 700 },
-  rf: { x: -700, y: 700 },
-  bateria: { x: -450, y: 700 },
-  rodas: { x: -950, y: 900 },
-  fios: { x: -700, y: 900 },
-  controle: { x: -450, y: 900 },
-  ferramentas: { x: -700, y: 1100 },
+  // Recursos — 3 colunas × ~4 linhas. Passo de 320px: o card mais largo
+  // (300px, zoom perto) ainda fica com 20px de folga entre irmãos.
+  chassi: { x: -1100, y: 500 },
+  motores: { x: -780, y: 500 },
+  driver: { x: -460, y: 500 },
+  mcu: { x: -1100, y: 700 },
+  rf: { x: -780, y: 700 },
+  bateria: { x: -460, y: 700 },
+  rodas: { x: -1100, y: 900 },
+  fios: { x: -780, y: 900 },
+  controle: { x: -460, y: 900 },
+  ferramentas: { x: -780, y: 1100 },
 
   // Execução — cascata vertical
   design: { x: 0, y: 500 },
@@ -141,7 +150,7 @@ const adversarialOnDriver: AdversarialCritique = {
   ],
   premissasOcultas: [
     'Assume que o motor não vai pedir corrente de partida — mas motores DC podem puxar 3-4× a corrente nominal por 100ms ao sair do zero.',
-    'Assume tensão de bateria constante — descarga reduz 11.1V→9V no fim, mudando o ponto de operação.',
+    'Assume tensão de bateria constante — descarga reduz 8.4V→6.6V no fim, mudando o ponto de operação.',
   ],
   criterioAlternativo:
     'Driver deve manter o motor em ≥90% do RPM nominal durante 5 minutos contínuos a 1.5A, sem entrar em proteção térmica, com a temperatura do CI estabilizando abaixo de 60°C medida por termopar.',
@@ -178,10 +187,10 @@ function makeNodes(): Record<string, ConceptNodeData> {
     order: 0,
     state: 'executing',
     notes:
-      'Decisões já fechadas: 2WD (skid steer), ESP32, chassi impresso 3D, LiPo 2S. Decisões abertas: nenhuma — todas confirmadas via decisionPickedId.',
+      'Decisões já fechadas: 2WD (skid steer), ESP32, chassi impresso 3D, LiPo 2S. Decisões abertas: nenhuma — todas já escolhidas.',
     history: [
       hist('created', 'Projeto criado a partir do plano "RC 2WD — clássico maker"', ts(0)),
-      hist('state', 'Avançou para executing', ts(3600)),
+      hist('state', 'Estado: validado → em execução', ts(3600)),
       hist('note', 'Adicionada nota sobre escopo da v1 (sem suspensão, sem luzes)', ts(7200)),
     ],
     aiSuggested: false,
@@ -252,7 +261,7 @@ function makeNodes(): Record<string, ConceptNodeData> {
     cons: [],
     oQue: 'pontos onde existe mais de um caminho técnico válido',
     porQue: 'Cada decisão fecha portas e altera os passos seguintes — vale explicitar.',
-    comoConfirmar: 'Todas as decisões pendentes resolvidas com `decisionPickedId`.',
+    comoConfirmar: 'Todas as decisões pendentes com uma opção escolhida.',
     confirmado: false,
     order: 2,
     state: 'validated',
@@ -295,6 +304,7 @@ function makeNodes(): Record<string, ConceptNodeData> {
         addedAt: ts(600),
         verifiedAt: ts(2500),
         addedByAI: true,
+        observacao: 'Conferi no fatiador: PETG, 100% infill, parede 1.6mm, 200×120×35mm.',
       }),
       gtRef({
         kind: 'medida',
@@ -313,6 +323,7 @@ function makeNodes(): Record<string, ConceptNodeData> {
         addedAt: ts(600),
         verifiedAt: ts(2900),
         addedByAI: true,
+        observacao: 'Abri o STL no GitHub e conferi a versão v3 no slicer, sem erros de malha.',
       }),
     ],
     confirmado: true,
@@ -359,6 +370,7 @@ function makeNodes(): Record<string, ConceptNodeData> {
         addedAt: ts(600),
         verifiedAt: ts(3200),
         addedByAI: true,
+        observacao: 'Li o datasheet do TT5840: 200 RPM @ 6V, stall 0.65A — bate com o anúncio.',
       }),
       gtRef({
         kind: 'medida',
@@ -419,6 +431,7 @@ function makeNodes(): Record<string, ConceptNodeData> {
         addedAt: ts(600),
         verifiedAt: ts(4000),
         addedByAI: true,
+        observacao: 'Abri o datasheet da ST: dropout de ~2.5V @ 1A confirmado na tabela elétrica.',
       }),
       gtRef({
         kind: 'medida',
@@ -474,6 +487,7 @@ function makeNodes(): Record<string, ConceptNodeData> {
         addedAt: ts(600),
         verifiedAt: ts(4800),
         addedByAI: true,
+        observacao: 'Conferi a gravação no módulo (ESP32-WROOM-32) e o datasheet da Espressif.',
       }),
       gtRef({
         kind: 'link',
@@ -483,6 +497,7 @@ function makeNodes(): Record<string, ConceptNodeData> {
         addedAt: ts(600),
         verifiedAt: ts(4900),
         addedByAI: true,
+        observacao: 'Abri o pinout oficial e conferi GPIO 18/19/23 livres para o SPI.',
       }),
     ],
     confirmado: true,
@@ -527,6 +542,7 @@ function makeNodes(): Record<string, ConceptNodeData> {
         addedAt: ts(600),
         verifiedAt: ts(5300),
         addedByAI: true,
+        observacao: 'Li a seção de RF do datasheet Nordic: 2.4GHz, até 2Mbps.',
       }),
       gtRef({
         kind: 'spec',
@@ -577,6 +593,7 @@ function makeNodes(): Record<string, ConceptNodeData> {
         addedAt: ts(600),
         verifiedAt: ts(5700),
         addedByAI: true,
+        observacao: 'Rótulo da bateria: 2S 7.4V, 1500mAh, 25C — igual ao pedido.',
       }),
       gtRef({
         kind: 'medida',
@@ -622,7 +639,8 @@ function makeNodes(): Record<string, ConceptNodeData> {
       '4 rodas idênticas, sem desalinhamento visual, encaixando firme no eixo.',
     confirmado: true,
     order: 6,
-    state: 'done',
+    state: 'validated',
+    confirmedWithoutSignal: true,
     notes: '',
     history: [
       hist('created', 'Recurso criado pela IA', ts(0)),
@@ -651,7 +669,8 @@ function makeNodes(): Record<string, ConceptNodeData> {
     comoConfirmar: 'Materiais em mãos, na bancada.',
     confirmado: true,
     order: 7,
-    state: 'done',
+    state: 'validated',
+    confirmedWithoutSignal: true,
     notes: '',
     history: [
       hist('created', 'Recurso criado pela IA', ts(0)),
@@ -682,7 +701,8 @@ function makeNodes(): Record<string, ConceptNodeData> {
       'Joystick centrado retorna analogRead próximo a 2048 (12-bit ADC do ESP32) com tolerância ±100. Botão pushdown gera GPIO LOW.',
     confirmado: true,
     order: 8,
-    state: 'done',
+    state: 'validated',
+    confirmedWithoutSignal: true,
     notes: '',
     history: [
       hist('created', 'Recurso criado pela IA', ts(0)),
@@ -712,7 +732,8 @@ function makeNodes(): Record<string, ConceptNodeData> {
     comoConfirmar: 'Todas as ferramentas presentes na bancada e funcionais.',
     confirmado: true,
     order: 9,
-    state: 'done',
+    state: 'validated',
+    confirmedWithoutSignal: true,
     notes: 'Tudo já está na bancada — verificação trivial.',
     history: [
       hist('created', 'Recurso criado pela IA', ts(0)),
@@ -730,6 +751,12 @@ function makeNodes(): Record<string, ConceptNodeData> {
     parentId: CAT_EXE,
     kind: 'passo',
     name: 'Projetar chassi em CAD',
+    ...attested(
+      'STL exportado sem erros no fatiador e furos M3 com folga de 0.2mm.',
+      'Fatiador não acusou erro; furo de teste aceitou o parafuso M3 sem forçar.',
+      ts(2700),
+      ts(2950),
+    ),
     fx: 'definir geometria, furação e tolerâncias antes de imprimir',
     problem: 'CAD com folga errada gera peça inutilizável.',
     confidence: 90,
@@ -742,6 +769,17 @@ function makeNodes(): Record<string, ConceptNodeData> {
       'Imprimir sem CAD revisado garante 2-3 reimpressões. Fusão antes economiza filamento.',
     comoConfirmar:
       'STL exportado, verificado em slicer (sem manifold errors), com tolerância de furo M3 = 3.2mm.',
+    groundTruthRefs: [
+      gtRef({
+        kind: 'medida',
+        label: 'Furo M3 no corpo de prova',
+        value: 'Ø 3.2mm medido no paquímetro; parafuso M3 entra sem forçar',
+        verificado: true,
+        addedAt: ts(2700),
+        verifiedAt: ts(2950),
+        addedByAI: false,
+      }),
+    ],
     confirmado: true,
     order: 0,
     state: 'done',
@@ -760,6 +798,12 @@ function makeNodes(): Record<string, ConceptNodeData> {
     parentId: CAT_EXE,
     kind: 'passo',
     name: 'Imprimir chassi em PETG',
+    ...attested(
+      'Peça inteira, sem warping, pesando até 190g.',
+      'Impressão saiu inteira, sem empenar; 178g na balança.',
+      ts(2950),
+      ts(3050),
+    ),
     fx: 'transformar STL em peça física',
     problem: 'PETG warpa se a temperatura de mesa estiver baixa.',
     confidence: 82,
@@ -791,6 +835,12 @@ function makeNodes(): Record<string, ConceptNodeData> {
     parentId: CAT_EXE,
     kind: 'passo',
     name: 'Montar drivetrain (motores + rodas)',
+    ...attested(
+      'As duas rodas giram livres e no mesmo sentido com 6V direto.',
+      'Liguei 6V da fonte: as duas giram no mesmo sentido, sem roçar no chassi.',
+      ts(3600),
+      ts(3690),
+    ),
     fx: 'fixar motores no chassi e rodas nos eixos',
     problem: 'Roda mal encaixada bate na lateral do chassi.',
     confidence: 88,
@@ -840,7 +890,7 @@ function makeNodes(): Record<string, ConceptNodeData> {
     notes: 'Em andamento. Já soldei bateria → driver, falta driver → motores e SPI do RF.',
     history: [
       hist('created', 'Passo criado pela IA', ts(0)),
-      hist('state', 'Avançou para executing', ts(7000)),
+      hist('state', 'Estado: validado → em execução', ts(7000)),
     ],
     aiSuggested: true,
     position: POS.ele,
@@ -966,6 +1016,12 @@ function makeNodes(): Record<string, ConceptNodeData> {
     parentId: CAT_DEC,
     kind: 'decisao',
     name: 'Chassi: impressão 3D ou MDF cortado?',
+    ...attested(
+      'A opção escolhida cabe no orçamento e eu tenho a máquina para fazer.',
+      'Tenho impressora com PETG em casa; custo de filamento ~R$25.',
+      ts(2100),
+      ts(2190),
+    ),
     fx: 'escolher processo de fabricação do chassi',
     problem: 'Cada caminho exige ferramental diferente.',
     confidence: 85,
@@ -1014,6 +1070,12 @@ function makeNodes(): Record<string, ConceptNodeData> {
     parentId: CAT_DEC,
     kind: 'decisao',
     name: 'Tração: 2WD ou 4WD?',
+    ...attested(
+      'A tração escolhida anda em chão liso sem patinar na arrancada.',
+      'Teste com protótipo 2WD no piso da sala: arrancou sem patinar.',
+      ts(2300),
+      ts(2390),
+    ),
     fx: 'escolher quantos motores tracionados',
     problem: 'Mais motores = mais torque mas mais corrente.',
     confidence: 80,
@@ -1061,6 +1123,12 @@ function makeNodes(): Record<string, ConceptNodeData> {
     parentId: CAT_DEC,
     kind: 'decisao',
     name: 'Direção: skid steer ou Ackermann?',
+    ...attested(
+      'A direção escolhida não exige peça que eu não consiga fabricar.',
+      'Skid steer não precisa de servo nem barra de direção — só os 2 motores.',
+      ts(2500),
+      ts(2590),
+    ),
     fx: 'escolher mecanismo de curva',
     problem: 'Ackermann é mais natural mas exige servo + linkagem mecânica.',
     confidence: 78,
@@ -1109,6 +1177,12 @@ function makeNodes(): Record<string, ConceptNodeData> {
     parentId: CAT_DEC,
     kind: 'decisao',
     name: 'MCU: ESP32 ou Arduino Nano?',
+    ...attested(
+      'O MCU tem PWM para 2 motores e SPI livre para o rádio.',
+      'Pinout do ESP32 confere: 4 PWM livres e VSPI separado para o NRF24.',
+      ts(2700),
+      ts(2790),
+    ),
     fx: 'escolher o microcontrolador',
     problem: 'Nano é mais barato mas tem só 2KB de RAM.',
     confidence: 85,
@@ -1252,6 +1326,9 @@ export function buildDemoProject(): Project {
     nodes: makeNodes(),
     edges: makeEdges(),
     rootId: ROOT,
+    // Posições curadas por coluna (Recursos · Execução · Decisões): o layout
+    // automático não deve reorganizar a demo ao aceitar sugestões.
+    manualLayout: true,
   };
 }
 

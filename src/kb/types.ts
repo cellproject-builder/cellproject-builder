@@ -64,4 +64,36 @@ export interface KBContextEntry {
   resumo: string[];
   fatos: KBFato[];
   tags: string[];
+  // Por que este doc entrou no contexto (frase do juiz de relevância, ou o
+  // aviso de que a base é pequena e foi injetada inteira).
+  reason?: string;
+}
+
+// Doc usado numa ação de IA — o que a UI mostra como "Baseado em: …".
+export interface KBUsedDoc {
+  id: string;
+  titulo: string;
+  reason: string;
+}
+
+// Como a seleção foi feita:
+// - 'all': base pequena (até `max` docs) → todos entram, sem chamada de IA;
+// - 'project': juiz de relevância por objetivo, reaproveitado entre nós;
+// - 'node': juiz por nó (só com base grande, > 5 docs);
+// - 'none': base vazia ou seleção indisponível.
+export type KBPickMode = 'all' | 'project' | 'node' | 'none';
+
+export interface KBContextResult {
+  entries: KBContextEntry[];
+  docs: KBUsedDoc[];
+  mode: KBPickMode;
+  // true quando a resposta veio do cache (nenhuma chamada de IA).
+  cached: boolean;
+}
+
+// Uso de cada doc em ações de IA — mostrado no modal "Meus PDFs".
+export interface KBDocUsage {
+  count: number;
+  lastUsedAt: number;
+  lastLabel: string;
 }
