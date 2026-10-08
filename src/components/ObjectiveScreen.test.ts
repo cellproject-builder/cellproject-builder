@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_PLANS,
+  assembleTree,
   formatClock,
   groupByStrategy,
   mergePlanBatches,
   mergeRules,
   normalizeRanks,
+  outlineFromPlan,
   parseRules,
   sameRules,
 } from './ObjectiveScreen';
 import { en, ptBR } from '@/i18n/messages';
+import type { AIPlan, AIPlanOutline } from '@/types';
 
 type P = { id: string; rank: number; strategy: 'reaproveitar' | 'hibrido' | 'do_zero' };
 const plan = (id: string, rank: number, strategy: P['strategy'] = 'reaproveitar'): P => ({
@@ -103,5 +106,68 @@ describe('copy da tela de objetivo', () => {
 
   it('en e pt-BR têm os mesmos exemplos', () => {
     expect(ptBR.objective.examples).toHaveLength(en.objective.examples.length);
+  });
+});
+
+describe('duas fases: esboço e árvore montando', () => {
+  const outline = {
+    id: 'o1',
+    title: 'Plano',
+    outline: {
+      categorias: [
+        { name: 'Recursos', kind: 'recursos', nodes: [{ name: 'Motor', kind: 'recurso' }, { name: 'Bateria', kind: 'recurso' }] },
+        { name: 'Execução', kind: 'execucao', nodes: [{ name: 'Montar', kind: 'passo' }, { name: 'Testar', kind: 'passo' }] },
+      ],
+    },
+  } as unknown as AIPlanOutline;
+
+  it('sem parcial: tudo pendente, com os nomes do esboço', () => {
+    const tree = assembleTree(outline, undefined);
+    expect(tree.map((c) => c.name)).toEqual(['Recursos', 'Execução']);
+    expect(tree.flatMap((c) => c.nodes.map((n) => n.state))).toEqual(['pending', 'pending', 'pending', 'pending']);
+  });
+
+  it('parcial: pronto quando o seguinte começou, o último está sendo escrito, o resto pendente', () => {
+    const tree = assembleTree(outline, {
+      categorias: [
+        { name: 'Recursos', children: [{ name: 'Motor 2207 (4x)' }, { name: 'Bateria' }] },
+        { name: 'Execução', children: [{ name: 'Montar o frame' }] },
+      ],
+    });
+    expect(tree[0].nodes.map((n) => [n.name, n.state])).toEqual([
+      ['Motor 2207 (4x)', 'ready'],
+      ['Bateria', 'ready'],
+    ]);
+    expect(tree[1].nodes.map((n) => [n.name, n.state])).toEqual([
+      ['Montar o frame', 'writing'],
+      ['Testar', 'pending'],
+    ]);
+  });
+
+  it('rascunho antigo: plano completo vira esboço com os mesmos nomes', () => {
+    const plan = {
+      id: 'p1',
+      title: 'T',
+      rank: 1,
+      tree: {
+        categorias: [
+          { tempId: 'c', name: 'Recursos', kind: 'recursos', oQue: '', porQue: '', children: [{ tempId: 'r', name: 'Motor', kind: 'recurso' }] },
+        ],
+      },
+    } as unknown as AIPlan;
+    const o = outlineFromPlan(plan);
+    expect('tree' in o).toBe(false);
+    expect(o.id).toBe('p1');
+    expect(o.outline.categorias[0].nodes).toEqual([{ name: 'Motor', kind: 'recurso' }]);
+  });
+
+  it('copy das duas fases nos dois idiomas, sem caixa alta', () => {
+    for (const m of [en, ptBR]) {
+      const tp = m.ai.twoPhase;
+      for (const v of [tp.outlineOnly, tp.expandingHint, tp.startingHint, tp.backToPlans, tp.startingTitle('x')]) {
+        expect(v.trim().length).toBeGreaterThan(0);
+        expect(v).not.toMatch(/[A-ZÁÉÍÓÚÇ]{4,}/);
+      }
+    }
   });
 });

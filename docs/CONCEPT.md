@@ -92,9 +92,10 @@ Progress counts **effective leaves**: every actionable node (`recurso`, `passo`,
 ### 1. Project creation — `ObjectiveScreen`
 
 1. The user types a name and writes the goal.
-2. `generatePlans(objective)` requests 1–3 alternative plans — each a different **construction strategy** (`reaproveitar` / `hibrido` / `do_zero`), reuse-led by default — via streaming (`streamObject`).
-3. The screen shows the plan assembling live (phase `connecting` → `streaming` → `finalizing` → `done`) and labels each card with its strategy.
-4. The user consciously picks a plan (no auto-selection). `createProjectFromPlan` materializes the tree and persists the chosen `constructionStrategy`, which conditions later `decomposeNode` / `replanFromFailure`.
+2. **Phase 1 — outlines.** `outlinePlans(objective)` requests 3 light alternative plans via streaming (`streamObject`): each a different **construction strategy** (`reaproveitar` / `hibrido` / `do_zero`), reuse-led by default, with the full header (title, pitch, approach, estimates, rules check, rank and its reason) but only the tree **skeleton** — categories and node names, no node details. The first outline shows up in ~12 s and all three in ~30 s (vs. 2–4 min for full plans in one call). The cards say plainly that they are a summary and that the detailed step by step is put together when the user picks one. "Generate more" sends the outlines already shown (`existingOutlines`) so the new batch explores other angles; the set is re-ranked (one ★, a "new" badge, at most 9).
+3. **Phase 2 — expansion of the chosen one only.** Selecting a card starts `expandPlan(objective, outline)` speculatively, reusing the research digest of phase 1. The selected card shows the tree assembling (`nodesReady` / `nodesTotal`); switching the selection aborts the previous expansion. Expanded trees are cached in the draft (`objectiveDraft.expanded`, keyed by the outline id), so going back to a card costs nothing.
+4. The user consciously picks a plan (no auto-selection) and presses Start. With the tree cached, `createProjectFromOutline` materializes it at once; otherwise a progress screen shows the tree assembling and the project opens when it lands. The plans not chosen are kept as alternatives (as outlines, or full trees if they were expanded). The chosen `constructionStrategy` conditions later `decomposeNode` / `replanFromFailure`.
+5. Drafts, outlines and cached trees survive a reload. An expansion interrupted by the reload (`objectiveDraft.expansion`) is cleared and restarted if its card is still selected.
 
 ### 2. Exploration and expansion — `GraphCanvas` + `DetailPanel`
 
@@ -166,11 +167,12 @@ The four mechanisms above are no longer optional decoration at the moment that m
 
 ### Model contract
 
-Five public functions in `src/ai/service.ts`. All use `baseSystem()` except `critiqueNode`, which uses `criticSystem()` (a distinct skeptic persona — that's what makes the second pass actually adversarial).
+Six public functions in `src/ai/service.ts` (plus the legacy `generatePlans`, still exported but no longer used by the UI). All use `baseSystem()` except `critiqueNode`, which uses `criticSystem()` (a distinct skeptic persona — that's what makes the second pass actually adversarial).
 
 | Function              | System         | Return                                  | Use                                              |
 | --------------------- | -------------- | --------------------------------------- | ------------------------------------------------ |
-| `generatePlans`       | BASE           | `AIPlan[]` (streaming via callback)     | Initial screen — 1 to 3 alternative plans        |
+| `outlinePlans`        | BASE           | `PlanOutline[]` (streaming via callback)| Initial screen, phase 1 — 3 plan outlines (header + node names) |
+| `expandPlan`          | BASE           | `AIPlan` (streaming, `nodesReady`/`nodesTotal`) | Initial screen, phase 2 — full tree of the chosen outline |
 | `decomposeNode`       | BASE           | `{ nodes, edges }` validated by schema  | Expand an existing node                          |
 | `explainNode`         | BASE + tutor   | `string` (markdown)                     | Tutor mode content                               |
 | `critiqueNode`        | **CRITIC**     | `AdversarialCritique`                   | Ground truth (b) — break the node as a skeptic   |
@@ -178,7 +180,7 @@ Five public functions in `src/ai/service.ts`. All use `baseSystem()` except `cri
 
 The model **never** receives real project ids — it uses short `tempId`s that are mapped to `nanoid`s through `idMap` during hydration. Total isolation between the model's language and the internal domain.
 
-The planner (`generatePlans` / `decomposeNode` / `replanFromFailure`) is instructed to populate `groundTruthHints` whenever a natural anchor exists (a measurement with unit, a concrete spec, a known link). Hints enter the node as `groundTruthRefs` with `verificado: false` — it's the user who turns each hint into truth by checking in the real world.
+The planner (`expandPlan` / `decomposeNode` / `replanFromFailure`) is instructed to populate `groundTruthHints` whenever a natural anchor exists (a measurement with unit, a concrete spec, a known link). Hints enter the node as `groundTruthRefs` with `verificado: false` — it's the user who turns each hint into truth by checking in the real world.
 
 ## What Cellproject is **not**
 

@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  generatePlans,
+  outlinePlans,
+  expandPlan,
+  countOutlineNodes,
   type AIErrorInfo,
   type ExistingPlanSummary,
-  type PlanProgressEvent,
+  type ExpandProgressEvent,
+  type OutlineProgressEvent,
 } from '@/ai/service';
 import { useGraphStore } from '@/store';
 import { useKBStore } from '@/kb/store';
 import { useConfigStore, type Provider } from '@/config/store';
 import { useLocaleStore, useT, type Messages } from '@/i18n';
-import type { AIPlan, ConstructionStrategy } from '@/types';
+import type { AIPlan, AIPlanOutline, ConstructionStrategy, WebResearchDigest } from '@/types';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { InlineError } from './ui/InlineError';
@@ -98,6 +101,60 @@ export function formatClock(ms: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+// Rascunho antigo (planos completos de antes das duas fases): vira esboço +
+// árvore já em cache, sem gastar nada de novo.
+export function outlineFromPlan(plan: AIPlan): AIPlanOutline {
+  const { tree, ...header } = plan;
+  return {
+    ...header,
+    outline: {
+      categorias: tree.categorias.map((c) => ({
+        name: c.name,
+        kind: c.kind,
+        nodes: c.children.map((n) => ({ name: n.name, kind: n.kind })),
+      })),
+    },
+  };
+}
+
+// Uma linha da árvore no card: pronta, sendo escrita agora, ou só no esboço.
+export type TreeRowState = 'ready' | 'writing' | 'pending';
+export interface TreeView {
+  key: string;
+  name: string;
+  nodes: { key: string; name: string; state: TreeRowState }[];
+}
+
+// A árvore montando: o que já chegou do stream da expansão (com o nome que o
+// modelo afinou) seguido do resto do esboço, ainda pendente. Um nó está pronto
+// quando o seguinte já começou — o JSON chega em ordem.
+export function assembleTree(
+  outline: AIPlanOutline,
+  partial: ExpandProgressEvent['partial'] | undefined,
+): TreeView[] {
+  const pcats = partial?.categorias ?? [];
+  const total = Math.max(outline.outline.categorias.length, pcats.length);
+  const out: TreeView[] = [];
+  for (let i = 0; i < total; i++) {
+    const oc = outline.outline.categorias[i];
+    const pc = pcats[i];
+    const written = (pc?.children ?? []).filter((c) => !!c?.name?.trim());
+    const laterStarted = pcats.slice(i + 1).some((c) => !!c?.name);
+    const nodes: TreeView['nodes'] = written.map((c, j) => ({
+      key: `w${j}`,
+      name: c!.name!.trim(),
+      state: j < written.length - 1 || laterStarted ? 'ready' : 'writing',
+    }));
+    (oc?.nodes ?? []).slice(written.length).forEach((n, j) => {
+      nodes.push({ key: `o${written.length + j}`, name: n.name, state: 'pending' });
+    });
+    const name = pc?.name?.trim() || oc?.name || '';
+    if (!name && nodes.length === 0) continue;
+    out.push({ key: `c${i}`, name, nodes });
+  }
+  return out;
+}
+
 const CREDITS_URL: Record<Provider, string> = {
   openrouter: 'https://openrouter.ai/settings/credits',
   openai: 'https://platform.openai.com/settings/organization/billing/overview',
@@ -119,32 +176,47 @@ export function ObjectiveScreen() {
   // O App só monta esta tela depois da hidratação, então ler uma vez basta.
   const [draft0] = useState(() => useGraphStore.getState().objectiveDraft);
   const setObjectiveDraft = useGraphStore((s) => s.setObjectiveDraft);
-  const createProjectFromPlan = useGraphStore((s) => s.createProjectFromPlan);
+  const setOutlines = useGraphStore((s) => s.setOutlines);
+  const setExpandedPlan = useGraphStore((s) => s.setExpandedPlan);
+  const setExpansion = useGraphStore((s) => s.setExpansion);
+  const createProjectFromOutline = useGraphStore((s) => s.createProjectFromOutline);
   const loadDemoProject = useGraphStore((s) => s.loadDemoProject);
   const archivedProject = useGraphStore((s) => s.archivedProject);
   const undoReset = useGraphStore((s) => s.undoReset);
 
+  // Esboços, cache de árvores e o "para quê" vivem só no store.
+  const storedOutlines = useGraphStore((s) => s.objectiveDraft.outlines);
+  const outlines = storedOutlines && storedOutlines.length > 0 ? storedOutlines : null;
+  const expanded = useGraphStore((s) => s.objectiveDraft.expanded);
+  const plansFor = useGraphStore((s) => s.objectiveDraft.plansFor);
+  const outlineResearch = useGraphStore((s) => s.objectiveDraft.outlineResearch);
+
+  const hasLegacyPlans = !draft0.outlines?.length && !!draft0.plans?.length;
   const [name, setName] = useState(draft0.name);
   const [objective, setObjective] = useState(draft0.objective);
   const [rules, setRules] = useState<string[]>(draft0.rules);
   const [ruleDraft, setRuleDraft] = useState(draft0.ruleDraft);
-  const [plans, setPlans] = useState<AIPlan[] | null>(
-    draft0.plans && draft0.plans.length > 0 ? draft0.plans : null,
-  );
-  const [plansFor, setPlansFor] = useState(draft0.plansFor);
   const [selectedId, setSelectedId] = useState<string | null>(draft0.selectedId);
-  const [view, setView] = useState<View>(plans ? 'plans' : 'form');
+  const [view, setView] = useState<View>(
+    draft0.outlines?.length || hasLegacyPlans ? 'plans' : 'form',
+  );
   const [newIds, setNewIds] = useState<string[]>([]);
   // Avisos de retomada: planos restaurados / geração interrompida pelo reload.
   const [restoredAt, setRestoredAt] = useState<number | null>(
-    plans ? draft0.updatedAt || null : null,
+    draft0.outlines?.length || hasLegacyPlans ? draft0.updatedAt || null : null,
   );
   const [interrupted, setInterrupted] = useState(draft0.generatingSince != null);
 
-  const [progress, setProgress] = useState<PlanProgressEvent | null>(null);
+  const [progress, setProgress] = useState<OutlineProgressEvent | null>(null);
   const [kbOpen, setKbOpen] = useState(false);
   const [kbUsed, setKbUsed] = useState<{ titulo: string; docId: string }[]>([]);
   const [settings, setSettings] = useState<{ advanced: boolean } | null>(null);
+
+  // Expansão (fase 2): um plano por vez, o selecionado.
+  const [expandProgress, setExpandProgress] = useState<ExpandProgressEvent | null>(null);
+  const [expandingId, setExpandingId] = useState<string | null>(null);
+  // "Começar" clicado sem a árvore pronta: tela de espera até o cache chegar.
+  const [starting, setStarting] = useState(false);
 
   const kbCount = useKBStore((s) => Object.keys(s.docs).length);
   const getContextFor = useKBStore((s) => s.getContextFor);
@@ -155,13 +227,17 @@ export function ObjectiveScreen() {
     s.activeProvider ? s.providers[s.activeProvider] : undefined,
   );
 
-  // Uma geração = KB + (pesquisa) + planos, com cancelamento real.
-  const runPlans = async (
+  // Pesquisa web feita junto com o lote de esboços — a expansão reaproveita.
+  const batchResearchRef = useRef<WebResearchDigest | null>(null);
+
+  // Fase 1: KB + (pesquisa) + esboços, com cancelamento real.
+  const runOutlines = async (
     signal: AbortSignal,
     objectiveText: string,
     effRules: string[],
     existing?: ExistingPlanSummary[],
   ) => {
+    batchResearchRef.current = null;
     const kbPromise = getContextFor({ label: tr.notify.objectivePromptLabel(objectiveText) });
     kbPromise.then(
       (kb) => {
@@ -169,12 +245,14 @@ export function ObjectiveScreen() {
           setKbUsed(kb.map((c) => ({ titulo: c.titulo, docId: c.docId })));
         }
       },
-      () => {}, // a falha chega pelo generatePlans
+      () => {}, // a falha chega pelo outlinePlans
     );
-    return generatePlans(
+    return outlinePlans(
       objectiveText,
       (ev) => {
-        if (!signal.aborted) setProgress(ev);
+        if (signal.aborted) return;
+        if (ev.research) batchResearchRef.current = ev.research;
+        setProgress(ev);
       },
       kbPromise,
       effRules,
@@ -182,9 +260,83 @@ export function ObjectiveScreen() {
       { signal },
     );
   };
-  const gen = useAIAction(runPlans);
-  const more = useAIAction(runPlans);
+  const gen = useAIAction(runOutlines);
+  const more = useAIAction(runOutlines);
   const busy = gen.running || more.running;
+
+  // Fase 2: árvore completa de um esboço.
+  const runExpand = async (
+    signal: AbortSignal,
+    outline: AIPlanOutline,
+    objectiveText: string,
+    effRules: string[],
+    research: WebResearchDigest | null,
+  ) => {
+    const kbPromise = getContextFor({ label: tr.notify.objectivePromptLabel(objectiveText) });
+    return expandPlan(
+      objectiveText,
+      outline,
+      (ev) => {
+        if (signal.aborted) return;
+        if (ev.warning) expandWarningRef.current = ev.warning;
+        setExpandProgress(ev);
+      },
+      kbPromise,
+      effRules,
+      { signal, research },
+    );
+  };
+  const expand = useAIAction(runExpand);
+  const expandWarningRef = useRef<string | null>(null);
+  // Id da expansão em voo e um token por execução: uma execução substituída
+  // (troca de seleção, cancelar) não mexe mais no estado ao terminar.
+  const activeExpandRef = useRef<string | null>(null);
+  const expandTokenRef = useRef(0);
+
+  const stopExpansion = () => {
+    expand.cancel();
+    expandTokenRef.current++;
+    activeExpandRef.current = null;
+    setExpandingId(null);
+    setExpandProgress(null);
+    if (useGraphStore.getState().objectiveDraft.expansion) setExpansion(null);
+  };
+
+  // Expansão especulativa: começa ao selecionar o card, antes do "Começar".
+  const startExpansion = async (id: string) => {
+    const d = useGraphStore.getState().objectiveDraft;
+    const outline = d.outlines?.find((o) => o.id === id);
+    if (!outline) return;
+    if (d.expanded[id]) {
+      // Já em cache: nada a gerar — e a expansão de outro card perde o sentido.
+      if (activeExpandRef.current) stopExpansion();
+      return;
+    }
+    if (activeExpandRef.current === id) return;
+    const token = ++expandTokenRef.current;
+    activeExpandRef.current = id;
+    setExpandingId(id);
+    setExpandProgress(null);
+    expandWarningRef.current = null;
+    setExpansion(id);
+    const result = await expand.run(
+      outline,
+      d.plansFor?.objective ?? objective.trim(),
+      d.plansFor?.rules ?? effectiveRules,
+      d.outlineResearch,
+    );
+    if (token !== expandTokenRef.current) return; // substituída ou cancelada
+    activeExpandRef.current = null;
+    if (result) {
+      setExpandedPlan(id, result);
+      setExpandingId(null);
+      setExpandProgress(null);
+      // Árvore recuperada pela metade: avisa o que ficou de fora.
+      if (expandWarningRef.current) toast.show({ message: expandWarningRef.current });
+    } else if (useGraphStore.getState().objectiveDraft.expansion?.outlineId === id) {
+      setExpansion(null);
+    }
+  };
 
   const mountedRef = useRef(true);
   const moreProgressRef = useRef<HTMLDivElement>(null);
@@ -192,29 +344,53 @@ export function ObjectiveScreen() {
   cancelRef.current = () => {
     gen.cancel();
     more.cancel();
+    stopExpansion();
   };
+  const startExpansionRef = useRef(startExpansion);
+  startExpansionRef.current = startExpansion;
+
   useEffect(() => {
     mountedRef.current = true;
+    const store = useGraphStore.getState();
     // Geração que ficou "em andamento" no rascunho morreu com o reload.
-    if (useGraphStore.getState().objectiveDraft.generatingSince != null) {
-      useGraphStore.getState().setObjectiveDraft({ generatingSince: null });
+    if (store.objectiveDraft.generatingSince != null) {
+      store.setObjectiveDraft({ generatingSince: null });
+    }
+    // Rascunho de antes das duas fases: planos completos viram esboços com a
+    // árvore já em cache.
+    if (!store.objectiveDraft.outlines?.length && store.objectiveDraft.plans?.length) {
+      const legacy = store.objectiveDraft.plans;
+      store.setOutlines(legacy.map(outlineFromPlan));
+      legacy.forEach((p) => store.setExpandedPlan(p.id, p));
+      store.setObjectiveDraft({ plans: null, selectedId: draft0.selectedId });
+    }
+    // Expansão interrompida pelo reload: limpa e, se o card continua
+    // selecionado, detalha de novo. (draft0 — o StrictMode monta duas vezes.)
+    const interruptedExpansion = draft0.expansion;
+    if (interruptedExpansion) {
+      useGraphStore.getState().setExpansion(null);
+      const d = useGraphStore.getState().objectiveDraft;
+      if (d.selectedId === interruptedExpansion.outlineId && !d.expanded[interruptedExpansion.outlineId]) {
+        void startExpansionRef.current(interruptedExpansion.outlineId);
+      }
     }
     return () => {
       mountedRef.current = false;
       // Saiu da tela (demo, projeto criado): não gasta crédito à toa.
       cancelRef.current();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Espelha o formulário e os planos no rascunho persistido.
+  // Espelha o formulário e a seleção no rascunho persistido.
   const firstSync = useRef(true);
   useEffect(() => {
     if (firstSync.current) {
       firstSync.current = false;
       return;
     }
-    setObjectiveDraft({ name, objective, rules, ruleDraft, plans, plansFor, selectedId });
-  }, [name, objective, rules, ruleDraft, plans, plansFor, selectedId, setObjectiveDraft]);
+    setObjectiveDraft({ name, objective, rules, ruleDraft, selectedId });
+  }, [name, objective, rules, ruleDraft, selectedId, setObjectiveDraft]);
 
   // Regras efetivas = chips + o que ficou digitado sem "+ adicionar".
   const effectiveRules = mergeRules(rules, parseRules(ruleDraft));
@@ -236,7 +412,7 @@ export function ObjectiveScreen() {
   };
 
   const sameInputs =
-    !!plans &&
+    !!outlines &&
     !!plansFor &&
     plansFor.objective === objective.trim() &&
     sameRules(plansFor.rules, effectiveRules);
@@ -245,6 +421,8 @@ export function ObjectiveScreen() {
     const obj = objective.trim();
     if (!obj || busy) return;
     const eff = commitPendingRules();
+    stopExpansion();
+    setStarting(false);
     setProgress(null);
     setKbUsed([]);
     setInterrupted(false);
@@ -260,19 +438,18 @@ export function ObjectiveScreen() {
       setProgress(null);
       return;
     }
-    setPlans(normalizeRanks(result));
-    setPlansFor({ objective: obj, rules: eff });
     // Nada pré-selecionado: a estratégia é escolha consciente do usuário.
     setSelectedId(null);
+    setOutlines(normalizeRanks(result), { objective: obj, rules: eff }, batchResearchRef.current);
     setNewIds([]);
     setRestoredAt(null);
     setView('plans');
   };
 
-  // Mais alternativas: o prompt leva os planos já mostrados pra explorar
+  // Mais alternativas: o prompt leva os esboços já mostrados pra explorar
   // ângulos diferentes; o conjunto todo é re-ranqueado na fusão.
   const handleMorePlans = async () => {
-    if (!plans || busy || plans.length >= MAX_PLANS) return;
+    if (!outlines || busy || outlines.length >= MAX_PLANS) return;
     const obj = plansFor?.objective ?? objective.trim();
     const eff = mergeRules(plansFor?.rules ?? [], commitPendingRules());
     setProgress(null);
@@ -284,7 +461,7 @@ export function ObjectiveScreen() {
       moreProgressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
     );
     setObjectiveDraft({ generatingSince: Date.now() });
-    const existing = plans.map((p) => ({
+    const existing = outlines.map((p) => ({
       title: p.title,
       strategy: p.strategy,
       approach: p.approach,
@@ -297,10 +474,18 @@ export function ObjectiveScreen() {
       setProgress(null);
       return;
     }
-    const merged = mergePlanBatches(plans, result);
-    setPlans(merged.plans);
+    // Lê de novo: o cache pode ter ganhado árvores durante a geração.
+    const current = useGraphStore.getState().objectiveDraft;
+    const merged = mergePlanBatches(current.outlines ?? [], result);
+    const keep = new Set(merged.plans.map((p) => p.id));
+    if (activeExpandRef.current && !keep.has(activeExpandRef.current)) stopExpansion();
+    if (selectedId && !keep.has(selectedId)) setSelectedId(null);
+    setOutlines(
+      merged.plans,
+      { objective: obj, rules: eff },
+      current.outlineResearch ?? batchResearchRef.current,
+    );
     setNewIds(merged.newIds);
-    setPlansFor({ objective: obj, rules: eff });
   };
 
   const handleCancel = () => {
@@ -310,20 +495,45 @@ export function ObjectiveScreen() {
     setObjectiveDraft({ generatingSince: null });
   };
 
-  const handleConfirm = () => {
-    if (!plans || !selectedId) return;
-    const plan = plans.find((p) => p.id === selectedId);
-    if (!plan) return;
+  const handleSelect = (id: string) => {
+    setSelectedId(id);
+    void startExpansion(id);
+  };
+
+  const effectiveObjective = plansFor?.objective ?? objective.trim();
+  const effectiveRulesForProject = plansFor?.rules ?? effectiveRules;
+
+  const createProject = (id: string) => {
+    const outline = outlines?.find((o) => o.id === id);
+    if (!outline) return false;
     cancelRef.current();
-    const alternatives = plans.filter((p) => p.id !== plan.id);
-    createProjectFromPlan(
-      plansFor?.objective ?? objective.trim(),
-      name.trim() || plan.title,
-      plan,
-      plansFor?.rules ?? effectiveRules,
-      alternatives,
+    return createProjectFromOutline(
+      effectiveObjective,
+      name.trim() || outline.title,
+      id,
+      effectiveRulesForProject,
     );
   };
+
+  const handleConfirm = () => {
+    if (!outlines || !selectedId) return;
+    if (expanded[selectedId]) {
+      createProject(selectedId);
+      return;
+    }
+    // Sem a árvore ainda: espera a expansão em andamento (ou começa uma).
+    setStarting(true);
+    if (activeExpandRef.current !== selectedId) void startExpansion(selectedId);
+  };
+
+  // A árvore chegou enquanto o usuário esperava: cria o projeto.
+  useEffect(() => {
+    if (starting && selectedId && expanded[selectedId]) {
+      setStarting(false);
+      createProject(selectedId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [starting, selectedId, expanded]);
 
   const applyExample = (text: string) => {
     const prev = objective;
@@ -368,30 +578,47 @@ export function ObjectiveScreen() {
       : d.toLocaleString(locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
-  const sortedPlans = plans ? [...plans].sort((a, b) => a.rank - b.rank) : [];
-  const groups = groupByStrategy(sortedPlans);
+  const sortedOutlines = outlines ? [...outlines].sort((a, b) => a.rank - b.rank) : [];
+  const groups = groupByStrategy(sortedOutlines);
   const grouped = groups.some((g) => g.plans.length > 1);
-  const selectedPlan = sortedPlans.find((p) => p.id === selectedId) ?? null;
+  const selectedOutline = sortedOutlines.find((p) => p.id === selectedId) ?? null;
   const newSet = new Set(newIds);
+  const research = progress?.research ?? (view === 'plans' ? outlineResearch : null);
 
-  const renderCard = (p: AIPlan) => (
+  // Estado da expansão de um card: em andamento, com erro, ou nenhum.
+  const expansionFor = (id: string): CardExpansion | null => {
+    if (expandingId !== id || expanded[id]) return null;
+    if (expand.running) return { kind: 'running', progress: expandProgress };
+    if (expand.error) {
+      return {
+        kind: 'error',
+        error: expand.error,
+        onRetry: () => void startExpansion(id),
+        action: errorAction(expand.error),
+      };
+    }
+    return null;
+  };
+
+  const renderCard = (p: AIPlanOutline) => (
     <PlanCard
       key={p.id}
-      plan={p}
+      outline={p}
+      plan={expanded[p.id] ?? null}
+      expansion={expansionFor(p.id)}
       selected={selectedId === p.id}
       isNew={newSet.has(p.id)}
       collapsible={isMobile && p.rank !== 1}
-      onSelect={() => setSelectedId(p.id)}
+      onSelect={() => handleSelect(p.id)}
       tr={tr}
     />
   );
-
 
   return (
     <div className="fixed inset-0 bg-bg-primary overflow-y-auto scroll-stable">
       <div
         className={`mx-auto w-full px-4 sm:px-8 pt-[max(env(safe-area-inset-top),1rem)] pb-[max(env(safe-area-inset-bottom),1rem)] sm:pt-[max(env(safe-area-inset-top),1.5rem)] sm:pb-[max(env(safe-area-inset-bottom),2rem)] ${
-          view === 'plans' ? 'max-w-5xl' : 'max-w-2xl'
+          view === 'plans' && !starting ? 'max-w-5xl' : 'max-w-2xl'
         }`}
       >
         {/* Linha utilitária — modelo/configurações, demo e idioma */}
@@ -481,7 +708,7 @@ export function ObjectiveScreen() {
           </div>
         )}
 
-        {kbUsed.length > 0 && (
+        {kbUsed.length > 0 && !starting && (
           <div className="mb-4 max-w-2xl rounded-card bg-ai-accent/8 px-3 py-2 text-footnote">
             <span className="font-medium text-ai-accent">
               <span aria-hidden>✦ </span>
@@ -495,14 +722,14 @@ export function ObjectiveScreen() {
 
         {/* Fontes reais consultadas na pesquisa web — links clicáveis, são as
             mesmas URLs que o plano pode citar como âncora kind="link". */}
-        {progress?.research && progress.research.sources.length > 0 && (
+        {research && research.sources.length > 0 && !starting && (
           <div className="mb-4 rounded-card bg-ai-accent/8 px-3 py-2 text-footnote">
             <span className="font-medium text-ai-accent">
               <span aria-hidden>✦ </span>
               {tr.objective.webSources}
             </span>{' '}
             <span className="text-text-secondary">
-              {progress.research.sources.map((s, i) => (
+              {research.sources.map((s, i) => (
                 <span key={s.url}>
                   {i > 0 && ', '}
                   <a
@@ -524,13 +751,13 @@ export function ObjectiveScreen() {
           <ApiKeyGate onClose={() => setSettings(null)} initialAdvanced={settings.advanced} />
         )}
 
-        {interrupted && !busy && (
+        {interrupted && !busy && !starting && (
           <Notice
             onDismiss={() => setInterrupted(false)}
             action={{
               label: tr.objective.interruptedAction,
-              onClick: () => (plans && view === 'plans' ? handleMorePlans() : handleGenerate()),
-              disabled: !objective.trim() && !plans,
+              onClick: () => (outlines && view === 'plans' ? handleMorePlans() : handleGenerate()),
+              disabled: !objective.trim() && !outlines,
             }}
             dismissLabel={tr.common.dismiss}
           >
@@ -705,18 +932,18 @@ export function ObjectiveScreen() {
                   onClick={() => setView('plans')}
                   className="btn btn-primary h-9 px-5"
                 >
-                  {tr.objective.viewExistingPlans(plans!.length)}
+                  {tr.objective.viewExistingPlans(outlines!.length)}
                 </button>
               </div>
             ) : (
               <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-1">
-                {plans && (
+                {outlines && (
                   <button
                     type="button"
                     onClick={() => setView('plans')}
                     className="tap btn btn-tertiary"
                   >
-                    {tr.objective.viewPreviousPlans(plans.length)}
+                    {tr.objective.viewPreviousPlans(outlines.length)}
                   </button>
                 )}
                 <button
@@ -726,7 +953,7 @@ export function ObjectiveScreen() {
                   className="btn btn-primary h-9 px-5 min-w-0"
                 >
                   <span aria-hidden>✦</span>
-                  <span className="truncate">{plans ? tr.objective.regenerate : tr.objective.generate}</span>
+                  <span className="truncate">{outlines ? tr.objective.regenerate : tr.objective.generate}</span>
                 </button>
               </div>
             )}
@@ -741,12 +968,22 @@ export function ObjectiveScreen() {
           </div>
         )}
 
-        {view === 'plans' && plans && (
+        {view === 'plans' && outlines && starting && selectedOutline && (
+          <StartingView
+            outline={selectedOutline}
+            expansion={expansionFor(selectedOutline.id)}
+            elapsedMs={expand.elapsedMs}
+            onBack={() => setStarting(false)}
+            tr={tr}
+          />
+        )}
+
+        {view === 'plans' && outlines && !starting && (
           <div className="space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <h1 className="text-title2 font-semibold tracking-[-0.01em] text-text-primary">
-                  {plans[0]?.archetype === 'entender'
+                  {outlines[0]?.archetype === 'entender'
                     ? tr.objective.pickStrategyTitleUnderstand
                     : tr.objective.pickStrategyTitle}
                 </h1>
@@ -774,7 +1011,7 @@ export function ObjectiveScreen() {
                 onDismiss={() => setProgress((p) => (p ? { ...p, warning: undefined } : p))}
                 dismissLabel={tr.common.dismiss}
                 action={
-                  plans.length < MAX_PLANS
+                  outlines.length < MAX_PLANS
                     ? { label: tr.objective.partialAction, onClick: handleMorePlans }
                     : undefined
                 }
@@ -796,7 +1033,7 @@ export function ObjectiveScreen() {
                 </section>
               ))
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{sortedPlans.map(renderCard)}</div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{sortedOutlines.map(renderCard)}</div>
             )}
 
             {more.running ? (
@@ -809,7 +1046,7 @@ export function ObjectiveScreen() {
                   tr={tr}
                 />
               </div>
-            ) : plans.length >= MAX_PLANS ? (
+            ) : outlines.length >= MAX_PLANS ? (
               <p className="text-footnote text-text-muted text-center py-2">{tr.objective.morePlansLimit}</p>
             ) : (
               <div className="flex justify-center">
@@ -840,11 +1077,11 @@ export function ObjectiveScreen() {
                 <button
                   type="button"
                   onClick={handleConfirm}
-                  disabled={!selectedPlan}
+                  disabled={!selectedOutline}
                   className="btn btn-primary h-9 w-full min-w-0 px-4"
                 >
                   <span className="truncate">
-                    {selectedPlan ? tr.objective.startWith(selectedPlan.title) : tr.objective.pickFirst}
+                    {selectedOutline ? tr.objective.startWith(selectedOutline.title) : tr.objective.pickFirst}
                   </span>
                 </button>
               </div>
@@ -859,6 +1096,15 @@ export function ObjectiveScreen() {
 // ---------------------------------------------------------------------------
 // Peças
 // ---------------------------------------------------------------------------
+
+type CardExpansion =
+  | { kind: 'running'; progress: ExpandProgressEvent | null }
+  | {
+      kind: 'error';
+      error: AIErrorInfo;
+      onRetry: () => void;
+      action?: { label: string; onClick: () => void };
+    };
 
 function GearIcon() {
   return (
@@ -886,6 +1132,30 @@ function ChevronIcon({ className = '' }: { className?: string }) {
     >
       <path d="M3.5 2 6.5 5l-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+function CheckIcon({ size = 14, draw = false }: { size?: number; draw?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden className="shrink-0 text-state-done">
+      <path
+        d="M3 7.4 5.8 10 11 4.2"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        {...(draw ? { pathLength: 1, strokeDasharray: '1', className: 'animate-check-draw' } : {})}
+      />
+    </svg>
+  );
+}
+
+function Spinner({ className = 'h-3.5 w-3.5' }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`shrink-0 rounded-full border-2 border-accent/25 border-t-accent animate-spin ${className}`}
+    />
   );
 }
 
@@ -947,7 +1217,7 @@ function GenerationProgress({
   onCancel,
   tr,
 }: {
-  progress: PlanProgressEvent | null;
+  progress: OutlineProgressEvent | null;
   elapsedMs: number;
   withResearch: boolean;
   onCancel: () => void;
@@ -985,7 +1255,7 @@ function GenerationProgress({
       label:
         stage === 3
           ? tr.objective.stepWriting(writingN, PLANS_PER_BATCH, writingTitle)
-          : tr.ai.progress.streaming,
+          : tr.ai.twoPhase.outlineProgress.streaming,
       state: state(3),
     },
     { key: 'check', label: tr.objective.stepChecking, state: state(4) },
@@ -1014,20 +1284,9 @@ function GenerationProgress({
           <li key={s.key} className="flex items-start gap-2.5">
             <span aria-hidden className="mt-px flex h-4 w-4 shrink-0 items-center justify-center">
               {s.state === 'done' ? (
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-state-done">
-                  <path
-                    d="M3 7.4 5.8 10 11 4.2"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    pathLength={1}
-                    strokeDasharray="1"
-                    className="animate-check-draw"
-                  />
-                </svg>
+                <CheckIcon draw />
               ) : s.state === 'active' ? (
-                <span className="h-3.5 w-3.5 rounded-full border-2 border-accent/25 border-t-accent animate-spin" />
+                <Spinner />
               ) : (
                 <span className="h-1.5 w-1.5 rounded-full bg-text-faint/50" />
               )}
@@ -1054,19 +1313,20 @@ function GenerationProgress({
         {current?.label}
       </span>
 
-      <PartialPlansPreview progress={progress} />
+      <PartialOutlinesPreview progress={progress} />
     </div>
   );
 }
 
-function PartialPlansPreview({ progress }: { progress: PlanProgressEvent | null }) {
+// Os esboços aparecendo enquanto chegam: título, pitch e as partes de cada um.
+function PartialOutlinesPreview({ progress }: { progress: OutlineProgressEvent | null }) {
   const plans = progress?.partial?.plans;
   if (!plans || plans.length === 0) return null;
 
   return (
     <div className="space-y-3 border-t border-border-base/70 pt-4">
       {plans.map((p, i) => (
-        <div key={i}>
+        <div key={i} className="animate-card-swap">
           <div className="text-control text-text-primary">
             <span className="ai-icon" aria-hidden>
               ✦
@@ -1074,13 +1334,13 @@ function PartialPlansPreview({ progress }: { progress: PlanProgressEvent | null 
             <span className="font-semibold">{p?.title ?? '…'}</span>
           </div>
           {p?.pitch && <div className="text-footnote text-text-secondary mt-0.5 pl-4">{p.pitch}</div>}
-          {p?.tree?.categorias && p.tree.categorias.length > 0 && (
+          {p?.outline?.categorias && p.outline.categorias.length > 0 && (
             <div className="mt-1 space-y-0.5 pl-4">
-              {p.tree.categorias.map((cat, j) => (
+              {p.outline.categorias.map((cat, j) => (
                 <div key={j} className="text-footnote text-text-muted">
                   {cat?.name ?? '…'}
-                  {cat?.children && cat.children.length > 0 && (
-                    <span className="text-text-faint tabular-nums"> {cat.children.length}</span>
+                  {cat?.nodes && cat.nodes.length > 0 && (
+                    <span className="text-text-faint tabular-nums"> {cat.nodes.length}</span>
                   )}
                 </div>
               ))}
@@ -1092,23 +1352,132 @@ function PartialPlansPreview({ progress }: { progress: PlanProgressEvent | null 
   );
 }
 
+// Linha discreta de progresso da expansão: fase + "x de ~y passos" + barra fina.
+function ExpansionStatus({
+  progress,
+  tr,
+}: {
+  progress: ExpandProgressEvent | null;
+  tr: Messages;
+}) {
+  const phase = progress?.phase ?? 'connecting';
+  const label =
+    phase === 'done' || phase === 'error'
+      ? tr.ai.twoPhase.expandProgress.finalizing
+      : tr.ai.twoPhase.expandProgress[phase];
+  const ready = progress?.nodesReady ?? 0;
+  const total = progress?.nodesTotal ?? 0;
+  const pct = total > 0 ? Math.min(100, Math.round((ready / total) * 100)) : 0;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-footnote">
+        <Spinner className="h-3 w-3" />
+        <span className="mr-auto font-medium text-text-secondary">{label}</span>
+        {total > 0 && ready > 0 && (
+          <span className="text-text-muted tabular-nums">{tr.ai.twoPhase.nodesProgress(ready, total)}</span>
+        )}
+      </div>
+      <div
+        className="h-0.5 overflow-hidden rounded-full bg-bg-elevated"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={total || undefined}
+        aria-valuenow={ready}
+        aria-label={label}
+      >
+        <div
+          className="h-full rounded-full bg-accent transition-[width] duration-240 ease-mac"
+          style={{ width: `${Math.max(pct, 3)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+const PREVIEW_CHILDREN = 4;
+
+// Árvore do card: categorias com seus nós. Durante a expansão cada nó mostra
+// se já foi detalhado (✓), está sendo escrito agora (ponto pulsando) ou ainda
+// é só o nome do resumo (esmaecido).
+function TreeList({
+  tree,
+  full,
+  assembling,
+}: {
+  tree: TreeView[];
+  full: boolean;
+  assembling: boolean;
+}) {
+  return (
+    <>
+      {tree.map((cat) => {
+        const shown = full || assembling ? cat.nodes : cat.nodes.slice(0, PREVIEW_CHILDREN);
+        const rest = cat.nodes.length - shown.length;
+        return (
+          <div key={cat.key} className="mt-3 border-t border-border-base/70 pt-3">
+            <div className="label mb-1.5 flex items-center gap-1.5">
+              <span className="min-w-0 truncate">{cat.name}</span>
+              <span className="text-text-faint tabular-nums">{cat.nodes.length}</span>
+            </div>
+            <ul className="space-y-1">
+              {shown.map((n) => (
+                <li
+                  key={n.key}
+                  className={`flex gap-2 text-footnote transition-colors duration-180 ease-mac ${
+                    n.state === 'pending' && assembling ? 'text-text-faint' : 'text-text-secondary'
+                  }`}
+                >
+                  <span className="mt-[3px] flex h-3 w-3 shrink-0 items-center justify-center" aria-hidden>
+                    {assembling && n.state === 'ready' ? (
+                      <CheckIcon size={12} draw />
+                    ) : assembling && n.state === 'writing' ? (
+                      <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse-subtle" />
+                    ) : (
+                      <span className="h-1 w-1 rounded-full bg-text-faint/60" />
+                    )}
+                  </span>
+                  <span className="min-w-0">{n.name}</span>
+                </li>
+              ))}
+              {rest > 0 && (
+                <li className="pl-5 text-footnote text-text-muted tabular-nums">+{rest}</li>
+              )}
+            </ul>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function treeFromPlan(plan: AIPlan): TreeView[] {
+  return plan.tree.categorias.map((c, i) => ({
+    key: c.tempId || `c${i}`,
+    name: c.name,
+    nodes: c.children.map((n, j) => ({ key: n.tempId || `n${j}`, name: n.name, state: 'ready' as const })),
+  }));
+}
+
 const RULE_STYLE = {
   cumpre: { icon: '✓', cls: 'bg-conf-high/12 text-conf-high' },
   risco: { icon: '!', cls: 'bg-conf-mid/12 text-conf-mid' },
   viola: { icon: '✕', cls: 'bg-state-problem/12 text-state-problem' },
 } as const;
 
-const PREVIEW_CHILDREN = 4;
-
 function PlanCard({
-  plan: p,
+  outline: p,
+  plan,
+  expansion,
   selected,
   isNew,
   collapsible,
   onSelect,
   tr,
 }: {
-  plan: AIPlan;
+  outline: AIPlanOutline;
+  // Árvore completa, quando já está no cache.
+  plan: AIPlan | null;
+  expansion: CardExpansion | null;
   selected: boolean;
   isNew: boolean;
   // Mobile: só o #1 abre completo; os demais mostram o essencial até expandir.
@@ -1121,11 +1490,16 @@ function PlanCard({
   const [fullOpen, setFullOpen] = useState(false);
   const collapsed = collapsible && !detailsOpen && !selected;
 
-  const totalNodes = p.tree.categorias.reduce((n, c) => n + c.children.length, 0);
-  const hiddenNodes = p.tree.categorias.reduce(
-    (n, c) => n + Math.max(0, c.children.length - PREVIEW_CHILDREN),
-    0,
-  );
+  const assembling = expansion?.kind === 'running';
+  const tree = plan
+    ? treeFromPlan(plan)
+    : assembleTree(p, assembling ? expansion.progress?.partial : undefined);
+  const totalNodes = plan
+    ? tree.reduce((n, c) => n + c.nodes.length, 0)
+    : countOutlineNodes(p);
+  const hiddenNodes = assembling
+    ? 0
+    : tree.reduce((n, c) => n + Math.max(0, c.nodes.length - PREVIEW_CHILDREN), 0);
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
     fn();
@@ -1227,32 +1601,13 @@ function PlanCard({
             </div>
           )}
 
-          {p.tree.categorias.map((cat) => {
-            const shown = fullOpen ? cat.children : cat.children.slice(0, PREVIEW_CHILDREN);
-            const rest = cat.children.length - shown.length;
-            return (
-              <div key={cat.tempId} className="mt-3 border-t border-border-base/70 pt-3">
-                <div className="label mb-1.5 flex items-center gap-1.5">
-                  <span className="min-w-0 truncate">{cat.name}</span>
-                  <span className="text-text-faint tabular-nums">{cat.children.length}</span>
-                </div>
-                <ul className="space-y-1">
-                  {shown.map((n) => (
-                    <li key={n.tempId} className="flex gap-2 text-footnote text-text-secondary">
-                      <span
-                        className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-text-faint/60"
-                        aria-hidden
-                      />
-                      <span className="min-w-0">{n.name}</span>
-                    </li>
-                  ))}
-                  {rest > 0 && (
-                    <li className="pl-3 text-footnote text-text-muted tabular-nums">+{rest}</li>
-                  )}
-                </ul>
-              </div>
-            );
-          })}
+          {assembling && (
+            <div className="mt-3 animate-card-swap">
+              <ExpansionStatus progress={expansion.progress} tr={tr} />
+            </div>
+          )}
+
+          <TreeList tree={tree} full={fullOpen} assembling={assembling} />
 
           {hiddenNodes > 0 && (
             <button
@@ -1265,6 +1620,24 @@ function PlanCard({
               {fullOpen ? tr.objective.hideFullPlan : tr.objective.showFullPlan(totalNodes)}
             </button>
           )}
+
+          {expansion?.kind === 'error' && (
+            <div onClick={(e) => e.stopPropagation()} className="mt-3">
+              <InlineError error={expansion.error} onRetry={expansion.onRetry} onAction={expansion.action} />
+            </div>
+          )}
+
+          {/* Resumo × plano completo, dito sem jargão. */}
+          {plan ? (
+            <p className="mt-3 flex items-center gap-1.5 text-footnote text-text-muted">
+              <CheckIcon size={12} />
+              {tr.ai.twoPhase.expandReady}
+            </p>
+          ) : assembling ? (
+            <p className="mt-3 text-footnote text-text-muted">{tr.ai.twoPhase.expandingHint}</p>
+          ) : expansion?.kind !== 'error' ? (
+            <p className="mt-3 text-footnote text-text-muted">{tr.ai.twoPhase.outlineOnly}</p>
+          ) : null}
         </>
       )}
 
@@ -1279,6 +1652,55 @@ function PlanCard({
           {detailsOpen ? tr.objective.hideDetails : tr.objective.showDetails}
         </button>
       )}
+    </div>
+  );
+}
+
+// "Começar" antes da árvore ficar pronta: a folha do plano escolhido com a
+// árvore se montando. O projeto abre sozinho quando a expansão termina.
+function StartingView({
+  outline,
+  expansion,
+  elapsedMs,
+  onBack,
+  tr,
+}: {
+  outline: AIPlanOutline;
+  expansion: CardExpansion | null;
+  elapsedMs: number;
+  onBack: () => void;
+  tr: Messages;
+}) {
+  const progress = expansion?.kind === 'running' ? expansion.progress : null;
+  const tree = assembleTree(outline, progress?.partial);
+  return (
+    <div className="space-y-4 animate-card-swap" aria-label={tr.ai.twoPhase.startingAria}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-title2 font-semibold tracking-[-0.01em] text-text-primary">
+            {tr.ai.twoPhase.startingTitle(outline.title)}
+          </h1>
+          <p className="text-control text-text-secondary mt-1">{tr.ai.twoPhase.startingHint}</p>
+        </div>
+        <button type="button" onClick={onBack} className="tap btn btn-secondary btn-sm shrink-0">
+          <ChevronIcon className="rotate-180" />
+          {tr.ai.twoPhase.backToPlans}
+        </button>
+      </div>
+
+      <div className="card shadow-mac p-4 sm:p-6">
+        {expansion?.kind === 'error' ? (
+          <InlineError error={expansion.error} onRetry={expansion.onRetry} onAction={expansion.action} />
+        ) : (
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <ExpansionStatus progress={progress} tr={tr} />
+            </div>
+            <span className="text-footnote text-text-muted tabular-nums leading-4">{formatClock(elapsedMs)}</span>
+          </div>
+        )}
+        <TreeList tree={tree} full assembling={expansion?.kind === 'running'} />
+      </div>
     </div>
   );
 }
