@@ -1254,7 +1254,7 @@ NODE TO CRITIQUE
 - Function: ${ctx.nodeFx}
 - What it is: ${ctx.oQue}
 - Why it matters: ${ctx.porQue}
-- AI criterion (comoConfirmar): ${ctx.comoConfirmar}
+- AI criterion (comoConfirmar): ${ctx.comoConfirmar.trim() || '(hidden — the user has not locked theirs yet)'}
 ${ctx.comoConfirmarUsuario ? `- User-written criterion: ${ctx.comoConfirmarUsuario}` : '- The user has not written a criterion yet.'}
 
 TASK

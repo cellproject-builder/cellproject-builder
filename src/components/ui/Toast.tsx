@@ -113,7 +113,7 @@ function ToastRow({ item }: { item: ToastItem }) {
 
 // Montado uma vez no App. A região viva fica sempre no DOM para leitores de
 // tela anunciarem os toasts que entram.
-export function Toaster() {
+export function Toaster({ raised = false }: { raised?: boolean } = {}) {
   const tr = useT();
   const toasts = useToastStore((s) => s.toasts);
   return (
@@ -121,7 +121,11 @@ export function Toaster() {
       role="status"
       aria-live="polite"
       aria-label={tr.toast.regionLabel}
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 px-4 pb-[calc(env(safe-area-inset-bottom)+3rem)]"
+      className={`pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 px-4 ${
+        raised
+          ? 'pb-[calc(env(safe-area-inset-bottom)+7.5rem)]'
+          : 'pb-[calc(env(safe-area-inset-bottom)+3rem)]'
+      }`}
     >
       {toasts.map((item) => (
         <div key={item.id} className="w-full max-w-md">

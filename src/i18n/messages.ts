@@ -951,7 +951,7 @@ export const ptBR: Messages = {
     noAnchor: (n: number) => `${n} sem âncora`,
     noAnchorTitle: 'Confirmado sem critério travado nem âncora verificada',
     pendingSuggestions: (n: number) =>
-      `${n} ${n === 1 ? 'sugestão' : 'sugestões'} AI pendente${n === 1 ? '' : 's'}`,
+      `${n} ${n === 1 ? 'sugestão' : 'sugestões'} da IA pendente${n === 1 ? '' : 's'}`,
     reviewPendingTitle: 'Abrir o nó com sugestões para revisar',
   },
   objective: {
@@ -1493,8 +1493,8 @@ export const ptBR: Messages = {
     anchorRemoved: (label: string) => `Âncora removida: ${label}`,
     failureReported: (ctx: string) => `Falha reportada: ${ctx}`,
     failureCleared: 'Falha marcada como resolvida.',
-    suggestionAccepted: 'Sugestão AI aceita',
-    suggestionAcceptedBatch: 'Sugestão AI aceita (lote)',
+    suggestionAccepted: 'Sugestão da IA aceita',
+    suggestionAcceptedBatch: 'Sugestão da IA aceita (lote)',
     missingBlocked: 'confirme os passos anteriores primeiro',
     missingSignal:
       'escreva e trave o seu critério, depois afira que foi atendido — ou verifique uma âncora real',

@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useGraphStore, isDemoProject } from '@/store';
 import { useConfigStore } from '@/config/store';
@@ -17,12 +17,6 @@ import { Toaster } from '@/components/ui/Toast';
 const LandingPage = lazy(() =>
   import('@/landing/LandingPage').then((m) => ({ default: m.LandingPage })),
 );
-
-// TODO(integração): remover o cast quando a ObjectiveScreen aceitar
-// `onOpenSettings` na própria assinatura.
-const ObjectiveScreenWithSettings = ObjectiveScreen as ComponentType<{
-  onOpenSettings?: () => void;
-}>;
 
 // Os stores persistidos hidratam do IndexedDB de forma assíncrona. Antes disso
 // `providers` está vazio e o app piscaria o ApiKeyGate para quem já tem chave.
@@ -100,7 +94,6 @@ export default function App() {
   const activeProvider = useConfigStore((s) => s.activeProvider);
   const providers = useConfigStore((s) => s.providers);
   const hasKey = activeProvider ? Boolean(providers[activeProvider]?.apiKey) : false;
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     window.addEventListener('keydown', handleAppShortcut);
@@ -125,11 +118,9 @@ export default function App() {
   if (!hasKey && !inDemo) {
     screen = <ApiKeyGate />;
   } else if (!project) {
-    screen = settingsOpen ? (
-      <ApiKeyGate onClose={() => setSettingsOpen(false)} />
-    ) : (
-      <ObjectiveScreenWithSettings onOpenSettings={() => setSettingsOpen(true)} />
-    );
+    // As configurações abrem como modal local da ObjectiveScreen, para não
+    // desmontar uma geração em andamento.
+    screen = <ObjectiveScreen />;
   } else {
     screen = (
       <ReactFlowProvider>
@@ -154,7 +145,8 @@ export default function App() {
   return (
     <>
       {screen}
-      <Toaster />
+      {/* No tutor a barra de ações é fixa embaixo: o toast sobe pra não cobri-la. */}
+      <Toaster raised={Boolean(project) && viewMode === 'tutor'} />
     </>
   );
 }
