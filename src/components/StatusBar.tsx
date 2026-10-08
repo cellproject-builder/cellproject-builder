@@ -1,16 +1,26 @@
-import { useGraphStore, projectMetrics } from '@/store';
+import { useGraphStore, projectMetrics, pendingParent } from '@/store';
 import { useT } from '@/i18n';
 
 export function StatusBar() {
   const tr = useT();
   const project = useGraphStore((s) => s.project);
   const pending = useGraphStore((s) => s.pendingSuggestions);
+  const pendingNode = useGraphStore(pendingParent);
+  const viewMode = useGraphStore((s) => s.viewMode);
+  const selectNode = useGraphStore((s) => s.selectNode);
+  const requestCenter = useGraphStore((s) => s.requestCenter);
   const m = projectMetrics(project);
 
   if (!m) return null;
 
+  // No tutor mobile, o header já mostra o progresso e a barra de ações do
+  // card ocupa o rodapé — a status bar só roubaria altura.
+  const visibility = viewMode === 'tutor' ? 'hidden md:flex' : 'flex';
+
   return (
-    <div className="min-h-7 shrink-0 border-t border-border-base bg-bg-secondary px-2 sm:px-3 flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-0.5 py-1 text-[11px] font-mono text-text-secondary pb-[calc(env(safe-area-inset-bottom)+0.25rem)]">
+    <div
+      className={`min-h-7 shrink-0 border-t border-border-base bg-bg-secondary px-2 sm:px-3 ${visibility} flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-0.5 py-1 text-[11px] font-mono text-text-secondary pb-[calc(env(safe-area-inset-bottom)+0.25rem)]`}
+    >
       <span>
         {tr.statusBar.progress}:{' '}
         <span
@@ -48,10 +58,19 @@ export function StatusBar() {
         </>
       )}
       {pending && (
-        <span className="ml-auto text-ai-accent flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            if (!pendingNode) return;
+            selectNode(pendingNode.id);
+            if (viewMode === 'graph') requestCenter(pendingNode.id);
+          }}
+          title={tr.statusBar.reviewPendingTitle}
+          className="ml-auto text-ai-accent flex items-center gap-1.5 hover:underline"
+        >
           <span className="w-1.5 h-1.5 rounded-full bg-ai-accent animate-pulse-subtle" />
           <span>{tr.statusBar.pendingSuggestions(pending.nodes.length)}</span>
-        </span>
+        </button>
       )}
     </div>
   );
