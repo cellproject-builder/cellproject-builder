@@ -108,6 +108,9 @@ export interface GraphState {
   aiJobs: Record<string, AIJob>;
   // Projeto arquivado pelo último reset/import — permite desfazer.
   archivedProject: Project | null;
+  // Sugestões em staging do projeto arquivado (custaram uma chamada de IA):
+  // voltam junto no desfazer. Não persistido, como o próprio staging.
+  archivedPending: GraphState['pendingSuggestions'];
 
   createProjectFromPlan: (
     objective: string,
@@ -295,6 +298,14 @@ const withoutDraft = (
 const archiveCandidate = (current: Project | null, archived: Project | null): Project | null =>
   current && current.id !== DEMO_PROJECT_ID ? current : archived;
 
+// As sugestões em staging acompanham o projeto que vai pro arquivo.
+const archivePendingCandidate = (
+  state: Pick<GraphState, 'project' | 'pendingSuggestions' | 'archivedPending'>,
+): GraphState['pendingSuggestions'] =>
+  state.project && state.project.id !== DEMO_PROJECT_ID
+    ? state.pendingSuggestions
+    : state.archivedPending;
+
 // Estado efêmero que pertence ao projeto aberto — zerado ao trocar de projeto.
 const freshProjectSession = () => ({
   pendingSuggestions: null,
@@ -312,7 +323,7 @@ const renameBaselines = new Map<string, { from: string; entryId: string; at: num
 const editBaselines = new Map<string, string>();
 const EDIT_FIELDS = ['oQue', 'porQue'] as const;
 
-const CRITERION_UNLOCK_MS = 10_000;
+export const CRITERION_UNLOCK_MS = 10_000;
 
 // Promoção tardia: um nó confirmado sem prova vira 'done' assim que a prova
 // chega (critério aferido, âncora verificada) — o progresso sai do amarelo.
@@ -326,6 +337,23 @@ function promoteIfEarned(project: Project, nodeId: string): Project {
     t().store.promotedWithProof,
   );
   return putNode(project, next);
+}
+
+// Migração v5: 'done' sem sinal real pelo gate atual (critério aferido ou
+// âncora que conta) vira 'validated' + confirmedWithoutSignal. Não mexe em nada
+// além disso — só desfaz o 'done' que a regra antiga dava a âncora da IA sem
+// observação.
+export function demoteUnprovenDone(project: Project): Project {
+  let nodes: Project['nodes'] | null = null;
+  for (const [id, n] of Object.entries(project.nodes ?? {})) {
+    if (n.state !== 'done' || !n.confirmado) continue;
+    const hasMet = Boolean(n.comoConfirmarAtendido);
+    const hasAnchor = (n.groundTruthRefs ?? []).some(refCountsAsSignal);
+    if (hasMet || hasAnchor) continue;
+    nodes = nodes ?? { ...project.nodes };
+    nodes[id] = { ...n, state: 'validated', confirmedWithoutSignal: true };
+  }
+  return nodes ? { ...project, nodes } : project;
 }
 
 // Aplica o tidy tree a um projeto (posições são apresentação: sem histórico).
@@ -490,6 +518,7 @@ export const useGraphStore = create<GraphState>()(
       lastAction: null,
       aiJobs: {},
       archivedProject: null,
+      archivedPending: null,
 
       createProjectFromPlan: (objective, name, plan, rules, alternatives) => {
         const tr = t();
@@ -685,12 +714,23 @@ export const useGraphStore = create<GraphState>()(
       setViewMode: (mode) =>
         set((s) => {
           if (mode !== 'graph' || !s.project) return { viewMode: mode };
+          const fromTutor =
+            s.lastTutorNodeId && s.project.nodes[s.lastTutorNodeId] ? s.lastTutorNodeId : null;
+          // Vindo do tutor, o nó em que o usuário estava manda — o card mostrado
+          // pode não ser a seleção (categoria/nó com filhos → "próximo").
+          if (s.viewMode === 'tutor' && fromTutor) {
+            return {
+              viewMode: mode,
+              selectedNodeId: fromTutor,
+              selectionVersion:
+                fromTutor === s.selectedNodeId ? s.selectionVersion : s.selectionVersion + 1,
+              centerRequest: { nodeId: fromTutor, version: (s.centerRequest?.version ?? 0) + 1 },
+            };
+          }
           const sel = s.selectedNodeId;
           const meaningful = sel && sel !== s.project.rootId && s.project.nodes[sel];
           if (meaningful) return { viewMode: mode };
-          const fromTutor =
-            s.lastTutorNodeId && s.project.nodes[s.lastTutorNodeId] ? s.lastTutorNodeId : null;
-          const target = fromTutor ?? nextPendingForTutor(s.project)?.id ?? null;
+          const target = fromTutor ?? nextPendingForTutor(s.project, s.pendingSuggestions)?.id ?? null;
           if (!target) return { viewMode: mode };
           return {
             viewMode: mode,
@@ -1519,6 +1559,7 @@ export const useGraphStore = create<GraphState>()(
         set((state) => ({
           ...freshProjectSession(),
           archivedProject: archiveCandidate(state.project, state.archivedProject),
+          archivedPending: archivePendingCandidate(state),
           project: null,
           selectedNodeId: null,
           focusedParentId: null,
@@ -1527,13 +1568,17 @@ export const useGraphStore = create<GraphState>()(
         })),
 
       undoReset: () => {
-        const { archivedProject, project } = get();
+        const { archivedProject, archivedPending, project, pendingSuggestions } = get();
         if (!archivedProject) return false;
+        const keepCurrent = project && project.id !== DEMO_PROJECT_ID;
         set({
           ...freshProjectSession(),
           // Troca, não descarta: se já havia outro projeto aberto, ele é que
           // vai pro arquivo.
-          archivedProject: project && project.id !== DEMO_PROJECT_ID ? project : null,
+          archivedProject: keepCurrent ? project : null,
+          archivedPending: keepCurrent ? pendingSuggestions : null,
+          pendingSuggestions:
+            archivedPending && archivedProject.nodes[archivedPending.parentId] ? archivedPending : null,
           project: archivedProject,
           selectedNodeId: archivedProject.rootId,
           focusedParentId: archivedProject.rootId,
@@ -1548,6 +1593,7 @@ export const useGraphStore = create<GraphState>()(
         set((state) => ({
           ...freshProjectSession(),
           archivedProject: archiveCandidate(state.project, state.archivedProject),
+          archivedPending: archivePendingCandidate(state),
           project: parsed,
           selectedNodeId: parsed.rootId,
           focusedParentId: parsed.rootId,
@@ -1559,13 +1605,23 @@ export const useGraphStore = create<GraphState>()(
     }),
     {
       name: 'cellproject-graph',
-      version: 4, // v4: drafts, objectiveDraft, archivedProject, lastTutorNodeId
+      version: 5, // v4: drafts, objectiveDraft, archivedProject, lastTutorNodeId; v5: gate da âncora da IA
       storage: createJSONStorage(() => idbStorage),
       // Pass-through migrate: NEVER drop a user's project on a version bump.
       // zustand discards persisted state on version mismatch when no migrate is
       // provided; all newer fields are optional, so old snapshots rehydrate fine
       // and the UI's `?? []` / archetype defaults cover the missing ones.
-      migrate: (persisted) => persisted as GraphState,
+      // v<5: o gate passou a exigir observação nas âncoras da IA — nós que
+      // ficaram 'done' só por uma delas voltam a "confirmado sem prova".
+      migrate: (persisted, version) => {
+        const p = (persisted ?? {}) as Partial<GraphState>;
+        if (version >= 5) return p as GraphState;
+        return {
+          ...p,
+          project: p.project ? demoteUnprovenDone(p.project) : p.project,
+          archivedProject: p.archivedProject ? demoteUnprovenDone(p.archivedProject) : p.archivedProject,
+        } as GraphState;
+      },
       // Campos novos ausentes num snapshot antigo caem no default do estado.
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<GraphState>;
@@ -1615,6 +1671,21 @@ export const canRevealAICriterion = (
   node: Pick<ConceptNodeData, 'comoConfirmarUsuarioAt' | 'confirmado' | 'takenAsKnown'>,
 ): boolean => Boolean(node.comoConfirmarUsuarioAt) || node.confirmado || Boolean(node.takenAsKnown);
 
+// Fim da janela em que o lock ainda pode ser desfeito (0 = sem janela). Só
+// depois dela o critério da IA aparece — senão daria para ver, destravar e
+// copiar. Confirmar/"já sei" revelam na hora (não há lock a desfazer).
+export const aiRevealGraceEnd = (
+  node: Pick<ConceptNodeData, 'comoConfirmarUsuarioAt' | 'confirmado' | 'takenAsKnown'>,
+): number =>
+  node.comoConfirmarUsuarioAt && !node.confirmado && !node.takenAsKnown
+    ? node.comoConfirmarUsuarioAt + CRITERION_UNLOCK_MS
+    : 0;
+
+export const canRevealAICriterionNow = (
+  node: Pick<ConceptNodeData, 'comoConfirmarUsuarioAt' | 'confirmado' | 'takenAsKnown'>,
+  nowMs: number = Date.now(),
+): boolean => canRevealAICriterion(node) && nowMs >= aiRevealGraceEnd(node);
+
 export const breadcrumbFor = (
   project: Project | null,
   nodeId: string | null,
@@ -1629,6 +1700,29 @@ export const breadcrumbFor = (
     cur = cur.parentId ? project.nodes[cur.parentId] : undefined;
   }
   return chain;
+};
+
+// Vizinhança de um nó para o prompt de explicação: pai, filhos e irmãos com
+// oQue (preços/quantidades já fixados no plano). Raiz fica de fora.
+export const relatedPartsFor = (
+  project: Project,
+  nodeId: string,
+): { relation: 'parent' | 'child' | 'sibling'; name: string; oQue: string }[] => {
+  const node = project.nodes[nodeId];
+  if (!node) return [];
+  const all = Object.values(project.nodes);
+  const parent = node.parentId ? project.nodes[node.parentId] : undefined;
+  const out: { relation: 'parent' | 'child' | 'sibling'; name: string; oQue: string }[] = [];
+  if (parent && parent.kind !== 'root') out.push({ relation: 'parent', name: parent.name, oQue: parent.oQue });
+  for (const n of all) {
+    if (n.parentId === nodeId) out.push({ relation: 'child', name: n.name, oQue: n.oQue });
+  }
+  for (const n of all) {
+    if (node.parentId && n.parentId === node.parentId && n.id !== nodeId) {
+      out.push({ relation: 'sibling', name: n.name, oQue: n.oQue });
+    }
+  }
+  return out.filter((p) => p.oQue?.trim());
 };
 
 export const confidenceBand = (confidence: number): 'high' | 'mid' | 'low' => {
@@ -1673,10 +1767,27 @@ export const childrenByParent = (project: Project): Map<string, ConceptNodeData[
  * current atoms) plus takenAsKnown nodes (floors — whatever lies below a floor
  * no longer counts). Only actionable kinds; containers resolve through these.
  */
+export type PendingSuggestions = NonNullable<GraphState['pendingSuggestions']>;
+type PendingRef = Pick<PendingSuggestions, 'parentId' | 'nodes'> | null | undefined;
+
+const hasPendingAt = (pending: PendingRef, id: string): boolean =>
+  !!pending && pending.parentId === id && pending.nodes.length > 0;
+
+// Id sintético das sugestões em staging contadas como folhas abertas — nunca
+// existe em project.nodes (não selecione por ele).
+export const PENDING_LEAF_PREFIX = 'pending:';
+
+/**
+ * Com `pending`, as sugestões em staging contam como partes ABERTAS do pai
+ * (folhas sintéticas, não confirmadas): aceitar 1 de N não deixa o pai
+ * "completo" enquanto as outras esperam revisão. Um pai ainda sem filhos é
+ * substituído pelas suas sugestões, como ficará quando forem aceitas.
+ */
 export const effectiveLeavesUnder = (
   project: Project,
   startId: string,
   byParent?: Map<string, ConceptNodeData[]>,
+  pending?: PendingRef,
 ): ConceptNodeData[] => {
   const map = byParent ?? childrenByParent(project);
   const out: ConceptNodeData[] = [];
@@ -1687,10 +1798,23 @@ export const effectiveLeavesUnder = (
         continue;
       }
       const kids = map.get(child.id);
-      if (kids && kids.length > 0) {
+      if ((kids && kids.length > 0) || hasPendingAt(pending, child.id)) {
         walk(child.id);
       } else if (ACTIONABLE_KINDS.has(child.kind)) {
         out.push(child);
+      }
+    }
+    if (pending && hasPendingAt(pending, id)) {
+      for (const s of pending.nodes) {
+        if (!ACTIONABLE_KINDS.has(s.data.kind)) continue;
+        out.push({
+          ...s.data,
+          id: PENDING_LEAF_PREFIX + s.tempId,
+          parentId: id,
+          history: [],
+          confirmado: false,
+          takenAsKnown: false,
+        } as ConceptNodeData);
       }
     }
   };
@@ -1698,8 +1822,8 @@ export const effectiveLeavesUnder = (
   return out;
 };
 
-export const effectiveLeaves = (project: Project): ConceptNodeData[] =>
-  effectiveLeavesUnder(project, project.rootId);
+export const effectiveLeaves = (project: Project, pending?: PendingRef): ConceptNodeData[] =>
+  effectiveLeavesUnder(project, project.rootId, undefined, pending);
 
 // ---------------------------------------------------------------------------
 // Auto-layout — tidy tree over the decomposition. Children spread under their
@@ -1874,7 +1998,7 @@ export const canConcludeNode = (
 const resolvedWithoutSignal = (n: ConceptNodeData, understand: boolean): boolean =>
   Boolean(n.confirmedWithoutSignal) || (Boolean(n.takenAsKnown) && !understand);
 
-export const projectProgress = (project: Project | null) => {
+export const projectProgress = (project: Project | null, pending?: PendingRef) => {
   if (!project) {
     return { total: 0, done: 0, doneWithSignal: 0, doneWithoutSignal: 0, percent: 0 };
   }
@@ -1883,7 +2007,7 @@ export const projectProgress = (project: Project | null) => {
   // archetype (a concept node the AI produced in a build project is still a
   // part the user must understand or confirm — hiding it from progress let the
   // tutor declare "done" with work pending).
-  const leaves = effectiveLeaves(project);
+  const leaves = effectiveLeaves(project, pending);
   const total = leaves.length;
   const resolved = leaves.filter((n) => n.confirmado || n.takenAsKnown);
   const done = resolved.length;
@@ -1910,7 +2034,10 @@ export const nodesWithoutSignal = (project: Project | null): string[] => {
  * next sibling, so the user goes "down to the atom" before moving on.
  * takenAsKnown subtrees are skipped entirely (the floor closed them).
  */
-export const nextPendingForTutor = (project: Project | null): ConceptNodeData | null => {
+export const nextPendingForTutor = (
+  project: Project | null,
+  pending?: PendingRef,
+): ConceptNodeData | null => {
   if (!project) return null;
   const byParent = childrenByParent(project);
   const walk = (id: string): ConceptNodeData | null => {
@@ -1920,8 +2047,11 @@ export const nextPendingForTutor = (project: Project | null): ConceptNodeData | 
       if (kids && kids.length > 0) {
         const found = walk(child.id);
         if (found) return found;
+        // Filhos resolvidos mas sugestões ainda em revisão: o pai é o pendente.
+        if (hasPendingAt(pending, child.id)) return child;
         continue;
       }
+      if (hasPendingAt(pending, child.id)) return child;
       if (ACTIONABLE_KINDS.has(child.kind) && !child.confirmado) return child;
     }
     return null;
@@ -1929,18 +2059,18 @@ export const nextPendingForTutor = (project: Project | null): ConceptNodeData | 
   return walk(project.rootId);
 };
 
-export const projectMetrics = (project: Project | null) => {
+export const projectMetrics = (project: Project | null, pending?: PendingRef) => {
   if (!project) return null;
   const nodes = Object.values(project.nodes);
   // Risco = trabalho pendente de baixa confiança. Raiz/categorias (100 fixo) e
   // folhas já resolvidas não contam.
-  const atRisk = effectiveLeaves(project).filter(
+  const atRisk = effectiveLeaves(project, pending).filter(
     (n) => !n.confirmado && !n.takenAsKnown && n.confidence < 40,
   ).length;
   return {
     nodeCount: nodes.length,
     atRisk,
-    progress: projectProgress(project),
+    progress: projectProgress(project, pending),
   };
 };
 

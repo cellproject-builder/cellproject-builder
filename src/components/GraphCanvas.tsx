@@ -127,7 +127,20 @@ interface LensLayout {
   // null = todos os nós do projeto aparecem.
   visible: Set<string> | null;
   headers: LensHeader[];
+  // Arestas derivadas só desta lente (sequência implícita entre passos).
+  flowEdges?: FlowEdge[];
 }
+
+interface FlowEdge {
+  id: string;
+  source: string;
+  target: string;
+}
+
+const FLOW_EDGE_PREFIX = 'flow-seq-';
+// Abaixo disso os cards viram pílulas ilegíveis: o fitView da lente Fluxo
+// para aqui e o usuário rola pelo resto.
+const FLOW_MIN_ZOOM = 0.45;
 
 // Colunas: largura de um card + folga; colunas longas quebram em sub-colunas
 // para não virarem uma tira de 8000px que o fitView reduz a pílulas.
@@ -225,38 +238,98 @@ const lensLayout = (lens: Lens, project: Project, tr: Messages): LensLayout => {
   }
 
   if (lens === 'flow') {
-    // Fluxo = só a ordem de trabalho: partes acionáveis e arestas que não são
-    // hierarquia. Camadas descem em y (os handles são topo/base).
-    const work = nodes.filter((n) => isActionableKind(n.kind));
+    // Fluxo = a ordem de trabalho sobre a fronteira da decomposição (folhas
+    // acionáveis). Recursos/conceitos/decisões numa grade à esquerda; passos em
+    // camadas que descem em y, ligados pela sequência — as arestas explícitas
+    // (não-hierarquia) e, sem elas, a ordem entre passos irmãos.
+    const work = effectiveLeaves(project);
     const visible = new Set(work.map((n) => n.id));
+    const steps = work.filter((n) => n.kind === 'passo');
+    const others = work.filter((n) => n.kind !== 'passo').map((n) => n.id).sort(byOrder);
     const preds: Record<string, string[]> = {};
+    const seen = new Set<string>();
+    const flowEdges: FlowEdge[] = [];
+    const link = (source: string, target: string, explicit: boolean) => {
+      const key = `${source}>${target}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      (preds[target] ||= []).push(source);
+      if (!explicit) flowEdges.push({ id: `${FLOW_EDGE_PREFIX}${source}-${target}`, source, target });
+    };
     edges.forEach((e) => {
       if (isHierarchyEdge(project, e)) return;
       if (!visible.has(e.source) || !visible.has(e.target)) return;
-      (preds[e.target] ||= []).push(e.source);
+      link(e.source, e.target, true);
+    });
+    const stepsByParent = new Map<string, ConceptNodeData[]>();
+    steps.forEach((n) => {
+      const k = n.parentId ?? '';
+      const arr = stepsByParent.get(k);
+      if (arr) arr.push(n);
+      else stepsByParent.set(k, [n]);
+    });
+    stepsByParent.forEach((arr) => {
+      arr.sort((a, b) => a.order - b.order || byOrder(a.id, b.id));
+      for (let i = 1; i < arr.length; i++) {
+        // Já há aresta explícita entrando no passo: ela manda.
+        if ((preds[arr[i].id] ?? []).length > 0) continue;
+        link(arr[i - 1].id, arr[i].id, false);
+      }
     });
     const depth: Record<string, number> = {};
     const computeDepth = (id: string, visiting: Set<string>): number => {
       if (depth[id] !== undefined) return depth[id];
       if (visiting.has(id)) return 0; // ciclo
       visiting.add(id);
-      const ps = preds[id] || [];
+      const ps = (preds[id] || []).filter((p) => steps.some((s) => s.id === p));
       const d = ps.length === 0 ? 0 : 1 + Math.max(...ps.map((p) => computeDepth(p, visiting)));
       visiting.delete(id);
       depth[id] = d;
       return d;
     };
-    work.forEach((n) => computeDepth(n.id, new Set()));
-    const byLayer: Record<number, string[]> = {};
-    work.forEach((n) => (byLayer[depth[n.id]] ||= []).push(n.id));
+    steps.forEach((n) => computeDepth(n.id, new Set()));
     const positions: LensLayout['positions'] = {};
+    const headers: LensHeader[] = [];
+    // Grade de recursos: 2 colunas à esquerda.
+    const GRID_COLS = 2;
+    const gridWidth = others.length > 0 ? (Math.min(GRID_COLS, others.length) - 1) * COL_W + CARD_W : 0;
+    others.forEach((id, i) => {
+      positions[id] = { x: (i % GRID_COLS) * COL_W, y: Math.floor(i / GRID_COLS) * ROW_H };
+    });
+    if (others.length > 0) {
+      headers.push({
+        id: `${HEADER_PREFIX}flow-res`,
+        label: tr.graph.flowResources,
+        count: others.length,
+        tone: 'text-text-muted border-border-base',
+        x: 0,
+        y: -90,
+        width: gridWidth,
+      });
+    }
+    const stepsX = others.length > 0 ? gridWidth + COL_GAP * 2 : 0;
+    const byLayer: Record<number, string[]> = {};
+    steps.forEach((n) => (byLayer[depth[n.id]] ||= []).push(n.id));
+    let maxLayer = 1;
     Object.entries(byLayer).forEach(([d, ids]) => {
       ids.sort(byOrder);
+      maxLayer = Math.max(maxLayer, ids.length);
       ids.forEach((id, i) => {
-        positions[id] = { x: i * COL_W - ((ids.length - 1) * COL_W) / 2, y: Number(d) * 260 };
+        positions[id] = { x: stepsX + i * COL_W, y: Number(d) * 260 };
       });
     });
-    return { positions, visible, headers: [] };
+    if (steps.length > 0) {
+      headers.push({
+        id: `${HEADER_PREFIX}flow-steps`,
+        label: tr.graph.flowSteps,
+        count: steps.length,
+        tone: 'text-text-muted border-border-base',
+        x: stepsX,
+        y: -90,
+        width: (maxLayer - 1) * COL_W + CARD_W,
+      });
+    }
+    return { positions, visible, headers, flowEdges };
   }
 
   // connections: radial simples por grau; o raio cresce com o número de nós.
@@ -418,7 +491,12 @@ export function GraphCanvas() {
     let action: (() => void) | null = null;
 
     if (lens !== p.lens) {
-      action = () => void fitView({ padding: 0.15, duration: 350 });
+      action = () =>
+        void fitView({
+          padding: 0.15,
+          duration: 350,
+          ...(lens === 'flow' ? { minZoom: FLOW_MIN_ZOOM } : {}),
+        });
     } else if (focusVersion !== p.focusVersion && focusedParentId && project) {
       const ids = [
         focusedParentId,
@@ -505,7 +583,7 @@ export function GraphCanvas() {
       (n) => layout.visible === null || layout.visible.has(n.id),
     );
     const edgeList = Object.values(project.edges);
-    const nextId = nextPendingForTutor(project)?.id ?? null;
+    const nextId = nextPendingForTutor(project, pending)?.id ?? null;
 
     const childCountByParent: Record<string, number> = {};
     Object.values(project.nodes).forEach((n) => {
@@ -622,6 +700,20 @@ export function GraphCanvas() {
       });
     }
 
+    if (lens === 'flow') {
+      for (const fe of layout.flowEdges ?? []) {
+        const touchesFocus = focusIds.has(fe.source) || focusIds.has(fe.target);
+        base.push({
+          id: fe.id,
+          source: fe.source,
+          target: fe.target,
+          style: edgeStyleByKind.direct,
+          animated: !isMobile && touchesFocus,
+          zIndex: touchesFocus ? 1 : 0,
+        });
+      }
+    }
+
     if (pending && lens === 'structure') {
       pending.nodes.forEach((p) => {
         base.push({
@@ -679,7 +771,7 @@ export function GraphCanvas() {
         onNodeMouseEnter={onNodeMouseEnter}
         onNodeMouseLeave={onNodeMouseLeave}
         fitView={!initialTarget}
-        fitViewOptions={{ padding: 0.15 }}
+        fitViewOptions={{ padding: 0.15, ...(lens === 'flow' ? { minZoom: FLOW_MIN_ZOOM } : {}) }}
         minZoom={0.15}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}

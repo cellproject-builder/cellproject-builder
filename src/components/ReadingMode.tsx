@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { ConceptNodeData } from '@/types';
-import { canRevealAICriterion } from '@/store';
+import { useAIReveal } from '@/hooks/useAIReveal';
 import { useT } from '@/i18n';
 import { ExplanationContent, extractHeadings } from './Markdown';
 
@@ -110,7 +110,7 @@ export function ReadingMode({
   const headings = useMemo(() => extractHeadings(node.explicacao ?? ''), [node.explicacao]);
 
   // Critério do usuário ANTES do da IA: o da IA só aparece depois do lock.
-  const revealAI = canRevealAICriterion(node);
+  const { revealed: revealAI } = useAIReveal(node);
   const userCriterion = node.comoConfirmarUsuario?.trim();
 
   const jumpTo = (idx: number) => {
@@ -191,7 +191,9 @@ export function ReadingMode({
                   )
                 ) : (
                   <p className="text-sm text-text-muted italic border border-dashed border-border-base rounded-sm px-3 py-2">
-                    {tr.reading.writeYoursFirst}
+                    {node.comoConfirmarUsuarioAt
+                      ? tr.groundTruth.aiAfterUndoWindow
+                      : tr.reading.writeYoursFirst}
                   </p>
                 )}
               </div>

@@ -12,6 +12,8 @@ import {
   nextPendingForTutor,
   projectProgress,
   type ConcludeMissingKey,
+  canRevealAICriterionNow,
+  relatedPartsFor,
 } from '@/store';
 import { decomposeNode, explainNode } from '@/ai/service';
 import { requireAI } from '@/ai/availability';
@@ -91,6 +93,7 @@ export function DetailPanel() {
   const setPanelOpen = useGraphStore((s) => s.setDetailPanelOpen);
 
   const [noteDraft, setNoteDraft] = useState('');
+  const failureRef = useRef<HTMLDivElement>(null);
   const [ruleDraft, setRuleDraft] = useState('');
   const [explanationOpen, setExplanationOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -139,11 +142,12 @@ export function DetailPanel() {
           oQue: n.oQue,
           porQue: n.porQue,
           comoConfirmar: n.comoConfirmar,
-          // Sem lock, a explicação não traz o critério da IA.
-          criterionLocked: Boolean(n.comoConfirmarUsuarioAt),
+          // Sem lock (ou na janela de desfazer), sem o critério da IA.
+          criterionLocked: canRevealAICriterionNow(n),
           comoConfirmarUsuario: n.comoConfirmarUsuario,
           rules: p.rules,
           research: n.webResearch,
+          relatedParts: relatedPartsFor(p, n.id),
         },
         { signal, onDelta: (soFar) => setStreamed({ nodeId: n.id, text: soFar }) },
       );
@@ -222,6 +226,15 @@ export function DetailPanel() {
   const hasChildren = Object.values(project.nodes).some((n) => n.parentId === node.id);
   const canConfirm =
     (node.kind === 'recurso' || node.kind === 'passo' || node.kind === 'concept') && !blocked;
+  // Mesmos gates do tutor: falha em aberto ou sugestões da IA ainda em revisão
+  // neste nó impedem confirmar (o store recusaria — sem toast enganoso).
+  const openFailure = Boolean(node.failureContext);
+  const pendingHere = pending?.parentId === node.id;
+  const confirmGate: 'failure' | 'pending' | null = openFailure
+    ? 'failure'
+    : pendingHere
+    ? 'pending'
+    : null;
   const conclude = canConcludeNode(project, node.id);
   const ready = conclude.ready;
   const stepNo = stepSequence(project, node.id);
@@ -236,9 +249,15 @@ export function DetailPanel() {
   const explaining = explain.running && explainHere;
   const decomposeHere = decomposeFor === node.id;
   const decomposing = decompose.running && decomposeHere;
+  // Uma instância de cada ação para o painel inteiro: rodar em outro nó
+  // abortaria a chamada em andamento — bloqueia com o motivo e um atalho.
+  const explainBusyOn = explain.running && !explainHere && explainFor ? project.nodes[explainFor] : null;
+  const decomposeBusyOn =
+    decompose.running && !decomposeHere && decomposeFor ? project.nodes[decomposeFor] : null;
   const streamingText = explaining && streamed?.nodeId === node.id ? streamed.text : '';
 
   const generateExplanation = async () => {
+    if (explain.running) return;
     if (!requireAI()) return;
     const id = node.id;
     setExplainFor(id);
@@ -257,6 +276,7 @@ export function DetailPanel() {
   };
 
   const handleDecompose = async () => {
+    if (decompose.running) return;
     if (!requireAI()) return;
     const id = node.id;
     setDecomposeFor(id);
@@ -269,9 +289,13 @@ export function DetailPanel() {
   };
 
   const doConfirm = () => {
+    if (confirmGate) return;
+    const before = useGraphStore.getState().project?.nodes[node.id];
     confirmNode(node.id);
     setConfirmingNoSignal(false);
     const after = useGraphStore.getState().project?.nodes[node.id];
+    // Toast só quando o store de fato confirmou o nó.
+    if (!after || after === before || !after.confirmado) return;
     undoToast(
       after?.state === 'done' ? tr.detail.confirmedToast(node.name) : tr.detail.confirmedNoProofToast(node.name),
       tr,
@@ -297,6 +321,16 @@ export function DetailPanel() {
     setViewMode('tutor');
   };
 
+  const goToFailure = () => {
+    const el = failureRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Sem formulário aberto, foca o primeiro controle da seção de falha.
+    el.querySelector<HTMLElement>('textarea:not([disabled]), button:not([disabled])')?.focus({
+      preventScroll: true,
+    });
+  };
+
   const recordNote = () => {
     if (!noteDraft.trim()) return;
     addManualHistory(node.id, noteDraft.trim());
@@ -308,7 +342,13 @@ export function DetailPanel() {
     <button
       onClick={handleDecompose}
       disabled={decomposeDisabled}
-      title={pending && !decomposing ? tr.detail.pendingHint : undefined}
+      title={
+        decomposeBusyOn
+          ? tr.detail.busyElsewhere(decomposeBusyOn.name)
+          : pending && !decomposing
+          ? tr.detail.pendingHint
+          : undefined
+      }
       className={`${
         primary ? 'flex-1 min-h-[44px] text-sm' : 'w-full min-h-[36px] text-xs'
       } bg-ai-accent/15 hover:bg-ai-accent/30 disabled:opacity-40 disabled:cursor-not-allowed text-ai-accent py-2 rounded-sm border border-ai-accent/40 transition-colors font-medium flex items-center justify-center gap-2`}
@@ -335,6 +375,7 @@ export function DetailPanel() {
       {decomposeHere && decompose.error && !decompose.running && (
         <InlineError className="mt-2" error={decompose.error} onRetry={() => void decompose.retry()} />
       )}
+      {decomposeBusyOn && <BusyElsewhere node={decomposeBusyOn} tr={tr} onGo={selectNode} />}
     </>
   );
 
@@ -496,7 +537,10 @@ export function DetailPanel() {
         </div>
       )}
 
-      {primaryIsConfirm && (
+      {primaryIsConfirm && confirmGate === 'pending' && (
+        <div className="text-[11px] leading-snug text-ai-accent">{tr.detail.pendingHereHint}</div>
+      )}
+      {primaryIsConfirm && confirmGate !== 'pending' && (
         <div className={`text-[11px] leading-snug ${ready ? 'text-state-done' : 'text-text-muted'}`}>
           {ready ? (
             tr.detail.readyToConclude
@@ -610,13 +654,15 @@ export function DetailPanel() {
       <UserCriterionField node={node} />
       <GroundTruthRefsList node={node} project={project} />
       <CritiqueSection node={node} project={project} />
-      <FailureSection node={node} project={project} />
+      <div ref={failureRef}>
+        <FailureSection node={node} project={project} />
+      </div>
 
       <section className="p-3 border-b border-border-base">
         <div className="flex gap-1.5">
           <button
             onClick={handleExplain}
-            disabled={explain.running && !explaining}
+            disabled={explain.running && !explaining && !node.explicacao}
             className="flex-1 min-w-0 min-h-[36px] flex items-center justify-between gap-2 px-2 py-1.5 bg-ai-accent/10 hover:bg-ai-accent/20 border border-ai-accent/30 rounded-sm text-ai-accent text-xs transition-colors disabled:opacity-60"
           >
             <span className="flex items-center gap-1.5">
@@ -652,6 +698,9 @@ export function DetailPanel() {
         )}
         {explainHere && explain.error && !explain.running && (
           <InlineError className="mt-2" error={explain.error} onRetry={() => void generateExplanation()} />
+        )}
+        {explainBusyOn && !node.explicacao && (
+          <BusyElsewhere node={explainBusyOn} tr={tr} onGo={selectNode} />
         )}
         {streamingText && (
           <div className="mt-2 p-3 bg-bg-elevated/50 border border-border-base rounded-sm" aria-live="polite">
@@ -788,7 +837,7 @@ export function DetailPanel() {
 
   const footer = (
     <div className="space-y-2">
-      {primaryIsConfirm && !ready && confirmingNoSignal ? (
+      {primaryIsConfirm && !ready && !confirmGate && confirmingNoSignal ? (
         // Friction-ful acknowledgement: confirming without an anchor is a
         // deliberate two-step, and it lands amber (not green), never 'done'.
         <div className="space-y-1.5">
@@ -812,7 +861,21 @@ export function DetailPanel() {
         </div>
       ) : (
         <div className="flex gap-2">
-          {primaryIsConfirm &&
+          {primaryIsConfirm && confirmGate === 'failure' ? (
+            <button
+              onClick={goToFailure}
+              className="flex-1 bg-state-problem/10 hover:bg-state-problem/20 text-state-problem text-sm py-2.5 min-h-[44px] rounded-sm border border-state-problem/40 transition-colors font-medium"
+            >
+              {tr.tutor.resolveFailureFirst}
+            </button>
+          ) : primaryIsConfirm && confirmGate === 'pending' ? (
+            <button
+              disabled
+              className="flex-1 bg-bg-elevated text-text-muted text-sm py-2.5 min-h-[44px] rounded-sm border border-border-base font-medium opacity-60 cursor-not-allowed"
+            >
+              {confirmLabel}
+            </button>
+          ) : primaryIsConfirm &&
             (ready ? (
               // Faithful fast path: real signal present → one click earns 'done'.
               <button
@@ -878,8 +941,9 @@ export function DetailPanel() {
 function ProjectSummary({ project, tr }: { project: Project; tr: Messages }) {
   const selectNode = useGraphStore((s) => s.selectNode);
   const requestCenter = useGraphStore((s) => s.requestCenter);
-  const progress = projectProgress(project);
-  const next = nextPendingForTutor(project);
+  const pending = useGraphStore((s) => s.pendingSuggestions);
+  const progress = projectProgress(project, pending);
+  const next = nextPendingForTutor(project, pending);
   return (
     <div className="p-4 space-y-4 text-sm">
       <div>
@@ -1235,5 +1299,25 @@ function CollapsedRail({ onExpand, label }: { onExpand: () => void; label: strin
         {tr.detail.railLabel}
       </span>
     </aside>
+  );
+}
+
+// IA ocupada em outro nó (uma instância por painel): o motivo e um atalho até lá.
+function BusyElsewhere({
+  node,
+  tr,
+  onGo,
+}: {
+  node: ConceptNodeData;
+  tr: Messages;
+  onGo: (id: string) => void;
+}) {
+  return (
+    <div className="mt-1.5 text-[11px] text-text-muted leading-snug">
+      {tr.detail.busyElsewhere(node.name)}{' '}
+      <button onClick={() => onGo(node.id)} className="text-ai-accent hover:underline">
+        {tr.tutor.goThere}
+      </button>
+    </div>
   );
 }

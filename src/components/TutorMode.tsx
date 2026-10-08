@@ -14,6 +14,9 @@ import {
   nodesWithoutSignal,
   pendingParent,
   stepSequence,
+  type PendingSuggestions,
+  canRevealAICriterionNow,
+  relatedPartsFor,
 } from '@/store';
 import { explainNode, decomposeNode } from '@/ai/service';
 import { useKBStore } from '@/kb/store';
@@ -173,8 +176,10 @@ export function TutorMode() {
   const pending = useGraphStore((s) => s.pendingSuggestions);
   const pendingNode = useGraphStore(pendingParent);
 
-  const next = useMemo(() => nextPendingForTutor(project), [project]);
-  const progress = projectProgress(project);
+  // Sugestões em revisão contam como partes abertas do pai (progresso e
+  // "próximo pendente" não pulam um pai com sugestões esperando).
+  const next = useMemo(() => nextPendingForTutor(project, pending), [project, pending]);
+  const progress = projectProgress(project, pending);
   const byParent = useMemo(() => (project ? childrenByParent(project) : null), [project]);
 
   const isMobile = useIsMobile();
@@ -230,8 +235,10 @@ export function TutorMode() {
       setSidebarOpen(false);
       return;
     }
-    // Pai estrutural (categoria/objetivo): a revisão acontece no grafo.
+    // Pai estrutural (categoria/objetivo): a revisão acontece no grafo — e é
+    // ele (não o card atual) que o grafo deve abrir.
     selectNode(pendingNode.id);
+    setLastTutorNode(pendingNode.id);
     setViewMode('graph');
     requestCenter(pendingNode.id);
   };
@@ -251,6 +258,7 @@ export function TutorMode() {
         parentId={project.rootId}
         depth={0}
         currentId={currentId}
+        pending={pending}
         onPick={(id) => {
           selectNode(id);
           setSidebarOpen(false);
@@ -331,7 +339,7 @@ export function TutorMode() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8">
+        <div data-tutor-scroll className="flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8">
           {showBanner && (
             <div className="max-w-2xl mx-auto mb-4 flex items-center gap-2 px-3 py-2 border border-ai-accent/30 bg-ai-accent/5 rounded-sm text-xs text-text-secondary">
               <span className="w-1.5 h-1.5 shrink-0 rounded-full bg-ai-accent animate-pulse-subtle" />
@@ -492,6 +500,27 @@ function TutorCard({ node, project, byParent, isNext, next, onReviewPending, not
 
   const rootRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+
+  // A barra de ações é sticky no rodapé: o scroll-padding do container (com a
+  // altura real da barra) impede que foco/scrollIntoView deixem um campo
+  // escondido atrás dela — clicar ali acertava a barra.
+  useEffect(() => {
+    const bar = barRef.current;
+    const scroller = bar?.closest<HTMLElement>('[data-tutor-scroll]');
+    if (!bar || !scroller) return;
+    const apply = () => {
+      scroller.style.scrollPaddingBottom = `${bar.offsetHeight + 12}px`;
+    };
+    apply();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(apply);
+    ro.observe(bar);
+    return () => {
+      ro.disconnect();
+      scroller.style.scrollPaddingBottom = '';
+    };
+  }, []);
 
   const [open, setOpen] = useState(false);
   const [reading, setReading] = useState(false);
@@ -572,11 +601,12 @@ function TutorCard({ node, project, byParent, isNext, next, onReviewPending, not
             oQue: node.oQue,
             porQue: node.porQue,
             comoConfirmar: node.comoConfirmar,
-            // Sem lock, o critério da IA não entra na explicação.
-            criterionLocked: Boolean(node.comoConfirmarUsuarioAt),
+            // Sem lock (ou na janela de desfazer), o critério da IA não entra.
+            criterionLocked: canRevealAICriterionNow(node),
             comoConfirmarUsuario: node.comoConfirmarUsuario,
             rules: project.rules,
             research: node.webResearch,
+            relatedParts: relatedPartsFor(project, node.id),
           },
           { signal: local.signal, onDelta: (soFar) => putStream(node.id, soFar) },
         );
@@ -970,7 +1000,7 @@ function TutorCard({ node, project, byParent, isNext, next, onReviewPending, not
 
       {/* The fork at the heart of the concept — always visible: confirm
           against reality, break it down further, or declare the floor. */}
-      <div className="sticky bottom-0 z-10 mt-6 border-t border-border-base bg-bg-primary pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] space-y-2">
+      <div ref={barRef} className="sticky bottom-0 z-10 mt-6 border-t border-border-base bg-bg-primary pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] space-y-2">
         {decomposeAI.error && (
           <InlineError
             error={decomposeAI.error}
@@ -1273,11 +1303,12 @@ interface TreeRowsProps {
   parentId: string;
   depth: number;
   currentId: string | null;
+  pending: PendingSuggestions | null;
   onPick: (id: string) => void;
   tr: Messages;
 }
 
-function TreeRows({ project, byParent, parentId, depth, currentId, onPick, tr }: TreeRowsProps) {
+function TreeRows({ project, byParent, parentId, depth, currentId, pending, onPick, tr }: TreeRowsProps) {
   const kids = byParent.get(parentId) ?? [];
   return (
     <>
@@ -1300,7 +1331,7 @@ function TreeRows({ project, byParent, parentId, depth, currentId, onPick, tr }:
         }
 
         if (children.length > 0 || node.kind === 'categoria') {
-          const leaves = effectiveLeavesUnder(project, node.id, byParent);
+          const leaves = effectiveLeavesUnder(project, node.id, byParent, pending);
           const done = leaves.filter((l) => l.confirmado || l.takenAsKnown).length;
           return (
             <div key={node.id}>
@@ -1311,6 +1342,7 @@ function TreeRows({ project, byParent, parentId, depth, currentId, onPick, tr }:
                 parentId={node.id}
                 depth={depth + 1}
                 currentId={currentId}
+                pending={pending}
                 onPick={onPick}
                 tr={tr}
               />

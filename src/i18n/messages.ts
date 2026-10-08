@@ -20,6 +20,7 @@ export const en = {
     technicalDetails: 'technical details',
     cancelRunning: 'Cancel',
     thinking: (s: number) => `thinking… ${s}s`,
+    configureKey: 'Set up key',
   },
   language: {
     label: 'Language',
@@ -174,7 +175,7 @@ export const en = {
     stepRead: 'Reading your objective',
     stepResearch: 'Searching the web',
     stepThinking: 'Thinking through the strategies',
-    stepThinkingHint: 'the model reasons silently — this usually takes 1–3 min',
+    stepThinkingHint: 'the model reasons silently — this usually takes 2–4 min',
     stepWriting: (n: number, total: number, title?: string) =>
       `Writing plan ${n} of ${total}${title ? `: ${title}` : ''}`,
     stepChecking: 'Checking the plans',
@@ -417,6 +418,9 @@ export const en = {
     summaryNext: 'Next',
     summaryNothingPending: 'Nothing pending — every part is resolved.',
     summaryHint: 'Click a part in the graph to see it here. Esc clears the selection.',
+    // correção rodada 1
+    pendingHereHint: 'Review the AI suggestions for this part first — accept or discard each one.',
+    busyElsewhere: (name: string) => `The AI is still working on “${name}”. Wait or cancel it there.`,
   },
   graph: {
     tidy: '✥ Tidy tree',
@@ -455,6 +459,9 @@ export const en = {
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
     fitAll: 'Show the whole graph',
+    // correção rodada 1
+    flowResources: 'Resources and concepts',
+    flowSteps: 'Steps in order',
   },
   conceptNode: {
     root: 'OBJECTIVE',
@@ -500,7 +507,7 @@ export const en = {
     aiCriterion: 'AI criterion',
     hiddenUntilLock: '(hidden until you lock yours)',
     emptyAI: '(empty)',
-    writeYoursFirst: 'Write yours first to keep the loop honest.',
+    writeYoursFirst: 'Write yours first — that is what keeps the process honest.',
     convergenceCopy:
       "⚠ your criterion is nearly identical to the AI's — that is not an independent check.",
     convergenceIndependent: '◇ independent criteria — a real second check.',
@@ -592,6 +599,8 @@ export const en = {
     pendingHereHint: 'Review the pending suggestions first',
     diagnosisLabel: 'Likely cause',
     needsObservation: 'checked without a note — click the box and say what you saw so it counts',
+    // correção rodada 1
+    aiAfterUndoWindow: 'Your criterion is locked — the AI’s shows up when the undo window closes.',
   },
   kbModal: {
     title: '◆ My PDFs',
@@ -851,6 +860,7 @@ export const ptBR: Messages = {
     technicalDetails: 'detalhes técnicos',
     cancelRunning: 'Cancelar',
     thinking: (s: number) => `pensando… ${s}s`,
+    configureKey: 'Configurar chave',
   },
   language: {
     label: 'Idioma',
@@ -948,8 +958,8 @@ export const ptBR: Messages = {
     progress: 'Progresso',
     nodes: (n: number) => `${n} nós`,
     atRiskSuffix: 'em risco',
-    noAnchor: (n: number) => `${n} sem âncora`,
-    noAnchorTitle: 'Confirmado sem critério travado nem âncora verificada',
+    noAnchor: (n: number) => `${n} sem prova`,
+    noAnchorTitle: 'Confirmado sem critério travado nem prova verificada',
     pendingSuggestions: (n: number) =>
       `${n} ${n === 1 ? 'sugestão' : 'sugestões'} da IA pendente${n === 1 ? '' : 's'}`,
     reviewPendingTitle: 'Abrir o nó com sugestões para revisar',
@@ -1006,7 +1016,7 @@ export const ptBR: Messages = {
     stepRead: 'Lendo seu objetivo',
     stepResearch: 'Pesquisando na web',
     stepThinking: 'Pensando nas estratégias',
-    stepThinkingHint: 'o modelo raciocina em silêncio — costuma levar 1–3 min',
+    stepThinkingHint: 'o modelo raciocina em silêncio — costuma levar 2–4 min',
     stepWriting: (n: number, total: number, title?: string) =>
       `Escrevendo plano ${n} de ${total}${title ? `: ${title}` : ''}`,
     stepChecking: 'Conferindo os planos',
@@ -1073,8 +1083,8 @@ export const ptBR: Messages = {
     projectDoneTitle: 'Projeto concluído',
     projectWalkedTitle: 'Plano percorrido',
     projectWalkedBody: (n: number) =>
-      `Você confirmou ${n} nó${n === 1 ? '' : 's'} sem âncora. Volte neles pra travar um critério ou verificar uma âncora real.`,
-    confirmedNoAnchor: (n: number) => `${n} confirmado${n === 1 ? '' : 's'} sem âncora`,
+      `Você confirmou ${n} nó${n === 1 ? '' : 's'} sem prova. Volte neles pra travar um critério ou verificar uma prova real.`,
+    confirmedNoAnchor: (n: number) => `${n} confirmado${n === 1 ? '' : 's'} sem prova`,
     decomposeFork: 'Não dá pra confirmar ainda → decompor em partes',
     decomposeForkConcept: 'Ainda não entendi → decompor em partes',
     alreadyKnow: '⊢ Já sei isso — marcar como sabido',
@@ -1164,11 +1174,11 @@ export const ptBR: Messages = {
     noSelection: 'Nenhum nó selecionado. Clique em um nó no grafo.',
     blocked: '⛔ bloqueado',
     confirmed: '✓ confirmado',
-    confirmedNoSignal: '✓ confirmado (sem âncora)',
+    confirmedNoSignal: '✓ confirmado (sem prova)',
     axiomBadge: '⊢ axioma / sabido',
     confirmHintNoSignal:
-      'Vai confirmar sem âncora — trave um critério ou verifique uma âncora pra ganhar um "concluído" de verdade.',
-    confirmAnyway: '✓ Confirmar sem âncora',
+      'Vai confirmar sem prova — trave um critério ou verifique uma prova pra ganhar um "concluído" de verdade.',
+    confirmAnyway: '✓ Confirmar sem prova',
     cancel: 'Cancelar',
     stepNumber: (n: number) => `passo #${n}`,
     whatIs: 'O que é',
@@ -1235,7 +1245,7 @@ export const ptBR: Messages = {
     readyToConclude: 'Há sinal real — confirmar conta como ✓ com prova.',
     missing: {
       criterionNotLocked: 'Trave o seu critério abaixo (antes de ver o da IA).',
-      criterionNotAttested: 'Ateste que o seu critério foi cumprido, ou verifique uma âncora.',
+      criterionNotAttested: 'Ateste que o seu critério foi cumprido, ou verifique uma prova.',
       openFailure: 'Há uma falha em aberto — resolva antes.',
     },
     decomposingElapsed: (s: number) => `Quebrando em partes… ${s}s`,
@@ -1251,6 +1261,9 @@ export const ptBR: Messages = {
     summaryNext: 'Próximo',
     summaryNothingPending: 'Nada pendente — todas as partes estão resolvidas.',
     summaryHint: 'Clique numa parte do grafo para vê-la aqui. Esc limpa a seleção.',
+    // correção rodada 1
+    pendingHereHint: 'Revise antes as sugestões da IA desta parte — aceite ou descarte cada uma.',
+    busyElsewhere: (name: string) => `A IA ainda está trabalhando em “${name}”. Espere ou cancele lá.`,
   },
   graph: {
     tidy: '✥ Organizar árvore',
@@ -1289,6 +1302,9 @@ export const ptBR: Messages = {
     zoomIn: 'Aproximar',
     zoomOut: 'Afastar',
     fitAll: 'Ver o grafo inteiro',
+    // correção rodada 1
+    flowResources: 'Recursos e conceitos',
+    flowSteps: 'Passos em ordem',
   },
   conceptNode: {
     root: 'OBJETIVO',
@@ -1302,7 +1318,7 @@ export const ptBR: Messages = {
     quickHaveStep: '✓ Já fiz',
     quickUnderstood: '✓ Entendi',
     axiom: 'Axioma / já sabido (chão da recursão)',
-    noAnchor: 'Confirmado sem âncora verificada',
+    noAnchor: 'Confirmado sem prova verificada',
     accept: '✓ Aceitar',
     reject: '✕',
     whatPrefix: 'o que:',
@@ -1327,17 +1343,17 @@ export const ptBR: Messages = {
     lockBtn: '🔒 Travar critério',
     criterionMet: 'Atendido',
     criterionMetPrompt: 'Comprove: o que você observou?',
-    criterionMetPlaceholder: 'ex: medi 178g, bate com a spec',
+    criterionMetPlaceholder: 'ex: medi 178g, bate com a especificação',
     criterionMetBtn: '✓ Sim, atendido',
     revealAI: 'revelar IA',
     revealAITitle: 'Ver sem travar (não recomendado)',
     aiCriterion: 'Critério da IA',
     hiddenUntilLock: '(oculto até travar o seu)',
     emptyAI: '(vazio)',
-    writeYoursFirst: 'Escreva o seu primeiro pra manter a honestidade do loop.',
+    writeYoursFirst: 'Escreva o seu primeiro — é o que mantém o processo honesto.',
     convergenceCopy:
       '⚠ seu critério ficou quase igual ao da IA — isso não é checagem independente.',
-    convergenceIndependent: '◇ critérios independentes — checagem de verdade.',
+    convergenceIndependent: '◇ Seu critério e o da IA checam coisas diferentes — uma segunda checagem de verdade.',
     adversarial: 'Segunda opinião cética',
     generatedOn: (date: string) => `◆ gerada ${date}`,
     askSecondOpinion: '⚠ Pedir segunda opinião cética',
@@ -1412,9 +1428,9 @@ export const ptBR: Messages = {
     openLinkFirst: 'Abra o link primeiro — depois dá pra marcar como conferida.',
     checkedNote: 'conferido:',
     invalidLink: 'link inválido (não é http/https)',
-    addPlaceholder: 'Cole um link ou escreva uma medida/spec',
+    addPlaceholder: 'Cole um link ou escreva uma medida/especificação',
     addLabelOptional: 'rótulo (opcional)',
-    kindNames: { link: 'link', spec: 'spec', medida: 'medida' },
+    kindNames: { link: 'link', spec: 'especificação', medida: 'medida' },
     kindChipTitle: 'Tipo detectado — clique para trocar',
     removedToast: (label: string) => `Prova removida: ${label}`,
     researchMicrocopy: 'Pesquisar na web · ~20–40s · usa créditos',
@@ -1428,6 +1444,8 @@ export const ptBR: Messages = {
     pendingHereHint: 'Revise as sugestões pendentes primeiro',
     diagnosisLabel: 'Causa provável',
     needsObservation: 'conferida sem anotação — clique na caixa e diga o que você viu para contar',
+    // correção rodada 1
+    aiAfterUndoWindow: 'Seu critério está travado — o da IA aparece quando acabar o prazo de desfazer.',
   },
   kbModal: {
     title: '◆ Meus PDFs',
@@ -1474,7 +1492,7 @@ export const ptBR: Messages = {
     renamed: (from: string, to: string) => `Nome: "${from}" → "${to}"`,
     confirmed: (name: string) => `Confirmado: "${name}"`,
     confirmedForced: (name: string) =>
-      `Confirmado sem âncora real (assumido pelo usuário): "${name}"`,
+      `Confirmado sem prova real (assumido pelo usuário): "${name}"`,
     confirmedNoSignal: (missing: string, name: string) =>
       `Confirmado sem sinal real — falta: ${missing}: "${name}"`,
     unconfirmed: (name: string) => `Desconfirmado: "${name}"`,
@@ -1485,27 +1503,27 @@ export const ptBR: Messages = {
     criterionLocked: 'Critério do usuário travado (antes de ver o da IA).',
     criterionAttested: (obs: string) => `Critério aferido como atendido: ${obs}`,
     critiqueRecorded: (n: number) => `Crítica adversarial registrada: ${n} fraqueza(s).`,
-    anchorAdded: (kind: string, label: string) => `Âncora ${kind} adicionada: ${label}`,
+    anchorAdded: (kind: string, label: string) => `Prova ${kind} adicionada: ${label}`,
     webResearchDone: (n: number) =>
-      `Pesquisa web registrada: ${n} fonte${n === 1 ? '' : 's'} nova${n === 1 ? '' : 's'} como âncora de link.`,
-    anchorVerified: (label: string) => `Âncora "${label}" verificada ✓.`,
-    anchorUnverified: (label: string) => `Âncora "${label}" desverificada.`,
-    anchorRemoved: (label: string) => `Âncora removida: ${label}`,
+      `Pesquisa web registrada: ${n} fonte${n === 1 ? '' : 's'} nova${n === 1 ? '' : 's'} como prova de link.`,
+    anchorVerified: (label: string) => `Prova "${label}" verificada ✓.`,
+    anchorUnverified: (label: string) => `Prova "${label}" desverificada.`,
+    anchorRemoved: (label: string) => `Prova removida: ${label}`,
     failureReported: (ctx: string) => `Falha reportada: ${ctx}`,
     failureCleared: 'Falha marcada como resolvida.',
     suggestionAccepted: 'Sugestão da IA aceita',
     suggestionAcceptedBatch: 'Sugestão da IA aceita (lote)',
     missingBlocked: 'confirme os passos anteriores primeiro',
     missingSignal:
-      'escreva e trave o seu critério, depois afira que foi atendido — ou verifique uma âncora real',
+      'escreva e trave o seu critério, depois afira que foi atendido — ou verifique uma prova real',
     ruleAdded: (r: string) => `Regra adicionada: "${r}"`,
     ruleRemoved: (r: string) => `Regra removida: "${r}"`,
     missingOpenFailure: 'resolva a falha reportada primeiro',
     missingCriterionNotAttested:
-      'seu critério está travado mas ainda não foi aferido como atendido — ou verifique uma âncora real',
+      'seu critério está travado mas ainda não foi aferido como atendido — ou verifique uma prova real',
     promotedWithProof: 'Promovido a concluído com prova.',
     anchorVerifiedWithObs: (label: string, obs: string) =>
-      `Âncora "${label}" verificada ✓ — conferido: ${obs}`,
+      `Prova "${label}" verificada ✓ — conferido: ${obs}`,
     criterionUnlocked: 'Critério do usuário destravado para edição (até 10s após travar).',
     edited: (field: string, prev: string) =>
       `${field} editado. Antes: "${prev.length > 160 ? `${prev.slice(0, 160)}…` : prev}"`,

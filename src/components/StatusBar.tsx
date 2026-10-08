@@ -9,7 +9,7 @@ export function StatusBar() {
   const viewMode = useGraphStore((s) => s.viewMode);
   const selectNode = useGraphStore((s) => s.selectNode);
   const requestCenter = useGraphStore((s) => s.requestCenter);
-  const m = projectMetrics(project);
+  const m = projectMetrics(project, pending);
 
   if (!m) return null;
 

@@ -1,6 +1,7 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useGraphStore, isDemoProject } from '@/store';
+import { setAIUnavailableHandler } from '@/ai/availability';
 import { useConfigStore } from '@/config/store';
 import { useLocaleStore, useT } from '@/i18n';
 import { ObjectiveScreen } from '@/components/ObjectiveScreen';
@@ -11,7 +12,7 @@ import { DetailPanel } from '@/components/DetailPanel';
 import { TutorMode } from '@/components/TutorMode';
 import { ApiKeyGate } from '@/components/ApiKeyGate';
 import { Logo } from '@/components/Logo';
-import { Toaster } from '@/components/ui/Toast';
+import { Toaster, toast } from '@/components/ui/Toast';
 // Route-split: the marketing page is only shown on /landing, so app users
 // never download it and /landing visitors don't pull the whole app.
 const LandingPage = lazy(() =>
@@ -94,11 +95,34 @@ export default function App() {
   const activeProvider = useConfigStore((s) => s.activeProvider);
   const providers = useConfigStore((s) => s.providers);
   const hasKey = activeProvider ? Boolean(providers[activeProvider]?.apiKey) : false;
+  const tr = useT();
+  const [keyModalOpen, setKeyModalOpen] = useState(false);
 
   useEffect(() => {
     window.addEventListener('keydown', handleAppShortcut);
     return () => window.removeEventListener('keydown', handleAppShortcut);
   }, []);
+
+  // IA indisponível (demo ou sem chave): toast com CTA em vez do alert()
+  // nativo. Na demo o CTA sai dela (cai na tela de chave); sem chave, abre
+  // as configurações por cima do projeto.
+  useEffect(
+    () =>
+      setAIUnavailableHandler((err) => {
+        toast.show({
+          message: err.message,
+          tone: 'warn',
+          action: {
+            label: err.reason === 'demo' ? tr.topBar.demoExit : tr.common.configureKey,
+            onClick: () => {
+              if (err.reason === 'demo') useGraphStore.getState().resetProject();
+              else setKeyModalOpen(true);
+            },
+          },
+        });
+      }),
+    [tr],
+  );
 
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/landing')) {
     return (
@@ -145,6 +169,7 @@ export default function App() {
   return (
     <>
       {screen}
+      {keyModalOpen && <ApiKeyGate onClose={() => setKeyModalOpen(false)} />}
       {/* No tutor a barra de ações é fixa embaixo: o toast sobe pra não cobri-la. */}
       <Toaster raised={Boolean(project) && viewMode === 'tutor'} />
     </>

@@ -1,7 +1,8 @@
 import { memo } from 'react';
 import { Handle, Position, useStore as useRfStore, type NodeProps } from '@xyflow/react';
 import type { ConceptNodeData, NodeKind } from '@/types';
-import { useGraphStore, confidenceBand, canRevealAICriterion, isActionableKind } from '@/store';
+import { useGraphStore, confidenceBand, isActionableKind } from '@/store';
+import { useAIReveal } from '@/hooks/useAIReveal';
 import { useT } from '@/i18n';
 import type { Messages } from '@/i18n';
 
@@ -137,6 +138,8 @@ function ConceptNodeImpl({ data, selected }: Props) {
   const acceptSuggestion = useGraphStore((s) => s.acceptSuggestion);
   const rejectSuggestion = useGraphStore((s) => s.rejectSuggestion);
   const confirmNode = useGraphStore((s) => s.confirmNode);
+  // Mesmo gate do tutor: só depois do lock E da janela de desfazer.
+  const { revealed: revealCheck } = useAIReveal(data);
 
   const band = confidenceBand(data.confidence);
   const blocked = !data.confirmado && !!data.blocked;
@@ -300,7 +303,6 @@ function ConceptNodeImpl({ data, selected }: Props) {
   // Critério do usuário ANTES do da IA: o "como saber" da IA só aparece
   // depois do lock (ou do nó fechado por outro caminho). Zoom não fura o gate.
   const showCheckLine = !!data.comoConfirmar && isActionableKind(data.kind) && data.kind !== 'decisao';
-  const revealCheck = canRevealAICriterion(data);
 
   return (
     <div className={`${baseClass} w-[300px] p-3`}>

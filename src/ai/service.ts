@@ -371,6 +371,9 @@ export interface ExplainContext {
   comoConfirmarUsuario?: string;
   rules?: string[];
   research?: ResearchDigest | null;
+  // Pai, filhos e irmãos já no plano (nome + oQue): a explicação reusa os
+  // preços/números deles em vez de inventar outros.
+  relatedParts?: { relation: 'parent' | 'child' | 'sibling'; name: string; oQue: string }[];
 }
 
 export interface CritiqueContext {
@@ -456,7 +459,9 @@ const CRITERION_RULES = `
 CONFIRMATION CRITERION (comoConfirmar) — ONE observable check with a pass threshold: what to look at or measure, and which value passes. Max 140 characters, a single condition. If you need two conditions, the node is too big — split it.
 - Good: "Multimeter in continuity mode between BAT+ and BAT−: no beep."
 - Good (understanding): "Re-derive the formula on paper without notes and get the same result."
-- Bad: "Is everything wired correctly, powered and working?" (several conditions, no threshold)`;
+- Bad: "Is everything wired correctly, powered and working?" (several conditions, no threshold)
+- It tests THIS node's own item (what its oQue describes) — never a property of the parent, a sibling or the site.
+- The user writes their OWN criterion before seeing yours: never restate the pass threshold (the value that passes) in oQue, porQue or groundTruthHints. Hints identify WHAT the item is; the pass bar lives only in comoConfirmar.`;
 
 // Âncoras: sem pesquisa web, link é proibido (URL de memória não é verificável).
 function groundTruthRules(research: ResearchDigest | null, scope: 'plan' | 'response'): string {
@@ -1041,6 +1046,7 @@ ${formatSiblings(ctx.siblings)}
 ${formatKBContext(kbContext)}
 TASK
 ${guidance}
+- Every child is a real part to obtain or a real action to do. Never a bookkeeping child (budget split, cost allocation, "N slots/positions", cost summary) — put each price inside the oQue of the real part it belongs to, and keep prices consistent with the node content above.
 ${CRITERION_RULES}
 ${groundTruthRules(research, 'response')}
 
@@ -1176,7 +1182,7 @@ NODE
 - Name: ${ctx.nodeName}
 - Kind: ${ctx.nodeKind}
 - What it is (short summary): ${ctx.oQue}
-- Why it matters: ${ctx.porQue}${criterionLine}
+- Why it matters: ${ctx.porQue}${criterionLine}${formatRelatedParts(ctx.relatedParts)}
 
 Generate the full markdown explanation following the structure above. Focus on letting the user execute this node alone.${ctx.rules && ctx.rules.length > 0 ? ' Every instruction, material and number you give must stay inside the USER RULES above — call out explicitly when a rule shapes a choice.' : ''}${formatResearchBlock(research)}`;
 
@@ -1213,6 +1219,16 @@ Generate the full markdown explanation following the structure above. Focus on l
   } catch (err) {
     throw toAIError(err, signal);
   }
+}
+
+// Partes vizinhas no plano: os números delas são a fonte da verdade.
+function formatRelatedParts(parts: ExplainContext['relatedParts']): string {
+  const list = (parts ?? []).filter((p) => p.oQue.trim()).slice(0, 10);
+  if (list.length === 0) return '';
+  return `
+
+RELATED PARTS ALREADY IN THE PLAN (reuse their prices, quantities and specs EXACTLY — never contradict them, and never state a "remaining budget" unless you sum every part of the project)
+${list.map((p) => `- [${p.relation}] ${p.name}: ${p.oQue.trim()}`).join('\n')}`;
 }
 
 // Seção de referências montada por código a partir de result.sources — URLs

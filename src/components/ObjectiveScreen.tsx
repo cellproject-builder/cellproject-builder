@@ -184,6 +184,7 @@ export function ObjectiveScreen() {
   const busy = gen.running || more.running;
 
   const mountedRef = useRef(true);
+  const moreProgressRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<() => void>(() => {});
   cancelRef.current = () => {
     gen.cancel();
@@ -244,6 +245,8 @@ export function ObjectiveScreen() {
     setProgress(null);
     setKbUsed([]);
     setInterrupted(false);
+    // Nova geração: o aviso de "retomamos seus planos" deixou de valer.
+    setRestoredAt(null);
     more.reset();
     setObjectiveDraft({ generatingSince: Date.now() });
     const result = await gen.run(obj, eff, undefined);
@@ -271,7 +274,12 @@ export function ObjectiveScreen() {
     const eff = mergeRules(plansFor?.rules ?? [], commitPendingRules());
     setProgress(null);
     setInterrupted(false);
+    setRestoredAt(null);
     gen.reset();
+    // O painel de progresso fica abaixo dos cards: traz ele pra vista.
+    requestAnimationFrame(() =>
+      moreProgressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+    );
     setObjectiveDraft({ generatingSince: Date.now() });
     const existing = plans.map((p) => ({
       title: p.title,
@@ -754,13 +762,15 @@ export function ObjectiveScreen() {
             )}
 
             {more.running ? (
-              <GenerationProgress
-                progress={progress}
-                elapsedMs={more.elapsedMs}
-                withResearch={webResearch}
-                onCancel={handleCancel}
-                tr={tr}
-              />
+              <div ref={moreProgressRef} className="scroll-mb-24">
+                <GenerationProgress
+                  progress={progress}
+                  elapsedMs={more.elapsedMs}
+                  withResearch={webResearch}
+                  onCancel={handleCancel}
+                  tr={tr}
+                />
+              </div>
             ) : plans.length >= MAX_PLANS ? (
               <p className="text-xs text-text-muted text-center py-2">{tr.objective.morePlansLimit}</p>
             ) : (

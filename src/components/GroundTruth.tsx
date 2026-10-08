@@ -4,7 +4,7 @@ import {
   useGraphStore,
   breadcrumbFor,
   buildStagedNodes,
-  canRevealAICriterion,
+  CRITERION_UNLOCK_MS,
   pendingParent,
   refCountsAsSignal,
 } from '@/store';
@@ -14,6 +14,7 @@ import { critiqueNode, replanFromFailure } from '@/ai/service';
 import { runResearch } from '@/ai/research';
 import { requireAI } from '@/ai/availability';
 import { useAIAction } from '@/hooks/useAIAction';
+import { useAIReveal } from '@/hooks/useAIReveal';
 import { InlineError } from './ui/InlineError';
 import { toast } from './ui/Toast';
 import { ExplanationContent } from './Markdown';
@@ -24,7 +25,7 @@ import { ExplanationContent } from './Markdown';
 
 // Mesmo prazo do unlockCriterion no store: enquanto dá pra desfazer o lock, o
 // critério da IA continua escondido — senão desfazer viraria um jeito de espiar.
-export const CRITERION_UNDO_MS = 10_000;
+export const CRITERION_UNDO_MS = CRITERION_UNLOCK_MS;
 
 // Só http(s) vira href — nada de javascript:, data: etc. vindos da IA/import.
 export function safeHref(value: string): string | null {
@@ -155,27 +156,6 @@ const submitOnModEnter = (fn: () => void) => (e: KeyboardEvent) => {
 };
 
 const secs = (ms: number) => Math.max(0, Math.round(ms / 1000));
-
-// Critério da IA revelado só depois do lock E do fim da janela de desfazer.
-// Confirmar/"já sei" revelam na hora (não há lock a desfazer).
-function useAIReveal(node: ConceptNodeData): { revealed: boolean; remainingMs: number } {
-  const lockedAt = node.comoConfirmarUsuarioAt;
-  const graceEnd =
-    lockedAt && !node.confirmado && !node.takenAsKnown ? lockedAt + CRITERION_UNDO_MS : 0;
-  const [clock, setClock] = useState(() => Date.now());
-  useEffect(() => {
-    if (graceEnd <= Date.now()) return;
-    setClock(Date.now());
-    const timer = setInterval(() => {
-      const t = Date.now();
-      setClock(t);
-      if (t >= graceEnd) clearInterval(timer);
-    }, 250);
-    return () => clearInterval(timer);
-  }, [graceEnd]);
-  const remainingMs = Math.max(0, graceEnd - clock);
-  return { revealed: canRevealAICriterion(node) && remainingMs === 0, remainingMs };
-}
 
 const isActionable = (node: ConceptNodeData) =>
   node.kind === 'recurso' ||
@@ -428,7 +408,7 @@ function UserCriterionBody({ node, domIds }: CriterionProps) {
           </div>
         ) : (
           <div className="text-xs bg-bg-elevated/40 border border-dashed border-border-base rounded-sm px-2 py-1.5 text-text-muted italic">
-            {tr.groundTruth.writeYoursFirst}
+            {locked ? tr.groundTruth.aiAfterUndoWindow : tr.groundTruth.writeYoursFirst}
           </div>
         )}
       </div>
@@ -983,6 +963,8 @@ function RefRow({
   const [obs, setObs] = useState('');
 
   const href = refData.kind === 'link' ? safeHref(refData.value) : null;
+  // Prova sem rótulo próprio: o rótulo É o valor — não repete a linha.
+  const valueIsLabel = refData.kind !== 'link' && refData.value.trim() === refData.label.trim();
   // Prova da IA com link: só dá pra conferir depois de abrir a fonte.
   const mustOpenFirst = refData.addedByAI && href !== null && !refData.openedAt;
   const counts = refCountsAsSignal(refData);
@@ -1046,34 +1028,40 @@ function RefRow({
             <span className="text-[9px] font-mono uppercase tracking-wider text-text-muted shrink-0">
               {tr.groundTruth.kindNames[refData.kind]}
             </span>
-            <span className="text-[11px] text-text-primary truncate">{refData.label}</span>
+            <span
+              className={`text-[11px] text-text-primary ${valueIsLabel ? 'min-w-0 break-words' : 'truncate'}`}
+            >
+              {refData.label}
+            </span>
             {refData.addedByAI && (
               <span className="text-[9px] font-mono text-ai-accent/70 ml-auto shrink-0">
                 {tr.groundTruth.anchorAIBadge}
               </span>
             )}
           </div>
-          <div className="text-[11px] font-mono text-text-secondary break-all">
-            {href ? (
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={onOpen}
-                onAuxClick={onOpen}
-                className="text-ai-accent hover:underline"
-              >
-                {refData.value}
-              </a>
-            ) : (
-              <>
-                {refData.value}
-                {refData.kind === 'link' && (
-                  <span className="ml-1 text-[10px] text-state-problem">({tr.groundTruth.invalidLink})</span>
-                )}
-              </>
-            )}
-          </div>
+          {!valueIsLabel && (
+            <div className="text-[11px] font-mono text-text-secondary break-all">
+              {href ? (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={onOpen}
+                  onAuxClick={onOpen}
+                  className="text-ai-accent hover:underline"
+                >
+                  {refData.value}
+                </a>
+              ) : (
+                <>
+                  {refData.value}
+                  {refData.kind === 'link' && (
+                    <span className="ml-1 text-[10px] text-state-problem">({tr.groundTruth.invalidLink})</span>
+                  )}
+                </>
+              )}
+            </div>
+          )}
           {refData.verificado && refData.observacao && (
             <div className="mt-0.5 text-[10px] text-state-done/90 break-words">
               {tr.groundTruth.checkedNote} <span className="text-text-secondary">{refData.observacao}</span>

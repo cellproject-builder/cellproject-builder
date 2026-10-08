@@ -174,10 +174,21 @@ describe('ReadingMode — critério do usuário antes do da IA', () => {
     expect(document.body.textContent).not.toContain('CRITERIO-SECRETO-DA-IA');
   });
 
-  it('mostra o critério da IA depois do lock', () => {
+  it('segura o critério da IA durante a janela de desfazer do lock', () => {
     const parentId = nodeByName('Passo pai').id;
     act(() => useGraphStore.getState().setUserCriterion(parentId, 'meu critério'));
     const parent = useGraphStore.getState().project!.nodes[parentId];
+    act(() => root.render(<ReadingMode node={parent} breadcrumb={[]} onClose={() => {}} />));
+    expect(document.body.textContent).not.toContain('CRITERIO-SECRETO-DA-IA');
+    expect(document.body.textContent).toContain('meu critério');
+  });
+
+  it('mostra o critério da IA depois do lock e da janela de desfazer', () => {
+    const parentId = nodeByName('Passo pai').id;
+    act(() => useGraphStore.getState().setUserCriterion(parentId, 'meu critério'));
+    const locked = useGraphStore.getState().project!.nodes[parentId];
+    // Lock de 11s atrás: a janela de 10s para destravar já passou.
+    const parent = { ...locked, comoConfirmarUsuarioAt: Date.now() - 11_000 };
     act(() => root.render(<ReadingMode node={parent} breadcrumb={[]} onClose={() => {}} />));
     expect(document.body.textContent).toContain('CRITERIO-SECRETO-DA-IA');
     expect(document.body.textContent).toContain('meu critério');
