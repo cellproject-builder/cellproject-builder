@@ -31,6 +31,12 @@
     }
   }
 
+  /* Foco visível padrão para teclado — sem anel no clique do mouse. */
+  :where(button, a, [role='button'], summary, select, input, textarea):focus-visible {
+    outline: 2px solid #8b5cf6;
+    outline-offset: 2px;
+  }
+
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -48,6 +54,14 @@
 }
 
 @layer components {
+  /* Alvo de toque mínimo de 44px em telas de toque (WCAG 2.5.5). */
+  @media (pointer: coarse) {
+    .tap {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
   .react-flow {
     background: #09090b;
     overscroll-behavior: contain;
@@ -73,6 +87,22 @@
   .react-flow__controls-button:hover {
     background: #27272a;
     color: #f4f4f5;
+  }
+  .react-flow__controls-button:last-child {
+    border-bottom: none;
+  }
+  .react-flow__controls-button svg {
+    fill: currentColor;
+    max-width: 14px;
+    max-height: 14px;
+  }
+  .react-flow__controls-button:disabled {
+    color: #52525b;
+    cursor: not-allowed;
+  }
+  .react-flow__controls-button:focus-visible {
+    outline: 2px solid #8b5cf6;
+    outline-offset: -2px;
   }
   @media (pointer: coarse) {
     .react-flow__controls-button {

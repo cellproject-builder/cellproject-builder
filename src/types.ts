@@ -48,8 +48,13 @@ export interface HistoryEntry {
     | 'critica'
     | 'ground_truth'
     | 'failure'
-    | 'replan';
+    | 'replan'
+    | 'edit';
   message: string;
+  // Edição de texto auditada (kind 'edit'): campo e valor anterior, para o
+  // histórico mostrar o que mudou e permitir restaurar.
+  field?: 'oQue' | 'porQue';
+  prevValue?: string;
 }
 
 export interface DecisionOption {
@@ -74,6 +79,11 @@ export interface GroundTruthRef {
   addedAt: number;
   verifiedAt?: number;
   addedByAI: boolean; // true quando veio como hint da IA, false quando usuário cadastrou
+  // O que o usuário viu ao abrir/conferir a âncora. Âncora da IA só conta como
+  // sinal real quando verificada COM observação — marcar sem olhar não vale.
+  observacao?: string;
+  // Quando o usuário abriu o link/conferiu a fonte (registro, não prova).
+  openedAt?: number;
 }
 
 // Fonte real consultada na web (pesquisa por célula) — URL direta + título.
@@ -129,6 +139,8 @@ export interface ConceptNodeData {
   // copie o comoConfirmar da IA retroativamente.
   comoConfirmarUsuario?: string;
   comoConfirmarUsuarioAt?: number;
+  // Conflito com uma regra do projeto apontado pela IA (também espelhado em cons).
+  ruleConflict?: string;
   // Ground truth (attack a, part 2 — reality CONFIRMED): the user attested the
   // locked criterion is MET, with an observation of HOW they know. 'done'
   // requires this, not merely that a criterion was written.
@@ -202,6 +214,11 @@ export interface Project {
   // Build vs understand. Conditions decomposition vocabulary. Optional for
   // back-compat; treated as 'construir' when absent.
   archetype?: ProjectArchetype;
+  // Planos que o usuário viu e não escolheu — guardados para comparar depois.
+  alternativePlans?: AIPlan[];
+  // true depois que o usuário arrastou um nó: a partir daí o layout automático
+  // não reposiciona mais a árvore ao aceitar sugestões.
+  manualLayout?: boolean;
 }
 
 // ---- AI contract ----------------------------------------------------------
@@ -229,6 +246,8 @@ export interface AISuggestedNode {
   decisionOptions?: DecisionOption[];
   // Âncoras propostas pela IA — ainda não verificadas.
   groundTruthHints?: AISuggestedGroundTruthHint[];
+  // Conflito com uma regra do projeto (null/ausente = nenhum).
+  ruleConflict?: string;
 }
 
 export interface AISuggestedEdge {
@@ -250,6 +269,13 @@ export interface AIPlan {
   rank: number;
   rankReason: string;
   tree: AIPlanTree;
+  // Estimativas e checagem de regras da IA — opcionais (planos antigos não têm).
+  estimates?: {
+    custo: string;
+    tempo: string;
+    dificuldade: 'iniciante' | 'intermediario' | 'avancado';
+  };
+  rulesCheck?: { rule: string; status: 'cumpre' | 'risco' | 'viola'; nota: string }[];
 }
 
 export interface AIPlanTree {
