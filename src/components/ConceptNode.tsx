@@ -143,7 +143,7 @@ function ConceptNodeImpl({ data, selected }: Props) {
     selected
       ? 'ring-2 ring-accent ring-offset-2 ring-offset-bg-primary'
       : data.isNext
-      ? 'ring-[3px] ring-ai-accent/35'
+      ? 'ring-[3px] ring-accent/30'
       : '',
   ].join(' ');
 
@@ -206,7 +206,7 @@ function ConceptNodeImpl({ data, selected }: Props) {
     ) : null;
 
   const nextTag = data.isNext ? (
-    <span className="chip !h-[18px] bg-ai-accent/12 text-ai-accent">{tr.conceptNode.next}</span>
+    <span className="chip !h-[18px] bg-accent/12 text-accent">{tr.conceptNode.next}</span>
   ) : null;
 
   if (level === 'far') {

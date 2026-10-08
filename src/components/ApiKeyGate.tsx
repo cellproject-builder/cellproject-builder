@@ -223,7 +223,7 @@ function ConfigForm({
               </span>
               <span
                 className={`flex w-full items-center justify-center gap-1 truncate text-caption font-normal ${
-                  inUse ? 'text-accent' : has ? 'text-text-secondary' : 'text-text-muted'
+                  inUse ? 'text-text-primary' : has ? 'text-text-secondary' : 'text-text-muted'
                 }`}
               >
                 {(inUse || has) && (
@@ -278,7 +278,7 @@ function ConfigForm({
                 href={keyInfo.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-accent hover:underline underline-offset-2"
+                className="tap-area inline-block text-accent hover:underline underline-offset-2"
               >
                 {tr.apiKey.createKeyLink(PROVIDER_LABELS[selected])}
               </a>
@@ -453,7 +453,7 @@ function ModelPicker({
             <option value={OTHER}>{tr.apiKey.otherModel}</option>
           </select>
           {custom && (
-            <input
+            <input name="custom-model"
               value={value}
               onChange={(e) => onChange(e.target.value)}
               placeholder={tr.apiKey.customModelPlaceholder}

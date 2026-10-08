@@ -942,7 +942,7 @@ export function GraphCanvas() {
             >
               <TidyIcon />
             </button>
-            <select
+            <select name="lens"
               value={lens}
               onChange={(e) => setLens(e.target.value as Lens)}
               aria-label={tr.topBar.lensSelectAria}

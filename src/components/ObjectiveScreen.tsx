@@ -897,7 +897,7 @@ export function ObjectiveScreen() {
                   busy ? 'opacity-50 pointer-events-none' : ''
                 }`}
               >
-                <input
+                <input name="web-research"
                   type="checkbox"
                   checked={webResearch}
                   onChange={(e) => setWebResearch(e.target.checked)}

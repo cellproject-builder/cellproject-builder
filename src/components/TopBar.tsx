@@ -200,7 +200,7 @@ export function TopBar() {
   const menuItemClass =
     'tap group w-full text-left px-2.5 min-h-[28px] [@media(pointer:coarse)]:min-h-[44px] py-1 text-control rounded-chip text-text-primary outline-none transition-colors duration-120 ease-mac flex items-center justify-between gap-3 hover:bg-accent-solid hover:text-accent-fg focus-visible:bg-accent-solid focus-visible:text-accent-fg focus-visible:outline-none';
   const menuHintClass =
-    'text-footnote text-text-muted group-hover:text-accent-fg/80 group-focus-visible:text-accent-fg/80';
+    'min-w-0 truncate text-right text-footnote text-text-muted group-hover:text-accent-fg/80 group-focus-visible:text-accent-fg/80';
 
   const modelName = activeProvider && activeModel ? modelLabel(activeProvider, activeModel) : null;
   const progressLabel = tr.topBar.progressLabel(progress.done, progress.total, progress.doneWithSignal);
@@ -215,7 +215,7 @@ export function TopBar() {
           {shortName}
         </span>
         {inDemo && (
-          <span title={tr.topBar.demoBadgeTitle} className="chip shrink-0 bg-ai-accent/12 text-ai-accent hidden sm:inline-flex">
+          <span title={tr.topBar.demoBadgeTitle} className="chip shrink-0 bg-bg-elevated text-text-secondary hidden sm:inline-flex">
             {tr.topBar.demoBadge}
           </span>
         )}
@@ -234,12 +234,13 @@ export function TopBar() {
             </span>
           </span>
         )}
-        {viewMode === 'graph' && crumbs.length > 0 && (
+        {viewMode === 'graph' && crumbs.some((c) => c.id !== project?.rootId) && (
           <nav
             aria-label={tr.topBar.breadcrumbAria}
             className="hidden lg:flex items-center gap-0.5 min-w-0 overflow-hidden ml-1"
           >
-            {crumbs.map((c, i) => (
+            {/* A raiz é o título do projeto, já na toolbar: começa abaixo dela. */}
+            {crumbs.filter((c) => c.id !== project?.rootId).map((c, i, list) => (
               <div key={c.id} className="flex items-center gap-0.5 min-w-0">
                 <span aria-hidden className="text-text-faint text-footnote px-0.5">
                   ›
@@ -253,7 +254,7 @@ export function TopBar() {
                   }}
                   title={tr.topBar.breadcrumbTitle(c.name)}
                   className={`text-footnote truncate max-w-[180px] px-1 py-0.5 rounded-chip hover:bg-bg-elevated hover:text-text-primary transition-colors duration-120 ease-mac ${
-                    i === crumbs.length - 1 ? 'text-text-primary font-medium' : 'text-text-muted'
+                    i === list.length - 1 ? 'text-text-primary font-medium' : 'text-text-muted'
                   }`}
                 >
                   {c.name}
@@ -372,7 +373,7 @@ export function TopBar() {
                 <span>{tr.topBar.newProjectConfirmDiscard(otherArchived.name)}</span>
               ) : (
                 <>
-                  <span>{inDemo ? tr.topBar.demoExit : tr.topBar.newProject}</span>
+                  <span className="whitespace-nowrap shrink-0">{inDemo ? tr.topBar.demoExit : tr.topBar.newProject}</span>
                   {!inDemo && (
                     <span className={menuHintClass}>
                       {otherArchived ? tr.topBar.newProjectHintReplaces : tr.topBar.newProjectHint}
@@ -433,7 +434,8 @@ export function TopBar() {
                 setSettingsOpen(true);
                 setMenuOpen(false);
               }}
-              className={menuItemClass}
+              // No desktop o botão de ajustes já está na toolbar.
+              className={`${menuItemClass} md:hidden`}
             >
               <span>{tr.topBar.settingsAction}</span>
               {modelName && (
@@ -442,7 +444,7 @@ export function TopBar() {
             </button>
           </div>
         )}
-        <input
+        <input name="import-file"
           ref={fileInputRef}
           type="file"
           accept="application/json,.json"

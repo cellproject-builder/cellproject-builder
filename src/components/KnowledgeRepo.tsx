@@ -215,7 +215,7 @@ export function KnowledgeRepo({ open, onClose }: Props) {
               : 'border-text-faint/45 bg-bg-elevated/40 hover:border-text-faint/70 hover:bg-bg-elevated/60'
           }`}
         >
-          <input
+          <input name="pdf-files"
             ref={inputRef}
             type="file"
             accept="application/pdf,.pdf"
@@ -272,7 +272,7 @@ export function KnowledgeRepo({ open, onClose }: Props) {
         )}
 
         {docs.length >= FILTER_MIN_DOCS && (
-          <input
+          <input name="pdf-filter"
             type="search"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}

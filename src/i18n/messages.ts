@@ -114,7 +114,7 @@ export const en = {
     breadcrumbAria: 'Path to the selected part',
     breadcrumbTitle: (name: string) => `Frame “${name}” and its parts in the graph`,
     // rodada 2: arquivo alcançável
-    newProjectHintReplaces: 'archives it · replaces the archived one',
+    newProjectHintReplaces: 'replaces the archived one',
     newProjectConfirmDiscard: (name: string) => `Confirm: archived “${name}” will be discarded`,
     reopenArchived: (name: string) => `Reopen “${name}”`,
     reopenArchivedHint: 'archived',
@@ -625,7 +625,7 @@ export const en = {
     docCount: (n: number) => `${n} document${n === 1 ? '' : 's'}`,
     dropOrClick: 'Drop PDFs here or click to choose',
     dropHint:
-      'The file never leaves your browser; the extracted text (up to ~40k characters) is sent to the configured AI model to generate a summary. Avoid confidential documents.',
+      'The PDF stays in your browser. Only the extracted text (up to ~40k characters) goes to the model you configured, to generate a summary. Avoid confidential documents.',
     pdfOnlyError: 'Only PDF supported for now.',
     extracting: 'Extracting text',
     summarizing: 'Summarizing',
@@ -1006,7 +1006,7 @@ export const ptBR: Messages = {
     breadcrumbAria: 'Caminho até a parte selecionada',
     breadcrumbTitle: (name: string) => `Enquadrar “${name}” e as partes dele no grafo`,
     // rodada 2: arquivo alcançável
-    newProjectHintReplaces: 'arquiva · substitui o arquivado',
+    newProjectHintReplaces: 'substitui o arquivado',
     newProjectConfirmDiscard: (name: string) => `Confirmar: “${name}” (arquivado) será descartado`,
     reopenArchived: (name: string) => `Reabrir “${name}”`,
     reopenArchivedHint: 'arquivado',
@@ -1522,7 +1522,7 @@ export const ptBR: Messages = {
     docCount: (n: number) => `${n} documento${n === 1 ? '' : 's'}`,
     dropOrClick: 'Solte PDFs aqui ou clique para escolher',
     dropHint:
-      'O arquivo não sai do seu navegador; o texto extraído (até ~40 mil caracteres) é enviado ao modelo de IA configurado para gerar um resumo. Evite documentos confidenciais.',
+      'O PDF fica no seu navegador. Só o texto extraído (até ~40 mil caracteres) vai para o modelo que você configurou, para gerar um resumo. Evite documentos confidenciais.',
     pdfOnlyError: 'Apenas PDF por enquanto.',
     extracting: 'Extraindo texto',
     summarizing: 'Resumindo',

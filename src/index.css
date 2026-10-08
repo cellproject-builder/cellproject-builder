@@ -563,7 +563,8 @@
   }
   @media (pointer: coarse) {
     .segmented-item {
-      min-height: 40px;
+      min-height: 44px;
+      min-width: 44px;
     }
   }
 
@@ -609,6 +610,34 @@
   .checkbox-mac:focus-visible {
     outline: 3px solid rgb(var(--accent) / 0.5);
     outline-offset: 1px;
+  }
+  /* Toque: área de 44px em volta do quadrado de 16px, sem mudar o visual. */
+  @media (pointer: coarse) {
+    .checkbox-mac {
+      position: relative;
+    }
+    .checkbox-mac::after {
+      content: '';
+      position: absolute;
+      inset: -14px;
+    }
+  }
+
+  /* .tap-area — amplia a área de toque de um alvo pequeno (chip, link) sem
+     mudar o visual: um ::after invisível cobre 44px de altura. */
+  @media (pointer: coarse) {
+    .tap-area {
+      position: relative;
+    }
+    .tap-area::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 44px;
+      transform: translateY(-50%);
+    }
   }
 
   /* .divider — hairline horizontal de 1px em border-base/70 (prefira espaço a linha). */

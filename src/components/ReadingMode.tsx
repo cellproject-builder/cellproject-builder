@@ -54,6 +54,10 @@ export function ReadingMode({
   onKnown,
 }: ReadingModeProps) {
   const tr = useT();
+  const trail =
+    breadcrumb.length > 0 && breadcrumb[breadcrumb.length - 1] === node.name
+      ? breadcrumb.slice(0, -1)
+      : breadcrumb;
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -167,8 +171,9 @@ export function ReadingMode({
               {tr.reading.kicker} · {tr.conceptNode[node.kind]}
             </div>
             <h1 className="text-title2 sm:text-title1 font-bold text-text-primary">{node.name}</h1>
-            {breadcrumb.length > 0 && (
-              <div className="text-footnote text-text-muted mt-2 truncate">{breadcrumb.join(' › ')}</div>
+            {/* O h1 já diz o nome: o caminho para no pai. */}
+            {trail.length > 0 && (
+              <div className="text-footnote text-text-muted mt-2 truncate">{trail.join(' › ')}</div>
             )}
 
             <section className="mt-8 space-y-6">

@@ -310,9 +310,7 @@ export function TutorMode() {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <div className="shrink-0 border-b border-border-base/70 px-4 sm:px-6 py-2 sm:py-3">
           <div className="flex items-center gap-2 sm:gap-3 min-h-[30px]">
-            <div className="hidden sm:block text-control font-semibold text-text-primary">
-              {tr.tutor.modeKicker}
-            </div>
+            {/* Tutor/Grafo já está no segmented da toolbar: aqui só a dica. */}
             <div className="hidden md:block text-text-muted text-footnote truncate">{tr.tutor.focusHint}</div>
             <button
               onClick={() => setSidebarOpen(true)}
@@ -328,9 +326,6 @@ export function TutorMode() {
                 />
               </svg>
               {tr.tutor.mobileStepsBtn(progress.done, progress.total)}
-            </button>
-            <button onClick={() => setViewMode('graph')} className="ml-auto tap btn btn-ghost btn-sm">
-              {tr.tutor.viewGraphShort}
             </button>
           </div>
           {project.rules && project.rules.length > 0 && (
@@ -805,6 +800,9 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
         <span className="chip">{kindLabel}</span>
         {stepSeq !== null && (
           <span className="text-text-muted text-footnote tabular-nums">{tr.tutor.stepNumber(stepSeq)}</span>
+        )}
+        {node.failureContext && (
+          <span className="chip bg-state-problem/12 text-state-problem">{tr.detail.problemBadge}</span>
         )}
         {isNext && <span className="chip bg-accent/12 text-accent">{tr.tutor.nextBadge}</span>}
         {!isNext && next && !resolved && (
@@ -1470,12 +1468,6 @@ function GroupRow({
   );
 }
 
-const KIND_GLYPH: Partial<Record<ConceptNodeData['kind'], string>> = {
-  recurso: '▪',
-  decisao: '⑂',
-  concept: '◇',
-};
-
 interface LeafRowProps {
   node: ConceptNodeData;
   project: Project;
@@ -1560,13 +1552,20 @@ function LeafRow({ node, project, depth, isCurrent, onPick, tr }: LeafRowProps) 
             : 'text-text-primary'
         }`}
       >
-        {seq !== null ? (
+        {/* A linha já tem checkbox: só o número do passo, sem marcador de tipo. */}
+        {seq !== null && (
           <span className={`tabular-nums mr-1.5 ${isCurrent ? 'text-accent/80' : 'text-text-muted'}`}>{seq}.</span>
-        ) : KIND_GLYPH[node.kind] ? (
-          <span className={`mr-1.5 ${isCurrent ? 'text-accent/80' : 'text-text-faint'}`}>{KIND_GLYPH[node.kind]}</span>
-        ) : null}
+        )}
         {node.name}
       </button>
+      {node.failureContext && (
+        <span
+          className="shrink-0 w-2 h-2 rounded-full bg-state-problem"
+          role="img"
+          aria-label={tr.detail.problemBadge}
+          title={tr.detail.problemBadge}
+        />
+      )}
       {busy && (
         <span
           className="shrink-0 w-3 h-3 rounded-full border-2 border-ai-accent/30 border-t-ai-accent animate-spin"

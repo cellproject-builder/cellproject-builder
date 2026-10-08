@@ -363,12 +363,9 @@ function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
     const text = draft.trim();
     if (!text) return;
     setUserCriterion(node.id, text);
-    toast.show({
-      message: tr.groundTruth.lockedToast,
-      tone: 'ok',
-      durationMs: CRITERION_UNDO_MS,
-      action: { label: tr.groundTruth.undoWithin(CRITERION_UNDO_MS / 1000), onClick: undoLock },
-    });
+    // Um só desfazer: o inline, junto ao critério (mesma contagem do lock).
+    // O toast é só a confirmação, curta e sem botão.
+    toast.show({ message: tr.groundTruth.lockedToast, tone: 'ok', durationMs: 2500 });
     // Aferir é o passo seguinte, logo abaixo.
     requestAnimationFrame(() => metRef.current?.focus());
   };
@@ -454,7 +451,7 @@ function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
           </div>
         ) : (
           <>
-            <textarea
+            <textarea name="user-criterion"
               value={draft}
               onChange={(e) => setDraft(node.id, 'criterion', e.target.value)}
               onKeyDown={submitOnModEnter(handleLock)}
@@ -908,7 +905,7 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
                 ⇄
               </span>
             </button>
-            <input
+            <input name="proof-value"
               autoFocus
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -919,7 +916,7 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
               className="field min-w-0 flex-1"
             />
           </div>
-          <input
+          <input name="proof-label"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             onKeyDown={onFormKey}
@@ -1360,7 +1357,7 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
 
       {!failed && opening && (
         <div className="space-y-2">
-          <textarea
+          <textarea name="failure-context"
             autoFocus
             value={draft}
             onChange={(e) => setDraft(node.id, 'failure', e.target.value)}

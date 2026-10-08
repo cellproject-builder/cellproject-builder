@@ -623,7 +623,7 @@ export function DetailPanel() {
             </div>
           )}
           <div className="flex gap-1.5">
-            <input
+            <input name="rule"
               value={ruleDraft}
               onChange={(e) => setRuleDraft(e.target.value)}
               onKeyDown={(e) => {
@@ -788,7 +788,7 @@ export function DetailPanel() {
               ))}
             </ul>
             <div className="flex gap-1.5 mt-2.5">
-              <input
+              <input name="decision-note"
                 value={noteDraft}
                 onChange={(e) => setNoteDraft(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && recordNote()}
@@ -883,11 +883,12 @@ export function DetailPanel() {
                 {confirmLabel}
               </button>
             ) : (
+              // Mesmo rótulo do tutor: sem prova, a ação é "Confirmar sem prova…".
               <button
                 onClick={() => setConfirmingNoSignal(true)}
                 className="tap btn btn-secondary !h-8 flex-1"
               >
-                {confirmLabel}
+                {tr.tutor.confirmNoProof}
               </button>
             ))}
           {primaryIsDecompose && decomposeButton(true)}
@@ -1141,7 +1142,8 @@ function NameInput({
           e.currentTarget.blur();
         }
       }}
-      className="w-full bg-transparent text-title3 font-semibold text-text-primary outline-none px-1.5 -mx-1.5 py-0.5 rounded-chip hover:bg-bg-elevated/50 focus:bg-bg-secondary focus:shadow-[inset_0_0_0_1px_rgb(var(--accent)/.8),0_0_0_3px_rgb(var(--accent)/.4)] transition-shadow duration-120 ease-mac"
+      name="node-name"
+      className="w-full [@media(pointer:coarse)]:min-h-[44px] bg-transparent text-title3 font-semibold text-text-primary outline-none px-1.5 -mx-1.5 py-0.5 rounded-chip hover:bg-bg-elevated/50 focus:bg-bg-secondary focus:shadow-[inset_0_0_0_1px_rgb(var(--accent)/.8),0_0_0_3px_rgb(var(--accent)/.4)] transition-shadow duration-120 ease-mac"
     />
   );
 }
@@ -1172,7 +1174,7 @@ function NotesField({
     if (!focusedRef.current) setDraft(value);
   }, [value]);
   return (
-    <textarea
+    <textarea name="node-text"
       ref={ref}
       value={draft}
       onFocus={() => (focusedRef.current = true)}
@@ -1230,7 +1232,7 @@ function EduField({ label, value, onCommit, tr }: EduFieldProps) {
   let content: ReactNode;
   if (editing) {
     content = (
-      <textarea
+      <textarea name="node-field"
         ref={ref}
         value={draft}
         aria-label={label}
