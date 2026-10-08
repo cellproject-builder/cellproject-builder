@@ -17,6 +17,7 @@ import { toast } from './ui/Toast';
 import { ApiKeyGate, modelDisplay } from './ApiKeyGate';
 import { KnowledgeRepo } from './KnowledgeRepo';
 import { LanguageToggle } from './LanguageToggle';
+import { OverflowMenu } from './ui/OverflowMenu';
 
 // ---------------------------------------------------------------------------
 // Helpers puros (testados em ObjectiveScreen.test.ts)
@@ -385,79 +386,109 @@ export function ObjectiveScreen() {
     />
   );
 
+
   return (
-    <div className="fixed inset-0 bg-bg-primary flex items-start justify-center overflow-y-auto">
-      <div className="w-full max-w-5xl px-4 sm:px-8 pt-[max(env(safe-area-inset-top),1rem)] pb-[max(env(safe-area-inset-bottom),1rem)] sm:pt-[max(env(safe-area-inset-top),2rem)] sm:pb-[max(env(safe-area-inset-bottom),2rem)]">
+    <div className="fixed inset-0 bg-bg-primary overflow-y-auto scroll-stable">
+      <div
+        className={`mx-auto w-full px-4 sm:px-8 pt-[max(env(safe-area-inset-top),1rem)] pb-[max(env(safe-area-inset-bottom),1rem)] sm:pt-[max(env(safe-area-inset-top),1.5rem)] sm:pb-[max(env(safe-area-inset-bottom),2rem)] ${
+          view === 'plans' ? 'max-w-5xl' : 'max-w-2xl'
+        }`}
+      >
         {/* Linha utilitária — modelo/configurações, demo e idioma */}
-        <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mb-3 sm:mb-4 text-[11px] font-mono">
-          <button
-            type="button"
-            onClick={() => openSettings(false)}
-            title={`${tr.objective.modelButtonTitle}${model?.effort ? ` · ${model.effort}` : ''}`}
-            className="tap inline-flex items-center text-text-muted hover:text-ai-accent transition-colors"
-          >
-            {tr.objective.modelButton(model ? model.label : '—')}
-          </button>
-          <button
-            type="button"
-            onClick={loadDemoProject}
-            disabled={busy}
-            className="tap inline-flex items-center text-text-muted hover:text-ai-accent transition-colors disabled:opacity-40"
-          >
-            {tr.objective.seeDemo}
-          </button>
-          {/* "Novo projeto" arquiva o atual: daqui dá pra voltar a ele. */}
-          {archivedProject && (
+        <div className="flex items-center gap-2 mb-6 sm:mb-8 -ml-2">
+          <div className="flex min-w-0 flex-1 items-center gap-0.5 sm:gap-1">
             <button
               type="button"
-              onClick={() => void undoReset()}
-              disabled={busy}
-              title={tr.objective.reopenArchivedTitle}
-              className="tap inline-flex items-center text-text-muted hover:text-ai-accent transition-colors disabled:opacity-40 max-w-[260px]"
+              onClick={() => openSettings(false)}
+              title={`${tr.objective.modelButtonTitle}${model?.effort ? ` · ${model.effort}` : ''}`}
+              className="tap btn btn-ghost btn-sm min-w-0 max-w-full sm:max-w-[220px]"
             >
-              <span className="truncate">{tr.objective.reopenArchived(archivedProject.name)}</span>
+              <GearIcon />
+              <span className="truncate">{tr.objective.modelButton(model ? model.label : '—')}</span>
             </button>
-          )}
-          <LanguageToggle className="ml-auto" />
-        </div>
-
-        <div className="mb-6 sm:mb-8 flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="text-ai-accent text-xs font-mono uppercase tracking-widest mb-2">
-              {tr.objective.kicker}
-            </div>
-            {/* Na escolha de plano o título da seção já orienta — hero enxuto. */}
-            {view === 'form' && (
-              <>
-                <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary mb-2">
-                  {tr.objective.title}
-                </h1>
-                <p className="text-text-secondary text-sm">{tr.objective.lead}</p>
-              </>
+            <button
+              type="button"
+              onClick={loadDemoProject}
+              disabled={busy}
+              className="tap btn btn-ghost btn-sm hidden sm:inline-flex"
+            >
+              {tr.objective.seeDemo}
+            </button>
+            {/* "Novo projeto" arquiva o atual: daqui dá pra voltar a ele. */}
+            {archivedProject && (
+              <button
+                type="button"
+                onClick={() => void undoReset()}
+                disabled={busy}
+                title={tr.objective.reopenArchivedTitle}
+                className="tap btn btn-ghost btn-sm max-w-[260px] hidden sm:inline-flex"
+              >
+                <span className="truncate">{tr.objective.reopenArchived(archivedProject.name)}</span>
+              </button>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setKbOpen(true)}
-            className="tap shrink-0 px-3 py-1.5 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors flex items-center gap-2"
-            title={tr.objective.kbTitle}
-          >
-            <span>{tr.objective.kbBadge}</span>
-            {kbCount > 0 && (
-              <span className="font-mono text-[11px] text-ai-accent bg-ai-accent/10 px-1.5 py-0.5 rounded-[2px]">
-                {kbCount}
-              </span>
-            )}
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setKbOpen(true)}
+              className="tap btn btn-ghost btn-sm hidden sm:inline-flex"
+              title={tr.objective.kbTitle}
+            >
+              <span>{tr.objective.kbBadge}</span>
+              {kbCount > 0 && (
+                <span className="chip !h-4 px-1.5 bg-accent/12 text-accent tabular-nums">{kbCount}</span>
+              )}
+            </button>
+            {/* Mobile: demo, arquivado e PDFs num menu "…" — o cabeçalho cabe numa linha. */}
+            <OverflowMenu
+              label={tr.topBar.moreActions}
+              buttonClassName="btn-ghost btn-sm"
+              items={[
+                { key: 'demo', label: tr.objective.seeDemo, onClick: loadDemoProject, disabled: busy, mobileOnly: true },
+                ...(archivedProject
+                  ? [
+                      {
+                        key: 'archived',
+                        label: tr.objective.reopenArchived(archivedProject.name),
+                        title: tr.objective.reopenArchivedTitle,
+                        onClick: () => void undoReset(),
+                        disabled: busy,
+                        mobileOnly: true,
+                      },
+                    ]
+                  : []),
+                {
+                  key: 'kb',
+                  label: kbCount > 0 ? `${tr.objective.kbBadge} (${kbCount})` : tr.objective.kbBadge,
+                  title: tr.objective.kbTitle,
+                  onClick: () => setKbOpen(true),
+                  mobileOnly: true,
+                },
+              ]}
+            />
+            <LanguageToggle />
+          </div>
         </div>
 
+        {/* Na escolha de plano o título da seção já orienta — hero só no formulário. */}
+        {view === 'form' && (
+          <div className="mb-6 sm:mb-8">
+            <div className="label mb-1.5">{tr.objective.kicker}</div>
+            <h1 className="text-title2 sm:text-title1 font-bold tracking-[-0.01em] text-text-primary mb-2">
+              {tr.objective.title}
+            </h1>
+            <p className="text-body text-text-secondary">{tr.objective.lead}</p>
+          </div>
+        )}
+
         {kbUsed.length > 0 && (
-          <div className="mb-4 max-w-2xl text-[11px] bg-ai-accent/5 border border-ai-accent/30 rounded-sm px-3 py-2">
-            <span className="font-mono uppercase tracking-wider text-ai-accent">
+          <div className="mb-4 max-w-2xl rounded-card bg-ai-accent/8 px-3 py-2 text-footnote">
+            <span className="font-medium text-ai-accent">
+              <span aria-hidden>✦ </span>
               {tr.objective.baseUsed}
             </span>{' '}
             <span className="text-text-secondary">
-              {kbUsed.map((k) => k.titulo).join(' · ')}
+              {kbUsed.map((k) => k.titulo).join(', ')}
             </span>
           </div>
         )}
@@ -465,19 +496,20 @@ export function ObjectiveScreen() {
         {/* Fontes reais consultadas na pesquisa web — links clicáveis, são as
             mesmas URLs que o plano pode citar como âncora kind="link". */}
         {progress?.research && progress.research.sources.length > 0 && (
-          <div className="mb-4 text-[11px] bg-ai-accent/5 border border-ai-accent/30 rounded-sm px-3 py-2">
-            <span className="font-mono uppercase tracking-wider text-ai-accent">
+          <div className="mb-4 rounded-card bg-ai-accent/8 px-3 py-2 text-footnote">
+            <span className="font-medium text-ai-accent">
+              <span aria-hidden>✦ </span>
               {tr.objective.webSources}
             </span>{' '}
             <span className="text-text-secondary">
               {progress.research.sources.map((s, i) => (
                 <span key={s.url}>
-                  {i > 0 && ' · '}
+                  {i > 0 && ', '}
                   <a
                     href={s.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="underline decoration-ai-accent/40 hover:text-ai-accent transition-colors"
+                    className="underline decoration-ai-accent/40 underline-offset-2 hover:text-ai-accent transition-colors duration-120 ease-mac"
                   >
                     {s.title}
                   </a>
@@ -507,15 +539,16 @@ export function ObjectiveScreen() {
         )}
 
         {view === 'form' && (
-          <div className="space-y-5 max-w-2xl">
-            <div>
+          <div className="space-y-4">
+            {/* O campo principal: grande e calmo, como a folha de um app nativo. */}
+            <div className="card p-4 sm:p-5">
               <label
                 htmlFor="cp-objective"
-                className="block text-sm font-medium text-text-primary"
+                className="block text-control font-semibold text-text-primary"
               >
                 {tr.objective.objectiveLabel}
               </label>
-              <p id="cp-objective-hint" className="text-xs text-text-muted mt-0.5 mb-1.5">
+              <p id="cp-objective-hint" className="text-footnote text-text-muted mt-0.5 mb-3">
                 {tr.objective.objectiveHint}
               </p>
               <textarea
@@ -525,18 +558,18 @@ export function ObjectiveScreen() {
                 onChange={(e) => setObjective(e.target.value)}
                 disabled={busy}
                 placeholder={tr.objective.objectivePlaceholder}
-                rows={3}
-                className="w-full bg-bg-secondary border border-border-base rounded-sm px-3 py-2 text-sm focus:border-ai-accent outline-none resize-y disabled:opacity-50"
+                rows={4}
+                className="field text-body px-3 py-2.5 min-h-[112px]"
               />
-              <div className="mt-2 flex gap-1.5 flex-wrap items-center">
-                <span className="text-[11px] text-text-muted">{tr.objective.examplesLabel}</span>
+              <div className="mt-3 flex gap-1.5 flex-wrap items-center">
+                <span className="text-footnote text-text-muted mr-0.5">{tr.objective.examplesLabel}</span>
                 {tr.objective.examples.map((ex) => (
                   <button
                     key={ex.label}
                     type="button"
                     onClick={() => applyExample(ex.objective)}
                     disabled={busy}
-                    className="tap text-[11px] text-text-muted hover:text-text-primary border border-border-base rounded-sm px-2 py-0.5 transition-colors disabled:opacity-50"
+                    className="relative chip h-6 px-2.5 text-footnote font-normal after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-[''] transition-colors duration-120 ease-mac hover:bg-accent/12 hover:text-accent disabled:opacity-45 disabled:pointer-events-none"
                   >
                     {ex.label}
                   </button>
@@ -544,123 +577,111 @@ export function ObjectiveScreen() {
               </div>
             </div>
 
-            <div>
-              <label
-                htmlFor="cp-name"
-                className="block text-[11px] font-mono uppercase tracking-wider text-text-muted mb-1.5"
-              >
-                {tr.objective.projectNameLabel}
-              </label>
-              <input
-                id="cp-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={busy}
-                placeholder={tr.objective.projectNamePlaceholder}
-                className="w-full bg-bg-secondary border border-border-base rounded-sm px-3 py-2 text-sm focus:border-ai-accent outline-none disabled:opacity-50"
-              />
-            </div>
-
-            {/* Regras = limites duros do desafio. Condicionam todo plano,
-                decomposição, replan, crítica e explicação. */}
-            <div>
-              <label
-                htmlFor="cp-rule"
-                className="block text-[11px] font-mono uppercase tracking-wider text-text-muted mb-1.5"
-              >
-                {tr.objective.rulesLabel}
-              </label>
-              <div className="flex gap-2">
+            {/* Opções: grupo estilo Ajustes do Sistema. */}
+            <div className="card p-4 sm:p-5 space-y-5">
+              <div>
+                <label htmlFor="cp-name" className="label block mb-1.5">
+                  {tr.objective.projectNameLabel}
+                </label>
                 <input
-                  id="cp-rule"
-                  value={ruleDraft}
-                  onChange={(e) => setRuleDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addRule();
-                    }
-                  }}
-                  onPaste={(e) => {
-                    // Colar várias regras de uma vez vira vários chips.
-                    const parts = parseRules(e.clipboardData.getData('text'));
-                    if (parts.length > 1) {
-                      e.preventDefault();
-                      setRules((r) => mergeRules(r, parts));
-                    }
-                  }}
+                  id="cp-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   disabled={busy}
-                  placeholder={tr.objective.rulesPlaceholder}
-                  aria-describedby="cp-rule-hint"
-                  className="flex-1 min-w-0 bg-bg-secondary border border-border-base rounded-sm px-3 py-2 text-sm focus:border-ai-accent outline-none disabled:opacity-50"
+                  placeholder={tr.objective.projectNamePlaceholder}
+                  className="field"
                 />
-                <button
-                  type="button"
-                  onClick={addRule}
-                  disabled={busy || !ruleDraft.trim()}
-                  className="tap px-3 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors disabled:opacity-40"
-                >
-                  {tr.objective.rulesAddBtn}
-                </button>
               </div>
-              {rules.length > 0 && (
-                <div className="mt-2 flex gap-1.5 flex-wrap">
-                  {rules.map((r) => (
-                    <span
-                      key={r}
-                      className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-sm bg-ai-accent/5 text-text-secondary border border-ai-accent/30"
-                    >
-                      <span className="text-ai-accent" aria-hidden>
-                        ⛓
-                      </span>
-                      {r}
-                      <button
-                        type="button"
-                        onClick={() => setRules((rs) => rs.filter((x) => x !== r))}
-                        disabled={busy}
-                        className="text-text-muted hover:text-state-problem transition-colors px-0.5"
-                        aria-label={`${tr.common.remove}: ${r}`}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              <p id="cp-rule-hint" className="mt-1.5 text-[11px] text-text-muted">
-                {tr.objective.rulesHint}
-              </p>
-            </div>
 
-            {/* Pesquisa real na web — modo global (vale pra planos, tutor,
-                crítica e replan). Opt-in: custa créditos e adiciona latência. */}
-            <label
-              className={`flex items-start gap-2.5 p-3 rounded-sm border cursor-pointer transition-colors ${
-                webResearch
-                  ? 'border-ai-accent/50 bg-ai-accent/5'
-                  : 'border-border-base bg-bg-secondary hover:border-text-muted'
-              } ${busy ? 'opacity-50 pointer-events-none' : ''}`}
-            >
-              <input
-                type="checkbox"
-                checked={webResearch}
-                onChange={(e) => setWebResearch(e.target.checked)}
-                disabled={busy}
-                className="mt-0.5 accent-ai-accent"
-              />
-              <span className="min-w-0">
-                <span
-                  className={`block text-xs font-medium ${
-                    webResearch ? 'text-ai-accent' : 'text-text-secondary'
-                  }`}
-                >
-                  {tr.objective.researchToggle}
+              {/* Regras = limites duros do desafio. Condicionam todo plano,
+                  decomposição, replan, crítica e explicação. */}
+              <div>
+                <label htmlFor="cp-rule" className="label block mb-1.5">
+                  {tr.objective.rulesLabel}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="cp-rule"
+                    value={ruleDraft}
+                    onChange={(e) => setRuleDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addRule();
+                      }
+                    }}
+                    onPaste={(e) => {
+                      // Colar várias regras de uma vez vira vários chips.
+                      const parts = parseRules(e.clipboardData.getData('text'));
+                      if (parts.length > 1) {
+                        e.preventDefault();
+                        setRules((r) => mergeRules(r, parts));
+                      }
+                    }}
+                    disabled={busy}
+                    placeholder={tr.objective.rulesPlaceholder}
+                    aria-describedby="cp-rule-hint"
+                    className="field flex-1 min-w-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={addRule}
+                    disabled={busy || !ruleDraft.trim()}
+                    className="tap btn btn-secondary shrink-0"
+                  >
+                    {tr.objective.rulesAddBtn}
+                  </button>
+                </div>
+                {rules.length > 0 && (
+                  <div className="mt-2 flex gap-1.5 flex-wrap">
+                    {rules.map((r) => (
+                      <span
+                        key={r}
+                        className="chip h-auto min-h-6 max-w-full whitespace-normal py-0.5 pl-2 pr-0.5 text-footnote font-normal bg-accent/12 text-text-primary"
+                      >
+                        <span className="min-w-0 break-words">{r}</span>
+                        <button
+                          type="button"
+                          onClick={() => setRules((rs) => rs.filter((x) => x !== r))}
+                          disabled={busy}
+                          className="relative btn btn-ghost btn-icon btn-sm !h-5 !min-h-0 w-5 shrink-0 rounded-full text-caption hover:text-state-problem after:absolute after:-inset-3 after:content-['']"
+                          aria-label={`${tr.common.remove}: ${r}`}
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p id="cp-rule-hint" className="mt-1.5 text-footnote text-text-muted">
+                  {tr.objective.rulesHint}
+                </p>
+              </div>
+
+              {/* Pesquisa real na web — modo global (vale pra planos, tutor,
+                  crítica e replan). Opt-in: custa créditos e adiciona latência. */}
+              <label
+                className={`flex items-start gap-2.5 cursor-pointer ${
+                  busy ? 'opacity-50 pointer-events-none' : ''
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={webResearch}
+                  onChange={(e) => setWebResearch(e.target.checked)}
+                  disabled={busy}
+                  className="checkbox-mac mt-px"
+                />
+                <span className="min-w-0">
+                  <span className="block text-control font-medium text-text-primary">
+                    {tr.objective.researchToggle}
+                  </span>
+                  <span className="block text-footnote text-text-muted mt-0.5">
+                    {tr.objective.researchToggleHint}
+                  </span>
                 </span>
-                <span className="block text-[11px] text-text-muted mt-0.5">
-                  {tr.objective.researchToggleHint}
-                </span>
-              </span>
-            </label>
+              </label>
+            </div>
 
             {gen.running ? (
               <GenerationProgress
@@ -671,41 +692,42 @@ export function ObjectiveScreen() {
                 tr={tr}
               />
             ) : sameInputs ? (
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setView('plans')}
-                  className="w-full bg-ai-accent/15 hover:bg-ai-accent/30 text-ai-accent text-sm py-3 min-h-[44px] rounded-sm border border-ai-accent/40 transition-colors font-medium"
-                >
-                  {tr.objective.viewExistingPlans(plans!.length)}
-                </button>
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={handleGenerate}
-                  className="tap w-full text-xs text-text-muted hover:text-text-primary py-1.5 transition-colors"
+                  className="tap btn btn-tertiary"
                 >
                   {tr.objective.regenerate}
                 </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
                 <button
                   type="button"
-                  onClick={handleGenerate}
-                  disabled={!objective.trim()}
-                  className="w-full bg-ai-accent/15 hover:bg-ai-accent/30 disabled:opacity-40 disabled:cursor-not-allowed text-ai-accent text-sm py-3 min-h-[44px] rounded-sm border border-ai-accent/40 transition-colors font-medium"
+                  onClick={() => setView('plans')}
+                  className="btn btn-primary h-9 px-5"
                 >
-                  {plans ? tr.objective.regenerate : tr.objective.generate}
+                  {tr.objective.viewExistingPlans(plans!.length)}
                 </button>
+              </div>
+            ) : (
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-1">
                 {plans && (
                   <button
                     type="button"
                     onClick={() => setView('plans')}
-                    className="tap w-full text-xs text-text-muted hover:text-text-primary py-1.5 transition-colors"
+                    className="tap btn btn-tertiary"
                   >
                     {tr.objective.viewPreviousPlans(plans.length)}
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={!objective.trim()}
+                  className="btn btn-primary h-9 px-5 min-w-0"
+                >
+                  <span aria-hidden>✦</span>
+                  <span className="truncate">{plans ? tr.objective.regenerate : tr.objective.generate}</span>
+                </button>
               </div>
             )}
 
@@ -720,23 +742,24 @@ export function ObjectiveScreen() {
         )}
 
         {view === 'plans' && plans && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <h1 className="text-text-primary text-lg font-semibold">
+                <h1 className="text-title2 font-semibold tracking-[-0.01em] text-text-primary">
                   {plans[0]?.archetype === 'entender'
                     ? tr.objective.pickStrategyTitleUnderstand
                     : tr.objective.pickStrategyTitle}
                 </h1>
-                <p className="text-text-secondary text-xs mt-0.5">{tr.objective.pickStrategyHint}</p>
+                <p className="text-control text-text-secondary mt-1">{tr.objective.pickStrategyHint}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setView('form')}
                 disabled={more.running}
-                className="tap shrink-0 text-text-muted hover:text-text-secondary text-xs disabled:opacity-40"
+                className="tap btn btn-secondary btn-sm shrink-0"
               >
-                ← {tr.common.back}
+                <ChevronIcon className="rotate-180" />
+                {tr.common.back}
               </button>
             </div>
 
@@ -763,16 +786,17 @@ export function ObjectiveScreen() {
             {grouped ? (
               groups.map((g) => (
                 <section key={g.strategy} aria-label={tr.objective.strategyLabel(g.strategy)}>
-                  <h3 className="text-[11px] font-mono uppercase tracking-wider text-text-muted mb-2">
-                    {tr.objective.strategyLabel(g.strategy)} · {g.plans.length}
+                  <h3 className="label mb-2 flex items-center gap-1.5">
+                    {tr.objective.strategyLabel(g.strategy)}
+                    <span className="text-text-faint tabular-nums">{g.plans.length}</span>
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {g.plans.map(renderCard)}
                   </div>
                 </section>
               ))
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">{sortedPlans.map(renderCard)}</div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{sortedPlans.map(renderCard)}</div>
             )}
 
             {more.running ? (
@@ -786,15 +810,20 @@ export function ObjectiveScreen() {
                 />
               </div>
             ) : plans.length >= MAX_PLANS ? (
-              <p className="text-xs text-text-muted text-center py-2">{tr.objective.morePlansLimit}</p>
+              <p className="text-footnote text-text-muted text-center py-2">{tr.objective.morePlansLimit}</p>
             ) : (
-              <button
-                type="button"
-                onClick={handleMorePlans}
-                className="w-full py-2.5 min-h-[44px] text-xs border border-dashed border-border-base rounded-sm text-text-muted hover:text-ai-accent hover:border-ai-accent/40 transition-colors"
-              >
-                {tr.objective.morePlans}
-              </button>
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleMorePlans}
+                  className="tap btn btn-ai w-full sm:w-auto"
+                >
+                  <span className="ai-icon" aria-hidden>
+                    ✦
+                  </span>
+                  {tr.objective.morePlans}
+                </button>
+              </div>
             )}
 
             {more.error && !more.running && (
@@ -805,16 +834,20 @@ export function ObjectiveScreen() {
               />
             )}
 
-            {/* CTA fixo: sempre visível no mobile depois de escolher. */}
-            <div className="sticky bottom-0 z-10 -mx-4 sm:-mx-8 px-4 sm:px-8 pt-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] bg-bg-primary/95 backdrop-blur border-t border-border-base">
-              <button
-                type="button"
-                onClick={handleConfirm}
-                disabled={!selectedPlan}
-                className="w-full bg-ai-accent/15 hover:bg-ai-accent/30 disabled:opacity-40 disabled:cursor-not-allowed text-ai-accent text-sm py-3 min-h-[44px] px-3 rounded-sm border border-ai-accent/40 transition-colors font-medium truncate"
-              >
-                {selectedPlan ? tr.objective.startWith(selectedPlan.title) : tr.objective.pickFirst}
-              </button>
+            {/* CTA fixo: barra de vidro flutuando sobre os cards, sempre à mão. */}
+            <div className="sticky bottom-[max(env(safe-area-inset-bottom),0.75rem)] z-10 mx-auto w-full max-w-md">
+              <div className="glass border rounded-window shadow-mac-lg p-2">
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={!selectedPlan}
+                  className="btn btn-primary h-9 w-full min-w-0 px-4"
+                >
+                  <span className="truncate">
+                    {selectedPlan ? tr.objective.startWith(selectedPlan.title) : tr.objective.pickFirst}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -826,6 +859,35 @@ export function ObjectiveScreen() {
 // ---------------------------------------------------------------------------
 // Peças
 // ---------------------------------------------------------------------------
+
+function GearIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden className="shrink-0">
+      <circle cx="8" cy="8" r="2.25" stroke="currentColor" strokeWidth="1.4" />
+      <path
+        d="M8 1.75v1.5M8 12.75v1.5M14.25 8h-1.5M3.25 8h-1.5M12.42 3.58l-1.06 1.06M4.64 11.36l-1.06 1.06M12.42 12.42l-1.06-1.06M4.64 4.64 3.58 3.58"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      fill="none"
+      aria-hidden
+      className={`shrink-0 transition-transform duration-180 ease-mac ${className}`}
+    >
+      <path d="M3.5 2 6.5 5l-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function Notice({
   children,
@@ -843,19 +905,21 @@ function Notice({
   return (
     <div
       role="status"
-      className={`mb-4 max-w-2xl flex items-center gap-2 flex-wrap rounded-sm border px-3 py-2 text-xs ${
-        tone === 'warn'
-          ? 'border-conf-mid/40 bg-conf-mid/10 text-text-primary'
-          : 'border-ai-accent/30 bg-ai-accent/5 text-text-secondary'
+      className={`mb-4 max-w-2xl flex items-center gap-2 flex-wrap rounded-card pl-3 pr-1.5 py-1.5 text-footnote ${
+        tone === 'warn' ? 'bg-bg-elevated/60 border-l-2 border-conf-mid rounded-l-control text-text-primary' : 'bg-accent/8 text-text-secondary'
       }`}
     >
-      <span className="flex-1 min-w-0">{children}</span>
+      <span
+        aria-hidden
+        className={`h-2 w-2 shrink-0 rounded-full ${tone === 'warn' ? 'bg-conf-mid' : 'bg-accent'}`}
+      />
+      <span className="flex-1 min-w-0 py-1">{children}</span>
       {action && (
         <button
           type="button"
           onClick={action.onClick}
           disabled={action.disabled}
-          className="tap rounded-sm border border-border-base px-2.5 py-1 text-xs text-text-primary hover:bg-bg-elevated disabled:opacity-40"
+          className="tap btn btn-secondary btn-sm"
         >
           {action.label}
         </button>
@@ -864,7 +928,7 @@ function Notice({
         type="button"
         onClick={onDismiss}
         aria-label={dismissLabel}
-        className="tap rounded-sm px-1.5 text-text-muted hover:text-text-primary"
+        className="tap btn btn-ghost btn-icon btn-sm text-caption"
       >
         ✕
       </button>
@@ -929,49 +993,50 @@ function GenerationProgress({
   const current = steps.find((s) => s.state === 'active');
 
   return (
-    <div
-      className="border border-ai-accent/30 bg-ai-accent/5 rounded-sm p-4 space-y-3"
-      aria-label={tr.objective.progressAria}
-    >
+    <div className="card p-4 sm:p-5 flex flex-col gap-4" aria-label={tr.objective.progressAria}>
       <style>{`
         @keyframes cp-indeterminate { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
-        .cp-indeterminate { animation: cp-indeterminate 1.4s ease-in-out infinite; }
+        .cp-indeterminate { animation: cp-indeterminate 1.4s cubic-bezier(.4,0,.2,1) infinite; }
         @media (prefers-reduced-motion: reduce) { .cp-indeterminate { animation: none; width: 100%; opacity: .5; } }
       `}</style>
       <div className="flex items-center gap-3">
-        <div className="flex-1 h-1 overflow-hidden rounded-full bg-ai-accent/15" aria-hidden>
-          <div className="cp-indeterminate h-full w-1/3 rounded-full bg-ai-accent/70" />
+        <div className="flex-1 h-1 overflow-hidden rounded-full bg-bg-elevated" aria-hidden>
+          <div className="cp-indeterminate h-full w-1/3 rounded-full bg-accent" />
         </div>
-        <span className="font-mono text-xs text-text-secondary tabular-nums">{formatClock(elapsedMs)}</span>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="tap rounded-sm border border-border-base px-3 py-1 text-xs text-text-secondary hover:text-text-primary hover:border-text-muted transition-colors"
-        >
+        <span className="text-footnote text-text-muted tabular-nums">{formatClock(elapsedMs)}</span>
+        <button type="button" onClick={onCancel} className="tap btn btn-secondary btn-sm">
           {tr.objective.cancel}
         </button>
       </div>
 
-      <ol className="space-y-1.5 text-sm">
+      <ol className="space-y-2 text-control">
         {steps.map((s) => (
-          <li key={s.key} className="flex items-start gap-2">
-            <span
-              aria-hidden
-              className={`w-4 shrink-0 text-center ${
-                s.state === 'done'
-                  ? 'text-conf-high'
-                  : s.state === 'active'
-                  ? 'text-ai-accent animate-pulse'
-                  : 'text-text-faint'
-              }`}
-            >
-              {s.state === 'done' ? '✓' : s.state === 'active' ? '◆' : '·'}
+          <li key={s.key} className="flex items-start gap-2.5">
+            <span aria-hidden className="mt-px flex h-4 w-4 shrink-0 items-center justify-center">
+              {s.state === 'done' ? (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-state-done">
+                  <path
+                    d="M3 7.4 5.8 10 11 4.2"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    pathLength={1}
+                    strokeDasharray="1"
+                    className="animate-check-draw"
+                  />
+                </svg>
+              ) : s.state === 'active' ? (
+                <span className="h-3.5 w-3.5 rounded-full border-2 border-accent/25 border-t-accent animate-spin" />
+              ) : (
+                <span className="h-1.5 w-1.5 rounded-full bg-text-faint/50" />
+              )}
             </span>
             <span className="min-w-0">
               <span
                 className={
                   s.state === 'active'
-                    ? 'text-text-primary'
+                    ? 'text-text-primary font-medium'
                     : s.state === 'done'
                     ? 'text-text-secondary'
                     : 'text-text-faint'
@@ -979,7 +1044,7 @@ function GenerationProgress({
               >
                 {s.label}
               </span>
-              {s.hint && <span className="block text-xs text-text-muted">{s.hint}</span>}
+              {s.hint && <span className="block text-footnote text-text-muted mt-0.5">{s.hint}</span>}
             </span>
           </li>
         ))}
@@ -999,25 +1064,24 @@ function PartialPlansPreview({ progress }: { progress: PlanProgressEvent | null 
   if (!plans || plans.length === 0) return null;
 
   return (
-    <div className="space-y-2 border-t border-ai-accent/20 pt-3">
+    <div className="space-y-3 border-t border-border-base/70 pt-4">
       {plans.map((p, i) => (
-        <div key={i} className="border-l-2 border-ai-accent/40 pl-3">
-          <div className="text-sm text-text-primary">
-            <span className="text-ai-accent" aria-hidden>
-              ◆
+        <div key={i}>
+          <div className="text-control text-text-primary">
+            <span className="ai-icon" aria-hidden>
+              ✦
             </span>{' '}
             <span className="font-semibold">{p?.title ?? '…'}</span>
           </div>
-          {p?.pitch && <div className="text-xs text-text-secondary leading-snug mt-0.5">{p.pitch}</div>}
+          {p?.pitch && <div className="text-footnote text-text-secondary mt-0.5 pl-4">{p.pitch}</div>}
           {p?.tree?.categorias && p.tree.categorias.length > 0 && (
-            <div className="mt-1 space-y-0.5">
+            <div className="mt-1 space-y-0.5 pl-4">
               {p.tree.categorias.map((cat, j) => (
-                <div key={j} className="text-[11px] text-text-muted">
-                  <span className="text-ai-accent/60" aria-hidden>
-                    ›
-                  </span>{' '}
+                <div key={j} className="text-footnote text-text-muted">
                   {cat?.name ?? '…'}
-                  {cat?.children && cat.children.length > 0 && <span> · {cat.children.length}</span>}
+                  {cat?.children && cat.children.length > 0 && (
+                    <span className="text-text-faint tabular-nums"> {cat.children.length}</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -1029,9 +1093,9 @@ function PartialPlansPreview({ progress }: { progress: PlanProgressEvent | null 
 }
 
 const RULE_STYLE = {
-  cumpre: { icon: '✓', cls: 'border-conf-high/40 text-conf-high bg-conf-high/10' },
-  risco: { icon: '⚠', cls: 'border-conf-mid/40 text-conf-mid bg-conf-mid/10' },
-  viola: { icon: '✗', cls: 'border-state-problem/40 text-state-problem bg-state-problem/10' },
+  cumpre: { icon: '✓', cls: 'bg-conf-high/12 text-conf-high' },
+  risco: { icon: '!', cls: 'bg-conf-mid/12 text-conf-mid' },
+  viola: { icon: '✕', cls: 'bg-state-problem/12 text-state-problem' },
 } as const;
 
 const PREVIEW_CHILDREN = 4;
@@ -1067,45 +1131,41 @@ function PlanCard({
     fn();
   };
 
+  const disclosure = 'tap btn btn-tertiary btn-sm -ml-2 self-start';
+
   return (
     <div
       onClick={onSelect}
-      className={`p-4 rounded-sm border-2 transition-all flex flex-col cursor-pointer ${
-        selected
-          ? 'border-ai-accent bg-ai-accent/5'
-          : 'border-border-base bg-bg-secondary hover:border-text-muted'
+      className={`card p-4 sm:p-5 flex flex-col cursor-pointer transition-shadow duration-180 ease-mac ${
+        selected ? 'ring-2 ring-accent shadow-mac-lg' : 'shadow-mac'
       }`}
     >
       <button
         type="button"
         aria-pressed={selected}
         onClick={stop(onSelect)}
-        className="text-left w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-ai-accent rounded-sm"
+        className="text-left w-full rounded-control"
       >
-        <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap mb-2">
           <span
-            className={`shrink-0 text-[11px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] border ${
-              p.rank === 1
-                ? 'bg-conf-high/15 text-conf-high border-conf-high/40'
-                : 'bg-bg-primary text-text-muted border-border-base'
+            className={`chip shrink-0 tabular-nums ${
+              p.rank === 1 ? 'bg-state-done/12 text-state-done' : ''
             }`}
           >
             {p.rank === 1 ? `★ ${tr.objective.rankBest}` : `#${p.rank}`}
           </span>
           {isNew && (
-            <span className="shrink-0 text-[11px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] border border-ai-accent/50 text-ai-accent bg-ai-accent/15">
-              {tr.objective.newBadge}
-            </span>
+            <span className="chip shrink-0 bg-ai-accent/12 text-ai-accent">{tr.objective.newBadge}</span>
           )}
-          <span className="ml-auto shrink-0 text-[11px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] bg-ai-accent/10 text-ai-accent border border-ai-accent/30">
-            {tr.objective.strategyLabel(p.strategy)}
-          </span>
+          <span className="chip ml-auto shrink-0">{tr.objective.strategyLabel(p.strategy)}</span>
         </div>
-        <div className="text-base font-semibold leading-tight text-text-primary">{p.title}</div>
+        <div className="text-title3 font-semibold leading-snug tracking-[-0.01em] text-text-primary">
+          {p.title}
+        </div>
       </button>
 
       {(p.estimates || (p.rulesCheck && p.rulesCheck.length > 0)) && (
-        <div className="mt-2 flex gap-1 flex-wrap">
+        <div className="mt-2.5 flex gap-1 flex-wrap">
           {p.estimates && (
             <>
               <Chip label={tr.objective.costAria}>{p.estimates.custo}</Chip>
@@ -1124,9 +1184,11 @@ function PlanCard({
                   key={r.rule}
                   title={desc}
                   aria-label={desc}
-                  className={`inline-flex max-w-full items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-[2px] border ${st.cls}`}
+                  className={`chip max-w-full ${st.cls}`}
                 >
-                  <span aria-hidden>{st.icon}</span>
+                  <span aria-hidden className="font-semibold">
+                    {st.icon}
+                  </span>
                   <span className="truncate max-w-[14rem]">{r.rule}</span>
                 </span>
               );
@@ -1134,14 +1196,14 @@ function PlanCard({
         </div>
       )}
 
-      <p className="mt-2 text-sm text-text-secondary leading-snug">{p.pitch}</p>
+      <p className="mt-3 text-control text-text-secondary leading-relaxed">{p.pitch}</p>
 
       {!collapsed && (
         <>
           {p.rankReason && (
             <p
-              className={`mt-2 text-xs leading-snug ${
-                p.rank === 1 ? 'text-conf-high/90' : 'text-text-muted'
+              className={`mt-2 text-footnote ${
+                p.rank === 1 ? 'text-conf-high' : 'text-text-muted'
               }`}
             >
               {p.rankReason}
@@ -1149,17 +1211,18 @@ function PlanCard({
           )}
 
           {p.approach && (
-            <div className="mt-2">
+            <div className="mt-2 flex flex-col">
               <button
                 type="button"
                 onClick={stop(() => setApproachOpen((v) => !v))}
                 aria-expanded={approachOpen}
-                className="tap text-xs text-text-muted hover:text-text-primary"
+                className={disclosure}
               >
-                {approachOpen ? `▾ ${tr.objective.hideApproach}` : `▸ ${tr.objective.showApproach}`}
+                <ChevronIcon className={approachOpen ? 'rotate-90' : ''} />
+                {approachOpen ? tr.objective.hideApproach : tr.objective.showApproach}
               </button>
               {approachOpen && (
-                <p className="mt-1 text-xs text-text-secondary leading-snug">{p.approach}</p>
+                <p className="mt-1 text-footnote text-text-secondary">{p.approach}</p>
               )}
             </div>
           )}
@@ -1168,20 +1231,24 @@ function PlanCard({
             const shown = fullOpen ? cat.children : cat.children.slice(0, PREVIEW_CHILDREN);
             const rest = cat.children.length - shown.length;
             return (
-              <div key={cat.tempId} className="mt-2 border-t border-border-base pt-2">
-                <div className="text-[11px] font-mono uppercase tracking-wider text-text-muted mb-1">
-                  {cat.name} · {cat.children.length}
+              <div key={cat.tempId} className="mt-3 border-t border-border-base/70 pt-3">
+                <div className="label mb-1.5 flex items-center gap-1.5">
+                  <span className="min-w-0 truncate">{cat.name}</span>
+                  <span className="text-text-faint tabular-nums">{cat.children.length}</span>
                 </div>
-                <ul className="space-y-0.5">
+                <ul className="space-y-1">
                   {shown.map((n) => (
-                    <li key={n.tempId} className="text-xs text-text-secondary leading-snug">
-                      <span className="text-text-muted font-mono" aria-hidden>
-                        ·
-                      </span>{' '}
-                      {n.name}
+                    <li key={n.tempId} className="flex gap-2 text-footnote text-text-secondary">
+                      <span
+                        className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-text-faint/60"
+                        aria-hidden
+                      />
+                      <span className="min-w-0">{n.name}</span>
                     </li>
                   ))}
-                  {rest > 0 && <li className="text-[11px] text-text-muted">+{rest}</li>}
+                  {rest > 0 && (
+                    <li className="pl-3 text-footnote text-text-muted tabular-nums">+{rest}</li>
+                  )}
                 </ul>
               </div>
             );
@@ -1192,9 +1259,10 @@ function PlanCard({
               type="button"
               onClick={stop(() => setFullOpen((v) => !v))}
               aria-expanded={fullOpen}
-              className="tap mt-2 self-start text-xs text-text-muted hover:text-text-primary"
+              className={`${disclosure} mt-2`}
             >
-              {fullOpen ? `▾ ${tr.objective.hideFullPlan}` : `▸ ${tr.objective.showFullPlan(totalNodes)}`}
+              <ChevronIcon className={fullOpen ? 'rotate-90' : ''} />
+              {fullOpen ? tr.objective.hideFullPlan : tr.objective.showFullPlan(totalNodes)}
             </button>
           )}
         </>
@@ -1205,9 +1273,10 @@ function PlanCard({
           type="button"
           onClick={stop(() => setDetailsOpen((v) => !v))}
           aria-expanded={detailsOpen}
-          className="tap mt-2 self-start text-xs text-text-muted hover:text-text-primary"
+          className={`${disclosure} mt-2`}
         >
-          {detailsOpen ? `▾ ${tr.objective.hideDetails}` : `▸ ${tr.objective.showDetails}`}
+          <ChevronIcon className={detailsOpen ? 'rotate-90' : ''} />
+          {detailsOpen ? tr.objective.hideDetails : tr.objective.showDetails}
         </button>
       )}
     </div>
@@ -1216,12 +1285,9 @@ function PlanCard({
 
 function Chip({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <span
-      title={label}
-      className="inline-flex items-center text-[11px] px-1.5 py-0.5 rounded-[2px] border border-border-base bg-bg-primary text-text-secondary"
-    >
+    <span title={label} className="chip max-w-full">
       <span className="sr-only">{label}: </span>
-      {children}
+      <span className="truncate">{children}</span>
     </span>
   );
 }

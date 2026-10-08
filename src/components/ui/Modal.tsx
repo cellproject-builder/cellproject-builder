@@ -84,7 +84,7 @@ export function Modal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+      className="scrim fixed inset-0 z-50 flex animate-scrim-in items-end justify-center p-0 sm:items-center sm:p-4"
       onMouseDown={(e) => {
         if (closeOnBackdrop && e.target === e.currentTarget) onClose();
       }}
@@ -95,10 +95,10 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-lg border border-border-base bg-bg-secondary shadow-2xl outline-none sm:rounded-lg ${className ?? 'max-w-lg'}`}
+        className={`flex max-h-[90dvh] w-full animate-sheet-in flex-col overflow-hidden rounded-t-window bg-bg-secondary shadow-mac-lg outline-none sm:rounded-window ${className ?? 'max-w-lg'}`}
       >
-        <div className="flex items-center gap-2 border-b border-border-base px-4 py-3">
-          <h2 id={titleId} className="min-w-0 flex-1 text-sm font-medium text-text-primary">
+        <div className="flex items-center gap-2 border-b border-border-base/70 px-5 py-3">
+          <h2 id={titleId} className="min-w-0 flex-1 text-control font-semibold text-text-primary">
             {title}
           </h2>
           {!hideCloseButton && (
@@ -106,7 +106,7 @@ export function Modal({
               type="button"
               onClick={onClose}
               aria-label={tr.common.close}
-              className="tap rounded px-2 py-1 text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+              className="tap btn btn-ghost btn-icon btn-sm -mr-1.5 text-footnote"
             >
               ✕
             </button>
@@ -114,7 +114,7 @@ export function Modal({
         </div>
         <div
           ref={bodyRef}
-          className="min-h-0 flex-1 overflow-y-auto px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
+          className="min-h-0 flex-1 overflow-y-auto px-5 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
         >
           {children}
         </div>

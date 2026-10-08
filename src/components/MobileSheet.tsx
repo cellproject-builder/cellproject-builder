@@ -17,6 +17,9 @@ interface MobileSheetProps {
   footer?: ReactNode;
   // O conteúdo já mostra o título (ex.: nome editável) — fica só para leitor de tela.
   titleHidden?: boolean;
+  // Sempre modal (scrim em todos os snaps; tocar no scrim fecha). Para sheets
+  // que não precisam do fundo tocável, como a árvore do tutor.
+  alwaysModal?: boolean;
 }
 
 export function MobileSheet({
@@ -28,6 +31,7 @@ export function MobileSheet({
   description,
   footer,
   titleHidden,
+  alwaysModal,
 }: MobileSheetProps) {
   const snaps = snapPoints ?? DEFAULT_SNAP_POINTS;
   const [activeSnap, setActiveSnap] = useState<SnapPoint | null>(snaps[0]);
@@ -39,28 +43,46 @@ export function MobileSheet({
   // No snap baixo o sheet não é modal: o grafo continua visível e tocável
   // (dá pra tocar em outro nó). Só o snap mais alto escurece o fundo.
   const lastSnap = snaps[snaps.length - 1];
-  const modal = activeSnap === lastSnap;
+  const modal = alwaysModal || activeSnap === lastSnap;
 
   // Nos snaps, o vaul translada o Content (96% da tela) para baixo e o pé
   // dele fica fora da tela. Medimos quanto ficou escondido e subimos o footer
   // (e damos o mesmo respiro à área rolável) — estimativa imediata pela
   // fração do snap, corrigida pela medida real ao fim da animação.
   const contentRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
+  const snapRef = useRef(activeSnap);
+  snapRef.current = activeSnap;
   const [hiddenPx, setHiddenPx] = useState(0);
   const measure = useCallback(() => {
     const el = contentRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    setHiddenPx(Math.max(0, Math.round(r.bottom - window.innerHeight)));
+    const est = estimateHiddenPx(snapRef.current);
+    let px = Math.round(r.bottom - window.innerHeight);
+    // Medida no meio de uma animação/resize (Content ainda fora da tela ou
+    // transladado para o snap antigo): vale a estimativa pelo snap ativo.
+    if (Math.abs(px - est) > 64) px = est;
+    // Nunca esconder mais do que o sheet tem acima do footer.
+    const footerH = footerRef.current?.offsetHeight ?? 0;
+    const max = Math.max(0, Math.round(r.height - footerH - 48));
+    setHiddenPx(Math.min(Math.max(0, px), max));
   }, []);
   useEffect(() => {
     if (!open || !footer) return;
     setHiddenPx(estimateHiddenPx(activeSnap));
-    const t = setTimeout(measure, 550);
-    window.addEventListener('resize', measure);
+    let t = setTimeout(measure, 550);
+    // Resize/rotação: estimativa imediata e nova medida depois que o vaul
+    // reposiciona o Content no snap.
+    const onResize = () => {
+      setHiddenPx(estimateHiddenPx(snapRef.current));
+      clearTimeout(t);
+      t = setTimeout(() => requestAnimationFrame(measure), 350);
+    };
+    window.addEventListener('resize', onResize);
     return () => {
       clearTimeout(t);
-      window.removeEventListener('resize', measure);
+      window.removeEventListener('resize', onResize);
     };
     // footer só importa como presença
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,19 +96,20 @@ export function MobileSheet({
       activeSnapPoint={activeSnap}
       setActiveSnapPoint={setActiveSnap}
       modal={modal}
+      {...(alwaysModal ? { fadeFromIndex: 0 } : {})}
       repositionInputs
       onAnimationEnd={() => measure()}
     >
       <Drawer.Portal>
-        {modal && <Drawer.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" />}
-        <Drawer.Content ref={contentRef} className="fixed inset-x-0 bottom-0 z-50 flex h-[96%] flex-col rounded-t-2xl border border-b-0 border-border-base bg-bg-secondary outline-none shadow-[0_-8px_24px_rgba(0,0,0,0.45)]">
+        {modal && <Drawer.Overlay className="scrim animate-scrim-in fixed inset-0 z-40" />}
+        <Drawer.Content ref={contentRef} className="glass-host bg-glass/95 fixed inset-x-0 bottom-0 z-50 flex h-[96%] flex-col rounded-t-window border-t outline-none shadow-mac-lg">
           <div
             aria-hidden
-            className="mx-auto mt-2 mb-1 h-1.5 w-12 flex-shrink-0 rounded-full bg-border-base"
+            className="mx-auto mt-2 mb-1.5 h-[5px] w-9 flex-shrink-0 rounded-full bg-text-faint/40"
           />
           <Drawer.Title
             className={
-              titleHidden ? 'sr-only' : 'px-4 py-2 text-sm font-semibold text-text-primary truncate'
+              titleHidden ? 'sr-only' : 'px-4 pt-1 pb-2 text-title3 font-semibold text-text-primary truncate'
             }
           >
             {title}
@@ -104,7 +127,8 @@ export function MobileSheet({
           </div>
           {footer && (
             <div
-              className="shrink-0 border-t border-border-base bg-bg-secondary px-3 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
+              ref={footerRef}
+              className="relative shrink-0 border-t border-border-base/70 bg-glass after:absolute after:inset-x-0 after:top-full after:h-screen after:bg-glass px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
               style={hiddenPx > 0 ? { transform: `translateY(-${hiddenPx}px)` } : undefined}
             >
               {footer}

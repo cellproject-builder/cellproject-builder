@@ -163,7 +163,101 @@ const isActionable = (node: ConceptNodeData) =>
   node.kind === 'decisao' ||
   node.kind === 'concept';
 
-// Seção recolhível do card do tutor: título + resumo de uma linha.
+// ---------------------------------------------------------------------------
+// Glifos (SVG, herdam currentColor)
+// ---------------------------------------------------------------------------
+
+function Chevron({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 12 12" aria-hidden className={`h-3 w-3 shrink-0 ${className ?? ''}`}>
+      <path
+        d="M4.5 2.5 8 6l-3.5 3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CheckGlyph({ className, animate }: { className?: string; animate?: boolean }) {
+  return (
+    <svg viewBox="0 0 12 12" aria-hidden className={className}>
+      <path
+        d="M2.5 6.3l2.3 2.3 4.7-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        pathLength={1}
+        strokeDasharray="1"
+        className={animate ? 'animate-check-draw' : undefined}
+      />
+    </svg>
+  );
+}
+
+const glyphPath: Record<GroundTruthKind, ReactNode> = {
+  // globo: link
+  link: (
+    <>
+      <circle cx="8" cy="8" r="5.75" />
+      <path d="M2.5 8h11M8 2.25c1.6 1.6 2.4 3.5 2.4 5.75S9.6 12.15 8 13.75M8 2.25C6.4 3.85 5.6 5.75 5.6 8s.8 4.15 2.4 5.75" />
+    </>
+  ),
+  // régua: medida
+  medida: (
+    <>
+      <rect x="1.75" y="5" width="12.5" height="6" rx="1.25" />
+      <path d="M4.5 5v2.25M7 5v1.5M9.5 5v2.25M12 5v1.5" />
+    </>
+  ),
+  // folha: especificação
+  spec: (
+    <>
+      <path d="M4 1.75h5l3 3v9.5H4z" />
+      <path d="M9 1.75v3h3M6 8h4M6 10.5h4" />
+    </>
+  ),
+};
+
+function KindGlyph({ kind, title }: { kind: GroundTruthKind; title: string }) {
+  return (
+    <span
+      title={title}
+      className="mt-px grid h-5 w-5 shrink-0 place-items-center rounded-chip bg-bg-elevated text-text-muted"
+    >
+      <svg
+        viewBox="0 0 16 16"
+        aria-hidden
+        className="h-3.5 w-3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {glyphPath[kind]}
+      </svg>
+      <span className="sr-only">{title}</span>
+    </span>
+  );
+}
+
+function Spinner() {
+  return (
+    <span
+      aria-hidden
+      className="inline-block h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-ai-accent/25 border-t-ai-accent"
+    />
+  );
+}
+
+// Seção recolhível do card do tutor (disclosure estilo System Settings):
+// título + resumo de uma linha à direita.
 function Fold({
   id,
   title,
@@ -188,25 +282,18 @@ function Fold({
       id={id}
       open={open}
       onToggle={(e) => setOpen(e.currentTarget.open)}
-      className="group/fold border-b border-border-base last:border-b-0 scroll-mt-4"
+      className="group/fold scroll-mt-4 border-t border-border-base/70"
     >
-      <summary className="tap list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none flex items-center gap-2 px-3 py-2.5 hover:bg-bg-elevated/40 transition-colors">
+      <summary className="tap flex min-h-[40px] cursor-pointer select-none list-none items-center gap-2.5 px-4 py-2 transition-colors duration-120 ease-mac hover:bg-bg-elevated/50 [&::-webkit-details-marker]:hidden">
+        <Chevron className="text-text-faint transition-transform duration-180 ease-mac group-open/fold:rotate-90" />
+        <span className="min-w-0 flex-1 text-control font-medium text-text-primary">{title}</span>
         <span
-          aria-hidden
-          className="text-[10px] text-text-muted transition-transform group-open/fold:rotate-90"
-        >
-          ▸
-        </span>
-        <span className="text-[10px] font-mono uppercase tracking-wider text-text-muted shrink-0">
-          {title}
-        </span>
-        <span
-          className={`ml-auto min-w-0 truncate text-[10px] font-mono ${summaryClass ?? 'text-text-secondary'}`}
+          className={`max-w-[50%] shrink-0 truncate text-right text-footnote ${summaryClass ?? 'text-text-muted'}`}
         >
           {summary}
         </span>
       </summary>
-      <div className="px-3 pb-3">{children}</div>
+      <div className="px-4 pb-4 pt-1">{children}</div>
     </details>
   );
 }
@@ -222,15 +309,15 @@ function RunningRow({
 }) {
   const tr = useT();
   return (
-    <div className="flex items-center gap-2 text-[11px] text-ai-accent border border-ai-accent/30 bg-ai-accent/5 rounded-sm px-2 py-1.5">
-      <span className="inline-block w-3 h-3 border-2 border-ai-accent/40 border-t-ai-accent rounded-full animate-spin shrink-0" />
-      <span className="flex-1 min-w-0 truncate">{label}</span>
-      <span className="font-mono text-[10px] text-text-muted tabular-nums">{secs(elapsedMs)}s</span>
+    <div className="flex min-h-[36px] items-center gap-2.5 rounded-control bg-ai-accent/8 px-3 py-1.5 text-control text-text-secondary">
+      <Spinner />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span className="text-footnote tabular-nums text-text-muted">{secs(elapsedMs)}s</span>
       {onCancel && (
         <button
           type="button"
           onClick={onCancel}
-          className="tap text-[10px] font-mono text-text-muted hover:text-state-problem border border-border-base rounded-sm px-2 py-0.5 transition-colors"
+          className="tap btn btn-ghost btn-sm -mr-1.5"
         >
           {tr.common.cancelRunning}
         </button>
@@ -247,13 +334,16 @@ interface CriterionProps {
   node: ConceptNodeData;
   // Card do tutor: expõe ids DOM (gt-criterion, gt-attest) pra rolar/focar.
   domIds?: boolean;
+  // Primeira linha do grupo do tutor: sem borda própria (as seções abaixo
+  // trazem a hairline de cima).
+  inGroup?: boolean;
 }
 
 export function UserCriterionField(props: CriterionProps) {
   return <UserCriterionBody key={props.node.id} {...props} />;
 }
 
-function UserCriterionBody({ node, domIds }: CriterionProps) {
+function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
   const tr = useT();
   const setUserCriterion = useGraphStore((s) => s.setUserCriterion);
   const unlockCriterion = useGraphStore((s) => s.unlockCriterion);
@@ -299,42 +389,49 @@ function UserCriterionBody({ node, domIds }: CriterionProps) {
   return (
     <section
       id={domIds ? 'gt-criterion' : undefined}
-      className="p-3 border-b border-border-base space-y-2 scroll-mt-4"
+      className={`scroll-mt-4 space-y-4 ${inGroup ? 'px-4 pb-4 pt-3.5' : 'border-b border-border-base/70 p-4'}`}
     >
-      <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted">
-        {tr.groundTruth.howToConfirm}
-      </label>
+      {!inGroup && (
+        <div className="text-control font-semibold text-text-primary">{tr.groundTruth.howToConfirm}</div>
+      )}
 
-      <div>
-        <div className="text-[10px] font-mono uppercase tracking-wider text-ai-accent mb-1">
-          {tr.groundTruth.yourCriterion}{' '}
-          {locked && <span className="text-state-done">{tr.groundTruth.locked}</span>}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="label">{tr.groundTruth.yourCriterion}</span>
+          {locked && (
+            <span className="chip bg-state-done/12 text-state-done">
+              <CheckGlyph className="h-3 w-3" />
+              {tr.groundTruth.locked}
+            </span>
+          )}
         </div>
         {locked ? (
-          <div className="space-y-1.5">
-            <div className="flex items-start gap-2 text-xs bg-bg-elevated border border-ai-accent/30 rounded-sm px-2 py-1.5 text-text-primary">
-              <span className="flex-1 min-w-0 break-words">{node.comoConfirmarUsuario}</span>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 rounded-control bg-bg-elevated/60 px-3 py-2 text-control text-text-primary">
+              <span className="min-w-0 flex-1 break-words py-0.5">{node.comoConfirmarUsuario}</span>
               {inUndoWindow && (
                 <button
                   type="button"
                   onClick={undoLock}
-                  className="tap shrink-0 text-[10px] font-mono text-text-muted hover:text-ai-accent border border-border-base rounded-sm px-1.5 py-0.5 transition-colors"
+                  className="tap btn btn-secondary btn-sm shrink-0 tabular-nums"
                 >
                   {tr.groundTruth.undoWithin(secs(remainingMs))}
                 </button>
               )}
             </div>
             {node.comoConfirmarAtendido ? (
-              <div className="text-[11px] text-state-done bg-state-done/5 border border-state-done/20 rounded-sm px-2 py-1">
-                ✓ {tr.groundTruth.criterionMet}:{' '}
-                <span className="text-text-secondary">{node.comoConfirmarAtendido.observacao}</span>
+              <div className="flex items-start gap-2 text-control">
+                <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-state-done text-accent-fg">
+                  <CheckGlyph className="h-3 w-3" animate />
+                </span>
+                <span className="min-w-0 break-words">
+                  <span className="font-medium text-state-done">{tr.groundTruth.criterionMet}:</span>{' '}
+                  <span className="text-text-secondary">{node.comoConfirmarAtendido.observacao}</span>
+                </span>
               </div>
             ) : (
-              <div id={domIds ? 'gt-attest' : undefined} className="space-y-1 scroll-mt-4">
-                <label
-                  htmlFor={`gt-met-${node.id}`}
-                  className="block text-[10px] font-mono uppercase tracking-wider text-conf-mid"
-                >
+              <div id={domIds ? 'gt-attest' : undefined} className="scroll-mt-4 space-y-2">
+                <label htmlFor={`gt-met-${node.id}`} className="label block">
                   {tr.groundTruth.criterionMetPrompt}
                 </label>
                 <textarea
@@ -345,17 +442,19 @@ function UserCriterionBody({ node, domIds }: CriterionProps) {
                   onKeyDown={submitOnModEnter(handleAttest)}
                   rows={2}
                   placeholder={tr.groundTruth.criterionMetPlaceholder}
-                  className="w-full bg-bg-elevated border border-border-base rounded-sm px-2 py-1 text-xs resize-none focus:border-state-done outline-none"
+                  className="field resize-none"
                 />
-                <button
-                  type="button"
-                  onClick={handleAttest}
-                  disabled={!metDraft.trim()}
-                  title={tr.groundTruth.submitHint}
-                  className="tap w-full text-[11px] bg-state-done/15 hover:bg-state-done/30 disabled:opacity-40 disabled:cursor-not-allowed text-state-done border border-state-done/40 rounded-sm py-1 transition-colors"
-                >
-                  {tr.groundTruth.criterionMetBtn}
-                </button>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleAttest}
+                    disabled={!metDraft.trim()}
+                    title={tr.groundTruth.submitHint}
+                    className="tap btn btn-primary w-full sm:w-auto"
+                  >
+                    {tr.groundTruth.criterionMetBtn}
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -372,42 +471,47 @@ function UserCriterionBody({ node, domIds }: CriterionProps) {
                   ? tr.groundTruth.criterionPlaceholderUnderstand
                   : tr.groundTruth.criterionPlaceholder
               }
-              className="w-full bg-bg-elevated border border-border-base rounded-sm px-2 py-1 text-xs resize-none focus:border-ai-accent outline-none"
+              className="field resize-none"
             />
             {showVagueLive && (
-              <div className="text-[10px] font-mono text-conf-mid">{tr.groundTruth.vagueHint}</div>
+              <p className="text-footnote text-conf-mid">{tr.groundTruth.vagueHint}</p>
             )}
-            <div className="mt-1 space-y-1">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-start sm:gap-4">
+              <p className="flex-1 text-footnote text-text-muted">{tr.groundTruth.lockHelp}</p>
               <button
                 type="button"
                 onClick={handleLock}
                 disabled={!draft.trim()}
                 title={tr.groundTruth.submitHint}
-                className="tap w-full text-[11px] bg-ai-accent/15 hover:bg-ai-accent/30 disabled:opacity-40 disabled:cursor-not-allowed text-ai-accent border border-ai-accent/40 rounded-sm py-1 transition-colors"
+                className="tap btn btn-primary w-full shrink-0 sm:w-auto"
               >
                 {tr.groundTruth.lockBtn}
               </button>
-              <p className="text-[10px] text-text-muted leading-snug">{tr.groundTruth.lockHelp}</p>
             </div>
           </>
         )}
       </div>
 
-      <div>
-        <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-          {tr.groundTruth.aiCriterion}{' '}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="label inline-flex items-center gap-1.5">
+            <span className="ai-icon" aria-hidden>
+              ✦
+            </span>
+            {tr.groundTruth.aiCriterion}
+          </span>
           {!revealed && (
-            <span className="italic normal-case">
+            <span className="text-footnote tabular-nums text-text-faint">
               {inUndoWindow ? tr.groundTruth.revealIn(secs(remainingMs)) : tr.groundTruth.hiddenUntilLock}
             </span>
           )}
         </div>
         {revealed ? (
-          <div className="text-xs bg-bg-elevated border border-border-base rounded-sm px-2 py-1.5 font-mono italic text-text-secondary">
+          <div className="rounded-control bg-ai-accent/8 px-3 py-2 text-control text-text-secondary">
             {node.comoConfirmar || <span className="text-text-muted">{tr.groundTruth.emptyAI}</span>}
           </div>
         ) : (
-          <div className="text-xs bg-bg-elevated/40 border border-dashed border-border-base rounded-sm px-2 py-1.5 text-text-muted italic">
+          <div className="text-footnote text-text-muted">
             {locked ? tr.groundTruth.aiAfterUndoWindow : tr.groundTruth.writeYoursFirst}
           </div>
         )}
@@ -420,28 +524,25 @@ function UserCriterionBody({ node, domIds }: CriterionProps) {
   );
 }
 
+function Note({ tone, children }: { tone: 'warn' | 'ok'; children: ReactNode }) {
+  return (
+    <div
+      className={`flex items-start gap-2 rounded-control px-3 py-2 text-footnote ${
+        tone === 'warn' ? 'bg-conf-mid/8 text-conf-mid' : 'bg-state-done/8 text-state-done'
+      }`}
+    >
+      <span aria-hidden className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+      <span className="min-w-0">{children}</span>
+    </div>
+  );
+}
+
 function DivergenceHint({ ai, user }: { ai: string; user: string }) {
   const tr = useT();
   const verdict = assessCriterion(ai, user);
-  if (verdict === 'similar') {
-    return (
-      <div className="text-[10px] font-mono text-conf-mid bg-conf-mid/5 border border-conf-mid/30 rounded-sm px-2 py-1">
-        {tr.groundTruth.convergenceCopy}
-      </div>
-    );
-  }
-  if (verdict === 'vague') {
-    return (
-      <div className="text-[10px] font-mono text-conf-mid bg-conf-mid/5 border border-conf-mid/20 rounded-sm px-2 py-1">
-        {tr.groundTruth.vagueHint}
-      </div>
-    );
-  }
-  return (
-    <div className="text-[10px] font-mono text-state-done/80 bg-state-done/5 border border-state-done/20 rounded-sm px-2 py-1">
-      {tr.groundTruth.convergenceIndependent}
-    </div>
-  );
+  if (verdict === 'similar') return <Note tone="warn">{tr.groundTruth.convergenceCopy}</Note>;
+  if (verdict === 'vague') return <Note tone="warn">{tr.groundTruth.vagueHint}</Note>;
+  return <Note tone="ok">{tr.groundTruth.convergenceIndependent}</Note>;
 }
 
 // ---------------------------------------------------------------------------
@@ -513,7 +614,7 @@ function CritiqueBody({ node, project, collapsible }: SectionProps) {
   const body = (
     <>
       {busy && (
-        <div className="mb-2">
+        <div className="mb-3">
           <RunningRow
             label={node.critica ? tr.groundTruth.regenerating : tr.groundTruth.generatingCritique}
             elapsedMs={action.elapsedMs}
@@ -523,57 +624,57 @@ function CritiqueBody({ node, project, collapsible }: SectionProps) {
       )}
 
       {!node.critica && !busy && (
-        <button
-          type="button"
-          onClick={run}
-          className="tap w-full text-[11px] bg-conf-mid/10 hover:bg-conf-mid/25 text-conf-mid border border-conf-mid/30 rounded-sm py-1.5 transition-colors"
-        >
+        <button type="button" onClick={run} className="tap btn btn-ai w-full sm:w-auto">
+          <span className="ai-icon" aria-hidden>
+            ✦
+          </span>
           {tr.groundTruth.askSecondOpinion}
         </button>
       )}
 
       {node.critica && (
-        <div className="space-y-2 text-xs">
+        <div className="space-y-4 text-control">
           <CritiqueGroup label={tr.groundTruth.weaknesses} items={node.critica.fraquezas} />
           {node.critica.premissasOcultas.length > 0 && (
             <CritiqueGroup label={tr.groundTruth.hiddenPremises} items={node.critica.premissasOcultas} />
           )}
-          <div>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-ai-accent mb-1">
+          <div className="space-y-1.5">
+            <div className="label inline-flex items-center gap-1.5">
+              <span className="ai-icon" aria-hidden>
+                ✦
+              </span>
               {tr.groundTruth.altCriterion}
             </div>
             {revealed ? (
-              <div className="bg-bg-elevated border border-ai-accent/30 rounded-sm px-2 py-1.5 text-text-primary italic">
+              <div className="rounded-control bg-ai-accent/8 px-3 py-2 text-text-primary">
                 {node.critica.criterioAlternativo}
               </div>
             ) : (
-              <div className="bg-bg-elevated/40 border border-dashed border-border-base rounded-sm px-2 py-1.5 text-text-muted italic">
+              <div className="text-footnote text-text-muted">
                 {tr.groundTruth.altCriterionHidden}
               </div>
             )}
           </div>
           {node.critica.fontes && node.critica.fontes.length > 0 && (
-            <div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-                {tr.groundTruth.criticSources}
-              </div>
-              <ul className="space-y-0.5 pl-3">
+            <div className="space-y-1.5">
+              <div className="label">{tr.groundTruth.criticSources}</div>
+              <ul className="space-y-1">
                 {node.critica.fontes.map((f) => {
                   const href = safeHref(f.url);
                   return (
-                    <li key={f.url} className="relative leading-relaxed">
-                      <span className="absolute -left-3 text-ai-accent">⌖</span>
+                    <li key={f.url} className="flex items-start gap-2">
+                      <KindGlyph kind="link" title={tr.groundTruth.kindNames.link} />
                       {href ? (
                         <a
                           href={href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-text-secondary underline decoration-ai-accent/40 hover:text-ai-accent transition-colors break-all"
+                          className="min-w-0 break-words pt-px text-accent hover:underline"
                         >
                           {f.title}
                         </a>
                       ) : (
-                        <span className="text-text-secondary break-all">{f.title}</span>
+                        <span className="min-w-0 break-words pt-px text-text-secondary">{f.title}</span>
                       )}
                     </li>
                   );
@@ -582,18 +683,14 @@ function CritiqueBody({ node, project, collapsible }: SectionProps) {
             </div>
           )}
           {!busy && (
-            <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={run}
-                className="tap flex-1 text-[10px] font-mono text-text-muted hover:text-text-secondary border border-border-base rounded-sm py-1 transition-colors"
-              >
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={run} className="tap btn btn-secondary btn-sm">
                 {tr.groundTruth.regenerate}
               </button>
               <button
                 type="button"
                 onClick={() => clearCritica(node.id)}
-                className="tap text-[10px] font-mono text-text-muted hover:text-state-problem border border-border-base rounded-sm px-2 py-1 transition-colors"
+                className="tap btn btn-ghost btn-sm hover:!text-state-problem"
               >
                 {tr.groundTruth.discard}
               </button>
@@ -603,7 +700,7 @@ function CritiqueBody({ node, project, collapsible }: SectionProps) {
       )}
 
       {action.error && (
-        <InlineError error={action.error} onRetry={run} className="mt-2" />
+        <InlineError error={action.error} onRetry={run} className="mt-3" />
       )}
     </>
   );
@@ -616,10 +713,10 @@ function CritiqueBody({ node, project, collapsible }: SectionProps) {
           busy
             ? tr.groundTruth.generatingCritique
             : generatedDate
-              ? `${tr.groundTruth.summaryOpinionGenerated} · ${generatedDate}`
+              ? `${tr.groundTruth.summaryOpinionGenerated}, ${generatedDate}`
               : tr.groundTruth.summaryOpinionNone
         }
-        summaryClass={node.critica || busy ? 'text-conf-mid' : 'text-text-muted'}
+        summaryClass={node.critica || busy ? 'text-text-secondary' : 'text-text-muted'}
         autoOpen={Boolean(action.error)}
       >
         {body}
@@ -628,13 +725,11 @@ function CritiqueBody({ node, project, collapsible }: SectionProps) {
   }
 
   return (
-    <section className="p-3 border-b border-border-base">
-      <div className="flex items-center gap-2 mb-2">
-        <label className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
-          {tr.groundTruth.adversarial}
-        </label>
+    <section className="border-b border-border-base/70 p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-control font-semibold text-text-primary">{tr.groundTruth.adversarial}</span>
         {generatedDate && (
-          <span className="text-[10px] font-mono text-conf-mid">
+          <span className="ml-auto text-footnote text-text-muted">
             {tr.groundTruth.generatedOn(generatedDate)}
           </span>
         )}
@@ -647,12 +742,11 @@ function CritiqueBody({ node, project, collapsible }: SectionProps) {
 function CritiqueGroup({ label, items }: { label: string; items: string[] }) {
   if (items.length === 0) return null;
   return (
-    <div>
-      <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">{label}</div>
-      <ul className="space-y-0.5 pl-3">
+    <div className="space-y-1.5">
+      <div className="label">{label}</div>
+      <ul className="list-disc space-y-1 pl-4 text-text-secondary marker:text-text-faint">
         {items.map((item, i) => (
-          <li key={i} className="relative text-text-secondary leading-relaxed">
-            <span className="absolute -left-3 text-conf-mid">·</span>
+          <li key={i} className="pl-0.5">
             {item}
           </li>
         ))}
@@ -785,11 +879,11 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
   const body = (
     <>
       {refs.length === 0 && !adding && (
-        <div className="text-[11px] text-text-muted italic mb-2">{tr.groundTruth.noAnchorsHint}</div>
+        <p className="mb-3 text-footnote text-text-muted">{tr.groundTruth.noAnchorsHint}</p>
       )}
 
       {refs.length > 0 && (
-        <ul className="space-y-1 mb-2">
+        <ul className="-mx-2 mb-3 divide-y divide-border-base/70">
           {refs.map((r) => (
             <RefRow
               key={r.id}
@@ -802,18 +896,21 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
         </ul>
       )}
 
-      {adding ? (
-        <div className="space-y-1.5 border border-ai-accent/30 rounded-sm p-2 bg-bg-elevated">
-          <div className="flex gap-1.5 items-center">
+      {adding && (
+        <div className="mb-3 space-y-2 rounded-card bg-bg-elevated/50 p-3">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() =>
                 setKindOverride(KIND_CYCLE[(KIND_CYCLE.indexOf(kind) + 1) % KIND_CYCLE.length])
               }
               title={tr.groundTruth.kindChipTitle}
-              className="tap shrink-0 text-[10px] font-mono px-2 py-0.5 rounded-sm border bg-ai-accent/15 border-ai-accent/60 text-ai-accent"
+              className="tap btn btn-secondary btn-sm shrink-0"
             >
-              {tr.groundTruth.kindNames[kind]} ⇄
+              {tr.groundTruth.kindNames[kind]}
+              <span aria-hidden className="text-text-faint">
+                ⇄
+              </span>
             </button>
             <input
               autoFocus
@@ -821,8 +918,9 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onFormKey}
               aria-label={tr.groundTruth.addPlaceholder}
+              aria-invalid={linkInvalid || undefined}
               placeholder={tr.groundTruth.addPlaceholder}
-              className="flex-1 min-w-0 bg-bg-primary border border-border-base rounded-sm px-2 py-1 text-[11px] font-mono focus:border-ai-accent outline-none"
+              className="field min-w-0 flex-1"
             />
           </div>
           <input
@@ -831,63 +929,76 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
             onKeyDown={onFormKey}
             aria-label={tr.groundTruth.addLabelOptional}
             placeholder={defaultLabel || tr.groundTruth.addLabelOptional}
-            className="w-full bg-bg-primary border border-border-base rounded-sm px-2 py-1 text-[11px] focus:border-ai-accent outline-none"
+            className="field"
           />
           {linkInvalid && (
-            <div className="text-[10px] font-mono text-state-problem">{tr.groundTruth.invalidLink}</div>
+            <p className="text-footnote text-state-problem">{tr.groundTruth.invalidLink}</p>
           )}
-          <div className="flex gap-1">
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={resetForm} className="tap btn btn-ghost">
+              {tr.common.cancel}
+            </button>
             <button
               type="button"
               onClick={handleAdd}
               disabled={!canAdd}
-              className="tap flex-1 text-[11px] bg-ai-accent/15 hover:bg-ai-accent/30 disabled:opacity-40 text-ai-accent border border-ai-accent/40 rounded-sm py-1 transition-colors"
+              className="tap btn btn-primary"
             >
               {tr.groundTruth.anchorAddBtn}
             </button>
-            <button
-              type="button"
-              onClick={resetForm}
-              className="tap text-[11px] text-text-muted hover:text-text-secondary border border-border-base rounded-sm px-2 py-1 transition-colors"
-            >
-              {tr.common.cancel.toLowerCase()}
-            </button>
           </div>
         </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="tap w-full text-[11px] text-text-muted hover:text-ai-accent border border-dashed border-border-base hover:border-ai-accent/40 rounded-sm py-1 transition-colors"
-        >
-          {tr.groundTruth.addAnchor}
-        </button>
       )}
 
       {/* Pesquisa web da célula — ação explícita, fontes viram provas */}
-      <div className="mt-2 space-y-1.5">
-        {researching ? (
+      <div className="space-y-2">
+        {(!adding || !researching) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {!adding && (
+              <button
+                type="button"
+                onClick={() => setAdding(true)}
+                className="tap btn btn-secondary btn-sm"
+              >
+                <span aria-hidden className="text-text-muted">
+                  +
+                </span>
+                {tr.groundTruth.addAnchor}
+              </button>
+            )}
+            {!researching && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleResearch}
+                  title={tr.groundTruth.researchCostHint}
+                  className="tap btn btn-ai btn-sm"
+                >
+                  <span className="ai-icon" aria-hidden>
+                    ✦
+                  </span>
+                  {research_ ? tr.groundTruth.researchAgainBtn : tr.groundTruth.researchMicrocopy}
+                </button>
+                {!research_ && (
+                  <span className="text-caption text-text-muted">{tr.groundTruth.researchCostHint}</span>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {researching && (
           <RunningRow
             label={tr.groundTruth.researchingBtn}
             elapsedMs={research.elapsedMs}
             onCancel={research.running ? research.cancel : undefined}
           />
-        ) : (
-          <button
-            type="button"
-            onClick={handleResearch}
-            className="tap w-full text-[11px] bg-ai-accent/10 hover:bg-ai-accent/25 text-ai-accent border border-ai-accent/30 rounded-sm py-1.5 transition-colors"
-          >
-            {research_ ? tr.groundTruth.researchAgainBtn : tr.groundTruth.researchMicrocopy}
-          </button>
         )}
 
         {newCount !== null && !researching && (
-          <div
-            className={`text-[10px] font-mono ${newCount > 0 ? 'text-state-done' : 'text-text-muted'}`}
-          >
+          <p className={`text-footnote ${newCount > 0 ? 'text-state-done' : 'text-text-muted'}`}>
             {tr.groundTruth.researchNewSources(newCount)}
-          </div>
+          </p>
         )}
 
         {research_ && researchDate && (
@@ -895,18 +1006,20 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
             type="button"
             onClick={() => setShowFindings((v) => !v)}
             aria-expanded={showFindings}
-            className="w-full text-left text-[10px] font-mono text-text-muted hover:text-text-secondary transition-colors flex items-center gap-1.5"
+            className="tap -mx-1 flex items-center gap-1.5 rounded-chip px-1 py-0.5 text-left text-footnote text-text-muted transition-colors duration-120 ease-mac hover:text-text-primary"
           >
-            <span>{showFindings ? '▾' : '▸'}</span>
+            <Chevron
+              className={`text-text-faint transition-transform duration-180 ease-mac ${showFindings ? 'rotate-90' : ''}`}
+            />
             <span>
-              {tr.groundTruth.researchSummary(research_.sources.length, researchDate)} ·{' '}
+              {tr.groundTruth.researchSummary(research_.sources.length, researchDate)},{' '}
               {tr.groundTruth.researchFindings}
             </span>
           </button>
         )}
 
         {showFindings && research_ && (
-          <div className="border border-border-base bg-bg-elevated/40 rounded-sm p-2 max-h-56 overflow-y-auto">
+          <div className="max-h-56 overflow-y-auto rounded-control bg-bg-elevated/50 px-3 py-2.5">
             <ExplanationContent text={research_.findings} />
           </div>
         )}
@@ -930,12 +1043,10 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
   }
 
   return (
-    <section className="p-3 border-b border-border-base">
-      <div className="flex items-center gap-2 mb-2">
-        <label className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
-          {tr.groundTruth.anchors}
-        </label>
-        <span className="text-[10px] font-mono text-text-secondary ml-auto shrink-0">
+    <section className="border-b border-border-base/70 p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-control font-semibold text-text-primary">{tr.groundTruth.anchors}</span>
+        <span className="ml-auto shrink-0 text-footnote text-text-muted">
           {tr.groundTruth.summaryProofs(refs.length, checkedCount)}
         </span>
       </div>
@@ -998,15 +1109,11 @@ function RefRow({
 
   return (
     <li
-      className={`group px-2 py-1.5 rounded-sm border transition-colors duration-700 ${
-        highlighted
-          ? 'border-ai-accent bg-ai-accent/10'
-          : counts
-            ? 'border-state-done/40 bg-state-done/5'
-            : 'border-border-base bg-bg-elevated/40'
+      className={`group rounded-control px-2 py-2.5 transition-colors duration-700 ease-mac ${
+        highlighted ? 'bg-ai-accent/8' : ''
       }`}
     >
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2.5">
         <button
           type="button"
           role="checkbox"
@@ -1015,32 +1122,31 @@ function RefRow({
           onClick={onCheckbox}
           disabled={!counts && mustOpenFirst}
           title={checkboxTitle}
-          className={`mt-0.5 w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+          className={`relative mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-check transition-[background-color,box-shadow] duration-120 ease-mac before:absolute before:-inset-2.5 disabled:cursor-not-allowed disabled:opacity-45 [@media(pointer:coarse)]:before:-inset-3.5 ${
             counts
-              ? 'bg-state-done/20 border-state-done text-state-done'
-              : 'border-border-base hover:border-text-muted'
+              ? 'bg-accent-solid text-accent-fg shadow-[inset_0_0_0_1px_rgb(0_0_0/0.08)]'
+              : 'bg-bg-secondary shadow-[inset_0_0_0_1px_rgb(var(--text-faint)/0.55)] hover:shadow-[inset_0_0_0_1px_rgb(var(--text-muted))]'
           }`}
         >
-          {counts && <span className="text-[10px]">✓</span>}
+          {counts && <CheckGlyph className="h-3 w-3" animate />}
         </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[9px] font-mono uppercase tracking-wider text-text-muted shrink-0">
-              {tr.groundTruth.kindNames[refData.kind]}
-            </span>
+        <KindGlyph kind={refData.kind} title={tr.groundTruth.kindNames[refData.kind]} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2">
             <span
-              className={`text-[11px] text-text-primary ${valueIsLabel ? 'min-w-0 break-words' : 'truncate'}`}
+              className={`min-w-0 text-control text-text-primary ${valueIsLabel ? 'break-words' : 'truncate'}`}
             >
               {refData.label}
             </span>
             {refData.addedByAI && (
-              <span className="text-[9px] font-mono text-ai-accent/70 ml-auto shrink-0">
+              <span className="chip ml-auto h-[18px] shrink-0 gap-1 bg-ai-accent/12 px-1.5 text-ai-accent">
+                <span aria-hidden>✦</span>
                 {tr.groundTruth.anchorAIBadge}
               </span>
             )}
           </div>
           {!valueIsLabel && (
-            <div className="text-[11px] font-mono text-text-secondary break-all">
+            <div className="mt-0.5 break-all text-footnote text-text-muted">
               {href ? (
                 <a
                   href={href}
@@ -1048,7 +1154,7 @@ function RefRow({
                   rel="noopener noreferrer"
                   onClick={onOpen}
                   onAuxClick={onOpen}
-                  className="text-ai-accent hover:underline"
+                  className="text-accent hover:underline"
                 >
                   {refData.value}
                 </a>
@@ -1056,22 +1162,58 @@ function RefRow({
                 <>
                   {refData.value}
                   {refData.kind === 'link' && (
-                    <span className="ml-1 text-[10px] text-state-problem">({tr.groundTruth.invalidLink})</span>
+                    <span className="ml-1 text-state-problem">({tr.groundTruth.invalidLink})</span>
                   )}
                 </>
               )}
             </div>
           )}
           {refData.verificado && refData.observacao && (
-            <div className="mt-0.5 text-[10px] text-state-done/90 break-words">
-              {tr.groundTruth.checkedNote} <span className="text-text-secondary">{refData.observacao}</span>
+            <div className="mt-1 break-words text-footnote text-text-secondary">
+              <span className="font-medium text-state-done">{tr.groundTruth.checkedNote}</span>{' '}
+              {refData.observacao}
             </div>
           )}
           {refData.verificado && !counts && !verifying && (
-            <div className="mt-0.5 text-[10px] font-mono text-conf-mid">{tr.groundTruth.needsObservation}</div>
+            <div className="mt-1 text-footnote text-conf-mid">{tr.groundTruth.needsObservation}</div>
           )}
           {mustOpenFirst && (
-            <div className="mt-0.5 text-[10px] font-mono text-text-muted">{tr.groundTruth.openLinkFirst}</div>
+            <div className="mt-1 text-footnote text-text-muted">{tr.groundTruth.openLinkFirst}</div>
+          )}
+
+          {verifying && (
+            <div className="mt-2.5 space-y-1.5">
+              <label htmlFor={`gt-verify-${refData.id}`} className="label block">
+                {tr.groundTruth.verifyPrompt}
+              </label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  id={`gt-verify-${refData.id}`}
+                  autoFocus
+                  value={obs}
+                  onChange={(e) => setObs(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      submitVerify();
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setVerifying(false);
+                    }
+                  }}
+                  placeholder={tr.groundTruth.verifyPlaceholder}
+                  className="field min-w-0 flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={submitVerify}
+                  disabled={!obs.trim()}
+                  className="tap btn btn-primary shrink-0"
+                >
+                  {tr.groundTruth.verifyBtn}
+                </button>
+              </div>
+            </div>
           )}
         </div>
         <button
@@ -1079,49 +1221,11 @@ function RefRow({
           onClick={onRemove}
           aria-label={`${tr.groundTruth.anchorRemoveTitle}: ${refData.label}`}
           title={tr.groundTruth.anchorRemoveTitle}
-          className="shrink-0 w-8 h-8 sm:w-6 sm:h-6 -mr-1 -mt-1 flex items-center justify-center rounded-sm opacity-40 hover:opacity-100 focus-visible:opacity-100 text-text-muted hover:text-state-problem text-[13px] transition-opacity"
+          className="tap btn btn-ghost btn-icon btn-sm -my-1 -mr-1 shrink-0 text-footnote hover:!text-state-problem focus-visible:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0"
         >
-          ×
+          ✕
         </button>
       </div>
-
-      {verifying && (
-        <div className="mt-1.5 pl-6 space-y-1">
-          <label
-            htmlFor={`gt-verify-${refData.id}`}
-            className="block text-[10px] font-mono uppercase tracking-wider text-conf-mid"
-          >
-            {tr.groundTruth.verifyPrompt}
-          </label>
-          <div className="flex gap-1">
-            <input
-              id={`gt-verify-${refData.id}`}
-              autoFocus
-              value={obs}
-              onChange={(e) => setObs(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  submitVerify();
-                } else if (e.key === 'Escape') {
-                  e.preventDefault();
-                  setVerifying(false);
-                }
-              }}
-              placeholder={tr.groundTruth.verifyPlaceholder}
-              className="flex-1 min-w-0 bg-bg-primary border border-border-base rounded-sm px-2 py-1 text-[11px] focus:border-state-done outline-none"
-            />
-            <button
-              type="button"
-              onClick={submitVerify}
-              disabled={!obs.trim()}
-              className="tap shrink-0 text-[11px] bg-state-done/15 hover:bg-state-done/30 disabled:opacity-40 disabled:cursor-not-allowed text-state-done border border-state-done/40 rounded-sm px-2 py-1 transition-colors"
-            >
-              {tr.groundTruth.verifyBtn}
-            </button>
-          </div>
-        </div>
-      )}
     </li>
   );
 }
@@ -1247,14 +1351,14 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
         <button
           type="button"
           onClick={() => setOpening(true)}
-          className="tap w-full text-[11px] text-text-muted hover:text-state-problem border border-dashed border-border-base hover:border-state-problem/40 rounded-sm py-1 transition-colors"
+          className="tap btn btn-secondary w-full sm:w-auto"
         >
           {tr.groundTruth.failedInPractice}
         </button>
       )}
 
       {!failed && opening && (
-        <div className="space-y-1.5 border border-state-problem/30 rounded-sm p-2 bg-state-problem/5">
+        <div className="space-y-2">
           <textarea
             autoFocus
             value={draft}
@@ -1263,54 +1367,52 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
             rows={3}
             aria-label={tr.groundTruth.failureContextLabel}
             placeholder={tr.groundTruth.failurePlaceholder}
-            className="w-full bg-bg-primary border border-border-base rounded-sm px-2 py-1 text-xs resize-none focus:border-state-problem outline-none"
+            className="field resize-none"
           />
-          <div className="flex flex-wrap gap-1">
-            <button
-              type="button"
-              onClick={() => record(true)}
-              disabled={!draft.trim()}
-              title={tr.groundTruth.submitHint}
-              className="tap flex-1 text-[11px] bg-state-problem/15 hover:bg-state-problem/30 disabled:opacity-40 text-state-problem border border-state-problem/40 rounded-sm py-1 transition-colors"
-            >
-              {tr.groundTruth.registerAndReplan}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+            <button type="button" onClick={cancelReport} className="tap btn btn-ghost">
+              {tr.common.cancel}
             </button>
             <button
               type="button"
               onClick={() => record(false)}
               disabled={!draft.trim()}
-              className="tap text-[11px] text-text-muted hover:text-state-problem disabled:opacity-40 border border-border-base rounded-sm px-2 py-1 transition-colors"
+              className="tap btn btn-secondary"
             >
               {tr.groundTruth.recordOnly}
             </button>
             <button
               type="button"
-              onClick={cancelReport}
-              className="tap text-[11px] text-text-muted hover:text-text-secondary border border-border-base rounded-sm px-2 py-1 transition-colors"
+              onClick={() => record(true)}
+              disabled={!draft.trim()}
+              title={tr.groundTruth.submitHint}
+              className="tap btn btn-primary"
             >
-              {tr.common.cancel.toLowerCase()}
+              {tr.groundTruth.registerAndReplan}
             </button>
           </div>
         </div>
       )}
 
       {failed && (
-        <div className="space-y-2">
-          <div className="text-xs bg-state-problem/5 border border-state-problem/30 rounded-sm px-2 py-1.5">
-            <div className="text-[10px] font-mono uppercase tracking-wider text-state-problem mb-0.5">
+        <div className="space-y-3">
+          <div className="rounded-control bg-bg-elevated/60 border-l-2 border-state-problem pl-3 pr-3 py-2.5 text-control">
+            <div className="mb-0.5 flex items-center gap-2 text-footnote font-medium text-text-primary">
+              <span aria-hidden className="w-2 h-2 rounded-full bg-state-problem shrink-0" />
               {tr.groundTruth.failureContextLabel}
             </div>
-            <div className="text-text-primary break-words">{node.failureContext}</div>
+            <div className="break-words text-text-primary">{node.failureContext}</div>
             {node.failureReportedAt && (
-              <div className="text-[10px] font-mono text-text-muted mt-1">
+              <div className="mt-1 text-footnote tabular-nums text-text-muted">
                 {new Date(node.failureReportedAt).toLocaleString(tr.detail.locale)}
               </div>
             )}
           </div>
 
           {pendingHere && diagnosis && (
-            <div className="text-xs bg-ai-accent/5 border border-ai-accent/30 rounded-sm px-2 py-1.5">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-ai-accent mb-0.5">
+            <div className="rounded-control bg-ai-accent/8 px-3 py-2.5 text-control">
+              <div className="mb-0.5 inline-flex items-center gap-1.5 text-footnote font-medium text-ai-accent">
+                <span aria-hidden>✦</span>
                 {tr.groundTruth.diagnosisLabel}
               </div>
               <div className="text-text-primary">{diagnosis}</div>
@@ -1324,19 +1426,8 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
               onCancel={replan.running ? replan.cancel : undefined}
             />
           ) : pendingHere ? (
-            <div className="text-[10px] font-mono text-ai-accent text-center">
-              {tr.groundTruth.pendingHereHint} ↓
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void runReplan(node.failureContext ?? '')}
-              className="tap w-full text-[11px] bg-ai-accent/15 hover:bg-ai-accent/30 text-ai-accent border border-ai-accent/40 rounded-sm py-1.5 transition-colors flex items-center justify-center gap-2"
-            >
-              <span>◆</span>
-              {tr.groundTruth.replanWithFailure}
-            </button>
-          )}
+            <p className="text-footnote text-ai-accent">{tr.groundTruth.pendingHereHint}</p>
+          ) : null}
 
           {replan.error && (
             <InlineError
@@ -1345,13 +1436,27 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
             />
           )}
 
-          <button
-            type="button"
-            onClick={() => clearFailure(node.id)}
-            className="tap w-full text-[10px] font-mono text-text-muted hover:text-text-secondary border border-border-base rounded-sm py-1 transition-colors"
-          >
-            {tr.groundTruth.clearFailure}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {!replanning && !pendingHere && (
+              <button
+                type="button"
+                onClick={() => void runReplan(node.failureContext ?? '')}
+                className="tap btn btn-ai"
+              >
+                <span className="ai-icon" aria-hidden>
+                  ✦
+                </span>
+                {tr.groundTruth.replanWithFailure}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => clearFailure(node.id)}
+              className="tap btn btn-secondary"
+            >
+              {tr.groundTruth.clearFailure}
+            </button>
+          </div>
         </div>
       )}
     </>
@@ -1372,13 +1477,11 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
   }
 
   return (
-    <section id={domIds ? 'gt-failure' : undefined} className="p-3 border-b border-border-base">
-      <div className="flex items-center gap-2 mb-2">
-        <label className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
-          {tr.groundTruth.reality}
-        </label>
+    <section id={domIds ? 'gt-failure' : undefined} className="border-b border-border-base/70 p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-control font-semibold text-text-primary">{tr.groundTruth.reality}</span>
         {failed && (
-          <span className="text-[10px] font-mono text-state-problem ml-auto">{tr.groundTruth.failed}</span>
+          <span className="chip ml-auto bg-state-problem/12 text-state-problem">{tr.groundTruth.failed}</span>
         )}
       </div>
       {body}
@@ -1387,8 +1490,8 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
 }
 
 // ---------------------------------------------------------------------------
-// Card "Como saber que deu certo" do tutor: ① critério aberto; provas,
-// segunda opinião e falha recolhidas com resumo de uma linha.
+// Card "Como saber que deu certo" do tutor (grupo estilo System Settings):
+// critério aberto; provas, segunda opinião e falha recolhidas com resumo.
 // ---------------------------------------------------------------------------
 
 export function GroundTruthInlineTutor({
@@ -1400,12 +1503,12 @@ export function GroundTruthInlineTutor({
 }) {
   const tr = useT();
   return (
-    <div className="mt-6 border-t border-border-base pt-6 space-y-3">
-      <div className="text-[10px] font-mono uppercase tracking-widest text-text-muted">
-        ◆ {tr.groundTruth.sectionTitle}
-      </div>
-      <div className="rounded-sm border border-border-base bg-bg-secondary overflow-hidden">
-        <UserCriterionField node={node} domIds />
+    // Seção plana dentro do card do tutor: título + espaço, sem cartão aninhado
+    // nem hairlines entre os acordeões.
+    <div className="mt-8 space-y-1">
+      <h2 className="text-title3 font-semibold text-text-primary">{tr.groundTruth.sectionTitle}</h2>
+      <div className="-mx-4 space-y-1 [&>details]:border-t-0 [&_summary]:rounded-control">
+        <UserCriterionField node={node} domIds inGroup />
         <GroundTruthRefsList node={node} project={project} collapsible />
         <CritiqueSection node={node} project={project} collapsible />
         <FailureSection node={node} project={project} collapsible domIds />

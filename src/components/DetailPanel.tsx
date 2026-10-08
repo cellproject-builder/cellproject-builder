@@ -209,12 +209,12 @@ export function DetailPanel() {
       return <CollapsedRail onExpand={() => setPanelOpen(true)} label={tr.detail.expandPanel} />;
     }
     return (
-      <aside className="hidden md:flex md:w-[280px] lg:w-[380px] shrink-0 border-l border-border-base bg-bg-secondary flex-col">
+      <aside className="hidden md:flex md:w-[280px] lg:w-[380px] shrink-0 border-l border-border-base/70 bg-bg-secondary flex-col">
         <PanelTopBar onCollapse={() => setPanelOpen(false)} label={tr.detail.collapsePanel} />
         {project ? (
           <ProjectSummary project={project} tr={tr} />
         ) : (
-          <div className="p-4 text-text-muted text-sm">{tr.detail.noSelection}</div>
+          <div className="px-4 py-3 text-text-muted text-control">{tr.detail.noSelection}</div>
         )}
       </aside>
     );
@@ -351,11 +351,11 @@ export function DetailPanel() {
           ? tr.detail.pendingHint
           : undefined
       }
-      className={`${
-        primary ? 'flex-1 min-h-[44px] text-sm' : 'w-full min-h-[36px] text-xs'
-      } bg-ai-accent/15 hover:bg-ai-accent/30 disabled:opacity-40 disabled:cursor-not-allowed text-ai-accent py-2 rounded-sm border border-ai-accent/40 transition-colors font-medium flex items-center justify-center gap-2`}
+      className={`tap btn btn-ai ${primary ? 'flex-1 !h-8' : 'w-full'}`}
     >
-      <span aria-hidden>◆</span>
+      <span className="ai-icon" aria-hidden>
+        ✦
+      </span>
       {decomposing
         ? tr.detail.decomposingElapsed(Math.round(decompose.elapsedMs / 1000))
         : pendingHere && !decomposing
@@ -369,7 +369,7 @@ export function DetailPanel() {
       {decomposing && (
         <button
           onClick={decompose.cancel}
-          className="mt-1.5 w-full text-[11px] text-text-muted hover:text-state-problem transition-colors"
+          className="tap btn btn-ghost btn-sm mt-1.5 w-full hover:!text-state-problem"
         >
           {tr.common.cancelRunning}
         </button>
@@ -395,27 +395,25 @@ export function DetailPanel() {
   // -------------------------------------------------------------------------
 
   const header = (
-    <div className="p-3 border-b border-border-base">
-      <div className="flex items-center gap-2 mb-1 min-h-[24px]">
-        <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-text-muted">
-          <span aria-hidden>{KIND_ICON[node.kind]}</span>
+    <div className="px-4 pt-3 pb-3.5 border-b border-border-base/70">
+      <div className="flex items-center gap-2 mb-1.5 min-h-[24px]">
+        <span className="inline-flex items-center gap-1.5 text-footnote text-text-muted">
+          <span aria-hidden className="text-text-faint">
+            {KIND_ICON[node.kind]}
+          </span>
           {tr.conceptNode[node.kind]}
         </span>
-        {stepNo !== null && (
-          <span className="text-[10px] font-mono text-text-muted">#{stepNo}</span>
-        )}
-        <span className="ml-auto flex items-center gap-2">
-          {blocked && !node.confirmado && (
-            <span className="text-[10px] font-mono text-text-muted">{tr.detail.blocked}</span>
-          )}
+        {stepNo !== null && <span className="text-footnote tabular-nums text-text-faint">#{stepNo}</span>}
+        <span className="ml-auto flex items-center gap-1.5">
+          {blocked && !node.confirmado && <span className="chip">{tr.detail.blocked}</span>}
           {node.state === 'done' ? (
-            <span className="text-[10px] font-mono text-state-done">{tr.detail.confirmed}</span>
+            <span className="chip bg-state-done/12 text-state-done">{tr.detail.confirmed}</span>
           ) : node.state === 'problem' || node.failureContext ? (
-            <span className="text-[10px] font-mono text-state-problem">{tr.detail.problemBadge}</span>
+            <span className="chip bg-state-problem/12 text-state-problem">{tr.detail.problemBadge}</span>
           ) : node.confirmado ? (
-            <span className="text-[10px] font-mono text-conf-mid">{tr.detail.confirmedNoSignal}</span>
+            <span className="chip bg-conf-mid/12 text-conf-mid">{tr.detail.confirmedNoSignal}</span>
           ) : node.takenAsKnown ? (
-            <span className="text-[10px] font-mono text-ai-accent">{tr.detail.axiomBadge}</span>
+            <span className="chip bg-ai-accent/12 text-ai-accent">{tr.detail.axiomBadge}</span>
           ) : null}
           <NodeMenu
             open={menuOpen}
@@ -427,6 +425,17 @@ export function DetailPanel() {
                     key: 'known',
                     label: node.takenAsKnown ? tr.detail.knownUndo : tr.detail.markKnown,
                     onClick: doToggleKnown,
+                  }
+                : null,
+              // Desfazer mora no menu do nó: não compete com a ação principal.
+              node.confirmado
+                ? {
+                    key: 'unconfirm',
+                    label: tr.detail.undoConfirm,
+                    onClick: () => {
+                      setMenuOpen(false);
+                      unconfirmNode(node.id);
+                    },
                   }
                 : null,
               {
@@ -463,9 +472,9 @@ export function DetailPanel() {
         <div
           role="alertdialog"
           aria-label={tr.detail.deleteNode}
-          className="mt-2 p-2.5 rounded-sm border border-state-problem/40 bg-state-problem/10 space-y-2"
+          className="mt-3 p-3 rounded-control bg-state-problem/8 space-y-2.5"
         >
-          <p className="text-xs text-text-primary leading-snug">
+          <p className="text-control text-text-primary">
             {tr.detail.deleteInline(node.name, countDescendants(project, node.id))}
           </p>
           <div className="flex gap-2">
@@ -474,14 +483,14 @@ export function DetailPanel() {
                 setConfirmingDelete(false);
                 deleteNode(node.id);
               }}
-              className="tap flex-1 min-h-[36px] text-xs rounded-sm border border-state-problem/50 bg-state-problem/20 text-state-problem hover:bg-state-problem/30 transition-colors"
+              className="tap btn btn-danger flex-1"
             >
               {tr.detail.deleteYes}
             </button>
             <button
               autoFocus
               onClick={() => setConfirmingDelete(false)}
-              className="tap px-3 min-h-[36px] text-xs rounded-sm border border-border-base text-text-secondary hover:text-text-primary transition-colors"
+              className="tap btn btn-secondary"
             >
               {tr.detail.cancel}
             </button>
@@ -492,21 +501,20 @@ export function DetailPanel() {
   );
 
   const actionSection = (
-    <section className="p-3 border-b border-border-base space-y-2 empty:hidden">
+    <section className="px-4 py-3.5 border-b border-border-base/70 space-y-2.5 empty:hidden">
       {node.ruleConflict && (
-        <div className="text-[11px] leading-snug p-2 rounded-sm border border-state-problem/40 bg-state-problem/10 text-state-problem">
-          <span className="font-mono uppercase text-[10px] tracking-wider">⛓ {tr.detail.ruleConflict}</span>
+        <div className="text-footnote p-2.5 rounded-control bg-state-problem/8">
+          <span className="font-medium text-state-problem">{tr.detail.ruleConflict}</span>
           <div className="text-text-secondary mt-0.5">{node.ruleConflict}</div>
         </div>
       )}
       {blocked && !node.confirmado && blocker && (
-        <div className="text-[11px] text-text-muted leading-snug flex items-start gap-1.5">
-          <span aria-hidden>🔒</span>
+        <div className="text-footnote text-text-muted flex items-start gap-1.5">
           <span>
             {tr.detail.blockedBy}{' '}
             <button
               onClick={() => selectNode(blocker.id)}
-              className="underline decoration-dotted text-text-secondary hover:text-text-primary"
+              className="text-accent hover:underline"
             >
               {blocker.name}
             </button>
@@ -516,23 +524,21 @@ export function DetailPanel() {
 
       {node.kind === 'decisao' && node.decisionOptions && (
         <div>
-          <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted mb-2">
-            {tr.detail.options}
-          </label>
+          <div className="label mb-1.5">{tr.detail.options}</div>
           <div className="space-y-1.5">
             {node.decisionOptions.map((opt) => (
               <button
                 key={opt.id}
                 onClick={() => pickDecisionOption(node.id, opt.id)}
                 aria-pressed={node.decisionPickedId === opt.id}
-                className={`w-full text-left p-2 rounded-sm border transition-colors ${
+                className={`w-full text-left px-3 py-2.5 rounded-control transition-colors duration-120 ease-mac ${
                   node.decisionPickedId === opt.id
-                    ? 'bg-ai-accent/15 border-ai-accent text-ai-accent'
-                    : 'bg-bg-elevated border-border-base hover:border-text-muted'
+                    ? 'bg-accent/12 ring-1 ring-inset ring-accent text-accent'
+                    : 'bg-bg-secondary shadow-mac-sm hover:bg-bg-elevated/60 text-text-primary'
                 }`}
               >
-                <div className="text-xs font-semibold">{opt.label}</div>
-                <div className="text-[11px] text-text-secondary mt-0.5">{opt.pitch}</div>
+                <div className="text-control font-semibold">{opt.label}</div>
+                <div className="text-footnote text-text-secondary mt-0.5">{opt.pitch}</div>
               </button>
             ))}
           </div>
@@ -540,29 +546,20 @@ export function DetailPanel() {
       )}
 
       {primaryIsConfirm && confirmGate === 'pending' && (
-        <div className="text-[11px] leading-snug text-ai-accent">{tr.detail.pendingHereHint}</div>
+        <div className="text-footnote text-ai-accent">{tr.detail.pendingHereHint}</div>
       )}
       {primaryIsConfirm && confirmGate !== 'pending' && (
-        <div className={`text-[11px] leading-snug ${ready ? 'text-state-done' : 'text-text-muted'}`}>
+        <div className={`text-footnote ${ready ? 'text-state-done' : 'text-text-muted'}`}>
           {ready ? (
             tr.detail.readyToConclude
           ) : (
-            <ul className="space-y-0.5">
+            <ul className="space-y-1 list-disc pl-4 marker:text-text-faint">
               {missingHints.map((k) => (
-                <li key={k}>· {tr.detail.missing[k]}</li>
+                <li key={k}>{tr.detail.missing[k]}</li>
               ))}
             </ul>
           )}
         </div>
-      )}
-
-      {node.confirmado && (
-        <button
-          onClick={() => unconfirmNode(node.id)}
-          className="w-full bg-bg-elevated hover:bg-state-problem/10 text-text-muted hover:text-state-problem text-xs py-1.5 min-h-[32px] rounded-sm border border-border-base transition-colors"
-        >
-          {tr.detail.undoConfirm}
-        </button>
       )}
 
       {!primaryIsDecompose && !node.takenAsKnown && (
@@ -578,7 +575,7 @@ export function DetailPanel() {
     <>
       {actionSection}
 
-      <section className="p-3 border-b border-border-base space-y-3">
+      <section className="px-4 py-3.5 border-b border-border-base/70 space-y-3.5">
         <EduField
           key={`${node.id}:oQue`}
           label={tr.detail.whatIs}
@@ -598,24 +595,22 @@ export function DetailPanel() {
       {/* Rules live on the project (the root) — hard boundaries the AI
           treats as the challenge in every plan/decompose/replan/critique. */}
       {node.kind === 'root' && (
-        <section className="p-3 border-b border-border-base">
-          <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted mb-2">
-            ⛓ {tr.detail.rulesLabel}
-          </label>
+        <section className="px-4 py-3.5 border-b border-border-base/70">
+          <div className="label mb-1.5">{tr.detail.rulesLabel}</div>
           {(project.rules ?? []).length === 0 && (
-            <div className="text-[11px] text-text-muted italic mb-2">{tr.detail.rulesEmpty}</div>
+            <div className="text-footnote text-text-muted mb-2.5">{tr.detail.rulesEmpty}</div>
           )}
           {(project.rules ?? []).length > 0 && (
             <div className="flex gap-1.5 flex-wrap mb-2">
               {project.rules!.map((r) => (
                 <span
                   key={r}
-                  className="inline-flex items-center gap-1 text-[11px] font-mono pl-2 rounded-sm bg-ai-accent/5 text-text-secondary border border-ai-accent/30"
+                  className="chip !h-6 !pr-0.5 !text-footnote !font-normal"
                 >
                   {r}
                   <button
                     onClick={() => removeRule(r)}
-                    className="tap px-1.5 py-1 text-text-muted hover:text-state-problem transition-colors"
+                    className="tap w-5 h-5 inline-flex items-center justify-center rounded-[4px] text-text-faint hover:text-state-problem hover:bg-bg-secondary transition-colors duration-120 ease-mac"
                     aria-label={tr.common.remove}
                   >
                     ×
@@ -624,7 +619,7 @@ export function DetailPanel() {
               ))}
             </div>
           )}
-          <div className="flex gap-1">
+          <div className="flex gap-1.5">
             <input
               value={ruleDraft}
               onChange={(e) => setRuleDraft(e.target.value)}
@@ -635,7 +630,7 @@ export function DetailPanel() {
                 }
               }}
               placeholder={tr.detail.rulesAddPlaceholder}
-              className="flex-1 bg-bg-elevated border border-border-base rounded-sm px-2 py-1 text-[11px] focus:border-ai-accent outline-none"
+              className="field flex-1 min-w-0"
             />
             <button
               onClick={() => {
@@ -645,7 +640,8 @@ export function DetailPanel() {
                 }
               }}
               disabled={!ruleDraft.trim()}
-              className="px-2 bg-bg-elevated border border-border-base rounded-sm text-[11px] hover:border-text-muted disabled:opacity-40"
+              aria-label={tr.detail.rulesAddPlaceholder}
+              className="tap btn btn-secondary btn-icon shrink-0"
             >
               +
             </button>
@@ -660,15 +656,18 @@ export function DetailPanel() {
         <FailureSection node={node} project={project} />
       </div>
 
-      <section className="p-3 border-b border-border-base">
+      <section className="px-4 py-3.5 border-b border-border-base/70">
         <div className="flex gap-1.5">
           <button
             onClick={handleExplain}
             disabled={explain.running && !explaining && !node.explicacao}
-            className="flex-1 min-w-0 min-h-[36px] flex items-center justify-between gap-2 px-2 py-1.5 bg-ai-accent/10 hover:bg-ai-accent/20 border border-ai-accent/30 rounded-sm text-ai-accent text-xs transition-colors disabled:opacity-60"
+            aria-expanded={node.explicacao ? explanationOpen : undefined}
+            className="tap btn btn-ai flex-1 min-w-0 !justify-between"
           >
-            <span className="flex items-center gap-1.5">
-              <span aria-hidden>◆</span>
+            <span className="flex items-center gap-1.5 min-w-0 truncate">
+              <span className="ai-icon" aria-hidden>
+                ✦
+              </span>
               {explaining
                 ? tr.detail.generatingExplainElapsed(Math.round(explain.elapsedMs / 1000))
                 : node.explicacao
@@ -677,23 +676,21 @@ export function DetailPanel() {
                   : tr.detail.viewExplain
                 : tr.detail.explainBtn}
             </span>
-            {node.explicacao && !explaining && (
-              <span className="text-[10px]">{explanationOpen ? '▲' : '▼'}</span>
-            )}
+            {node.explicacao && !explaining && <Chevron open={explanationOpen} down />}
           </button>
           <button
             onClick={() => setReadingOpen(true)}
             title={tr.detail.readingMode}
             aria-label={tr.detail.readingMode}
-            className="tap shrink-0 w-9 flex items-center justify-center bg-bg-elevated hover:bg-ai-accent/10 border border-border-base hover:border-ai-accent/40 rounded-sm text-text-muted hover:text-ai-accent transition-colors text-sm"
+            className="tap btn btn-secondary btn-icon shrink-0 text-text-muted"
           >
-            ⛶
+            <ExpandIcon />
           </button>
         </div>
         {explaining && (
           <button
             onClick={explain.cancel}
-            className="mt-1.5 w-full text-[11px] text-text-muted hover:text-state-problem transition-colors"
+            className="tap btn btn-ghost btn-sm mt-1.5 w-full hover:!text-state-problem"
           >
             {tr.common.cancelRunning}
           </button>
@@ -705,12 +702,12 @@ export function DetailPanel() {
           <BusyElsewhere node={explainBusyOn} tr={tr} onGo={selectNode} />
         )}
         {streamingText && (
-          <div className="mt-2 p-3 bg-bg-elevated/50 border border-border-base rounded-sm" aria-live="polite">
+          <div className="mt-2.5 p-3.5 bg-bg-primary rounded-control" aria-live="polite">
             <ExplanationContent text={streamingText} />
           </div>
         )}
         {!explaining && explanationOpen && node.explicacao && (
-          <div className="mt-2 p-3 bg-bg-elevated/50 border border-border-base rounded-sm">
+          <div className="mt-2.5 p-3.5 bg-bg-primary rounded-control">
             <ExplanationContent text={node.explicacao} />
           </div>
         )}
@@ -719,19 +716,17 @@ export function DetailPanel() {
       {/* Confidence is the AI's signal (value + source + reason), shown, not
           edited. Raiz/categoria têm 100 fixo — não mostramos. */}
       {!structural && (
-        <section className="p-3 border-b border-border-base">
-          <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-            {tr.detail.confidence}
+        <section className="px-4 py-3.5 border-b border-border-base/70">
+          <div className="flex items-baseline gap-2 mb-1.5">
+            <span className="label">{tr.detail.confidence}</span>
             {node.confidenceSource && (
-              <span className="ml-2 normal-case tracking-normal text-text-muted">
-                · {tr.detail.confidenceSourceLabel[node.confidenceSource]}
-              </span>
+              <span className="chip !h-[18px]">{tr.detail.confidenceSourceLabel[node.confidenceSource]}</span>
             )}
-          </label>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-1.5 bg-bg-elevated rounded-sm overflow-hidden border border-border-base">
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-1 bg-bg-elevated rounded-full overflow-hidden">
               <div
-                className={`h-full ${
+                className={`h-full rounded-full ${
                   confidenceBand(node.confidence) === 'high'
                     ? 'bg-conf-high'
                     : confidenceBand(node.confidence) === 'mid'
@@ -741,26 +736,30 @@ export function DetailPanel() {
                 style={{ width: `${node.confidence}%` }}
               />
             </div>
-            <span className="font-mono text-sm w-12 text-right">{node.confidence}%</span>
+            <span className="text-control font-medium tabular-nums w-10 text-right">{node.confidence}%</span>
           </div>
           {node.confidenceReason && (
-            <div className="text-[11px] text-text-muted mt-1 italic">{node.confidenceReason}</div>
+            <div className="text-footnote text-text-muted mt-1.5">{node.confidenceReason}</div>
           )}
         </section>
       )}
 
-      <details className="border-b border-border-base group">
-        <summary className="p-3 cursor-pointer select-none text-[10px] font-mono uppercase tracking-wider text-text-muted hover:text-text-secondary list-none flex items-center gap-1.5">
-          <span className="group-open:rotate-90 transition-transform" aria-hidden>
-            ▸
-          </span>
+      <details className="border-b border-border-base/70 group">
+        <summary className="tap px-4 py-3 cursor-pointer select-none label hover:text-text-secondary list-none flex items-center gap-1.5 transition-colors duration-120 ease-mac [&::-webkit-details-marker]:hidden">
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            aria-hidden
+            className="text-text-faint group-open:rotate-90 transition-transform duration-180 ease-mac"
+          >
+            <path d="M3.5 2l3 3-3 3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
           {tr.detail.notesAndHistory(node.history.length)}
         </summary>
-        <div className="px-3 pb-3 space-y-3">
+        <div className="px-4 pb-4 space-y-4">
           <div>
-            <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-              {tr.detail.notes}
-            </label>
+            <div className="label mb-1.5">{tr.detail.notes}</div>
             <NotesField
               key={node.id}
               value={node.notes}
@@ -769,38 +768,34 @@ export function DetailPanel() {
             />
           </div>
           <div>
-            <label className="block text-[10px] font-mono uppercase tracking-wider text-text-muted mb-2">
-              {tr.detail.historyLabel(node.history.length)}
-            </label>
-            <ul className="space-y-1 max-h-40 overflow-y-auto font-mono text-[10px] leading-snug">
+            <div className="label mb-1.5">{tr.detail.historyLabel(node.history.length)}</div>
+            <ul className="space-y-1.5 max-h-40 overflow-y-auto text-footnote">
               {[...node.history].reverse().map((h) => (
-                <li key={h.id} className="text-text-secondary">
-                  <span className="text-text-muted">
-                    [
+                <li key={h.id} className="text-text-secondary flex gap-2">
+                  <span className="text-text-faint tabular-nums shrink-0">
                     {new Date(h.timestamp).toLocaleString(tr.detail.locale, {
                       day: '2-digit',
                       month: '2-digit',
                       hour: '2-digit',
                       minute: '2-digit',
                     })}
-                    ]
-                  </span>{' '}
-                  {h.message}
+                  </span>
+                  <span className="min-w-0">{h.message}</span>
                 </li>
               ))}
             </ul>
-            <div className="flex gap-1 mt-2">
+            <div className="flex gap-1.5 mt-2.5">
               <input
                 value={noteDraft}
                 onChange={(e) => setNoteDraft(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && recordNote()}
                 placeholder={tr.detail.recordDecision}
-                className="flex-1 bg-bg-elevated border border-border-base rounded-sm px-2 py-1 text-[11px] focus:border-ai-accent outline-none"
+                className="field flex-1 min-w-0"
               />
               <button
                 onClick={recordNote}
                 aria-label={tr.detail.recordDecision}
-                className="px-2 bg-bg-elevated border border-border-base rounded-sm text-[11px] hover:border-text-muted"
+                className="tap btn btn-secondary btn-icon shrink-0"
               >
                 {tr.detail.addNote}
               </button>
@@ -828,12 +823,10 @@ export function DetailPanel() {
   const tutorButton = (
     <button
       onClick={workInTutor}
-      className={`${
-        primaryIsConfirm || primaryIsDecompose ? 'shrink-0 px-3' : 'flex-1'
-      } min-h-[44px] text-xs rounded-sm border border-border-base bg-bg-elevated text-text-secondary hover:text-text-primary hover:border-text-muted transition-colors`}
+      className={`tap btn btn-secondary !h-8 ${primaryIsConfirm || primaryIsDecompose ? 'shrink-0' : 'flex-1'}`}
       title={tr.detail.workInTutor}
     >
-      {primaryIsConfirm || primaryIsDecompose ? tr.detail.workInTutorShort : tr.detail.workInTutor}
+      {tr.detail.workInTutorShort}
     </button>
   );
 
@@ -843,19 +836,19 @@ export function DetailPanel() {
         // Friction-ful acknowledgement: confirming without an anchor is a
         // deliberate two-step, and it lands amber (not green), never 'done'.
         <div className="space-y-1.5">
-          <div className="text-[11px] text-conf-mid text-center leading-snug">
+          <div className="text-footnote text-conf-mid text-center">
             {tr.detail.confirmHintNoSignal}
           </div>
           <div className="flex gap-2">
             <button
               onClick={doConfirm}
-              className="flex-1 bg-conf-mid/15 hover:bg-conf-mid/30 text-conf-mid text-xs py-2 min-h-[44px] rounded-sm border border-conf-mid/40 transition-colors"
+              className="tap btn btn-secondary !h-8 flex-1 !text-conf-mid"
             >
               {tr.detail.confirmAnyway}
             </button>
             <button
               onClick={() => setConfirmingNoSignal(false)}
-              className="px-3 min-h-[44px] text-xs text-text-muted hover:text-text-secondary border border-border-base rounded-sm transition-colors"
+              className="tap btn btn-ghost !h-8"
             >
               {tr.detail.cancel}
             </button>
@@ -866,14 +859,14 @@ export function DetailPanel() {
           {primaryIsConfirm && confirmGate === 'failure' ? (
             <button
               onClick={goToFailure}
-              className="flex-1 bg-state-problem/10 hover:bg-state-problem/20 text-state-problem text-sm py-2.5 min-h-[44px] rounded-sm border border-state-problem/40 transition-colors font-medium"
+              className="tap btn btn-danger !h-8 flex-1"
             >
               {tr.tutor.resolveFailureFirst}
             </button>
           ) : primaryIsConfirm && confirmGate === 'pending' ? (
             <button
               disabled
-              className="flex-1 bg-bg-elevated text-text-muted text-sm py-2.5 min-h-[44px] rounded-sm border border-border-base font-medium opacity-60 cursor-not-allowed"
+              className="tap btn btn-secondary !h-8 flex-1"
             >
               {confirmLabel}
             </button>
@@ -882,14 +875,14 @@ export function DetailPanel() {
               // Faithful fast path: real signal present → one click earns 'done'.
               <button
                 onClick={doConfirm}
-                className="flex-1 bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-sm py-2.5 min-h-[44px] rounded-sm border border-conf-high/40 transition-colors font-medium"
+                className="tap btn btn-primary !h-8 flex-1"
               >
                 {confirmLabel}
               </button>
             ) : (
               <button
                 onClick={() => setConfirmingNoSignal(true)}
-                className="flex-1 bg-bg-elevated hover:bg-conf-mid/10 text-text-secondary hover:text-conf-mid text-sm py-2.5 min-h-[44px] rounded-sm border border-border-base hover:border-conf-mid/40 transition-colors font-medium"
+                className="tap btn btn-secondary !h-8 flex-1"
               >
                 {confirmLabel}
               </button>
@@ -926,11 +919,11 @@ export function DetailPanel() {
   }
 
   return (
-    <aside className="hidden md:flex md:w-[280px] lg:w-[380px] shrink-0 border-l border-border-base bg-bg-secondary flex-col overflow-hidden">
+    <aside className="hidden md:flex md:w-[280px] lg:w-[380px] shrink-0 border-l border-border-base/70 bg-bg-secondary flex-col overflow-hidden">
       <PanelTopBar onCollapse={() => setPanelOpen(false)} label={tr.detail.collapsePanel} />
       {header}
-      <div className="flex-1 min-h-0 overflow-y-auto">{body}</div>
-      <div className="shrink-0 p-3 border-t border-border-base bg-bg-secondary">{footer}</div>
+      <div className="flex-1 min-h-0 overflow-y-auto scroll-stable">{body}</div>
+      <div className="shrink-0 px-4 py-3 border-t border-border-base/70 bg-bg-secondary">{footer}</div>
     </aside>
   );
 }
@@ -947,26 +940,32 @@ function ProjectSummary({ project, tr }: { project: Project; tr: Messages }) {
   const progress = projectProgress(project);
   const next = nextPendingForTutor(project, pending);
   return (
-    <div className="p-4 space-y-4 text-sm">
+    <div className="px-4 py-4 space-y-5 text-control">
       <div>
-        <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-          {tr.conceptNode.root}
-        </div>
-        <div className="text-text-primary font-semibold leading-snug">{project.name}</div>
+        <div className="label mb-1">{tr.conceptNode.root}</div>
+        <div className="text-title3 text-text-primary font-semibold">{project.name}</div>
         {project.objective && project.objective !== project.name && (
-          <p className="text-xs text-text-secondary mt-1 leading-snug">{project.objective}</p>
+          <p className="text-control text-text-secondary mt-1.5 leading-[1.5]">{project.objective}</p>
         )}
       </div>
       <div>
-        <div className="flex items-center justify-between text-[11px] text-text-muted mb-1">
+        <div className="flex items-center justify-between text-footnote text-text-muted mb-1.5">
           <span>{tr.detail.summaryProgress(progress.done, progress.total)}</span>
-          <span className="font-mono">{progress.percent}%</span>
+          <span className="tabular-nums">{progress.percent}%</span>
         </div>
-        <div className="h-1.5 bg-bg-elevated rounded-sm overflow-hidden border border-border-base">
-          <div className="h-full bg-state-done" style={{ width: `${progress.percent}%` }} />
+        {/* Mesmo código do anel da toolbar: accent = concluído, verde = com prova. */}
+        <div className="relative h-1 bg-bg-elevated rounded-full overflow-hidden">
+          <div
+            className="absolute inset-y-0 left-0 bg-accent rounded-full transition-[width] duration-240 ease-mac"
+            style={{ width: `${progress.percent}%` }}
+          />
+          <div
+            className="absolute inset-y-0 left-0 bg-state-done rounded-full transition-[width] duration-240 ease-mac"
+            style={{ width: `${progress.total ? (progress.doneWithSignal / progress.total) * 100 : 0}%` }}
+          />
         </div>
         {progress.doneWithoutSignal > 0 && (
-          <div className="text-[11px] text-conf-mid mt-1">
+          <div className="text-footnote text-conf-mid mt-1.5">
             {tr.detail.summaryNoProof(progress.doneWithoutSignal)}
           </div>
         )}
@@ -977,17 +976,15 @@ function ProjectSummary({ project, tr }: { project: Project; tr: Messages }) {
             selectNode(next.id);
             requestCenter(next.id);
           }}
-          className="w-full text-left p-2.5 rounded-sm border border-ai-accent/40 bg-ai-accent/10 hover:bg-ai-accent/20 transition-colors"
+          className="w-full text-left px-3 py-2.5 rounded-control bg-accent/8 hover:bg-accent/12 transition-colors duration-120 ease-mac"
         >
-          <div className="text-[10px] font-mono uppercase tracking-wider text-ai-accent mb-0.5">
-            {tr.detail.summaryNext}
-          </div>
-          <div className="text-xs text-text-primary">{next.name}</div>
+          <div className="text-footnote font-medium text-accent mb-0.5">{tr.detail.summaryNext}</div>
+          <div className="text-control text-text-primary">{next.name}</div>
         </button>
       ) : (
-        <p className="text-xs text-text-muted">{tr.detail.summaryNothingPending}</p>
+        <p className="text-control text-text-muted">{tr.detail.summaryNothingPending}</p>
       )}
-      <p className="text-[11px] text-text-muted">{tr.detail.summaryHint}</p>
+      <p className="text-footnote text-text-muted">{tr.detail.summaryHint}</p>
     </div>
   );
 }
@@ -1016,11 +1013,13 @@ function NodeMenu({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  // Só o teclado leva o foco ao primeiro item; com o ponteiro, nada abre realçado.
+  const byKeyboard = useRef(false);
   const list = items.filter((i): i is NodeMenuItem => i !== null);
 
   useEffect(() => {
     if (!open) return;
-    ref.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    if (byKeyboard.current) ref.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
     const onPointer = (e: MouseEvent | TouchEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onOpenChange(false);
     };
@@ -1047,27 +1046,30 @@ function NodeMenu({
     <div className="relative" ref={ref}>
       <button
         ref={buttonRef}
-        onClick={() => onOpenChange(!open)}
+        onClick={(e) => {
+          byKeyboard.current = e.detail === 0;
+          onOpenChange(!open);
+        }}
         aria-label={tr.detail.moreActions}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="tap w-7 h-7 flex items-center justify-center rounded-sm text-text-muted hover:text-text-primary hover:bg-bg-elevated border border-transparent hover:border-border-base transition-colors"
+        className={`tap btn btn-ghost btn-icon btn-sm text-[15px] ${open ? '!bg-bg-elevated !text-text-primary' : ''}`}
       >
-        ⋯
+        <span aria-hidden>⋯</span>
       </button>
       {open && (
         <div
           role="menu"
           aria-label={tr.detail.moreActions}
-          className="absolute right-0 top-full mt-1 w-60 bg-bg-secondary border border-border-base rounded-sm shadow-lg z-30 py-1"
+          className="glass bg-glass/90 border absolute right-0 top-full mt-1.5 w-60 rounded-card shadow-mac-lg z-30 p-1 origin-top-right animate-sheet-in"
         >
           {list.map((item) => (
             <button
               key={item.key}
               role="menuitem"
               onClick={item.onClick}
-              className={`w-full text-left px-3 py-2.5 min-h-[40px] text-xs outline-none transition-colors hover:bg-bg-elevated focus:bg-bg-elevated ${
-                item.danger ? 'text-state-problem' : 'text-text-secondary'
+              className={`tap w-full text-left px-2.5 py-1 min-h-[28px] [@media(pointer:coarse)]:min-h-[44px] text-control rounded-chip outline-none transition-colors duration-120 ease-mac hover:bg-accent-solid hover:text-accent-fg focus-visible:bg-accent-solid focus-visible:text-accent-fg focus-visible:outline-none ${
+                item.danger ? 'text-state-problem' : 'text-text-primary'
               }`}
             >
               {item.label}
@@ -1135,7 +1137,7 @@ function NameInput({
           e.currentTarget.blur();
         }
       }}
-      className="w-full bg-transparent text-base font-semibold outline-none focus:bg-bg-elevated/50 px-1 -mx-1 rounded-sm"
+      className="w-full bg-transparent text-title3 font-semibold text-text-primary outline-none px-1.5 -mx-1.5 py-0.5 rounded-chip hover:bg-bg-elevated/50 focus:bg-bg-secondary focus:shadow-[inset_0_0_0_1px_rgb(var(--accent)/.8),0_0_0_3px_rgb(var(--accent)/.4)] transition-shadow duration-120 ease-mac"
     />
   );
 }
@@ -1176,7 +1178,7 @@ function NotesField({
         if (draft !== value) onCommit(draft);
       }}
       rows={2}
-      className="w-full bg-bg-elevated border border-border-base rounded-sm px-2 py-1 text-xs resize-none focus:border-ai-accent outline-none"
+      className="field resize-none"
       placeholder={placeholder}
     />
   );
@@ -1239,29 +1241,29 @@ function EduField({ label, value, onCommit, tr }: EduFieldProps) {
           }
         }}
         rows={2}
-        className="w-full bg-bg-elevated border border-ai-accent/60 rounded-sm px-2 py-1 text-xs leading-relaxed resize-none outline-none overflow-hidden"
+        className="field !resize-none overflow-hidden"
       />
     );
   } else {
     content = value ? (
-      <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap">{value}</p>
+      <p className="text-control text-text-secondary leading-[1.5] whitespace-pre-wrap">{value}</p>
     ) : (
-      <p className="text-xs text-text-muted italic">{tr.detail.emptyField}</p>
+      <p className="text-control text-text-faint">{tr.detail.emptyField}</p>
     );
   }
 
   return (
     <div>
-      <div className="flex items-center gap-1 mb-1">
-        <span className="text-[10px] font-mono uppercase tracking-wider text-text-muted">{label}</span>
+      <div className="flex items-center gap-1 mb-1 min-h-[24px]">
+        <span className="label">{label}</span>
         {!editing && (
           <button
             onClick={() => setEditing(true)}
             aria-label={tr.detail.editField(label)}
             title={tr.detail.editField(label)}
-            className="tap ml-auto w-6 h-6 flex items-center justify-center rounded-sm text-text-muted hover:text-ai-accent hover:bg-bg-elevated transition-colors text-xs"
+            className="tap btn btn-ghost btn-icon btn-sm ml-auto"
           >
-            ✎
+            <PencilIcon />
           </button>
         )}
       </div>
@@ -1272,14 +1274,9 @@ function EduField({ label, value, onCommit, tr }: EduFieldProps) {
 
 function PanelTopBar({ onCollapse, label }: { onCollapse: () => void; label: string }) {
   return (
-    <div className="shrink-0 flex items-center justify-end border-b border-border-base px-1.5 py-1">
-      <button
-        onClick={onCollapse}
-        title={label}
-        aria-label={label}
-        className="w-6 h-6 flex items-center justify-center rounded-sm text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
-      >
-        »
+    <div className="shrink-0 flex items-center justify-end px-2 pt-1.5">
+      <button onClick={onCollapse} title={label} aria-label={label} className="tap btn btn-ghost btn-icon btn-sm">
+        <SidebarIcon />
       </button>
     </div>
   );
@@ -1288,16 +1285,11 @@ function PanelTopBar({ onCollapse, label }: { onCollapse: () => void; label: str
 function CollapsedRail({ onExpand, label }: { onExpand: () => void; label: string }) {
   const tr = useT();
   return (
-    <aside className="hidden md:flex w-9 shrink-0 border-l border-border-base bg-bg-secondary flex-col items-center py-2">
-      <button
-        onClick={onExpand}
-        title={label}
-        aria-label={label}
-        className="w-7 h-7 flex items-center justify-center rounded-sm border border-border-base text-text-muted hover:text-ai-accent hover:border-ai-accent/40 transition-colors"
-      >
-        «
+    <aside className="hidden md:flex w-10 shrink-0 border-l border-border-base/70 bg-bg-secondary flex-col items-center py-1.5">
+      <button onClick={onExpand} title={label} aria-label={label} className="tap btn btn-ghost btn-icon btn-sm">
+        <SidebarIcon />
       </button>
-      <span className="mt-3 text-[9px] font-mono uppercase tracking-widest text-text-muted [writing-mode:vertical-rl]">
+      <span className="mt-3 text-footnote text-text-muted [writing-mode:vertical-rl]">
         {tr.detail.railLabel}
       </span>
     </aside>
@@ -1315,11 +1307,56 @@ function BusyElsewhere({
   onGo: (id: string) => void;
 }) {
   return (
-    <div className="mt-1.5 text-[11px] text-text-muted leading-snug">
+    <div className="mt-1.5 text-footnote text-text-muted">
       {tr.detail.busyElsewhere(node.name)}{' '}
-      <button onClick={() => onGo(node.id)} className="text-ai-accent hover:underline">
+      <button onClick={() => onGo(node.id)} className="text-accent font-medium hover:underline">
         {tr.tutor.goThere}
       </button>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Ícones finos do inspector (herdam a cor do botão).
+// ---------------------------------------------------------------------------
+
+function Chevron({ open, down }: { open: boolean; down?: boolean }) {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      aria-hidden
+      className={`shrink-0 text-text-faint transition-transform duration-180 ease-mac ${
+        down ? (open ? '-rotate-90' : 'rotate-90') : open ? 'rotate-90' : ''
+      }`}
+    >
+      <path d="M3.5 2l3 3-3 3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+      <path d="M8.2 1.8l2 2L4 10H2v-2l6.2-6.2z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ExpandIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <path d="M8.5 1.5h4v4M5.5 12.5h-4v-4M12.5 1.5L8 6M1.5 12.5L6 8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SidebarIcon() {
+  return (
+    <svg width="15" height="13" viewBox="0 0 15 13" fill="none" aria-hidden>
+      <rect x="0.75" y="0.75" width="13.5" height="11.5" rx="2.5" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M9.5 1v11" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
   );
 }

@@ -16,8 +16,9 @@
     <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512.png" />
 
     <!-- Theme -->
-    <meta name="theme-color" content="#09090b" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F5F5F7" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1C1C1E" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
@@ -34,7 +35,7 @@
     <meta name="twitter:description" content="Framework visual de planejamento por decomposição." />
     <meta name="twitter:image" content="/og-image.png" />
   </head>
-  <body class="bg-bg-primary">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

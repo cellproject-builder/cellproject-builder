@@ -6,15 +6,8 @@ import { useAIReveal } from '@/hooks/useAIReveal';
 import { useT } from '@/i18n';
 import type { Messages } from '@/i18n';
 
-const confidenceDot = (band: 'high' | 'mid' | 'low') => {
-  if (band === 'high') return 'bg-conf-high';
-  if (band === 'mid') return 'bg-conf-mid';
-  return 'bg-conf-low';
-};
-
-// Tipo = ícone + rótulo traduzido num chip; a BORDA fica só para o estado.
-// Antes tipo e estado disputavam a mesma border-color e quem vencia era a
-// ordem do CSS gerado.
+// Tipo = glifo pequeno + rótulo discreto; a BORDA e o ponto de 8px ficam só
+// para o estado (antes tipo e estado disputavam a mesma border-color).
 export const KIND_ICON: Record<NodeKind, string> = {
   root: '◎',
   categoria: '▤',
@@ -22,15 +15,6 @@ export const KIND_ICON: Record<NodeKind, string> = {
   passo: '▸',
   decisao: '⑂',
   concept: '◇',
-};
-
-const kindChip: Record<NodeKind, string> = {
-  root: 'text-ai-accent border-ai-accent/40 bg-ai-accent/10',
-  categoria: 'text-text-secondary border-border-base bg-bg-elevated',
-  recurso: 'text-conn-independent border-conn-independent/40 bg-conn-independent/10',
-  passo: 'text-state-executing border-state-executing/40 bg-state-executing/10',
-  decisao: 'text-ai-accent border-ai-accent/40 bg-ai-accent/10',
-  concept: 'text-text-muted border-border-base bg-bg-elevated',
 };
 
 // Estado visual de um nó, derivado do gate de sinal real.
@@ -47,13 +31,26 @@ export const visualStatusOf = (
 };
 
 // Verde = com prova · âmbar tracejado = sem prova · vermelho = problema.
+// Bordas discretas (/50–/70): o ponto de 8px carrega a cor; a borda só reforça.
 const statusBorder: Record<NodeVisualStatus, string> = {
-  problem: 'border-state-problem',
-  done: 'border-state-done',
-  noProof: 'border-conf-mid border-dashed',
-  known: 'border-ai-accent/50',
-  open: 'border-border-base',
+  problem: 'border-state-problem/70',
+  done: 'border-state-done/45',
+  noProof: 'border-conf-mid/70 border-dashed',
+  known: 'border-ai-accent/40',
+  open: 'border-transparent',
 };
+
+// Ponto de 8px: o estado de relance (aberto = anel vazio).
+const statusDot: Record<NodeVisualStatus, string> = {
+  problem: 'bg-state-problem',
+  done: 'bg-state-done',
+  noProof: 'bg-conf-mid',
+  known: 'bg-ai-accent',
+  open: 'ring-1 ring-inset ring-text-faint/60',
+};
+
+const confidenceText = (band: 'high' | 'mid' | 'low') =>
+  band === 'high' ? 'text-conf-high' : band === 'mid' ? 'text-conf-mid' : 'text-conf-low';
 
 export interface NodeExtras {
   childCount: number;
@@ -71,59 +68,47 @@ export interface NodeExtras {
 
 type Props = NodeProps & { data: ConceptNodeData & NodeExtras };
 
-function KindChip({ kind, tr, compact }: { kind: NodeKind; tr: Messages; compact?: boolean }) {
+function KindTag({ kind, tr, compact }: { kind: NodeKind; tr: Messages; compact?: boolean }) {
   const label = tr.conceptNode[kind];
   return (
-    <span
-      title={label}
-      className={`inline-flex items-center gap-1 shrink-0 border rounded-[2px] font-mono uppercase tracking-wider ${
-        compact ? 'px-1 text-[11px] leading-4' : 'px-1.5 py-[1px] text-[9px]'
-      } ${kindChip[kind] ?? kindChip.concept}`}
-    >
-      <span aria-hidden>{KIND_ICON[kind] ?? '◇'}</span>
-      {!compact && <span>{label}</span>}
-      {compact && <span className="sr-only">{label}</span>}
+    <span title={label} className="inline-flex items-center gap-1 shrink-0 text-caption text-text-muted">
+      <span aria-hidden className="text-text-faint">
+        {KIND_ICON[kind] ?? '◇'}
+      </span>
+      {compact ? <span className="sr-only">{label}</span> : <span>{label}</span>}
     </span>
   );
 }
 
-function StatusMarks({
-  status,
-  blocked,
-  tr,
-}: {
-  status: NodeVisualStatus;
-  blocked: boolean;
-  tr: Messages;
-}) {
+function statusTitle(status: NodeVisualStatus, tr: Messages): string | null {
+  if (status === 'done') return tr.conceptNode.withProof;
+  if (status === 'noProof') return tr.conceptNode.noAnchor;
+  if (status === 'known') return tr.conceptNode.axiom;
+  if (status === 'problem') return tr.conceptNode.problem;
+  return null;
+}
+
+function StatusDot({ status, tr }: { status: NodeVisualStatus; tr: Messages }) {
+  const title = statusTitle(status, tr);
   return (
-    <>
-      {blocked && (
-        <span className="text-text-muted text-[10px]" title={tr.conceptNode.blocked}>
-          🔒
-        </span>
-      )}
-      {status === 'done' && (
-        <span className="text-state-done text-xs" title={tr.conceptNode.withProof}>
-          ✓
-        </span>
-      )}
-      {status === 'noProof' && (
-        <span className="text-conf-mid text-xs" title={tr.conceptNode.noAnchor}>
-          ✓?
-        </span>
-      )}
-      {status === 'known' && (
-        <span className="text-ai-accent text-xs" title={tr.conceptNode.axiom}>
-          ⊢
-        </span>
-      )}
-      {status === 'problem' && (
-        <span className="text-state-problem text-xs" title={tr.conceptNode.problem}>
-          ⚠
-        </span>
-      )}
-    </>
+    <span
+      title={title ?? undefined}
+      className={`inline-block w-2 h-2 rounded-full shrink-0 ${statusDot[status]}`}
+    >
+      {title && <span className="sr-only">{title}</span>}
+    </span>
+  );
+}
+
+function LockMark({ tr }: { tr: Messages }) {
+  return (
+    <span title={tr.conceptNode.blocked} className="inline-flex text-text-faint shrink-0">
+      <svg width="10" height="11" viewBox="0 0 10 11" fill="none" aria-hidden>
+        <rect x="1" y="4.5" width="8" height="6" rx="1.5" fill="currentColor" />
+        <path d="M3 4.5V3a2 2 0 0 1 4 0v1.5" stroke="currentColor" strokeWidth="1.3" />
+      </svg>
+      <span className="sr-only">{tr.conceptNode.blocked}</span>
+    </span>
   );
 }
 
@@ -149,40 +134,42 @@ function ConceptNodeImpl({ data, selected }: Props) {
   const showConfidence = !structural;
 
   const baseClass = [
-    'rounded-sm bg-bg-secondary border-2 font-sans text-text-primary select-none touch-manipulation',
-    'transition-[box-shadow,transform,opacity] duration-150',
-    data.isSuggestion ? 'border-dashed border-ai-accent shadow-lg' : statusBorder[status],
-    // Bloqueado continua legível: só esmaece um pouco e ganha cadeado.
-    blocked ? 'opacity-70' : '',
-    data.isNext && !selected ? 'shadow-[0_0_0_4px_rgba(139,92,246,0.35)]' : '',
-    selected ? 'ring-2 ring-white ring-offset-2 ring-offset-bg-primary' : '',
+    'rounded-card bg-bg-secondary border-[1.5px] font-sans select-none touch-manipulation',
+    'transition-[box-shadow,opacity] duration-180 ease-mac',
+    data.isSuggestion ? 'border-dashed border-ai-accent/70 shadow-mac' : `${statusBorder[status]} shadow-mac-sm`,
+    // Bloqueado continua legível (AA): cadeado + título em text-muted, sem
+    // esmaecer o card inteiro.
+    blocked ? 'text-text-muted' : 'text-text-primary',
+    selected
+      ? 'ring-2 ring-accent ring-offset-2 ring-offset-bg-primary'
+      : data.isNext
+      ? 'ring-[3px] ring-ai-accent/35'
+      : '',
   ].join(' ');
 
   if (data.isSuggestion) {
     return (
       <div className={`${baseClass} w-[260px] p-3`}>
         <Handle type="target" position={Position.Top} className="!bg-ai-accent !border-none" />
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-ai-accent text-[10px] font-mono uppercase tracking-wider">◆</span>
-          <KindChip kind={data.kind} tr={tr} />
-          <span className="ml-auto font-mono text-xs text-text-secondary">{data.confidence}%</span>
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="ai-icon text-footnote" aria-hidden>
+            ✦
+          </span>
+          <KindTag kind={data.kind} tr={tr} />
+          <span className="ml-auto font-mono text-caption tabular-nums text-text-muted">{data.confidence}%</span>
         </div>
-        <div className="font-semibold text-sm mb-1 leading-tight">{data.name}</div>
-        <div className="text-[11px] text-text-secondary leading-snug mb-2 line-clamp-2">
-          {data.oQue || data.fx}
-        </div>
+        <div className="font-semibold text-control mb-1">{data.name}</div>
+        <div className="text-footnote text-text-secondary mb-2.5 line-clamp-2">{data.oQue || data.fx}</div>
         {data.ruleConflict && (
-          <div className="text-[11px] text-state-problem leading-snug mb-2 line-clamp-2">
-            ⛓ {data.ruleConflict}
-          </div>
+          <div className="text-footnote text-state-problem mb-2.5 line-clamp-2">⛓ {data.ruleConflict}</div>
         )}
-        <div className="flex gap-1">
+        <div className="flex gap-1.5">
           <button
             onClick={(e) => {
               e.stopPropagation();
               acceptSuggestion(data.tempId as string);
             }}
-            className="flex-1 bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-xs py-2 min-h-[36px] rounded-sm border border-conf-high/40 transition-colors"
+            className="tap btn btn-primary flex-1"
           >
             {tr.conceptNode.accept}
           </button>
@@ -192,7 +179,8 @@ function ConceptNodeImpl({ data, selected }: Props) {
               rejectSuggestion(data.tempId as string);
             }}
             aria-label={tr.conceptNode.rejectAria}
-            className="px-3 bg-bg-elevated hover:bg-state-problem/20 text-text-secondary hover:text-state-problem text-xs py-2 min-h-[36px] rounded-sm border border-border-base transition-colors"
+            title={tr.conceptNode.rejectAria}
+            className="tap btn btn-secondary btn-icon hover:!text-state-problem"
           >
             {tr.conceptNode.reject}
           </button>
@@ -214,56 +202,57 @@ function ConceptNodeImpl({ data, selected }: Props) {
 
   const stepTag =
     data.kind === 'passo' && data.stepNo ? (
-      <span className="font-mono text-[10px] text-text-muted">#{data.stepNo}</span>
+      <span className="text-caption tabular-nums text-text-faint">#{data.stepNo}</span>
     ) : null;
 
   const nextTag = data.isNext ? (
-    <span className="font-mono text-[9px] uppercase tracking-wider text-ai-accent">
-      {tr.conceptNode.next}
-    </span>
+    <span className="chip !h-[18px] bg-ai-accent/12 text-ai-accent">{tr.conceptNode.next}</span>
   ) : null;
 
   if (level === 'far') {
-    // Visão geral: tipo pelo ícone, nome em até 2 linhas, cards mais largos.
+    // Visão geral: estado pelo ponto, tipo pelo glifo, nome em até 2 linhas.
     return (
       <div
         className={`${baseClass} ${
-          structural ? 'w-[280px] px-3 py-2.5' : 'w-[250px] px-3 py-2'
+          structural ? 'w-[280px] px-3.5 py-3' : 'w-[250px] px-3 py-2.5'
         } flex items-center gap-2`}
       >
-        <Handle type="target" position={Position.Top} className="!bg-border-base !border-none" />
-        <KindChip kind={data.kind} tr={tr} compact />
+        <Handle type="target" position={Position.Top} />
+        {!structural && <StatusDot status={status} tr={tr} />}
+        <KindTag kind={data.kind} tr={tr} compact />
         <span
-          className={`flex-1 min-w-0 line-clamp-2 leading-tight ${
-            structural ? 'text-[15px] font-semibold' : 'text-sm'
+          className={`flex-1 min-w-0 line-clamp-2 ${
+            structural ? 'text-title3 font-semibold' : 'text-control font-medium'
           }`}
         >
           {data.name}
         </span>
-        <span className="shrink-0 flex items-center gap-1">
+        <span className="shrink-0 flex items-center gap-1.5">
           {stepTag}
-          <StatusMarks status={status} blocked={blocked} tr={tr} />
-          {status === 'open' && !structural && (
-            <span className={`w-2 h-2 rounded-full ${confidenceDot(band)}`} />
-          )}
+          {blocked && <LockMark tr={tr} />}
         </span>
-        <Handle type="source" position={Position.Bottom} className="!bg-border-base !border-none" />
+        <Handle type="source" position={Position.Bottom} />
       </div>
     );
   }
 
   const header = (
-    <div className="flex items-center gap-1.5 mb-1.5">
-      <KindChip kind={data.kind} tr={tr} />
+    <div className="flex items-center gap-1.5 mb-1.5 min-h-[18px]">
+      {!structural && <StatusDot status={status} tr={tr} />}
+      <KindTag kind={data.kind} tr={tr} />
       {stepTag}
       {nextTag}
       <span className="ml-auto flex items-center gap-1.5">
-        <StatusMarks status={status} blocked={blocked} tr={tr} />
+        {blocked && <LockMark tr={tr} />}
         {showConfidence && (
-          <>
-            {level === 'near' && <span className={`w-2 h-2 rounded-full ${confidenceDot(band)}`} />}
-            <span className="font-mono text-[11px] text-text-secondary">{data.confidence}%</span>
-          </>
+          <span
+            title={tr.detail.confidence}
+            className={`font-mono text-caption tabular-nums ${
+              status === 'open' ? confidenceText(band) : 'text-text-muted'
+            }`}
+          >
+            {data.confidence}%
+          </span>
         )}
       </span>
     </div>
@@ -275,9 +264,7 @@ function ConceptNodeImpl({ data, selected }: Props) {
         e.stopPropagation();
         confirmNode(data.id);
       }}
-      className={`w-full bg-conf-high/15 hover:bg-conf-high/30 text-conf-high rounded-sm border border-conf-high/40 transition-colors font-medium ${
-        level === 'near' ? 'mt-2.5 text-xs py-2.5 min-h-[40px]' : 'mt-2 text-[11px] py-1.5 min-h-[32px]'
-      }`}
+      className={`tap btn btn-secondary w-full !text-state-done ${level === 'near' ? 'mt-3' : 'mt-2'}`}
     >
       {data.kind === 'recurso'
         ? tr.conceptNode.quickHaveResource
@@ -289,13 +276,13 @@ function ConceptNodeImpl({ data, selected }: Props) {
 
   if (level === 'mid') {
     return (
-      <div className={`${baseClass} w-[260px] p-2.5`}>
-        <Handle type="target" position={Position.Top} className="!bg-border-base !border-none" />
+      <div className={`${baseClass} w-[260px] p-3`}>
+        <Handle type="target" position={Position.Top} />
         {header}
-        <div className="text-sm font-semibold leading-tight mb-1">{data.name}</div>
-        <div className="text-[11px] text-text-secondary leading-snug line-clamp-2">{data.oQue}</div>
+        <div className={`${structural ? 'text-title3' : 'text-control'} font-semibold mb-1`}>{data.name}</div>
+        <div className="text-footnote text-text-secondary line-clamp-2">{data.oQue}</div>
         {quickConfirm}
-        <Handle type="source" position={Position.Bottom} className="!bg-border-base !border-none" />
+        <Handle type="source" position={Position.Bottom} />
       </div>
     );
   }
@@ -305,42 +292,38 @@ function ConceptNodeImpl({ data, selected }: Props) {
   const showCheckLine = !!data.comoConfirmar && isActionableKind(data.kind) && data.kind !== 'decisao';
 
   return (
-    <div className={`${baseClass} w-[300px] p-3`}>
-      <Handle type="target" position={Position.Top} className="!bg-border-base !border-none" />
+    <div className={`${baseClass} w-[300px] p-3.5`}>
+      <Handle type="target" position={Position.Top} />
       {header}
-      <div className="text-sm font-semibold leading-tight mb-2">{data.name}</div>
-      <div className="border-t border-border-base pt-2 space-y-1.5">
-        {data.oQue && (
-          <div className="text-[11px] leading-snug">
-            <span className="text-text-muted font-mono text-[10px] uppercase">
-              {tr.conceptNode.whatPrefix}
-            </span>{' '}
-            <span className="text-text-secondary">{data.oQue}</span>
-          </div>
-        )}
-        {data.porQue && (
-          <div className="text-[11px] leading-snug">
-            <span className="text-text-muted font-mono text-[10px] uppercase">
-              {tr.conceptNode.whyPrefix}
-            </span>{' '}
-            <span className="text-text-secondary">{data.porQue}</span>
-          </div>
-        )}
-        {showCheckLine && (
-          <div className="text-[11px] leading-snug">
-            <span className="text-text-muted font-mono text-[10px] uppercase">
-              {tr.conceptNode.checkPrefix}
-            </span>{' '}
-            {revealCheck ? (
-              <span className="text-text-secondary italic">{data.comoConfirmar}</span>
-            ) : (
-              <span className="text-text-muted">{tr.conceptNode.criterionLocked}</span>
-            )}
-          </div>
-        )}
-      </div>
+      <div className={`${structural ? 'text-title3' : 'text-control'} font-semibold mb-2`}>{data.name}</div>
+      {(data.oQue || data.porQue || showCheckLine) && (
+        <div className="border-t border-border-base/70 pt-2 space-y-1.5">
+          {data.oQue && (
+            <div className="text-footnote">
+              <span className="text-text-muted font-medium">{tr.conceptNode.whatPrefix}</span>{' '}
+              <span className="text-text-secondary">{data.oQue}</span>
+            </div>
+          )}
+          {data.porQue && (
+            <div className="text-footnote">
+              <span className="text-text-muted font-medium">{tr.conceptNode.whyPrefix}</span>{' '}
+              <span className="text-text-secondary">{data.porQue}</span>
+            </div>
+          )}
+          {showCheckLine && (
+            <div className="text-footnote">
+              <span className="text-text-muted font-medium">{tr.conceptNode.checkPrefix}</span>{' '}
+              {revealCheck ? (
+                <span className="text-text-secondary">{data.comoConfirmar}</span>
+              ) : (
+                <span className="text-text-muted">{tr.conceptNode.criterionLocked}</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {quickConfirm}
-      <Handle type="source" position={Position.Bottom} className="!bg-border-base !border-none" />
+      <Handle type="source" position={Position.Bottom} />
     </div>
   );
 }

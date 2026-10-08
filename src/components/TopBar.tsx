@@ -1,5 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { useGraphStore, breadcrumbFor, isDemoProject, type Lens, type ViewMode } from '@/store';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useGraphStore,
+  breadcrumbFor,
+  isDemoProject,
+  projectProgress,
+  type Lens,
+  type ViewMode,
+} from '@/store';
 import { useKBStore } from '@/kb/store';
 import { useConfigStore, PROVIDER_LABELS, KNOWN_MODELS } from '@/config/store';
 import { useT } from '@/i18n';
@@ -7,6 +14,7 @@ import { toast } from '@/components/ui/Toast';
 import { KnowledgeRepo } from './KnowledgeRepo';
 import { ApiKeyGate } from './ApiKeyGate';
 import { Logo } from './Logo';
+import { ProgressRing } from '@/components/ui/ProgressRing';
 
 // Nome curto do modelo ativo: rótulo conhecido, senão o id sem o prefixo do
 // provider ("openai/gpt-6.1-sol" → "gpt-6.1-sol").
@@ -40,6 +48,7 @@ export function TopBar() {
   const [confirmNew, setConfirmNew] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuByKeyboard = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const LENSES: { value: Lens; label: string; key: string }[] = [
@@ -65,7 +74,9 @@ export function TopBar() {
     if (!menuOpen) return;
     const items = () =>
       Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
-    items()[0]?.focus();
+    // Só o teclado leva o foco ao primeiro item (como no macOS): aberto com
+    // o ponteiro, nenhum item abre realçado.
+    if (menuByKeyboard.current) items()[0]?.focus();
     const onPointer = (e: MouseEvent | TouchEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
@@ -80,8 +91,16 @@ export function TopBar() {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         const list = items();
+        if (list.length === 0) return;
         const i = list.indexOf(document.activeElement as HTMLElement);
-        const next = e.key === 'ArrowDown' ? (i + 1) % list.length : (i - 1 + list.length) % list.length;
+        const next =
+          i < 0
+            ? e.key === 'ArrowDown'
+              ? 0
+              : list.length - 1
+            : e.key === 'ArrowDown'
+            ? (i + 1) % list.length
+            : (i - 1 + list.length) % list.length;
         list[next]?.focus();
       }
     };
@@ -96,6 +115,9 @@ export function TopBar() {
   }, [menuOpen]);
 
   const crumbs = breadcrumbFor(project, selectedId);
+  const shortName = (project?.name ?? '').replace(/^demo\s*[·:\-–—]\s*/i, '');
+  // Anel da toolbar: o mesmo seletor de progresso da StatusBar e do tutor.
+  const progress = useMemo(() => projectProgress(project), [project]);
   const inDemo = isDemoProject(project);
   const otherArchived = archivedProject && archivedProject.id !== project?.id ? archivedProject : null;
   // Sair da demo não arquiva nada — o arquivado continua intacto.
@@ -172,33 +194,54 @@ export function TopBar() {
     reader.readAsText(file);
   };
 
+  // Itens de menu estilo macOS: realce accent sólido no hover/foco.
   const menuItemClass =
-    'w-full text-left px-3 py-2.5 min-h-[40px] text-xs text-text-secondary hover:bg-bg-elevated focus:bg-bg-elevated outline-none transition-colors flex items-center justify-between gap-2';
+    'tap group w-full text-left px-2.5 min-h-[28px] [@media(pointer:coarse)]:min-h-[44px] py-1 text-control rounded-chip text-text-primary outline-none transition-colors duration-120 ease-mac flex items-center justify-between gap-3 hover:bg-accent-solid hover:text-accent-fg focus-visible:bg-accent-solid focus-visible:text-accent-fg focus-visible:outline-none';
+  const menuHintClass =
+    'text-footnote text-text-muted group-hover:text-accent-fg/80 group-focus-visible:text-accent-fg/80';
 
   const modelName = activeProvider && activeModel ? modelLabel(activeProvider, activeModel) : null;
+  const progressLabel = tr.topBar.progressLabel(progress.done, progress.total, progress.doneWithSignal);
 
   return (
-    <div className="min-h-11 shrink-0 border-b border-border-base bg-bg-secondary flex items-center px-2 sm:px-3 gap-2 sm:gap-3 text-sm pt-[env(safe-area-inset-top)]">
-      <div className="flex items-center gap-1.5 min-w-0">
-        <Logo size={16} className="text-text-primary shrink-0" />
-        <span className="text-text-primary font-semibold truncate">{project?.name}</span>
+    <div className="glass-host border-b relative z-20 shrink-0 min-h-[calc(52px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] flex items-center px-3 sm:px-4 gap-1.5 sm:gap-3 text-control">
+      <div className="flex items-center gap-2 min-w-[96px] sm:min-w-[24px] overflow-hidden">
+        <Logo size={14} className="text-text-secondary shrink-0 hidden sm:inline-flex" />
+        <span className="text-text-primary font-semibold truncate hidden sm:inline">{project?.name}</span>
+        {/* Mobile: sem o prefixo "Demo ·" — o nome do projeto é o que cabe. */}
+        <span className="text-text-primary font-semibold truncate sm:hidden" title={project?.name}>
+          {shortName}
+        </span>
         {inDemo && (
-          <span
-            title={tr.topBar.demoBadgeTitle}
-            className="shrink-0 font-mono text-[9px] tracking-widest text-ai-accent border border-ai-accent/40 bg-ai-accent/10 px-1.5 py-[1px] rounded-[2px] uppercase"
-          >
+          <span title={tr.topBar.demoBadgeTitle} className="chip shrink-0 bg-ai-accent/12 text-ai-accent hidden sm:inline-flex">
             {tr.topBar.demoBadge}
+          </span>
+        )}
+        {progress.total > 0 && (
+          <span className="flex items-center gap-1.5 shrink-0" title={progressLabel}>
+            <ProgressRing
+              total={progress.total}
+              done={progress.done}
+              withProof={progress.doneWithSignal}
+              size={22}
+              strokeWidth={2.5}
+              label={progressLabel}
+            />
+            <span aria-hidden className="hidden sm:inline text-footnote text-text-muted tabular-nums">
+              {progress.done}/{progress.total}
+            </span>
           </span>
         )}
         {viewMode === 'graph' && crumbs.length > 0 && (
           <nav
             aria-label={tr.topBar.breadcrumbAria}
-            className="hidden md:flex items-center gap-1 min-w-0 overflow-hidden"
+            className="hidden lg:flex items-center gap-0.5 min-w-0 overflow-hidden ml-1"
           >
-            <span className="text-text-muted mx-1">/</span>
             {crumbs.map((c, i) => (
-              <div key={c.id} className="flex items-center gap-1 min-w-0">
-                {i > 0 && <span className="text-text-muted text-xs">›</span>}
+              <div key={c.id} className="flex items-center gap-0.5 min-w-0">
+                <span aria-hidden className="text-text-faint text-footnote px-0.5">
+                  ›
+                </span>
                 <button
                   onClick={() => {
                     // Seleciona e enquadra a subárvore (o GraphCanvas consome
@@ -207,8 +250,8 @@ export function TopBar() {
                     focusNode(c.id);
                   }}
                   title={tr.topBar.breadcrumbTitle(c.name)}
-                  className={`text-xs truncate max-w-[180px] hover:text-text-primary transition-colors ${
-                    i === crumbs.length - 1 ? 'text-text-primary' : 'text-text-muted'
+                  className={`text-footnote truncate max-w-[180px] px-1 py-0.5 rounded-chip hover:bg-bg-elevated hover:text-text-primary transition-colors duration-120 ease-mac ${
+                    i === crumbs.length - 1 ? 'text-text-primary font-medium' : 'text-text-muted'
                   }`}
                 >
                   {c.name}
@@ -221,17 +264,13 @@ export function TopBar() {
 
       <div className="flex-1" />
 
-      <div className="flex items-center gap-1 border border-border-base rounded-sm bg-bg-primary p-0.5 shrink-0">
+      <div className="segmented shrink-0">
         {VIEWS.map((v) => (
           <button
             key={v.value}
             onClick={() => setViewMode(v.value)}
             aria-pressed={viewMode === v.value}
-            className={`px-2.5 py-1 text-[11px] font-mono rounded-[2px] transition-colors min-h-[28px] ${
-              viewMode === v.value
-                ? 'bg-bg-elevated text-text-primary'
-                : 'text-text-muted hover:text-text-secondary'
-            }`}
+            className="segmented-item"
           >
             {v.label}
           </button>
@@ -240,30 +279,16 @@ export function TopBar() {
 
       {viewMode === 'graph' && (
         <>
-          <select
-            value={lens}
-            onChange={(e) => setLens(e.target.value as Lens)}
-            aria-label={tr.topBar.lensSelectAria}
-            className="md:hidden bg-bg-primary border border-border-base rounded-sm text-text-secondary text-[11px] px-2 py-1 font-mono shrink-0"
-          >
-            {LENSES.map((l) => (
-              <option key={l.value} value={l.value}>
-                {l.label}
-              </option>
-            ))}
-          </select>
-          <div className="hidden md:flex items-center gap-1 border border-border-base rounded-sm bg-bg-primary p-0.5 shrink-0">
+          {/* Mobile: o seletor de lente flutua no canvas (GraphCanvas) — aqui o
+              título do projeto precisa do espaço. */}
+          <div role="group" aria-label={tr.topBar.lensSelectAria} className="segmented hidden md:inline-flex shrink-0">
             {LENSES.map((l) => (
               <button
                 key={l.value}
                 onClick={() => setLens(l.value)}
                 title={tr.topBar.lensTitle(l.label, l.key)}
                 aria-pressed={lens === l.value}
-                className={`px-2 py-0.5 text-[11px] font-mono rounded-[2px] transition-colors ${
-                  lens === l.value
-                    ? 'bg-bg-elevated text-text-primary'
-                    : 'text-text-muted hover:text-text-secondary'
-                }`}
+                className="segmented-item"
               >
                 {l.label}
               </button>
@@ -272,22 +297,20 @@ export function TopBar() {
         </>
       )}
 
+      <div className="hidden sm:block w-px h-5 bg-border-base shrink-0" aria-hidden />
+
       <button
         onClick={() => setKbOpen(true)}
-        className="hidden sm:flex px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors items-center gap-1.5 shrink-0 min-h-[32px]"
+        className="tap btn btn-ghost hidden sm:inline-flex shrink-0"
         title={tr.topBar.kbTitle}
       >
         <span>{tr.topBar.myPdfs}</span>
-        {kbCount > 0 && (
-          <span className="font-mono text-[10px] text-ai-accent bg-ai-accent/10 px-1 rounded-[2px]">
-            {kbCount}
-          </span>
-        )}
+        {kbCount > 0 && <span className="chip bg-ai-accent/12 text-ai-accent tabular-nums">{kbCount}</span>}
       </button>
 
       <button
         onClick={() => setSettingsOpen(true)}
-        className="hidden md:flex px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors items-center gap-1.5 shrink-0 min-h-[32px] max-w-[220px]"
+        className="tap btn btn-ghost hidden md:inline-flex shrink-0 max-w-[220px]"
         title={
           activeProvider
             ? tr.topBar.modelTitle(PROVIDER_LABELS[activeProvider], activeModel ?? '')
@@ -295,28 +318,37 @@ export function TopBar() {
         }
         aria-label={tr.topBar.settings}
       >
-        <span aria-hidden>⚙</span>
-        {modelName && (
-          <span className="font-mono text-[10px] text-ai-accent truncate">{modelName}</span>
-        )}
+        <GearIcon />
+        {modelName && <span className="font-sans text-footnote text-text-muted truncate">{modelName}</span>}
       </button>
 
       <div className="relative shrink-0" ref={menuRef}>
         <button
           ref={menuButtonRef}
-          onClick={() => setMenuOpen((o) => !o)}
+          onClick={(e) => {
+            // detail === 0: ativado por Enter/Espaço, não por clique.
+            menuByKeyboard.current = e.detail === 0;
+            setMenuOpen((o) => !o);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' && !menuOpen) {
+              e.preventDefault();
+              menuByKeyboard.current = true;
+              setMenuOpen(true);
+            }
+          }}
           aria-label={tr.topBar.moreActions}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          className="px-2.5 py-1 text-xs border border-border-base rounded-sm text-text-secondary hover:text-text-primary hover:border-text-muted transition-colors min-h-[32px] min-w-[32px]"
+          className={`tap btn btn-ghost btn-icon text-[15px] ${menuOpen ? '!bg-bg-elevated !text-text-primary' : ''}`}
         >
-          ⋯
+          <span aria-hidden>⋯</span>
         </button>
         {menuOpen && (
           <div
             role="menu"
             aria-label={tr.topBar.moreActions}
-            className="absolute right-0 top-full mt-1 w-56 bg-bg-secondary border border-border-base rounded-sm shadow-lg z-30 py-1"
+            className="glass bg-glass/90 border absolute right-0 top-full mt-1.5 w-64 rounded-card shadow-mac-lg z-30 p-1 origin-top-right animate-sheet-in"
           >
             <button
               role="menuitem"
@@ -328,7 +360,11 @@ export function TopBar() {
                 setMenuOpen(false);
                 handleNewProject();
               }}
-              className={`${menuItemClass} ${inDemo ? 'text-ai-accent' : confirmNew ? 'text-state-problem' : ''}`}
+              className={`${menuItemClass} ${
+                !inDemo && confirmNew
+                  ? 'text-state-problem hover:!text-accent-fg focus-visible:!text-accent-fg'
+                  : ''
+              }`}
             >
               {confirmNew && otherArchived ? (
                 <span>{tr.topBar.newProjectConfirmDiscard(otherArchived.name)}</span>
@@ -336,7 +372,7 @@ export function TopBar() {
                 <>
                   <span>{inDemo ? tr.topBar.demoExit : tr.topBar.newProject}</span>
                   {!inDemo && (
-                    <span className="text-[10px] text-text-muted">
+                    <span className={menuHintClass}>
                       {otherArchived ? tr.topBar.newProjectHintReplaces : tr.topBar.newProjectHint}
                     </span>
                   )}
@@ -353,9 +389,10 @@ export function TopBar() {
                 className={menuItemClass}
               >
                 <span className="truncate">{tr.topBar.reopenArchived(otherArchived.name)}</span>
-                {!inDemo && <span className="text-[10px] text-text-muted shrink-0">{tr.topBar.reopenArchivedHint}</span>}
+                {!inDemo && <span className={`${menuHintClass} shrink-0`}>{tr.topBar.reopenArchivedHint}</span>}
               </button>
             )}
+            <div role="separator" className="divider my-1 mx-2.5" />
             <button
               role="menuitem"
               onClick={() => {
@@ -376,7 +413,7 @@ export function TopBar() {
             >
               {tr.topBar.exportJson}
             </button>
-            <div role="separator" className="my-1 border-t border-border-base" />
+            <div role="separator" className="divider my-1 mx-2.5" />
             <button
               role="menuitem"
               onClick={() => {
@@ -386,7 +423,7 @@ export function TopBar() {
               className={`${menuItemClass} sm:hidden`}
             >
               <span>{tr.topBar.myPdfs}</span>
-              {kbCount > 0 && <span className="font-mono text-[10px] text-ai-accent">{kbCount}</span>}
+              {kbCount > 0 && <span className={`${menuHintClass} tabular-nums`}>{kbCount}</span>}
             </button>
             <button
               role="menuitem"
@@ -398,9 +435,7 @@ export function TopBar() {
             >
               <span>{tr.topBar.settingsAction}</span>
               {modelName && (
-                <span className="font-mono text-[10px] text-ai-accent truncate max-w-[110px]">
-                  {modelName}
-                </span>
+                <span className={`${menuHintClass} truncate max-w-[120px]`}>{modelName}</span>
               )}
             </button>
           </div>
@@ -422,5 +457,21 @@ export function TopBar() {
       <KnowledgeRepo open={kbOpen} onClose={() => setKbOpen(false)} />
       {settingsOpen && <ApiKeyGate onClose={() => setSettingsOpen(false)} />}
     </div>
+  );
+}
+
+// Engrenagem de 14px (traço fino, herda a cor do botão).
+function GearIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden className="shrink-0">
+      <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="8" cy="8" r="4.8" stroke="currentColor" strokeWidth="1.4" />
+      <path
+        d="M8 1.2v2M8 12.8v2M14.8 8h-2M3.2 8h-2M12.8 3.2l-1.4 1.4M4.6 11.4l-1.4 1.4M12.8 12.8l-1.4-1.4M4.6 4.6L3.2 3.2"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

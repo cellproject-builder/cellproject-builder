@@ -56,17 +56,12 @@ export const toast = {
   dismiss: (id: string) => useToastStore.getState().dismiss(id),
 };
 
-const TONE_CLASS: Record<ToastTone, string> = {
-  ok: 'border-state-done/50',
-  warn: 'border-conf-mid/60',
-  info: 'border-border-base',
-};
-
-const TONE_ICON: Record<ToastTone, string> = { ok: '✓', warn: '!', info: '·' };
+// Ícone em um disco pequeno da cor do tom; o vidro do toast fica neutro.
+const TONE_ICON: Record<ToastTone, string> = { ok: '✓', warn: '!', info: 'i' };
 const TONE_ICON_CLASS: Record<ToastTone, string> = {
-  ok: 'text-state-done',
-  warn: 'text-conf-mid',
-  info: 'text-text-muted',
+  ok: 'bg-state-done/15 text-state-done',
+  warn: 'bg-conf-mid/15 text-conf-mid',
+  info: 'bg-accent/12 text-accent',
 };
 
 function ToastRow({ item }: { item: ToastItem }) {
@@ -81,9 +76,12 @@ function ToastRow({ item }: { item: ToastItem }) {
 
   return (
     <div
-      className={`pointer-events-auto flex items-center gap-3 rounded-md border bg-bg-elevated px-3 py-2 text-sm text-text-primary shadow-lg ${TONE_CLASS[item.tone]}`}
+      className="glass pointer-events-auto flex min-h-[40px] animate-toast-in items-center gap-2.5 rounded-[20px] border py-1.5 pl-2 pr-1.5 text-control text-text-primary shadow-mac-lg"
     >
-      <span aria-hidden className={`font-mono ${TONE_ICON_CLASS[item.tone]}`}>
+      <span
+        aria-hidden
+        className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-caption font-semibold ${TONE_ICON_CLASS[item.tone]}`}
+      >
         {TONE_ICON[item.tone]}
       </span>
       <span className="min-w-0 flex-1 break-words">{item.message}</span>
@@ -94,7 +92,7 @@ function ToastRow({ item }: { item: ToastItem }) {
             item.action?.onClick();
             dismiss(item.id);
           }}
-          className="tap shrink-0 rounded px-2 py-1 text-xs font-medium text-ai-accent hover:bg-bg-secondary"
+          className="tap btn btn-tertiary btn-sm shrink-0"
         >
           {item.action.label}
         </button>
@@ -103,7 +101,7 @@ function ToastRow({ item }: { item: ToastItem }) {
         type="button"
         onClick={() => dismiss(item.id)}
         aria-label={tr.common.dismiss}
-        className="tap shrink-0 rounded px-1.5 py-1 text-text-muted hover:text-text-primary"
+        className="tap btn btn-ghost btn-icon btn-sm shrink-0 rounded-full text-caption"
       >
         ✕
       </button>
@@ -122,10 +120,19 @@ export function Toaster({ raised = false }: { raised?: boolean } = {}) {
       aria-live="polite"
       aria-label={tr.toast.regionLabel}
       className={`pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 px-4 ${
-        raised
-          ? 'pb-[calc(env(safe-area-inset-bottom)+7.5rem)]'
-          : 'pb-[calc(env(safe-area-inset-bottom)+3rem)]'
+        // No tutor, centraliza na coluna do card (à esquerda da sidebar).
+        raised ? 'md:right-[260px] lg:right-[300px]' : 'pb-[calc(env(safe-area-inset-bottom)+3rem)]'
       }`}
+      // No tutor, o toast sobe acima da barra de ações sticky: o card publica a
+      // altura real dela em --tutor-bar-h (sem barra, só a margem).
+      style={
+        raised
+          ? {
+              paddingBottom:
+                'max(calc(var(--tutor-bar-h, 0px) + 1rem), calc(env(safe-area-inset-bottom) + 1rem))',
+            }
+          : undefined
+      }
     >
       {toasts.map((item) => (
         <div key={item.id} className="w-full max-w-md">

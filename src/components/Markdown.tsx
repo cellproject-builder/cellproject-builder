@@ -3,7 +3,7 @@
 // numeradas, tabelas simples, negrito, *itálico*, `código` inline, blocos ```
 // e links [texto](url) clicáveis. Sem dependência externa de markdown.
 //
-// `variant`: 'panel' (compacto, dentro da sidebar) · 'reading' (tipografia
+// `variant`: 'panel' (compacto, dentro da sidebar) ou 'reading' (tipografia
 // confortável pro modo leitura em tela cheia).
 // `idPrefix`: quando presente, cada título ganha id `${idPrefix}-h-${n}` — o
 // índice do modo leitura rola até eles (ver extractHeadings).
@@ -39,6 +39,16 @@ const indentLevel = (line: string) => {
   return Math.min(4, Math.floor(spaces / 2));
 };
 
+// Títulos em CAIXA ALTA (formato pedido ao tutor) viram sentence case na
+// tela — sem mudar o prompt. Títulos com minúsculas ficam como vieram.
+export function sentenceCase(text: string): string {
+  const letters = text.replace(/[^\p{L}]/gu, '');
+  if (letters.length < 2 || letters !== letters.toUpperCase()) return text;
+  const lower = text.toLocaleLowerCase();
+  const i = lower.search(/\p{L}/u);
+  return i < 0 ? lower : lower.slice(0, i) + lower.charAt(i).toLocaleUpperCase() + lower.slice(i + 1);
+}
+
 /** Textos dos títulos, na mesma ordem/numeração dos ids gerados. */
 export function extractHeadings(text: string): string[] {
   const out: string[] = [];
@@ -70,8 +80,8 @@ export function ExplanationContent({
   let headingIdx = 0;
 
   const headingCls = reading
-    ? 'text-base font-semibold text-text-primary pt-5 first:pt-0 scroll-mt-4'
-    : 'text-sm font-semibold text-text-primary pt-2 first:pt-0';
+    ? 'text-title3 font-semibold text-text-primary pt-5 first:pt-0 scroll-mt-20'
+    : 'text-control font-semibold text-text-primary pt-2 first:pt-0';
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -87,8 +97,8 @@ export function ExplanationContent({
       blocks.push(
         <pre
           key={i}
-          className={`font-mono bg-bg-elevated border border-border-base rounded-sm px-3 py-2 overflow-x-auto whitespace-pre text-text-primary ${
-            reading ? 'text-[13px] leading-relaxed my-2' : 'text-[11px] leading-snug my-1'
+          className={`font-mono bg-bg-elevated/70 rounded-control px-3.5 py-2.5 overflow-x-auto whitespace-pre text-text-primary ${
+            reading ? 'text-[13px] leading-relaxed my-3' : 'text-footnote my-1.5'
           }`}
         >
           {code.join('\n')}
@@ -99,7 +109,7 @@ export function ExplanationContent({
     }
 
     if (line.trim() === '') {
-      blocks.push(<div key={i} className={reading ? 'h-3' : 'h-2'} />);
+      blocks.push(<div key={i} aria-hidden className={reading ? 'h-2' : 'h-1'} />);
       continue;
     }
 
@@ -112,16 +122,16 @@ export function ExplanationContent({
         rows.push(splitRow(lines[j]));
         j++;
       }
-      const cell = reading ? 'px-2.5 py-1.5' : 'px-2 py-1';
+      const cell = reading ? 'px-3 py-2' : 'px-2.5 py-1.5';
       blocks.push(
-        <div key={i} className="overflow-x-auto my-1.5">
-          <table className={`border-collapse ${reading ? 'text-sm' : 'text-xs'}`}>
+        <div key={i} className="overflow-x-auto my-2 rounded-control ring-1 ring-inset ring-border-base/70">
+          <table className={`w-full border-collapse ${reading ? 'text-control' : 'text-footnote'}`}>
             <thead>
               <tr>
                 {head.map((h, k) => (
                   <th
                     key={k}
-                    className={`${cell} text-left font-semibold text-text-primary border border-border-base bg-bg-elevated`}
+                    className={`${cell} text-left font-semibold text-text-primary bg-bg-elevated/60 border-b border-border-base/70`}
                   >
                     {renderInline(h)}
                   </th>
@@ -130,9 +140,9 @@ export function ExplanationContent({
             </thead>
             <tbody>
               {rows.map((r, ri) => (
-                <tr key={ri}>
+                <tr key={ri} className="border-t border-border-base/50 first:border-t-0">
                   {head.map((_, k) => (
-                    <td key={k} className={`${cell} align-top border border-border-base`}>
+                    <td key={k} className={`${cell} align-top`}>
                       {renderInline(r[k] ?? '')}
                     </td>
                   ))}
@@ -152,7 +162,7 @@ export function ExplanationContent({
       headingIdx++;
       blocks.push(
         <div key={i} id={id} className={headingCls}>
-          {renderInline(heading)}
+          {renderInline(sentenceCase(heading))}
         </div>,
       );
       continue;
@@ -163,8 +173,14 @@ export function ExplanationContent({
     if (bulletMatch) {
       const level = indentLevel(line);
       blocks.push(
-        <div key={i} className="pl-4 relative" style={level ? { marginLeft: level * 16 } : undefined}>
-          <span className="absolute left-0 text-text-muted">{level > 0 ? '◦' : '•'}</span>
+        <div
+          key={i}
+          className={`relative ${reading ? 'pl-5' : 'pl-4'}`}
+          style={level ? { marginLeft: level * 16 } : undefined}
+        >
+          <span aria-hidden className="absolute left-1 text-text-faint">
+            {level > 0 ? '◦' : '•'}
+          </span>
           {renderInline(bulletMatch[1])}
         </div>,
       );
@@ -176,7 +192,7 @@ export function ExplanationContent({
       const level = indentLevel(line);
       blocks.push(
         <div key={i} className="pl-6 relative" style={level ? { marginLeft: level * 16 } : undefined}>
-          <span className="absolute left-0 text-text-muted font-mono text-xs">{numMatch[1]}.</span>
+          <span className="absolute left-0 w-5 text-right text-text-muted tabular-nums">{numMatch[1]}.</span>
           {renderInline(numMatch[2])}
         </div>,
       );
@@ -190,8 +206,8 @@ export function ExplanationContent({
     <div
       className={
         reading
-          ? 'text-[15px] sm:text-base text-text-secondary leading-relaxed space-y-1.5'
-          : 'text-sm text-text-secondary leading-relaxed space-y-1'
+          ? 'text-body text-text-secondary space-y-2'
+          : 'text-control text-text-secondary leading-relaxed space-y-1.5'
       }
     >
       {blocks}
@@ -220,7 +236,7 @@ export function renderInline(text: string): React.ReactNode {
       return (
         <code
           key={i}
-          className="font-mono text-[0.85em] bg-bg-elevated border border-border-base rounded-sm px-1 py-px text-text-primary"
+          className="font-mono text-[0.85em] bg-bg-elevated rounded-chip px-1.5 py-px text-text-primary"
         >
           {code[1]}
         </code>
@@ -234,7 +250,7 @@ export function renderInline(text: string): React.ReactNode {
           href={link[2]}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-ai-accent underline decoration-ai-accent/40 hover:decoration-ai-accent transition-colors break-all"
+          className="text-accent underline decoration-accent/30 underline-offset-2 hover:decoration-accent transition-colors duration-120 break-all"
         >
           {link[1]}
         </a>

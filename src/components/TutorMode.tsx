@@ -31,6 +31,7 @@ import { MobileSheet } from './MobileSheet';
 import { ReadingMode, type ReadingAction } from './ReadingMode';
 import { InlineError } from './ui/InlineError';
 import { toast } from './ui/Toast';
+import { OverflowMenu, type OverflowMenuItem } from './ui/OverflowMenu';
 
 // The tutor is the concept's core loop made into a screen: look at ONE part of
 // the decomposition — if you can confirm it against reality, confirm; if you
@@ -202,6 +203,12 @@ export function TutorMode() {
   const current = selectedLeaf ?? pinned ?? next;
   const currentId = current?.id ?? null;
 
+  // Trocar de nó abre o card novo do topo (título e breadcrumb visíveis).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [currentId]);
+
   useEffect(() => {
     if (currentId) setLastTutorNode(currentId);
   }, [currentId, setLastTutorNode]);
@@ -268,7 +275,7 @@ export function TutorMode() {
     resourceLeaves.length > 0 && resourcesConfirmed === resourceLeaves.length;
 
   const sidebarBody = (
-    <div className="py-1">
+    <div className="px-2 py-2">
       <TreeRows
         project={project}
         byParent={byParent}
@@ -283,7 +290,7 @@ export function TutorMode() {
         tr={tr}
       />
       {progress.total === 0 && (
-        <div className="text-xs text-text-muted italic px-3 py-2">{tr.tutor.emptyTree}</div>
+        <div className="text-footnote text-text-muted px-2 py-2">{tr.tutor.emptyTree}</div>
       )}
     </div>
   );
@@ -293,81 +300,58 @@ export function TutorMode() {
   return (
     <div className="flex-1 flex overflow-hidden bg-bg-primary">
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <div className="border-b border-border-base bg-bg-secondary px-4 sm:px-6 py-2 sm:py-4">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden sm:block text-[10px] font-mono uppercase tracking-widest text-ai-accent">
+        <div className="shrink-0 border-b border-border-base/70 px-4 sm:px-6 py-2 sm:py-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-h-[30px]">
+            <div className="hidden sm:block text-control font-semibold text-text-primary">
               {tr.tutor.modeKicker}
             </div>
-            <div className="hidden md:block text-text-muted text-xs truncate">{tr.tutor.focusHint}</div>
+            <div className="hidden md:block text-text-muted text-footnote truncate">{tr.tutor.focusHint}</div>
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden tap text-xs text-text-secondary hover:text-text-primary border border-border-base rounded-sm px-2.5 py-1 transition-colors min-h-[32px] font-mono"
+              className="md:hidden tap btn btn-secondary btn-sm tabular-nums"
             >
+              <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-text-muted">
+                <path
+                  d="M2 3h10M4.5 7H12M7 11h5M2 3v4h2.5M4.5 7v4H7"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
               {tr.tutor.mobileStepsBtn(progress.done, progress.total)}
             </button>
-            <button
-              onClick={() => setViewMode('graph')}
-              className="ml-auto tap text-xs text-text-muted hover:text-text-primary transition-colors"
-            >
+            <button onClick={() => setViewMode('graph')} className="ml-auto tap btn btn-ghost btn-sm">
               {tr.tutor.viewGraphShort}
             </button>
           </div>
           {project.rules && project.rules.length > 0 && (
             <div className="mt-2 flex items-center gap-1.5 overflow-x-auto sm:flex-wrap">
-              <span className="shrink-0 text-[9px] font-mono uppercase tracking-wider text-text-muted">
-                {tr.tutor.rulesLabel}
-              </span>
+              <span className="label shrink-0 mr-0.5">{tr.tutor.rulesLabel}</span>
               {project.rules.map((r) => (
-                <span
-                  key={r}
-                  className="shrink-0 text-[10px] font-mono px-1.5 py-0.5 rounded-[2px] bg-ai-accent/5 text-text-secondary border border-ai-accent/30"
-                  title={tr.tutor.rulesTitle}
-                >
-                  <span className="text-ai-accent mr-1">⛓</span>
+                <span key={r} className="chip shrink-0" title={tr.tutor.rulesTitle}>
                   {r}
                 </span>
               ))}
             </div>
           )}
-          <div className="hidden md:block">
-            <ProgressBar
-              percent={progress.percent}
-              done={progress.done}
-              total={progress.total}
-              doneWithoutSignal={progress.doneWithoutSignal}
-              tr={tr}
-            />
-          </div>
-          {/* Mobile: só uma linha fina — o número já está no botão da árvore. */}
-          <div
-            className="md:hidden mt-2 h-[2px] bg-bg-primary overflow-hidden"
-            role="progressbar"
-            aria-valuenow={progress.percent}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={tr.tutor.confirmedOf(progress.done, progress.total)}
-          >
-            <div
-              className={`h-full transition-all duration-500 ${
-                progress.doneWithoutSignal > 0 ? 'bg-conf-mid' : 'bg-ai-accent'
-              }`}
-              style={{ width: `${progress.percent}%` }}
-            />
-          </div>
         </div>
 
-        <div data-tutor-scroll className="flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 md:pt-8">
+        <div
+          data-tutor-scroll
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto scroll-stable px-4 sm:px-6 md:px-8 pt-3 sm:pt-6 md:pt-8 pb-6 sm:pb-10"
+        >
           {showBanner && (
-            <div className="max-w-2xl mx-auto mb-4 flex items-center gap-2 px-3 py-2 border border-ai-accent/30 bg-ai-accent/5 rounded-sm text-xs text-text-secondary">
-              <span className="w-1.5 h-1.5 shrink-0 rounded-full bg-ai-accent animate-pulse-subtle" />
+            <div className="max-w-[720px] mx-auto mb-3 flex items-center gap-2.5 pl-3 pr-1.5 py-1.5 rounded-control bg-ai-accent/8 text-footnote text-text-secondary">
+              <span className="ai-icon shrink-0 animate-pulse-subtle" aria-hidden>
+                ✦
+              </span>
               <span className="flex-1 min-w-0">
                 {tr.tutor.pendingBanner(pending!.nodes.length, pendingNode!.name)}
               </span>
-              <button
-                onClick={reviewPending}
-                className="tap shrink-0 text-ai-accent hover:underline font-medium"
-              >
-                {tr.tutor.reviewPending} →
+              <button onClick={reviewPending} className="tap shrink-0 btn btn-sm btn-tertiary text-ai-accent hover:bg-ai-accent/12">
+                {tr.tutor.reviewPending}
               </button>
             </div>
           )}
@@ -376,12 +360,17 @@ export function TutorMode() {
             .map((n) => (
               <div
                 key={n.id}
-                className="max-w-2xl mx-auto mb-4 flex items-center gap-2 px-3 py-2 border border-border-base bg-bg-secondary rounded-sm text-xs text-text-secondary"
+                className="max-w-[720px] mx-auto mb-3 flex items-center gap-2.5 pl-3 pr-1.5 py-1.5 rounded-control bg-bg-elevated/60 text-footnote text-text-secondary"
               >
-                <span className="w-1.5 h-1.5 shrink-0 rounded-full bg-ai-accent/60" />
+                <span className="ai-icon shrink-0 opacity-70" aria-hidden>
+                  ✦
+                </span>
                 <span className="flex-1 min-w-0">{tr.tutor.parkedBanner(parked[n.id].nodes.length, n.name)}</span>
-                <button onClick={() => reviewAt(n)} className="tap shrink-0 text-ai-accent hover:underline font-medium">
-                  {tr.tutor.reviewPending} →
+                <button
+                  onClick={() => reviewAt(n)}
+                  className="tap shrink-0 btn btn-sm btn-tertiary text-ai-accent hover:bg-ai-accent/12"
+                >
+                  {tr.tutor.reviewPending}
                 </button>
               </div>
             ))}
@@ -397,11 +386,12 @@ export function TutorMode() {
               tr={tr}
               notice={
                 current.kind === 'passo' && resourceLeaves.length > 0 && !allResourcesDone ? (
-                  <div className="mt-6 p-4 bg-conf-mid/5 border border-conf-mid/30 rounded-sm">
-                    <div className="text-conf-mid text-xs font-mono uppercase tracking-wider mb-1">
+                  <div className="mt-6 pl-3.5 pr-4 py-3 rounded-control bg-bg-elevated/60 border-l-2 border-conf-mid">
+                    <div className="text-footnote font-semibold text-text-primary mb-0.5 flex items-center gap-2">
+                      <span aria-hidden className="w-2 h-2 rounded-full bg-conf-mid shrink-0" />
                       {tr.tutor.resourcesLeftWarning}
                     </div>
-                    <div className="text-sm text-text-secondary">
+                    <div className="text-control text-text-secondary">
                       {tr.tutor.resourcesLeftBody(resourceLeaves.length - resourcesConfirmed)}
                     </div>
                   </div>
@@ -422,60 +412,16 @@ export function TutorMode() {
         </div>
       </div>
 
-      <aside className="hidden md:flex md:w-[260px] lg:w-[340px] shrink-0 border-l border-border-base bg-bg-secondary overflow-y-auto flex-col">
+      {/* Sidebar estilo Finder: vidro, linhas de 28px, seleção accent/12. */}
+      <aside className="glass hidden md:flex md:w-[260px] lg:w-[300px] shrink-0 border-l overflow-y-auto flex-col">
+        <div className="label px-4 pt-4 pb-1">{tr.tutor.sheetTitle}</div>
         {sidebarBody}
       </aside>
 
       {isMobile && (
-        <MobileSheet open={sidebarOpen} onOpenChange={setSidebarOpen} title={tr.tutor.sheetTitle}>
+        <MobileSheet open={sidebarOpen} onOpenChange={setSidebarOpen} title={tr.tutor.sheetTitle} alwaysModal>
           {sidebarBody}
         </MobileSheet>
-      )}
-    </div>
-  );
-}
-
-function ProgressBar({
-  percent,
-  done,
-  total,
-  doneWithoutSignal,
-  tr,
-}: {
-  percent: number;
-  done: number;
-  total: number;
-  doneWithoutSignal: number;
-  tr: Messages;
-}) {
-  // 100% is only "done green" when every leaf is anchored. If some were
-  // confirmed without signal, the headline goes amber — an unanchored tree is
-  // visibly NOT the same as one earned against reality.
-  const fullyAnchored = percent === 100 && doneWithoutSignal === 0;
-  return (
-    <div className="mt-3">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-text-secondary text-xs font-mono">{tr.tutor.confirmedOf(done, total)}</span>
-        <span className="ml-auto font-mono text-lg font-semibold">
-          <span
-            className={
-              fullyAnchored ? 'text-state-done' : percent === 100 ? 'text-conf-mid' : 'text-text-primary'
-            }
-          >
-            {percent}%
-          </span>
-        </span>
-      </div>
-      <div className="h-1.5 bg-bg-primary rounded-sm overflow-hidden border border-border-base">
-        <div
-          className="h-full bg-gradient-to-r from-ai-accent to-conf-high transition-all duration-500"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-      {doneWithoutSignal > 0 && (
-        <div className="mt-1 text-[10px] font-mono text-conf-mid">
-          {tr.tutor.confirmedNoAnchor(doneWithoutSignal)}
-        </div>
       )}
     </div>
   );
@@ -514,7 +460,6 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
   const toggleTakenAsKnown = useGraphStore((s) => s.toggleTakenAsKnown);
   const pickDecisionOption = useGraphStore((s) => s.pickDecisionOption);
   const selectNode = useGraphStore((s) => s.selectNode);
-  const setViewMode = useGraphStore((s) => s.setViewMode);
   const setNodeExplanation = useGraphStore((s) => s.setNodeExplanation);
   const stageSuggestions = useGraphStore((s) => s.stageSuggestions);
   const acceptSuggestion = useGraphStore((s) => s.acceptSuggestion);
@@ -537,8 +482,11 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
     const bar = barRef.current;
     const scroller = bar?.closest<HTMLElement>('[data-tutor-scroll]');
     if (!bar || !scroller) return;
+    const root = document.documentElement;
     const apply = () => {
       scroller.style.scrollPaddingBottom = `${bar.offsetHeight + 12}px`;
+      // O Toaster (no tutor) sobe acima da barra sticky.
+      root.style.setProperty('--tutor-bar-h', `${bar.offsetHeight}px`);
     };
     apply();
     if (typeof ResizeObserver === 'undefined') return;
@@ -547,6 +495,7 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
     return () => {
       ro.disconnect();
       scroller.style.scrollPaddingBottom = '';
+      root.style.removeProperty('--tutor-bar-h');
     };
   }, []);
 
@@ -788,71 +737,102 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
   })();
 
   const canDecompose = !resolved && !hasKids && !pendingHere;
+  const canMarkKnown = !resolved && !isDecision && !hasKids && !pendingHere;
+  // Barra vazia (nó já decomposto): some, e o card fecha com um respiro.
+  const barEmpty = hasKids && !pendingHere && !resolved;
+  // "…" da barra: o que não é primário nem secundário. No mobile o decompor
+  // também mora aqui (no máximo 2 botões de 44px).
+  const moreItems: OverflowMenuItem[] = [
+    ...(canDecompose && !decomposeRunning
+      ? [
+          {
+            key: 'decompose',
+            label: tr.tutor.decomposeShort,
+            title: decomposeBlocked?.reason ?? decomposeTitle,
+            icon: '✦',
+            iconClassName: 'text-ai-accent',
+            onClick: handleDecompose,
+            disabled: !!job || !!decomposeBlocked,
+            mobileOnly: true,
+          },
+        ]
+      : []),
+    ...(canMarkKnown
+      ? [
+          {
+            key: 'known',
+            label: understand ? (
+              knownLabel
+            ) : (
+              <span className="block">
+                <span className="block">{knownLabel}</span>
+                <span className="block text-caption opacity-75">{tr.tutor.knownNoProofSub}</span>
+              </span>
+            ),
+            title: understand ? knownLabel : `${knownLabel} — ${tr.tutor.knownNoProofSub}`,
+            onClick: markKnownAndAdvance,
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div ref={rootRef} className="max-w-2xl mx-auto scroll-mt-4">
+    // Folha central: card de conteúdo; a troca de nó remonta (key) e repete o card-swap.
+    <div
+      ref={rootRef}
+      className="card max-w-[720px] mx-auto scroll-mt-4 animate-card-swap px-4 sm:px-8 pt-5 sm:pt-7"
+    >
       {crumbs.length > 1 && (
-        <div className="text-xs text-text-muted mb-1 truncate">
+        <div className="text-footnote text-text-muted mb-2 truncate">
           {crumbs
             .slice(0, -1)
             .map((c) => c.name)
             .join(' › ')}
         </div>
       )}
-      <div className="flex items-baseline gap-3 mb-3 sm:mb-5 flex-wrap">
-        <span className="text-[11px] font-mono uppercase tracking-wider text-ai-accent">
-          ◆ {kindLabel}
-        </span>
+      <div className="flex items-center gap-2 mb-2.5 flex-wrap">
+        <span className="chip">{kindLabel}</span>
         {stepSeq !== null && (
-          <span className="text-text-muted text-xs font-mono">{tr.tutor.stepNumber(stepSeq)}</span>
+          <span className="text-text-muted text-footnote tabular-nums">{tr.tutor.stepNumber(stepSeq)}</span>
         )}
-        {isNext && (
-          <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] bg-ai-accent/10 text-ai-accent border border-ai-accent/30">
-            {tr.tutor.nextBadge}
-          </span>
-        )}
+        {isNext && <span className="chip bg-accent/12 text-accent">{tr.tutor.nextBadge}</span>}
         {!isNext && next && !resolved && (
           <button
             onClick={() => selectNode(next.id)}
-            className="ml-auto text-[11px] text-text-muted hover:text-ai-accent transition-colors truncate max-w-[60%]"
+            className="ml-auto btn btn-tertiary btn-sm min-w-0 max-w-[60%]"
           >
-            {tr.tutor.jumpToNext(next.name)}
+            <span className="truncate">{tr.tutor.jumpToNext(next.name)}</span>
           </button>
         )}
       </div>
       <h1
         ref={titleRef}
         tabIndex={-1}
-        className="text-2xl sm:text-3xl font-semibold text-text-primary leading-tight mb-4 sm:mb-6 outline-none focus-visible:ring-1 focus-visible:ring-ai-accent/50 rounded-sm"
+        // Alvo de foco programático: sem anel (o foco segue para leitores de tela).
+        className="text-title2 sm:text-[26px] sm:leading-[32px] font-semibold text-text-primary mb-5 sm:mb-6 rounded-chip focus:outline-none focus-visible:outline-none"
       >
         {node.name}
       </h1>
 
       {resolved && (
-        <div className="mb-5 space-y-2">
+        <div className="mb-6 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             {node.state === 'done' ? (
-              <span className="text-[11px] font-mono text-state-done bg-state-done/10 border border-state-done/30 rounded-sm px-2 py-1">
-                {tr.tutor.statusDone}
-              </span>
+              <span className="chip bg-state-done/12 text-state-done">{tr.tutor.statusDone}</span>
             ) : node.takenAsKnown ? (
-              <span className="text-[11px] font-mono text-ai-accent bg-ai-accent/10 border border-ai-accent/30 rounded-sm px-2 py-1">
-                ✓ {tr.tutor.knownBadge}
-              </span>
+              <span className="chip">✓ {tr.tutor.knownBadge}</span>
             ) : (
-              <span className="text-[11px] font-mono text-conf-mid bg-conf-mid/10 border border-conf-mid/30 rounded-sm px-2 py-1">
-                {tr.tutor.statusNoProof}
-              </span>
+              <span className="chip bg-conf-mid/12 text-conf-mid">{tr.tutor.statusNoProof}</span>
             )}
           </div>
           {/* Só o confirmado no palpite vira "concluído" ao comprovar (o store
               promove) — um "já sei" em projeto de construir segue sem prova. */}
           {resolvedNoProof && node.confirmado && node.state !== 'done' && (
-            <div className="text-xs text-conf-mid bg-conf-mid/5 border border-conf-mid/30 rounded-sm px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <div className="text-footnote text-conf-mid bg-conf-mid/8 rounded-control pl-3 pr-1.5 py-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="flex-1 min-w-[12rem]">{tr.tutor.missingOneThing}</span>
               <button
                 onClick={() => goToGT(proofTarget)}
-                className="tap shrink-0 font-medium text-conf-mid hover:underline"
+                className="tap shrink-0 btn btn-sm btn-tertiary text-conf-mid hover:bg-conf-mid/12"
               >
                 {tr.tutor.proveNow}
               </button>
@@ -863,12 +843,12 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
 
       {node.oQue && (
         <TutorBlock label={tr.tutor.whatIs}>
-          <p className="text-text-secondary leading-relaxed">{node.oQue}</p>
+          <p>{node.oQue}</p>
         </TutorBlock>
       )}
       {node.porQue && (
         <TutorBlock label={tr.tutor.whyNeeded}>
-          <p className="text-text-secondary leading-relaxed">{node.porQue}</p>
+          <p>{node.porQue}</p>
         </TutorBlock>
       )}
 
@@ -879,6 +859,7 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
             {node.decisionOptions!.map((opt) => {
               const picked = node.decisionPickedId === opt.id;
               const isSel = selectedOpt === opt.id;
+              const on = isSel || picked;
               return (
                 <button
                   key={opt.id}
@@ -889,26 +870,36 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
                     setSelectedOpt(opt.id);
                     setConfirmingNoSignal(false);
                   }}
-                  className={`w-full text-left p-3 rounded-sm border transition-colors disabled:cursor-default ${
-                    isSel || picked
-                      ? 'bg-ai-accent/15 border-ai-accent text-ai-accent'
-                      : 'bg-bg-secondary border-border-base hover:border-ai-accent/50'
+                  className={`w-full text-left px-3.5 py-3 rounded-control flex items-start gap-3 transition-[background-color,box-shadow] duration-120 ease-mac disabled:cursor-default ${
+                    on
+                      ? 'bg-accent/8 ring-2 ring-inset ring-accent'
+                      : 'bg-bg-secondary ring-1 ring-inset ring-border-base hover:bg-bg-elevated/50'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold">{opt.label}</span>
-                    {(picked || isSel) && (
-                      <span className="ml-auto text-[10px] font-mono uppercase tracking-wider">
-                        {picked ? tr.tutor.decisionPickedBadge : tr.tutor.decisionSelectedBadge}
+                  <span
+                    aria-hidden
+                    className={`mt-px w-4 h-4 shrink-0 rounded-full flex items-center justify-center transition-colors duration-120 ${
+                      on ? 'bg-accent-solid' : 'ring-1 ring-inset ring-text-faint/55'
+                    }`}
+                  >
+                    {on && <span className="w-1.5 h-1.5 rounded-full bg-accent-fg" />}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="flex items-center gap-2">
+                      <span className="text-control font-semibold text-text-primary">{opt.label}</span>
+                      {on && (
+                        <span className="ml-auto chip bg-accent/12 text-accent">
+                          {picked ? tr.tutor.decisionPickedBadge : tr.tutor.decisionSelectedBadge}
+                        </span>
+                      )}
+                    </span>
+                    <span className="block text-control text-text-secondary mt-1">{opt.pitch}</span>
+                    {opt.consequences && (
+                      <span className="block text-footnote text-text-muted mt-1">
+                        {tr.tutor.consequencesPrefix} {opt.consequences}
                       </span>
                     )}
-                  </div>
-                  <div className="text-[12px] text-text-secondary mt-1 leading-snug">{opt.pitch}</div>
-                  {opt.consequences && (
-                    <div className="text-[11px] text-text-muted mt-1 leading-snug italic">
-                      {tr.tutor.consequencesPrefix} {opt.consequences}
-                    </div>
-                  )}
+                  </span>
                 </button>
               );
             })}
@@ -917,32 +908,35 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
       )}
 
       {pendingHere && (
-        <div className="mt-2 mb-4 space-y-2 p-3 border border-ai-accent/30 rounded-sm bg-ai-accent/5">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-ai-accent">
+        <div className="mt-2 mb-5 space-y-2 p-3 rounded-card bg-ai-accent/8">
+          <div className="label text-ai-accent flex items-center gap-1.5 px-0.5">
+            <span className="ai-icon" aria-hidden>
+              ✦
+            </span>
             {tr.tutor.decomposeReview}
           </div>
           {pending!.nodes.map((s) => (
-            <div key={s.tempId} className="p-2 bg-bg-secondary border border-border-base rounded-sm">
-              <div className="text-sm font-medium text-text-primary leading-tight">{s.data.name}</div>
-              <div className="text-[11px] text-text-secondary leading-snug mb-1.5">
-                {s.data.oQue || s.data.fx}
-              </div>
+            <div key={s.tempId} className="p-3 bg-bg-secondary rounded-control shadow-mac-sm">
+              <div className="text-control font-semibold text-text-primary">{s.data.name}</div>
+              <div className="text-footnote text-text-secondary mt-0.5 mb-2">{s.data.oQue || s.data.fx}</div>
               {s.data.ruleConflict && (
-                <div className="text-[11px] text-conf-low leading-snug mb-1.5">⛓ {s.data.ruleConflict}</div>
+                <div className="text-footnote text-conf-low mb-2">{s.data.ruleConflict}</div>
               )}
               <div className="flex gap-1.5">
                 <button
                   onClick={() => acceptSuggestion(s.tempId)}
-                  className="tap flex-1 text-[11px] bg-conf-high/15 hover:bg-conf-high/30 text-conf-high border border-conf-high/40 rounded-sm py-1 transition-colors"
+                  className="tap flex-1 btn btn-secondary btn-sm text-state-done"
                 >
                   {tr.tutor.acceptOne}
                 </button>
                 <button
                   onClick={() => rejectSuggestion(s.tempId)}
                   aria-label={tr.conceptNode.reject}
-                  className="tap text-[11px] text-text-muted hover:text-state-problem border border-border-base rounded-sm px-2.5 py-1 transition-colors"
+                  className="tap btn btn-ghost btn-sm btn-icon hover:text-state-problem"
                 >
-                  ✕
+                  <svg aria-hidden width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -950,32 +944,44 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
         </div>
       )}
 
-      <div className="mt-4">
+      <div className="mt-5">
         <div className="flex gap-2">
           <button
             onClick={handleExplain}
             disabled={explainRunning || (!!job && !node.explicacao)}
-            className="flex-1 min-w-0 flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] bg-ai-accent/10 hover:bg-ai-accent/20 border border-ai-accent/30 rounded-sm text-ai-accent text-sm transition-colors disabled:opacity-60"
+            className="tap btn btn-ai flex-1 min-w-0 justify-between"
           >
-            <span className="flex items-center gap-2 text-left">
-              <span className={explainRunning ? 'animate-pulse-subtle' : ''}>◆</span>
-              {explainRunning
-                ? streamText
-                  ? tr.tutor.writingExplain(elapsed)
-                  : tr.common.thinking(elapsed)
-                : node.explicacao
-                ? open
-                  ? tr.tutor.closeExplain
-                  : tr.tutor.viewExplain
-                : tr.tutor.explain}
+            <span className="flex items-center gap-2 min-w-0">
+              <span className={`ai-icon ${explainRunning ? 'animate-pulse-subtle' : ''}`} aria-hidden>
+                ✦
+              </span>
+              <span className="truncate">
+                {explainRunning
+                  ? streamText
+                    ? tr.tutor.writingExplain(elapsed)
+                    : tr.common.thinking(elapsed)
+                  : node.explicacao
+                  ? open
+                    ? tr.tutor.closeExplain
+                    : tr.tutor.viewExplain
+                  : tr.tutor.explain}
+              </span>
             </span>
-            {node.explicacao && !explainRunning && <span className="text-xs">{open ? '▲' : '▼'}</span>}
+            {node.explicacao && !explainRunning && (
+              <svg
+                aria-hidden
+                width="10"
+                height="10"
+                viewBox="0 0 10 10"
+                fill="none"
+                className={`shrink-0 text-text-muted transition-transform duration-180 ease-mac ${open ? 'rotate-180' : ''}`}
+              >
+                <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
           </button>
           {explainRunning && (
-            <button
-              onClick={cancelJob}
-              className="tap shrink-0 px-3 min-h-[44px] text-xs text-text-muted hover:text-state-problem border border-border-base rounded-sm transition-colors"
-            >
+            <button onClick={cancelJob} className="tap shrink-0 btn btn-ghost">
               {tr.common.cancelRunning}
             </button>
           )}
@@ -983,16 +989,23 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
             onClick={() => setReading(true)}
             title={tr.tutor.readingMode}
             aria-label={tr.tutor.readingMode}
-            className="shrink-0 w-11 min-h-[44px] flex items-center justify-center bg-bg-elevated hover:bg-ai-accent/10 border border-border-base hover:border-ai-accent/40 rounded-sm text-text-muted hover:text-ai-accent transition-colors"
+            className="tap shrink-0 btn btn-secondary btn-icon text-text-muted"
           >
-            ⛶
+            <svg aria-hidden width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M2 3.5h4.2c.9 0 1.8.7 1.8 1.6V13c0-.8-.7-1.4-1.5-1.4H2V3.5ZM14 3.5H9.8c-.9 0-1.8.7-1.8 1.6V13c0-.8.7-1.4 1.5-1.4H14V3.5Z"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
         </div>
         {explainAI.error && (
           <InlineError error={explainAI.error} onRetry={() => void explainAI.retry()} className="mt-2" />
         )}
         {((open && node.explicacao) || (explainRunning && streamText)) && (
-          <div className="mt-3 p-4 sm:p-5 bg-bg-secondary border border-border-base rounded-sm" aria-busy={explainRunning}>
+          <div className="mt-3 px-4 py-4 sm:px-5 rounded-control bg-bg-primary" aria-busy={explainRunning}>
             <ExplanationContent text={node.explicacao || streamText || ''} />
           </div>
         )}
@@ -1025,201 +1038,184 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
 
       {notice}
 
-      {/* The fork at the heart of the concept — always visible: confirm
-          against reality, break it down further, or declare the floor. */}
-      <div ref={barRef} className="sticky bottom-0 z-10 mt-6 border-t border-border-base bg-bg-primary pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] space-y-2">
-        {decomposeAI.error && (
-          <InlineError
-            error={decomposeAI.error}
-            onRetry={() => void decomposeAI.retry()}
-            onAction={{ label: tr.common.dismiss, onClick: decomposeAI.reset }}
-          />
-        )}
-
-        {/* Linha de orientação: o que falta, específico pro estado do gate. */}
-        {!resolved && !pendingHere && !hasKids && !blocker && (
-          <>
-            {openFailure ? (
-              <div className="text-[11px] text-state-problem leading-snug">{tr.tutor.failureOpenHint}</div>
-            ) : confirmingNoSignal ? (
-              <div className="text-[11px] text-conf-mid leading-snug">{tr.tutor.confirmNoProofWarning}</div>
-            ) : !ready ? (
-              <div className="text-[11px] text-text-muted leading-snug">
-                {tr.tutor.gateLead}{' '}
-                <button
-                  onClick={() => goToGT(proofTarget)}
-                  className="text-ai-accent hover:underline text-left"
-                >
-                  {proofTarget === 'criterion' ? tr.tutor.gateHintNotLocked : tr.tutor.gateHintNotAttested}
-                </button>
-              </div>
-            ) : null}
-          </>
-        )}
-        {canDecompose && decomposeBlocked && !job && (
-          <div className="text-[11px] text-text-muted leading-snug">
-            {decomposeBlocked.reason}{' '}
-            <button onClick={decomposeBlocked.go} className="text-ai-accent hover:underline">
-              {tr.tutor.goThere}
-            </button>
-          </div>
-        )}
-
-        {/* Linha 1 — ação primária. */}
-        {pendingHere ? (
-          <div className="flex gap-2">
-            <button
-              onClick={acceptAllSuggestions}
-              className="flex-1 bg-ai-accent/15 hover:bg-ai-accent/30 text-ai-accent text-sm sm:text-base py-2.5 min-h-[44px] rounded-sm border-2 border-ai-accent/40 transition-colors font-medium"
-            >
-              {tr.tutor.acceptAllCount(pending!.nodes.length)}
-            </button>
-            <button
-              onClick={rejectAllSuggestions}
-              className="tap px-3 text-xs text-text-muted hover:text-state-problem border border-border-base rounded-sm transition-colors"
-            >
-              {tr.tutor.rejectAll}
-            </button>
-          </div>
-        ) : resolved ? (
-          <div className="flex gap-2">
-            {next && next.id !== node.id ? (
-              <button
-                onClick={() => {
-                  focusTitleOnMount = true;
-                  selectNode(next.id);
-                }}
-                className="flex-1 bg-ai-accent/10 hover:bg-ai-accent/20 text-ai-accent text-sm sm:text-base py-2.5 min-h-[44px] rounded-sm border-2 border-ai-accent/40 transition-colors font-medium"
-              >
-                {tr.tutor.nextPendingBtn}
-              </button>
-            ) : (
-              <div className="flex-1" />
-            )}
-            <button
-              onClick={() => (node.confirmado ? unconfirmNode(node.id) : toggleTakenAsKnown(node.id))}
-              className="tap px-3 text-xs text-text-muted hover:text-text-secondary border border-border-base rounded-sm transition-colors"
-            >
-              {node.confirmado ? tr.tutor.undoConfirm : tr.tutor.reopenKnown}
-            </button>
-          </div>
-        ) : hasKids ? null : blocker ? (
-          <button
-            onClick={goToBlocker}
-            className="w-full bg-bg-elevated hover:bg-ai-accent/10 text-text-secondary hover:text-ai-accent text-sm sm:text-base py-2.5 min-h-[44px] rounded-sm border-2 border-border-base hover:border-ai-accent/40 transition-colors font-medium truncate px-3"
-          >
-            {tr.tutor.blockedBefore(blocker.name)}
-          </button>
-        ) : openFailure ? (
-          <button
-            onClick={() => goToGT('failure')}
-            className="w-full bg-state-problem/10 hover:bg-state-problem/20 text-state-problem text-sm sm:text-base py-2.5 min-h-[44px] rounded-sm border-2 border-state-problem/40 transition-colors font-medium"
-          >
-            {tr.tutor.resolveFailureFirst}
-          </button>
-        ) : isDecision && !pickedOpt ? (
-          <button
-            disabled
-            className="w-full bg-bg-elevated text-text-muted text-sm sm:text-base py-2.5 min-h-[44px] rounded-sm border-2 border-border-base font-medium cursor-not-allowed"
-          >
-            {tr.tutor.pickFirst}
-          </button>
-        ) : ready ? (
-          <button
-            onClick={isDecision ? pickAndAdvance : confirmAndAdvance}
-            className="w-full bg-conf-high/15 hover:bg-conf-high/30 text-conf-high text-sm sm:text-base py-2.5 min-h-[44px] rounded-sm border-2 border-conf-high/40 transition-colors font-medium truncate px-3"
-          >
-            {isDecision && pickedOpt ? tr.tutor.pickOption(pickedOpt.label) : confirmLabel}
-          </button>
-        ) : confirmingNoSignal ? (
-          <div className="flex gap-2">
-            <button
-              onClick={isDecision ? pickAndAdvance : confirmAndAdvance}
-              className="flex-1 bg-conf-mid/15 hover:bg-conf-mid/30 text-conf-mid text-sm py-2.5 min-h-[44px] rounded-sm border border-conf-mid/40 transition-colors font-medium truncate px-3"
-            >
-              {isDecision && pickedOpt ? tr.tutor.pickOption(pickedOpt.label) : tr.tutor.confirmNoProofConfirm}
-            </button>
-            <button
-              onClick={() => setConfirmingNoSignal(false)}
-              className="tap px-3 text-xs text-text-muted hover:text-text-secondary border border-border-base rounded-sm transition-colors"
-            >
-              {tr.common.cancel}
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setConfirmingNoSignal(true)}
-            className="w-full bg-bg-elevated hover:bg-conf-mid/10 text-text-secondary hover:text-conf-mid text-sm sm:text-base py-2.5 min-h-[44px] rounded-sm border-2 border-border-base hover:border-conf-mid/40 transition-colors font-medium truncate px-3"
-          >
-            {isDecision && pickedOpt ? tr.tutor.pickOptionNoProof(pickedOpt.label) : tr.tutor.confirmNoProof}
-          </button>
-        )}
-
-        {/* Linha 2 — secundárias compactas. */}
-        {!pendingHere && (
-          <div className="flex items-stretch gap-1.5">
-            {canDecompose &&
-              (decomposeRunning ? (
-                <div className="flex-1 flex gap-1.5 min-w-0">
-                  <div
-                    className="flex-1 min-w-0 flex items-center justify-center gap-1.5 px-2 min-h-[36px] text-xs text-ai-accent border border-ai-accent/40 bg-ai-accent/5 rounded-sm"
-                    aria-live="polite"
-                  >
-                    <span className="animate-pulse-subtle">◆</span>
-                    <span className="truncate">{tr.tutor.decomposingFor(elapsed)}</span>
-                  </div>
+      {/* O que falta para concluir — dentro do card, perto da barra (a barra
+          fica só com ações). */}
+      {(decomposeAI.error ||
+        (!resolved && !pendingHere && !hasKids && !blocker && (openFailure || (!ready && !confirmingNoSignal))) ||
+        (canDecompose && decomposeBlocked && !job)) && (
+        <div className="mt-6 space-y-2">
+          {decomposeAI.error && (
+            <InlineError
+              error={decomposeAI.error}
+              onRetry={() => void decomposeAI.retry()}
+              onAction={{ label: tr.common.dismiss, onClick: decomposeAI.reset }}
+            />
+          )}
+          {!resolved && !pendingHere && !hasKids && !blocker && (
+            <>
+              {openFailure ? (
+                <div className="flex items-center gap-2 text-footnote text-text-secondary">
+                  <span aria-hidden className="w-2 h-2 rounded-full bg-state-problem shrink-0" />
+                  <span>{tr.tutor.failureOpenHint}</span>
+                </div>
+              ) : !ready && !confirmingNoSignal ? (
+                <div className="text-footnote text-text-muted">
+                  {tr.tutor.gateLead}{' '}
                   <button
-                    onClick={cancelJob}
-                    className="tap shrink-0 px-2.5 text-xs text-text-muted hover:text-state-problem border border-border-base rounded-sm transition-colors"
+                    onClick={() => goToGT(proofTarget)}
+                    className="text-accent font-medium hover:underline underline-offset-2 text-left rounded-chip"
                   >
-                    {tr.common.cancelRunning}
+                    {proofTarget === 'criterion' ? tr.tutor.gateHintNotLocked : tr.tutor.gateHintNotAttested}
                   </button>
                 </div>
+              ) : null}
+            </>
+          )}
+          {canDecompose && decomposeBlocked && !job && (
+            <div className="text-footnote text-text-muted">
+              {decomposeBlocked.reason}{' '}
+              <button
+                onClick={decomposeBlocked.go}
+                className="text-accent font-medium hover:underline underline-offset-2 rounded-chip"
+              >
+                {tr.tutor.goThere}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* The fork at the heart of the concept — always visible: confirm
+          against reality, break it down further, or declare the floor.
+          Uma linha só: primária + secundária + "…". Material sólido (o vidro
+          saturado borrava os botões que rolam por baixo). O bottom negativo
+          compensa o padding inferior do scroller: a barra encosta no rodapé. */}
+      {barEmpty && <div className="h-6" aria-hidden />}
+      <div
+        ref={barRef}
+        className={`bar-solid sticky -bottom-6 sm:-bottom-10 z-10 mt-6 -mx-4 sm:-mx-8 px-4 sm:px-8 border-t rounded-b-card pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] space-y-2 ${
+          barEmpty ? 'hidden' : ''
+        }`}
+      >
+        {confirmingNoSignal && !resolved && !pendingHere && !hasKids && !blocker && !openFailure && (
+          <div className="text-footnote text-conf-mid">{tr.tutor.confirmNoProofWarning}</div>
+        )}
+        {decomposeRunning && canDecompose && (
+          <div
+            className="flex items-center gap-1.5 pl-2.5 pr-1 min-h-[30px] text-footnote font-medium text-ai-accent bg-ai-accent/8 rounded-control"
+            aria-live="polite"
+          >
+            <span className="animate-pulse-subtle" aria-hidden>
+              ✦
+            </span>
+            <span className="flex-1 min-w-0 truncate tabular-nums">{tr.tutor.decomposingFor(elapsed)}</span>
+            <button onClick={cancelJob} className="tap shrink-0 btn btn-ghost btn-sm">
+              {tr.common.cancelRunning}
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          {pendingHere ? (
+            <>
+              <button onClick={acceptAllSuggestions} className="tap btn btn-primary h-8 flex-1 min-w-0">
+                <span className="truncate">{tr.tutor.acceptAllCount(pending!.nodes.length)}</span>
+              </button>
+              <button onClick={rejectAllSuggestions} className="tap btn btn-secondary h-8 shrink-0">
+                {tr.tutor.rejectAll}
+              </button>
+            </>
+          ) : resolved ? (
+            <>
+              {next && next.id !== node.id ? (
+                <button
+                  onClick={() => {
+                    focusTitleOnMount = true;
+                    selectNode(next.id);
+                  }}
+                  className="tap btn btn-primary h-8 flex-1 min-w-0"
+                >
+                  <span className="truncate">{tr.tutor.nextPendingBtn}</span>
+                </button>
               ) : (
+                <div className="flex-1" />
+              )}
+              <button
+                onClick={() => (node.confirmado ? unconfirmNode(node.id) : toggleTakenAsKnown(node.id))}
+                className="tap btn btn-secondary h-8 shrink-0"
+              >
+                {node.confirmado ? tr.tutor.undoConfirm : tr.tutor.reopenKnown}
+              </button>
+            </>
+          ) : hasKids ? null : (
+            <>
+              {blocker ? (
+                <button onClick={goToBlocker} className="tap btn btn-secondary h-8 flex-1 min-w-0">
+                  <span className="truncate">{tr.tutor.blockedBefore(blocker.name)}</span>
+                </button>
+              ) : openFailure ? (
+                <button onClick={() => goToGT('failure')} className="tap btn btn-secondary h-8 flex-1 min-w-0">
+                  <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-state-problem shrink-0" />
+                  <span className="truncate">{tr.tutor.resolveFailureFirst}</span>
+                </button>
+              ) : isDecision && !pickedOpt ? (
+                <button disabled className="btn btn-primary h-8 flex-1 min-w-0">
+                  <span className="truncate">{tr.tutor.pickFirst}</span>
+                </button>
+              ) : ready ? (
+                <button
+                  onClick={isDecision ? pickAndAdvance : confirmAndAdvance}
+                  className="tap btn btn-primary h-8 flex-1 min-w-0"
+                >
+                  <span className="truncate">
+                    {isDecision && pickedOpt ? tr.tutor.pickOption(pickedOpt.label) : confirmLabel}
+                  </span>
+                </button>
+              ) : confirmingNoSignal ? (
+                <>
+                  <button
+                    onClick={isDecision ? pickAndAdvance : confirmAndAdvance}
+                    className="tap btn btn-secondary h-8 flex-1 min-w-0 text-conf-mid"
+                  >
+                    <span className="truncate">
+                      {isDecision && pickedOpt ? tr.tutor.pickOption(pickedOpt.label) : tr.tutor.confirmNoProofConfirm}
+                    </span>
+                  </button>
+                  <button onClick={() => setConfirmingNoSignal(false)} className="tap btn btn-ghost h-8 shrink-0">
+                    {tr.common.cancel}
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => setConfirmingNoSignal(true)} className="tap btn btn-secondary h-8 flex-1 min-w-0">
+                  <span className="truncate">
+                    {isDecision && pickedOpt ? tr.tutor.pickOptionNoProof(pickedOpt.label) : tr.tutor.confirmNoProof}
+                  </span>
+                </button>
+              )}
+              {!confirmingNoSignal && canDecompose && !decomposeRunning && (
                 <button
                   onClick={handleDecompose}
                   disabled={!!job || !!decomposeBlocked}
                   title={decomposeBlocked?.reason ?? decomposeTitle}
-                  className="tap flex-1 min-w-0 px-2 min-h-[36px] text-xs bg-bg-secondary hover:bg-bg-elevated border border-border-base hover:border-ai-accent/40 rounded-sm text-text-secondary hover:text-ai-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                  className="tap btn btn-ai h-8 shrink-0 hidden sm:inline-flex"
                 >
-                  <span>◆</span>
-                  <span className="truncate">{tr.tutor.decomposeShort}</span>
+                  <span className="ai-icon" aria-hidden>
+                    ✦
+                  </span>
+                  {tr.tutor.decomposeShort}
                 </button>
-              ))}
-            {!resolved && !isDecision && !hasKids && (
-              <button
-                onClick={markKnownAndAdvance}
-                title={understand ? knownLabel : `${knownLabel} — ${tr.tutor.knownNoProofSub}`}
-                className="tap flex-1 min-w-0 px-2 min-h-[36px] text-xs rounded-sm border border-border-base bg-bg-elevated text-text-muted hover:text-ai-accent hover:border-ai-accent/40 transition-colors"
-              >
-                <span className="line-clamp-2">{knownLabel}</span>
-              </button>
-            )}
-            {resolved && (
-              <button
-                onClick={() => goToGT('failure')}
-                className="tap flex-1 min-w-0 px-2 min-h-[36px] text-xs rounded-sm border border-border-base text-text-muted hover:text-state-problem hover:border-state-problem/40 transition-colors"
-              >
-                {tr.tutor.failedInPractice}
-              </button>
-            )}
-            <button
-              onClick={() => {
-                selectNode(node.id);
-                setViewMode('graph');
-              }}
-              // No mobile o header já tem "Ver grafo" — sobra espaço pros rótulos.
-              className="tap hidden sm:block shrink-0 px-2.5 min-h-[36px] text-xs text-text-muted hover:text-text-primary border border-border-base rounded-sm transition-colors"
-            >
-              {tr.tutor.viewInGraph}
-            </button>
-          </div>
-        )}
-        {!resolved && !isDecision && !hasKids && !pendingHere && !understand && (
-          <div className="hidden sm:block text-[10px] text-text-muted leading-snug">
-            {tr.tutor.knownNoProofSub}
-          </div>
-        )}
+              )}
+              {!confirmingNoSignal && (
+                <OverflowMenu
+                  label={tr.topBar.moreActions}
+                  placement="up"
+                  buttonClassName="btn-secondary h-8 w-8"
+                  items={moreItems}
+                />
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1227,24 +1223,18 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
 
 function TutorBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="mb-5">
-      <div className="text-[10px] font-mono uppercase tracking-widest text-text-muted mb-2">
-        {label}
-      </div>
-      <div className="text-sm">{children}</div>
+    <div className="mb-6">
+      <h2 className="label mb-1.5">{label}</h2>
+      <div className="reading text-text-secondary">{children}</div>
     </div>
   );
 }
 
 function EmptyCard({ tr, onViewGraph }: { tr: Messages; onViewGraph: () => void }) {
   return (
-    <div className="max-w-xl mx-auto text-center py-12 sm:py-20">
-      <div className="text-5xl sm:text-6xl mb-4 text-text-muted">◌</div>
-      <p className="text-text-secondary mb-6">{tr.tutor.emptyTree}</p>
-      <button
-        onClick={onViewGraph}
-        className="text-xs text-text-muted hover:text-text-primary border border-border-base rounded-sm px-4 py-2 transition-colors"
-      >
+    <div className="max-w-md mx-auto text-center py-16 sm:py-24">
+      <p className="text-body text-text-secondary mb-5">{tr.tutor.emptyTree}</p>
+      <button onClick={onViewGraph} className="tap btn btn-secondary">
         {tr.tutor.viewGraphShort}
       </button>
     </div>
@@ -1269,24 +1259,43 @@ function DoneCard({
   const anchored = doneWithoutSignal === 0;
   const withoutProof = anchored ? [] : nodesWithoutSignal(project);
   return (
-    <div className="max-w-xl mx-auto text-center py-12 sm:py-20">
-      <div className={`text-5xl sm:text-6xl mb-4 ${anchored ? 'text-state-done' : 'text-conf-mid'}`}>
-        {anchored ? '✓' : '◓'}
-      </div>
-      <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary mb-3">
+    <div className="max-w-xl mx-auto text-center py-12 sm:py-20 animate-card-swap">
+      <svg
+        aria-hidden
+        width="56"
+        height="56"
+        viewBox="0 0 56 56"
+        fill="none"
+        className={`mx-auto mb-5 ${anchored ? 'text-state-done' : 'text-conf-mid'}`}
+      >
+        <circle cx="28" cy="28" r="26" stroke="currentColor" strokeOpacity=".25" strokeWidth="2.5" />
+        {anchored ? (
+          <path
+            d="M18 29l7 7 13-15"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            pathLength={1}
+            strokeDasharray="1"
+            className="animate-check-draw"
+          />
+        ) : (
+          <path d="M28 2a26 26 0 0 1 0 52Z" fill="currentColor" fillOpacity=".85" />
+        )}
+      </svg>
+      <h1 className="text-title1 font-bold text-text-primary mb-2">
         {anchored ? tr.tutor.projectDoneTitle : tr.tutor.projectWalkedTitle}
       </h1>
-      <p className="text-text-secondary">
+      <p className="text-body text-text-secondary max-w-read mx-auto">
         {anchored
           ? tr.tutor.projectDoneBody(project.name)
           : tr.tutor.projectWalkedBody(doneWithoutSignal)}
       </p>
       {withoutProof.length > 0 && (
-        <div className="mt-6 text-left">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-conf-mid mb-2">
-            {tr.tutor.withoutProofTitle}
-          </div>
-          <ul className="space-y-1.5">
+        <div className="mt-8 text-left">
+          <div className="label mb-2 px-1">{tr.tutor.withoutProofTitle}</div>
+          <ul className="card overflow-hidden divide-y divide-border-base/60">
             {withoutProof.map((id) => {
               const n = project.nodes[id];
               if (!n) return null;
@@ -1294,13 +1303,14 @@ function DoneCard({
                 <li key={id}>
                   <button
                     onClick={() => onPick(id)}
-                    className="tap w-full text-left text-sm px-3 py-2 rounded-sm border border-conf-mid/30 bg-conf-mid/5 hover:bg-conf-mid/10 text-text-secondary hover:text-text-primary transition-colors flex items-center gap-2"
+                    className="tap w-full text-left text-control px-3.5 py-2.5 text-text-primary hover:bg-bg-elevated/60 transition-colors duration-120 ease-mac flex items-center gap-2.5"
                   >
-                    <span className="text-[10px] font-mono text-conf-mid shrink-0">
-                      {tr.conceptNode[n.kind]}
-                    </span>
+                    <span className="w-2 h-2 rounded-full shrink-0 border border-dashed border-conf-mid" aria-hidden />
                     <span className="truncate flex-1">{n.name}</span>
-                    <span className="text-conf-mid shrink-0">→</span>
+                    <span className="chip shrink-0">{tr.conceptNode[n.kind]}</span>
+                    <svg aria-hidden width="8" height="12" viewBox="0 0 8 12" fill="none" className="shrink-0 text-text-faint">
+                      <path d="M2 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </button>
                 </li>
               );
@@ -1308,10 +1318,7 @@ function DoneCard({
           </ul>
         </div>
       )}
-      <button
-        onClick={onViewGraph}
-        className="mt-6 tap text-xs text-text-muted hover:text-text-primary border border-border-base rounded-sm px-4 py-2 transition-colors"
-      >
+      <button onClick={onViewGraph} className="mt-8 tap btn btn-secondary">
         {tr.tutor.viewInGraph}
       </button>
     </div>
@@ -1417,27 +1424,30 @@ function GroupRow({
   suggestions: number;
   tr: Messages;
 }) {
-  const complete = total > 0 && done === total;
+  // Nível 0 = cabeçalho de seção da sidebar (como no Finder); abaixo, grupo.
   return (
     <div
-      className={`flex items-baseline gap-2 pr-3 py-1.5 ${depth === 0 ? 'bg-bg-primary/50 border-y border-border-base mt-1' : ''}`}
-      style={{ paddingLeft: `${12 + depth * 14}px` }}
+      className={`flex items-center gap-2 pr-2 min-h-[28px] ${depth === 0 ? 'mt-3 first:mt-0' : ''}`}
+      style={{ paddingLeft: `${8 + depth * 14}px` }}
     >
       <span
-        className={`text-[10px] font-mono uppercase tracking-wider truncate ${
-          depth === 0 ? 'text-text-muted' : 'text-text-muted/80'
+        className={`truncate ${
+          depth === 0 ? 'text-footnote font-semibold text-text-muted' : 'text-control font-medium text-text-secondary'
         }`}
       >
         {node.name}
       </span>
       {suggestions > 0 && (
-        <span className="ml-auto shrink-0 text-[10px] font-mono text-ai-accent" title={tr.tutor.suggestionsBadgeTitle}>
+        <span className="ml-auto chip shrink-0 bg-ai-accent/12 text-ai-accent" title={tr.tutor.suggestionsBadgeTitle}>
           {tr.tutor.suggestionsBadge(suggestions)}
         </span>
       )}
-      <span className={`${suggestions > 0 ? '' : 'ml-auto '}text-[11px] font-mono shrink-0`}>
-        <span className={complete ? 'text-state-done' : 'text-text-secondary'}>{done}</span>
-        <span className="text-text-muted">/{total}</span>
+      <span
+        className={`${suggestions > 0 ? '' : 'ml-auto '}text-caption tabular-nums shrink-0 ${
+          'text-text-muted'
+        }`}
+      >
+        {done}/{total}
       </span>
     </div>
   );
@@ -1479,33 +1489,30 @@ function LeafRow({ node, project, depth, isCurrent, onPick, tr }: LeafRowProps) 
   // caminho sem prova nunca é o clique mais fácil.
   const quickConfirm = !resolved && !isDecision && canConcludeNode(project, node.id).ready;
 
-  const box = (
-    <>
-      {resolvedDone && <span className="text-[10px]">✓</span>}
-      {!resolvedDone && known && <span className="text-[10px]">✓</span>}
-      {!resolvedDone && !known && node.confirmado && <span className="text-[10px]">✓</span>}
-    </>
-  );
-  const boxCls = `w-5 h-5 rounded-sm border flex items-center justify-center transition-colors shrink-0 ${
+  // Checkbox 16px estilo macOS: verde cheio = com prova; tracejado âmbar = palpite.
+  const box = resolved ? (
+    <svg aria-hidden width="10" height="10" viewBox="0 0 12 12" fill="none">
+      <path d="M2.5 6.3l2.3 2.3 4.7-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ) : null;
+  const boxCls = `w-4 h-4 rounded-check flex items-center justify-center shrink-0 transition-colors duration-120 ease-mac ${
     resolvedDone
-      ? 'bg-state-done/20 border-state-done text-state-done'
+      ? 'bg-state-done/15 text-state-done'
       : known
-      ? 'bg-ai-accent/15 border-ai-accent/50 text-ai-accent'
+      ? 'bg-text-faint/25 text-text-secondary'
       : hunch
-      ? 'bg-conf-mid/15 border-conf-mid text-conf-mid'
+      ? 'border border-dashed border-conf-mid text-conf-mid'
       : quickConfirm
-      ? 'border-conf-high/60 hover:bg-conf-high/15'
-      : 'border-border-base'
+      ? 'ring-1 ring-inset ring-state-done/70 bg-bg-secondary'
+      : 'ring-1 ring-inset ring-text-faint/55 bg-bg-secondary'
   }`;
 
   return (
     <div
-      className={`flex items-center gap-2 pr-2 text-xs transition-colors ${
-        isCurrent
-          ? 'bg-ai-accent/10 border-l-2 border-ai-accent'
-          : 'hover:bg-bg-elevated/50 border-l-2 border-transparent'
-      } ${blocked ? 'opacity-60' : ''}`}
-      style={{ paddingLeft: `${10 + depth * 14}px` }}
+      className={`flex items-center gap-2 pr-1.5 rounded-chip transition-colors duration-120 ease-mac ${
+        isCurrent ? 'bg-accent/12' : 'hover:bg-text-faint/10'
+      } ${blocked ? 'opacity-55' : ''}`}
+      style={{ paddingLeft: `${8 + depth * 14}px` }}
     >
       {quickConfirm ? (
         <button
@@ -1514,9 +1521,9 @@ function LeafRow({ node, project, depth, isCurrent, onPick, tr }: LeafRowProps) 
             feedbackToast(tr.tutor.toastDone(node.name), true, tr);
           }}
           aria-label={`${tr.tutor.ariaConfirm}: ${node.name}`}
-          className={`tap ${boxCls}`}
+          className="tap -m-1 p-1 flex items-center justify-center rounded-check shrink-0 hover:[&>span]:bg-state-done/12"
         >
-          {box}
+          <span className={boxCls}>{box}</span>
         </button>
       ) : (
         <span aria-hidden className={boxCls}>
@@ -1528,14 +1535,18 @@ function LeafRow({ node, project, depth, isCurrent, onPick, tr }: LeafRowProps) 
         onClick={() => onPick(node.id)}
         aria-current={isCurrent ? 'true' : undefined}
         title={blocked ? `${node.name} (${tr.tutor.blockedRow})` : node.name}
-        className={`flex-1 min-w-0 text-left truncate py-2 min-h-[44px] md:min-h-[32px] ${
-          resolved ? 'text-text-muted line-through' : 'text-text-secondary hover:text-text-primary'
+        className={`tap flex-1 min-w-0 text-left text-control truncate py-1 min-h-[36px] md:min-h-[28px] rounded-chip ${
+          isCurrent
+            ? 'text-accent font-medium'
+            : resolved
+            ? 'text-text-muted'
+            : 'text-text-primary'
         }`}
       >
         {seq !== null ? (
-          <span className="text-text-muted font-mono mr-1">{seq}.</span>
+          <span className={`tabular-nums mr-1.5 ${isCurrent ? 'text-accent/80' : 'text-text-muted'}`}>{seq}.</span>
         ) : KIND_GLYPH[node.kind] ? (
-          <span className="text-text-muted font-mono mr-1">{KIND_GLYPH[node.kind]}</span>
+          <span className={`mr-1.5 ${isCurrent ? 'text-accent/80' : 'text-text-faint'}`}>{KIND_GLYPH[node.kind]}</span>
         ) : null}
         {node.name}
       </button>

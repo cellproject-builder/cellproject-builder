@@ -2,9 +2,178 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   Tokens (canais RGB). Claro em :root, escuro via prefers-color-scheme.
+   :root[data-theme='light'|'dark'] força um tema (depuração / preferência).
+   Contraste auditado (WCAG): ver comentários por token.
+   ========================================================================== */
 @layer base {
-  :root {
+  :root,
+  :root[data-theme='light'] {
+    color-scheme: light;
+
+    --bg-primary: 245 245 247; /* #F5F5F7 janela/canvas */
+    --bg-secondary: 255 255 255; /* #FFFFFF cards, painéis, inputs */
+    --bg-elevated: 237 237 240; /* #EDEDF0 hover, chips, segmented */
+    --border-base: 217 217 222; /* #D9D9DE */
+
+    --text-primary: 29 29 31; /* #1D1D1F 15.5 / 16.8 / 14.4 (prim/sec/elev) */
+    --text-secondary: 58 58 63; /* #3A3A3F 10.4 / 11.3 / 9.7 */
+    --text-muted: 99 99 104; /* #636368 5.5 / 6.0 / 5.1 */
+    --text-faint: 112 112 117; /* #707075 4.5 / 4.9 / 4.2 (≥12px, ícones) */
+
+    --accent: 0 98 224; /* #0062E0 texto 5.0 / 5.5 / 4.7 */
+    --accent-solid: 0 98 224; /* fundo do botão primário: branco 5.5 */
+    --accent-fg: 255 255 255;
+    --ai-accent: 116 68 212; /* #7444D4 5.5 / 6.0 / 5.1 */
+
+    --state-done: 28 122 51; /* #1C7A33 5.0 / 5.4 / 4.6 */
+    --conf-high: 28 122 51;
+    --conn-direct: 28 122 51;
+    --conf-mid: 158 87 0; /* #9E5700 5.1 / 5.5 / 4.7 */
+    --conn-middleware: 158 87 0;
+    --state-problem: 215 0 21; /* #D70015 4.9 / 5.4 / 4.6 */
+    --conf-low: 215 0 21;
+    --state-executing: 0 98 224;
+    --conn-independent: 0 98 224;
+    --conn-optional: 142 142 147; /* #8E8E93 só traço/ícone */
+    --state-concept: 142 142 147;
+    --state-validated: 58 58 63;
+    --state-discarded: 199 199 204;
+
+    --glass: 246 246 248;
+    --hairline: 176 176 184;
+    --scrim: 0 0 0;
+    --scrim-opacity: 0.25;
+    --segmented-active: 255 255 255; /* segmento ativo: mais claro que o trilho */
+
+    --shadow-mac-sm: 0 0 0 0.5px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.06);
+    --shadow-mac: 0 0 0 0.5px rgb(0 0 0 / 0.07), 0 1px 3px rgb(0 0 0 / 0.05),
+      0 6px 20px rgb(0 0 0 / 0.06);
+    --shadow-mac-lg: 0 0 0 0.5px rgb(0 0 0 / 0.1), 0 6px 16px rgb(0 0 0 / 0.08),
+      0 24px 64px rgb(0 0 0 / 0.18);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      color-scheme: dark;
+
+      --bg-primary: 28 28 30; /* #1C1C1E */
+      --bg-secondary: 44 44 46; /* #2C2C2E */
+      --bg-elevated: 58 58 60; /* #3A3A3C */
+      --border-base: 61 61 65; /* #3D3D41 */
+
+      --text-primary: 245 245 247; /* 15.6 / 12.8 / 10.4 */
+      --text-secondary: 209 209 214; /* 11.2 / 9.2 / 7.5 */
+      --text-muted: 174 174 178; /* #AEAEB2 7.7 / 6.3 / 5.1 */
+      --text-faint: 152 152 157; /* #98989D 5.9 / 4.9 / 4.0 (≥12px, ícones) */
+
+      --accent: 94 170 255; /* #5EAAFF texto 7.0 / 5.8 / 4.7 */
+      --accent-solid: 10 108 255; /* #0A6CFF fundo do botão: branco 4.6 */
+      --accent-fg: 255 255 255;
+      --ai-accent: 185 150 247; /* #B996F7 7.1 / 5.8 / 4.7 */
+
+      --state-done: 48 209 88; /* #30D158 8.4 / 6.9 / 5.6 */
+      --conf-high: 48 209 88;
+      --conn-direct: 48 209 88;
+      --conf-mid: 255 159 10; /* #FF9F0A 8.3 / 6.8 / 5.5 */
+      --conn-middleware: 255 159 10;
+      --state-problem: 255 123 114; /* #FF7B72 6.8 / 5.5 / 4.5 */
+      --conf-low: 255 123 114;
+      --state-executing: 94 170 255;
+      --conn-independent: 94 170 255;
+      --conn-optional: 142 142 147;
+      --state-concept: 142 142 147;
+      --state-validated: 229 229 234;
+      --state-discarded: 72 72 74;
+
+      --glass: 40 40 42;
+      --hairline: 96 96 102;
+      --scrim: 0 0 0;
+      --scrim-opacity: 0.45;
+      --segmented-active: 99 99 102; /* #636366: ativo mais claro que o trilho, como no macOS */
+
+      --shadow-mac-sm: inset 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 0 0 0.5px rgb(0 0 0 / 0.5),
+        0 1px 2px rgb(0 0 0 / 0.35);
+      --shadow-mac: inset 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 0 0 0.5px rgb(0 0 0 / 0.55),
+        0 2px 6px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.3);
+      --shadow-mac-lg: inset 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 0 0 0.5px rgb(0 0 0 / 0.6),
+        0 8px 20px rgb(0 0 0 / 0.4), 0 28px 72px rgb(0 0 0 / 0.55);
+    }
+  }
+
+  /* Override explícito do escuro: mesmos valores do bloco de mídia acima. */
+  :root[data-theme='dark'] {
     color-scheme: dark;
+    --bg-primary: 28 28 30;
+    --bg-secondary: 44 44 46;
+    --bg-elevated: 58 58 60;
+    --border-base: 61 61 65;
+    --text-primary: 245 245 247;
+    --text-secondary: 209 209 214;
+    --text-muted: 174 174 178;
+    --text-faint: 152 152 157;
+    --accent: 94 170 255;
+    --accent-solid: 10 108 255;
+    --accent-fg: 255 255 255;
+    --ai-accent: 185 150 247;
+    --state-done: 48 209 88;
+    --conf-high: 48 209 88;
+    --conn-direct: 48 209 88;
+    --conf-mid: 255 159 10;
+    --conn-middleware: 255 159 10;
+    --state-problem: 255 123 114;
+    --conf-low: 255 123 114;
+    --state-executing: 94 170 255;
+    --conn-independent: 94 170 255;
+    --conn-optional: 142 142 147;
+    --state-concept: 142 142 147;
+    --state-validated: 229 229 234;
+    --state-discarded: 72 72 74;
+    --glass: 40 40 42;
+    --hairline: 96 96 102;
+    --scrim: 0 0 0;
+    --scrim-opacity: 0.45;
+    --segmented-active: 99 99 102;
+    --shadow-mac-sm: inset 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 0 0 0.5px rgb(0 0 0 / 0.5),
+      0 1px 2px rgb(0 0 0 / 0.35);
+    --shadow-mac: inset 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 0 0 0.5px rgb(0 0 0 / 0.55),
+      0 2px 6px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.3);
+    --shadow-mac-lg: inset 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 0 0 0.5px rgb(0 0 0 / 0.6),
+      0 8px 20px rgb(0 0 0 / 0.4), 0 28px 72px rgb(0 0 0 / 0.55);
+  }
+
+  /* React Flow lê estas variáveis (não passe cores por props). */
+  :root {
+    --ease-mac: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --xy-background-color: rgb(var(--bg-primary));
+    --xy-background-pattern-dots-color: rgb(var(--text-faint) / 0.25);
+    --xy-background-pattern-color: rgb(var(--text-faint) / 0.25);
+    --xy-edge-stroke: rgb(var(--text-faint) / 0.5);
+    --xy-edge-stroke-selected: rgb(var(--accent));
+    --xy-edge-stroke-width: 1.5;
+    --xy-connectionline-stroke: rgb(var(--accent) / 0.7);
+    --xy-connectionline-stroke-width: 1.5;
+    --xy-edge-label-background-color: rgb(var(--bg-secondary));
+    --xy-edge-label-color: rgb(var(--text-muted));
+    --xy-controls-box-shadow: var(--shadow-mac);
+    --xy-controls-button-background-color: rgb(var(--bg-secondary));
+    --xy-controls-button-background-color-hover: rgb(var(--bg-elevated));
+    --xy-controls-button-color: rgb(var(--text-muted));
+    --xy-controls-button-color-hover: rgb(var(--text-primary));
+    --xy-controls-button-border-color: rgb(var(--border-base) / 0.7);
+    --xy-minimap-background-color: rgb(var(--bg-secondary));
+    --xy-minimap-mask-background-color: rgb(var(--bg-primary) / 0.6);
+    --xy-minimap-mask-stroke-color: rgb(var(--hairline));
+    --xy-minimap-node-background-color: rgb(var(--text-faint) / 0.5);
+    --xy-minimap-node-stroke-color: transparent;
+    --xy-handle-background-color: rgb(var(--bg-secondary));
+    --xy-handle-border-color: rgb(var(--text-faint) / 0.6);
+    --xy-selection-background-color: rgb(var(--accent) / 0.08);
+    --xy-selection-border: 1px solid rgb(var(--accent) / 0.5);
+    --xy-node-color: rgb(var(--text-primary));
+    --xy-node-background-color: rgb(var(--bg-secondary));
+    --xy-attribution-background-color: transparent;
   }
 
   html,
@@ -16,11 +185,19 @@
   }
 
   body {
-    background: #09090b;
-    color: #f4f4f5;
-    font-family: 'Inter', system-ui, sans-serif;
+    background: rgb(var(--bg-primary));
+    color: rgb(var(--text-primary));
+    font-family: theme('fontFamily.sans');
+    font-size: 13px;
+    line-height: 18px;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     overflow: hidden;
+  }
+
+  ::selection {
+    background: rgb(var(--accent) / 0.25);
   }
 
   @media (max-width: 767px) {
@@ -31,30 +208,63 @@
     }
   }
 
-  /* Foco visível padrão para teclado — sem anel no clique do mouse. */
-  :where(button, a, [role='button'], summary, select, input, textarea):focus-visible {
-    outline: 2px solid #8b5cf6;
-    outline-offset: 2px;
+  /* Foco estilo macOS: anel accent translúcido de 3px, só no teclado. */
+  :where(button, a, [role='button'], [role='tab'], [role='radio'], [role='checkbox'], summary, select, input, textarea, [tabindex]):focus-visible {
+    outline: 3px solid rgb(var(--accent) / 0.5);
+    outline-offset: 1px;
   }
 
+  /* Scrollbars finas, estilo overlay: polegar text-faint/40, trilho transparente.
+     Chromium/WebKit: só ::-webkit-scrollbar (scrollbar-width/color desligariam
+     os pseudo-elementos e trariam de volta as setas do Windows). */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
   }
-  ::-webkit-scrollbar-track {
-    background: #18181b;
+  ::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #3f3f46;
-    border-radius: 2px;
+    background: rgb(var(--text-faint) / 0.4);
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #52525b;
+    background-color: rgb(var(--text-faint) / 0.6);
+  }
+  /* Firefox (sem ::-webkit-scrollbar): propriedades padrão. */
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgb(var(--text-faint) / 0.4) transparent;
+    }
+  }
+
+  /* Movimento reduzido: anula animações/transições não essenciais. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
+/* ==========================================================================
+   Componentes da fundação
+   ========================================================================== */
 @layer components {
-  /* Alvo de toque mínimo de 44px em telas de toque (WCAG 2.5.5). */
+  /* .tap — alvo de toque mínimo de 44px em telas de toque (WCAG 2.5.5). */
   @media (pointer: coarse) {
     .tap {
       min-height: 44px;
@@ -62,8 +272,387 @@
     }
   }
 
+  /* .glass — vidro (vibrancy) só para cromo: toolbar, sidebar, status, popovers, toasts. */
+  .glass {
+    background-color: rgb(var(--glass) / 0.72);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border-color: rgb(var(--hairline) / 0.5);
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass {
+      background-color: rgb(var(--bg-secondary));
+    }
+  }
+
+  /* .glass-host — mesmo vidro, mas o backdrop-filter mora num ::before. Use em
+     cromo que hospeda popovers (TopBar): um pai com backdrop-filter vira o
+     "backdrop root" dos filhos no Chromium, e o blur do menu não pegaria a
+     página. Requer position (relative/absolute/sticky) no elemento. */
+  .glass-host {
+    isolation: isolate;
+    border-color: rgb(var(--hairline) / 0.5);
+  }
+  .glass-host::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background-color: rgb(var(--glass) / 0.72);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass-host::before {
+      background-color: rgb(var(--bg-secondary));
+    }
+  }
+
+  /* .bar-solid — barra de ação sobre conteúdo: opaca (nada vaza por trás), sem vidro (o blur
+     saturado borrava os botões que rolam por baixo). */
+  .bar-solid {
+    background-color: rgb(var(--bg-secondary));
+    border-color: rgb(var(--border-base) / 0.7);
+  }
+
+  /* .scroll-stable — reserva a calha da scrollbar (sem pulo de layout). */
+  .scroll-stable {
+    scrollbar-gutter: stable;
+  }
+
+  /* .scrim — fundo atrás de modais/sheets (.25 claro, .45 escuro). */
+  .scrim {
+    background-color: rgb(var(--scrim) / var(--scrim-opacity));
+  }
+
+  /* .btn — base de botão: 32px, raio 8, 13px/500; combine com uma variante. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: theme('borderRadius.control');
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 500;
+    white-space: nowrap;
+    user-select: none;
+    cursor: pointer;
+    transition-property: background-color, box-shadow, color, filter, transform, opacity;
+    transition-duration: 120ms;
+    transition-timing-function: var(--ease-mac);
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.98);
+    filter: brightness(0.96);
+  }
+  .btn:disabled,
+  .btn[aria-disabled='true'] {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  /* Primário desabilitado estilo macOS: cinza neutro, nada de azul apagado. */
+  .btn-primary:disabled,
+  .btn-primary[aria-disabled='true'] {
+    opacity: 1;
+    background-color: rgb(var(--bg-elevated));
+    background-image: none;
+    color: rgb(var(--text-faint));
+    box-shadow: none;
+  }
+  @media (pointer: coarse) {
+    .btn {
+      min-height: 44px;
+    }
+  }
+
+  /* .btn-primary — ação principal: fundo accent sólido, texto accent-fg, gradiente sutil. */
+  .btn-primary {
+    background-color: rgb(var(--accent-solid));
+    background-image: linear-gradient(rgb(255 255 255 / 0.08), rgb(255 255 255 / 0));
+    color: rgb(var(--accent-fg));
+    box-shadow: var(--shadow-mac-sm);
+  }
+  .btn-primary:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
+
+  /* .btn-secondary — fundo bg-secondary com anel hairline + mac-sm. */
+  .btn-secondary,
+  .btn-ai {
+    background-color: rgb(var(--bg-secondary));
+    color: rgb(var(--text-primary));
+    box-shadow: var(--shadow-mac-sm);
+  }
+  .btn-secondary:hover:not(:disabled),
+  .btn-ai:hover:not(:disabled) {
+    background-color: rgb(var(--bg-elevated) / 0.7);
+  }
+
+  /* .btn-ai — igual ao secundário; o ícone ✦ (ou .ai-icon) fica em ai-accent. */
+  .btn-ai .ai-icon,
+  .ai-icon {
+    color: rgb(var(--ai-accent));
+  }
+
+  /* .btn-tertiary — só texto accent, fundo aparece no hover. */
+  .btn-tertiary {
+    background-color: transparent;
+    color: rgb(var(--accent));
+    padding: 0 8px;
+  }
+  .btn-tertiary:hover:not(:disabled) {
+    background-color: rgb(var(--accent) / 0.1);
+  }
+
+  /* .btn-ghost — botão neutro sem fundo (ícones de toolbar, fechar). */
+  .btn-ghost {
+    background-color: transparent;
+    color: rgb(var(--text-muted));
+    padding: 0 8px;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background-color: rgb(var(--bg-elevated));
+    color: rgb(var(--text-primary));
+  }
+
+  /* .btn-danger — ação destrutiva (texto/anel state-problem sobre bg-secondary). */
+  .btn-danger {
+    background-color: rgb(var(--bg-secondary));
+    color: rgb(var(--state-problem));
+    box-shadow: var(--shadow-mac-sm);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background-color: rgb(var(--state-problem) / 0.08);
+  }
+
+  /* .btn-sm — tamanho compacto: 24px, 12px de fonte. */
+  .btn-sm {
+    height: 24px;
+    padding: 0 8px;
+    font-size: 12px;
+    line-height: 16px;
+    gap: 4px;
+    border-radius: theme('borderRadius.chip');
+  }
+
+  /* .btn-icon — botão quadrado só com ícone (30px; com .btn-sm, 24px). */
+  .btn-icon {
+    width: 30px;
+    padding: 0;
+  }
+  .btn-icon.btn-sm {
+    width: 24px;
+  }
+
+  /* .field — input/textarea/select: bg-secondary, anel hairline, foco accent/40 de 3px. */
+  .field {
+    display: block;
+    width: 100%;
+    min-height: 30px;
+    padding: 6px 10px;
+    border-radius: theme('borderRadius.control');
+    background-color: rgb(var(--bg-secondary));
+    color: rgb(var(--text-primary));
+    font-size: 13px;
+    line-height: 18px;
+    border: 0;
+    box-shadow: inset 0 0 0 1px rgb(var(--border-base)), 0 1px 1px rgb(0 0 0 / 0.02);
+    transition: box-shadow 120ms var(--ease-mac);
+  }
+  .field::placeholder {
+    color: rgb(var(--text-faint));
+  }
+  .field:focus,
+  .field:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 1px rgb(var(--accent) / 0.8), 0 0 0 3px rgb(var(--accent) / 0.4);
+  }
+  .field:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .field[aria-invalid='true'] {
+    box-shadow: inset 0 0 0 1px rgb(var(--state-problem) / 0.8);
+  }
+  textarea.field {
+    resize: vertical;
+    line-height: 1.5;
+  }
+  @media (pointer: coarse) {
+    .field {
+      min-height: 44px;
+    }
+  }
+
+  /* .card — superfície de conteúdo: bg-secondary, raio 12, shadow-mac (nunca vidro). */
+  .card {
+    background-color: rgb(var(--bg-secondary));
+    border-radius: theme('borderRadius.card');
+    box-shadow: var(--shadow-mac);
+  }
+
+  /* .chip — rótulo/badge discreto: 20px, raio 6, 11px/500 em bg-elevated. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: theme('borderRadius.chip');
+    background-color: rgb(var(--bg-elevated));
+    color: rgb(var(--text-secondary));
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* .label — rótulo de seção em sentence case: 12px/500 text-muted (substitui UPPERCASE). */
+  .label {
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 500;
+    color: rgb(var(--text-muted));
+  }
+
+  /* .segmented — trilho do controle segmentado (NSSegmentedControl). */
+  .segmented {
+    display: inline-flex;
+    align-items: stretch;
+    gap: 2px;
+    padding: 2px;
+    border-radius: theme('borderRadius.control');
+    background-color: rgb(var(--bg-elevated));
+  }
+  /* .segmented-item — segmento; ativo com aria-pressed/aria-selected/aria-checked=true. */
+  .segmented-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 24px;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 500;
+    color: rgb(var(--text-secondary));
+    white-space: nowrap;
+    transition-property: background-color, box-shadow, color, transform;
+    transition-duration: 200ms;
+    transition-timing-function: var(--ease-mac);
+  }
+  .segmented-item:hover:not([aria-pressed='true']):not([aria-selected='true']):not([aria-checked='true']) {
+    color: rgb(var(--text-primary));
+    background-color: rgb(var(--bg-secondary) / 0.4);
+  }
+  .segmented-item:active {
+    transform: scale(0.97);
+  }
+  .segmented-item[aria-pressed='true'],
+  .segmented-item[aria-selected='true'],
+  .segmented-item[aria-checked='true'] {
+    background-color: rgb(var(--segmented-active));
+    color: rgb(var(--text-primary));
+    box-shadow: var(--shadow-mac-sm);
+  }
+  @media (pointer: coarse) {
+    .segmented-item {
+      min-height: 40px;
+    }
+  }
+
+  /* .checkbox-mac — <input type=checkbox|radio> estilo macOS, 16px, accent quando marcado. */
+  .checkbox-mac {
+    appearance: none;
+    -webkit-appearance: none;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    border-radius: theme('borderRadius.check');
+    background-color: rgb(var(--bg-secondary));
+    box-shadow: inset 0 0 0 1px rgb(var(--text-faint) / 0.55), 0 1px 1px rgb(0 0 0 / 0.04);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 12px 12px;
+    cursor: pointer;
+    transition: background-color 120ms var(--ease-mac), box-shadow 120ms var(--ease-mac);
+  }
+  .checkbox-mac[type='radio'] {
+    border-radius: 999px;
+  }
+  .checkbox-mac:checked,
+  .checkbox-mac:indeterminate {
+    background-color: rgb(var(--accent-solid));
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  }
+  .checkbox-mac[type='checkbox']:checked {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.3l2.3 2.3 4.7-5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+  .checkbox-mac[type='checkbox']:indeterminate {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 6h6' stroke='white' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+  }
+  .checkbox-mac[type='radio']:checked {
+    background-image: radial-gradient(circle, rgb(var(--accent-fg)) 0 3px, transparent 3.5px);
+    background-size: 100% 100%;
+  }
+  .checkbox-mac:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .checkbox-mac:focus-visible {
+    outline: 3px solid rgb(var(--accent) / 0.5);
+    outline-offset: 1px;
+  }
+
+  /* .divider — hairline horizontal de 1px em border-base/70 (prefira espaço a linha). */
+  .divider {
+    height: 1px;
+    border: 0;
+    background-color: rgb(var(--border-base) / 0.7);
+  }
+
+  /* .kbd — tecla de atalho (⌘K): 11px, raio 5, bg-elevated com base sutil. */
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 5px;
+    font-family: theme('fontFamily.sans');
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 500;
+    color: rgb(var(--text-muted));
+    background-color: rgb(var(--bg-elevated));
+    box-shadow: inset 0 -1px 0 rgb(var(--border-base));
+  }
+
+  /* .reading — coluna de leitura (tutor/modo leitura): 15px, 1.55, máx. 68ch. */
+  .reading {
+    font-size: 15px;
+    line-height: 1.55;
+    max-width: 68ch;
+  }
+
+  /* .canvas-dots — grade de pontos estilo Freeform (text-faint/25 a cada 20px). */
+  .canvas-dots {
+    background-color: rgb(var(--bg-primary));
+    background-image: radial-gradient(rgb(var(--text-faint) / 0.25) 1px, transparent 1.2px);
+    background-size: 20px 20px;
+  }
+
+  /* ---- React Flow (cores vêm das variáveis --xy-* em :root) ---- */
   .react-flow {
-    background: #09090b;
+    background: rgb(var(--bg-primary));
     overscroll-behavior: contain;
   }
   @media (max-width: 767px) {
@@ -71,50 +660,64 @@
       display: none;
     }
   }
-  .react-flow__edge-path {
-    stroke-width: 2;
+  .react-flow .react-flow__edge-path {
+    stroke-width: 1.5;
   }
-  .react-flow__controls {
-    background: #18181b;
-    border: 1px solid #3f3f46;
+  .react-flow .react-flow__controls {
+    border-radius: theme('borderRadius.control');
+    overflow: hidden;
+    box-shadow: var(--shadow-mac);
   }
-  .react-flow__controls-button {
-    background: #18181b;
-    border-bottom: 1px solid #3f3f46;
-    color: #a1a1aa;
+  .react-flow .react-flow__controls-button {
+    width: 28px;
+    height: 28px;
+    background: rgb(var(--bg-secondary));
+    border-bottom: 1px solid rgb(var(--border-base) / 0.7);
+    color: rgb(var(--text-muted));
     fill: currentColor;
+    transition: background-color 120ms var(--ease-mac), color 120ms var(--ease-mac);
   }
-  .react-flow__controls-button:hover {
-    background: #27272a;
-    color: #f4f4f5;
+  .react-flow .react-flow__controls-button:hover {
+    background: rgb(var(--bg-elevated));
+    color: rgb(var(--text-primary));
   }
-  .react-flow__controls-button:last-child {
+  .react-flow .react-flow__controls-button:last-child {
     border-bottom: none;
   }
-  .react-flow__controls-button svg {
+  .react-flow .react-flow__controls-button svg {
     fill: currentColor;
-    max-width: 14px;
-    max-height: 14px;
+    max-width: 12px;
+    max-height: 12px;
   }
-  .react-flow__controls-button:disabled {
-    color: #52525b;
+  .react-flow .react-flow__controls-button:disabled {
+    color: rgb(var(--text-faint) / 0.5);
     cursor: not-allowed;
   }
-  .react-flow__controls-button:focus-visible {
-    outline: 2px solid #8b5cf6;
-    outline-offset: -2px;
+  .react-flow .react-flow__controls-button:focus-visible {
+    outline: 3px solid rgb(var(--accent) / 0.5);
+    outline-offset: -3px;
   }
   @media (pointer: coarse) {
-    .react-flow__controls-button {
-      width: 36px;
-      height: 36px;
+    .react-flow .react-flow__controls-button {
+      width: 40px;
+      height: 40px;
     }
   }
-  .react-flow__minimap {
-    background: #18181b;
-    border: 1px solid #3f3f46;
+  .react-flow .react-flow__minimap {
+    background: rgb(var(--bg-secondary));
+    border-radius: theme('borderRadius.card');
+    overflow: hidden;
+    box-shadow: var(--shadow-mac);
   }
-  .react-flow__attribution {
+  .react-flow .react-flow__handle {
+    width: 6px;
+    height: 6px;
+    min-width: 6px;
+    min-height: 6px;
+    background: rgb(var(--bg-secondary));
+    border: 1px solid rgb(var(--text-faint) / 0.6);
+  }
+  .react-flow .react-flow__attribution {
     display: none;
   }
 }

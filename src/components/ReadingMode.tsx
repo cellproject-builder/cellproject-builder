@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import type { ConceptNodeData } from '@/types';
 import { useAIReveal } from '@/hooks/useAIReveal';
 import { useT } from '@/i18n';
-import { ExplanationContent, extractHeadings } from './Markdown';
+import { OverflowMenu } from './ui/OverflowMenu';
+import { ExplanationContent, extractHeadings, sentenceCase } from './Markdown';
 
 // ---------------------------------------------------------------------------
 // Modo leitura — overlay em tela cheia pra ler com conforto o conteúdo
@@ -132,164 +133,190 @@ export function ReadingMode({
     // pro drawer invisível atrás.
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-[60] bg-bg-primary flex flex-col pointer-events-auto"
+      className="fixed inset-0 z-[60] bg-bg-secondary flex flex-col pointer-events-auto animate-scrim-in"
       role="dialog"
       aria-modal="true"
       aria-label={`${tr.reading.kicker}: ${node.name}`}
     >
-      <header className="shrink-0 border-b border-border-base bg-bg-secondary">
-        <div className="max-w-3xl mx-auto px-4 sm:px-8 py-3 flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-ai-accent mb-0.5">
-              ◆ {tr.reading.kicker} · {tr.conceptNode[node.kind]}
-            </div>
-            <h1 className="text-lg sm:text-xl font-semibold text-text-primary leading-snug">
-              {node.name}
-            </h1>
-            {breadcrumb.length > 0 && (
-              <div className="text-xs text-text-muted mt-1 truncate">{breadcrumb.join(' › ')}</div>
-            )}
-          </div>
+      {/* Barra de janela estilo Reader: vidro, título curto ao centro. */}
+      <header className="glass shrink-0 border-b pt-[env(safe-area-inset-top)]">
+        <div className="h-[52px] px-3 sm:px-4 grid grid-cols-[auto_1fr_auto] items-center gap-3">
           <button
             ref={closeRef}
             onClick={onClose}
             title={tr.reading.close}
             aria-label={tr.reading.close}
-            className="tap shrink-0 w-9 h-9 min-h-[36px] flex items-center justify-center rounded-sm border border-border-base text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors text-lg"
+            className="tap btn btn-ghost btn-icon"
           >
-            ×
+            <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
           </button>
+          <div className="min-w-0 text-center text-control font-semibold text-text-primary truncate">
+            {node.name}
+          </div>
+          <span className="w-[30px]" aria-hidden />
         </div>
       </header>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
-        <article className="max-w-3xl mx-auto px-4 sm:px-8 py-6 sm:py-10 pb-24 space-y-8">
-          <section className="space-y-5">
-            <ReadingField label={tr.detail.whatIs} value={node.oQue} />
-            <ReadingField label={tr.detail.whyNeeded} value={node.porQue} />
-            {node.kind !== 'root' && node.kind !== 'categoria' && (
-              <div>
-                <div className="text-[11px] font-mono uppercase tracking-widest text-text-muted mb-1.5">
-                  {tr.reading.howToConfirm}
-                </div>
-                {userCriterion && (
-                  <p className="text-[15px] sm:text-base text-text-secondary leading-relaxed">
-                    <span className="text-xs font-mono uppercase tracking-wider text-ai-accent mr-2">
-                      {tr.reading.yourCriterion}
-                    </span>
-                    {userCriterion}
-                  </p>
-                )}
-                {revealAI ? (
-                  node.comoConfirmar?.trim() && (
-                    <p className="text-[15px] sm:text-base text-text-secondary leading-relaxed mt-1">
-                      <span className="text-xs font-mono uppercase tracking-wider text-text-muted mr-2">
-                        {tr.reading.aiCriterion}
-                      </span>
-                      {node.comoConfirmar}
-                    </p>
-                  )
-                ) : (
-                  <p className="text-sm text-text-muted italic border border-dashed border-border-base rounded-sm px-3 py-2">
-                    {node.comoConfirmarUsuarioAt
-                      ? tr.groundTruth.aiAfterUndoWindow
-                      : tr.reading.writeYoursFirst}
-                  </p>
-                )}
-              </div>
-            )}
-          </section>
-
-          <section>
-            <div className="text-[11px] font-mono uppercase tracking-widest text-ai-accent mb-3 pb-2 border-b border-border-base">
-              ◆ {tr.reading.explanation}
+        <article className="max-w-[720px] mx-auto px-5 sm:px-10 pt-8 sm:pt-14 pb-24">
+          <div className="reading mx-auto">
+            <div className="label mb-2">
+              {tr.reading.kicker} · {tr.conceptNode[node.kind]}
             </div>
-            {headings.length > 1 && (
-              <nav aria-label={tr.reading.contents} className="mb-5">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-text-muted mb-1.5">
-                  {tr.reading.contents}
-                </div>
-                <ol className="flex flex-wrap gap-1.5">
-                  {headings.map((h, i) => (
-                    <li key={i}>
-                      <button
-                        onClick={() => jumpTo(i)}
-                        className="text-xs text-text-secondary hover:text-ai-accent border border-border-base hover:border-ai-accent/40 rounded-sm px-2 py-1 transition-colors"
-                      >
-                        {h}
-                      </button>
-                    </li>
-                  ))}
-                </ol>
-              </nav>
+            <h1 className="text-title2 sm:text-title1 font-bold text-text-primary">{node.name}</h1>
+            {breadcrumb.length > 0 && (
+              <div className="text-footnote text-text-muted mt-2 truncate">{breadcrumb.join(' › ')}</div>
             )}
-            {explanation ? (
-              <ExplanationContent text={explanation} variant="reading" idPrefix={HEADING_PREFIX} />
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-text-muted italic">{tr.reading.noExplanation}</p>
-                {onGenerate && (
-                  <button
-                    onClick={onGenerate}
-                    disabled={generating}
-                    className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] bg-ai-accent/10 hover:bg-ai-accent/20 border border-ai-accent/30 rounded-sm text-ai-accent text-sm transition-colors disabled:opacity-60"
-                  >
-                    <span>◆</span>
-                    {generating ? tr.reading.generating : tr.reading.generate}
-                  </button>
-                )}
-              </div>
-            )}
-          </section>
 
-          {research && (
-            <section>
-              <div className="text-[11px] font-mono uppercase tracking-widest text-ai-accent mb-3 pb-2 border-b border-border-base">
-                ◆ {tr.reading.research}
-              </div>
-              <ExplanationContent text={research.findings} variant="reading" />
-              {research.sources.length > 0 && (
-                <ul className="mt-4 space-y-1.5">
-                  {research.sources.map((s) => (
-                    <li key={s.url} className="text-sm pl-4 relative">
-                      <span className="absolute left-0 text-text-muted">•</span>
-                      <a
-                        href={s.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-ai-accent underline decoration-ai-accent/40 hover:decoration-ai-accent transition-colors break-all"
-                      >
-                        {s.title || s.url}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
+            <section className="mt-8 space-y-6">
+              <ReadingField label={tr.detail.whatIs} value={node.oQue} />
+              <ReadingField label={tr.detail.whyNeeded} value={node.porQue} />
+              {node.kind !== 'root' && node.kind !== 'categoria' && (
+                <div>
+                  <h2 className="label mb-1.5">{tr.reading.howToConfirm}</h2>
+                  {userCriterion && (
+                    <p className="text-text-secondary">
+                      <span className="text-footnote font-medium text-accent mr-2">
+                        {tr.reading.yourCriterion}
+                      </span>
+                      {userCriterion}
+                    </p>
+                  )}
+                  {revealAI ? (
+                    node.comoConfirmar?.trim() && (
+                      <p className="text-text-secondary mt-2">
+                        <span className="text-footnote font-medium text-ai-accent mr-2">
+                          {tr.reading.aiCriterion}
+                        </span>
+                        {node.comoConfirmar}
+                      </p>
+                    )
+                  ) : (
+                    <p className="text-control text-text-muted bg-bg-elevated/60 rounded-control px-3 py-2 mt-1">
+                      {node.comoConfirmarUsuarioAt
+                        ? tr.groundTruth.aiAfterUndoWindow
+                        : tr.reading.writeYoursFirst}
+                    </p>
+                  )}
+                </div>
               )}
             </section>
-          )}
+
+            <hr className="divider my-10" />
+
+            <section>
+              <h2 className="text-title3 font-semibold text-text-primary mb-4 flex items-center gap-2">
+                <span className="ai-icon text-[15px]" aria-hidden>
+                  ✦
+                </span>
+                {tr.reading.explanation}
+              </h2>
+              {headings.length > 1 && (
+                <nav aria-label={tr.reading.contents} className="mb-6">
+                  <div className="label mb-2">{tr.reading.contents}</div>
+                  <ol className="flex flex-wrap gap-1.5">
+                    {headings.map((h, i) => (
+                      <li key={i}>
+                        <button onClick={() => jumpTo(i)} className="tap btn btn-secondary btn-sm">
+                          {sentenceCase(h)}
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                </nav>
+              )}
+              {explanation ? (
+                <ExplanationContent text={explanation} variant="reading" idPrefix={HEADING_PREFIX} />
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-text-muted">{tr.reading.noExplanation}</p>
+                  {onGenerate && (
+                    <button onClick={onGenerate} disabled={generating} className="tap btn btn-ai">
+                      <span className={`ai-icon ${generating ? 'animate-pulse-subtle' : ''}`} aria-hidden>
+                        ✦
+                      </span>
+                      {generating ? tr.reading.generating : tr.reading.generate}
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
+
+            {research && (
+              <section className="mt-12">
+                <h2 className="text-title3 font-semibold text-text-primary mb-4 flex items-center gap-2">
+                  <span className="ai-icon text-[15px]" aria-hidden>
+                    ✦
+                  </span>
+                  {tr.reading.research}
+                </h2>
+                <ExplanationContent text={research.findings} variant="reading" />
+                {research.sources.length > 0 && (
+                  <ul className="mt-5 space-y-2">
+                    {research.sources.map((s) => (
+                      <li key={s.url} className="text-control pl-5 relative">
+                        <span aria-hidden className="absolute left-1 text-text-faint">
+                          •
+                        </span>
+                        <a
+                          href={s.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-accent underline decoration-accent/30 underline-offset-2 hover:decoration-accent transition-colors duration-120 break-all"
+                        >
+                          {s.title || s.url}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
+          </div>
         </article>
       </div>
 
       {actions.length > 0 && (
         <footer
           aria-label={tr.reading.actions}
-          className="shrink-0 border-t border-border-base bg-bg-secondary pb-[env(safe-area-inset-bottom)]"
+          className="glass-host relative shrink-0 border-t pb-[env(safe-area-inset-bottom)]"
         >
-          <div className="max-w-3xl mx-auto px-4 sm:px-8 py-2.5 flex flex-wrap gap-2">
-            {actions.map((a) => (
-              <button
-                key={a.label}
-                onClick={run(a)}
-                disabled={a.disabled}
-                className={`tap min-h-[40px] px-3 rounded-sm border text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  a.tone === 'primary'
-                    ? 'flex-1 bg-conf-high/15 hover:bg-conf-high/30 text-conf-high border-conf-high/40 font-medium'
-                    : 'bg-bg-elevated text-text-secondary hover:text-ai-accent border-border-base hover:border-ai-accent/40'
-                }`}
-              >
-                {a.label}
-              </button>
-            ))}
+          <div className="max-w-[720px] mx-auto px-5 sm:px-10 py-3">
+            {/* Uma linha, alinhada à direita da coluna de leitura: a ação do
+                momento em destaque e as demais num menu "…". */}
+            <div className="max-w-read mx-auto text-body flex items-center justify-end gap-2">
+              {onConfirm ? (
+                <>
+                  <OverflowMenu
+                    label={tr.reading.actions}
+                    placement="up"
+                    items={[onDecompose, onKnown]
+                      .filter((a): a is ReadingAction => Boolean(a))
+                      .map((a) => ({ key: a.label, label: a.label, onClick: run(a), disabled: a.disabled }))}
+                  />
+                  <button
+                    onClick={run(onConfirm)}
+                    disabled={onConfirm.disabled}
+                    className={`tap btn min-w-0 max-w-full ${onConfirm.tone === 'primary' ? 'btn-primary' : 'btn-secondary'}`}
+                  >
+                    <span className="truncate">{onConfirm.label}</span>
+                  </button>
+                </>
+              ) : (
+                actions.map((a) => (
+                  <button
+                    key={a.label}
+                    onClick={run(a)}
+                    disabled={a.disabled}
+                    className="tap btn btn-secondary min-w-0"
+                  >
+                    <span className="truncate">{a.label}</span>
+                  </button>
+                ))
+              )}
+            </div>
           </div>
         </footer>
       )}
@@ -303,10 +330,8 @@ function ReadingField({ label, value }: { label: string; value: string }) {
   if (!value?.trim()) return null;
   return (
     <div>
-      <div className="text-[11px] font-mono uppercase tracking-widest text-text-muted mb-1.5">
-        {label}
-      </div>
-      <p className="text-[15px] sm:text-base text-text-secondary leading-relaxed">{value}</p>
+      <h2 className="label mb-1.5">{label}</h2>
+      <p className="text-text-secondary">{value}</p>
     </div>
   );
 }

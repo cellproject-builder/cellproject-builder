@@ -104,21 +104,22 @@ const DEC_MCU = 'demo-dec-mcu';
 
 const POS = {
   root: { x: 0, y: 0 },
-  catRec: { x: -700, y: 240 },
+  catRec: { x: -770, y: 240 },
   catExe: { x: 0, y: 240 },
   catDec: { x: 700, y: 240 },
 
-  // Recursos — 3 colunas × ~4 linhas
-  chassi: { x: -950, y: 500 },
-  motores: { x: -700, y: 500 },
-  driver: { x: -450, y: 500 },
-  mcu: { x: -950, y: 700 },
-  rf: { x: -700, y: 700 },
-  bateria: { x: -450, y: 700 },
-  rodas: { x: -950, y: 900 },
-  fios: { x: -700, y: 900 },
-  controle: { x: -450, y: 900 },
-  ferramentas: { x: -700, y: 1100 },
+  // Recursos — 3 colunas × ~4 linhas. Passo de 320px: o card mais largo
+  // (300px, zoom perto) ainda fica com 20px de folga entre irmãos.
+  chassi: { x: -1100, y: 500 },
+  motores: { x: -780, y: 500 },
+  driver: { x: -460, y: 500 },
+  mcu: { x: -1100, y: 700 },
+  rf: { x: -780, y: 700 },
+  bateria: { x: -460, y: 700 },
+  rodas: { x: -1100, y: 900 },
+  fios: { x: -780, y: 900 },
+  controle: { x: -460, y: 900 },
+  ferramentas: { x: -780, y: 1100 },
 
   // Execução — cascata vertical
   design: { x: 0, y: 500 },
@@ -768,6 +769,17 @@ function makeNodes(): Record<string, ConceptNodeData> {
       'Imprimir sem CAD revisado garante 2-3 reimpressões. Fusão antes economiza filamento.',
     comoConfirmar:
       'STL exportado, verificado em slicer (sem manifold errors), com tolerância de furo M3 = 3.2mm.',
+    groundTruthRefs: [
+      gtRef({
+        kind: 'medida',
+        label: 'Furo M3 no corpo de prova',
+        value: 'Ø 3.2mm medido no paquímetro; parafuso M3 entra sem forçar',
+        verificado: true,
+        addedAt: ts(2700),
+        verifiedAt: ts(2950),
+        addedByAI: false,
+      }),
+    ],
     confirmado: true,
     order: 0,
     state: 'done',

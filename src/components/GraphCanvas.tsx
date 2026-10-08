@@ -2,11 +2,13 @@ import { memo, useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import {
   ReactFlow,
   Background,
+  BackgroundVariant,
   Controls,
   ControlButton,
   MiniMap,
   Panel,
   useReactFlow,
+  useNodesInitialized,
   type Node,
   type Edge,
   type NodeChange,
@@ -48,32 +50,64 @@ interface ColumnHeaderData {
 const ColumnHeaderNode = memo(function ColumnHeaderNode({ data }: NodeProps) {
   const d = data as unknown as ColumnHeaderData;
   return (
+    // Cabeçalho quieto: texto primário, cor só no ponto; hairline neutra.
     <div
       style={{ width: d.width }}
-      className={`pointer-events-none select-none border-b-2 pb-2 font-mono text-xl uppercase tracking-wider ${d.tone}`}
+      className="pointer-events-none select-none flex items-center gap-2 border-b border-border-base/70 pb-2 text-title3 font-semibold text-text-primary"
     >
-      {d.label} <span className="text-text-muted">· {d.count}</span>
+      <span aria-hidden className={`w-2 h-2 rounded-full shrink-0 ${d.tone}`} />
+      <span>{d.label}</span>
+      <span className="font-medium tabular-nums text-text-muted">{d.count}</span>
     </div>
   );
 });
 
 const nodeTypes = { concept: ConceptNode, columnHeader: ColumnHeaderNode };
 
+const MOBILE_LENSES: Lens[] = ['structure', 'flow', 'risk', 'state', 'connections'];
+const LENS_LABEL_KEY = {
+  structure: 'lensStructure',
+  flow: 'lensFlow',
+  risk: 'lensRisk',
+  state: 'lensState',
+  connections: 'lensConnections',
+} as const satisfies Record<Lens, string>;
+
 // 'direct' é a sequência comum (passo → próximo): neutra, para as cores
 // guardarem significado para o que é exceção.
+// Cores pelas variáveis do tema (claro/escuro automático), nunca hex.
 const edgeStyleByKind: Record<ConceptEdgeData['kind'], { stroke: string; strokeWidth: number; strokeDasharray?: string }> = {
-  direct: { stroke: '#a1a1aa', strokeWidth: 2 },
-  middleware: { stroke: '#f59e0b', strokeWidth: 2, strokeDasharray: '4 2' },
-  independent: { stroke: '#6366f1', strokeWidth: 1.5, strokeDasharray: '6 4' },
-  optional: { stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '2 3' },
+  // Cor opaca (mistura com o fundo) em vez de alpha: arestas sobrepostas não
+  // escurecem onde se cruzam.
+  direct: { stroke: 'color-mix(in srgb, rgb(var(--text-muted)) 70%, rgb(var(--bg-primary)))', strokeWidth: 1.5 },
+  middleware: { stroke: 'rgb(var(--conn-middleware))', strokeWidth: 1.5, strokeDasharray: '4 3' },
+  independent: { stroke: 'rgb(var(--conn-independent))', strokeWidth: 1.5, strokeDasharray: '6 4' },
+  optional: { stroke: 'rgb(var(--conn-optional))', strokeWidth: 1.25, strokeDasharray: '2 3' },
 };
 
-const SUGGESTION_EDGE_STYLE = { stroke: '#8b5cf6', strokeWidth: 1.5, strokeDasharray: '3 3' };
+const SUGGESTION_EDGE_STYLE = { stroke: 'rgb(var(--ai-accent))', strokeWidth: 1.5, strokeDasharray: '3 3' };
 
 // Hierarchy (parent → part) is structure, not semantics — the tree already
 // lives in parentId. Rendering it as a subtle skeleton keeps the kind colors
 // meaning something.
-const DECOMPOSITION_EDGE_STYLE = { stroke: '#52525b', strokeWidth: 1.25 };
+// Opaca pelo mesmo motivo: as arestas categoria→filho que descem pela mesma
+// coluna não viram uma barra grossa e escura.
+const DECOMPOSITION_EDGE_STYLE = {
+  stroke: 'color-mix(in srgb, rgb(var(--text-faint)) 45%, rgb(var(--bg-primary)))',
+  strokeWidth: 1.25,
+};
+
+// Lentes Conexões/Fluxo: sem foco, as arestas ficam a meia força; com um nó
+// em foco (hover/seleção), só as dele em cor cheia e o resto quase some.
+const EDGE_IDLE_OPACITY = 0.5;
+const EDGE_DIMMED_OPACITY = 0.15;
+
+// Zoom mínimo do enquadramento automático: abaixo disso o texto dos cards
+// fica ilegível. "Ver o grafo inteiro" continua livre.
+const READABLE_MIN_ZOOM = 0.7;
+const CONNECTIONS_MIN_ZOOM = 0.5;
+// Folga mínima entre cards empilhados numa coluna (lentes de colunas).
+const STACK_GAP = 28;
 
 const edgeTypes: EdgeTypes = {};
 
@@ -95,21 +129,22 @@ const stateBucketOf = (project: Project, n: ConceptNodeData): StateBucket => {
   return 'pending';
 };
 
+// Cor do ponto do cabeçalho de coluna (o texto fica neutro).
 const BUCKET_TONE: Record<StateBucket, string> = {
-  pending: 'text-text-primary border-text-muted',
-  blocked: 'text-text-muted border-border-base',
-  noProof: 'text-conf-mid border-conf-mid',
-  doneProof: 'text-state-done border-state-done',
-  known: 'text-ai-accent border-ai-accent',
-  problem: 'text-state-problem border-state-problem',
+  pending: 'ring-1 ring-inset ring-text-faint/60',
+  blocked: 'bg-text-faint/50',
+  noProof: 'bg-conf-mid',
+  doneProof: 'bg-state-done',
+  known: 'bg-ai-accent',
+  problem: 'bg-state-problem',
 };
 
 type RiskBand = 'low' | 'mid' | 'high';
 const RISK_ORDER: RiskBand[] = ['low', 'mid', 'high'];
 const RISK_TONE: Record<RiskBand, string> = {
-  low: 'text-conf-low border-conf-low',
-  mid: 'text-conf-mid border-conf-mid',
-  high: 'text-conf-high border-conf-high',
+  low: 'bg-conf-low',
+  mid: 'bg-conf-mid',
+  high: 'bg-conf-high',
 };
 
 interface LensHeader {
@@ -138,9 +173,6 @@ interface FlowEdge {
 }
 
 const FLOW_EDGE_PREFIX = 'flow-seq-';
-// Abaixo disso os cards viram pílulas ilegíveis: o fitView da lente Fluxo
-// para aqui e o usuário rola pelo resto.
-const FLOW_MIN_ZOOM = 0.45;
 
 // Colunas: largura de um card + folga; colunas longas quebram em sub-colunas
 // para não virarem uma tira de 8000px que o fitView reduz a pílulas.
@@ -301,7 +333,7 @@ const lensLayout = (lens: Lens, project: Project, tr: Messages): LensLayout => {
         id: `${HEADER_PREFIX}flow-res`,
         label: tr.graph.flowResources,
         count: others.length,
-        tone: 'text-text-muted border-border-base',
+        tone: 'bg-text-faint/50',
         x: 0,
         y: -90,
         width: gridWidth,
@@ -323,7 +355,7 @@ const lensLayout = (lens: Lens, project: Project, tr: Messages): LensLayout => {
         id: `${HEADER_PREFIX}flow-steps`,
         label: tr.graph.flowSteps,
         count: steps.length,
-        tone: 'text-text-muted border-border-base',
+        tone: 'bg-text-faint/50',
         x: stepsX,
         y: -90,
         width: (maxLayer - 1) * COL_W + CARD_W,
@@ -338,16 +370,23 @@ const lensLayout = (lens: Lens, project: Project, tr: Messages): LensLayout => {
     deg[e.source] = (deg[e.source] || 0) + 1;
     deg[e.target] = (deg[e.target] || 0) + 1;
   });
+  // Dois anéis (os mais conectados por dentro) em vez de um círculo enorme:
+  // o conjunto cabe num zoom em que os cards ainda se leem.
   const sorted = [...nodes].sort((a, b) => (deg[b.id] || 0) - (deg[a.id] || 0));
-  const r = Math.max(420, sorted.length * 52);
   const positions: LensLayout['positions'] = {};
-  sorted.forEach((n, i) => {
-    if (i === 0) positions[n.id] = { x: 0, y: 0 };
-    else {
-      const angle = (i / (sorted.length - 1)) * Math.PI * 2;
-      positions[n.id] = { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
-    }
-  });
+  const rest = sorted.slice(1);
+  const innerN = Math.min(rest.length, Math.max(6, Math.round(rest.length * 0.38)));
+  const inner = rest.slice(0, innerN);
+  const outer = rest.slice(innerN);
+  const SLOT = COL_W - 10; // largura de um card + folga ao longo do anel
+  const r1 = Math.max(380, (inner.length * SLOT) / (2 * Math.PI));
+  const r2 = Math.max(r1 + 300, (outer.length * SLOT) / (2 * Math.PI));
+  const place = (id: string, angle: number, r: number) => {
+    positions[id] = { x: Math.cos(angle) * r - CARD_W / 2, y: Math.sin(angle) * r * 0.8 - 50 };
+  };
+  if (sorted[0]) positions[sorted[0].id] = { x: -CARD_W / 2, y: -50 };
+  inner.forEach((n, i) => place(n.id, (i / inner.length) * Math.PI * 2 - Math.PI / 2, r1));
+  outer.forEach((n, i) => place(n.id, ((i + 0.5) / outer.length) * Math.PI * 2 - Math.PI / 2, r2));
   return { positions, visible: null, headers: [] };
 };
 
@@ -361,7 +400,9 @@ function isTypingTarget(target: EventTarget | null): boolean {
 export function GraphCanvas() {
   const tr = useT();
   const isMobile = useIsMobile();
-  const { fitView, setCenter, getZoom, getNode, zoomIn, zoomOut } = useReactFlow();
+  const { fitView, setCenter, setViewport, getZoom, getNode, getNodes, getNodesBounds, zoomIn, zoomOut } =
+    useReactFlow();
+  const nodesInitialized = useNodesInitialized();
   const project = useGraphStore((s) => s.project);
   const lens = useGraphStore((s) => s.lens);
   const selectedId = useGraphStore((s) => s.selectedNodeId);
@@ -426,6 +467,52 @@ export function GraphCanvas() {
     [fitView, getNode],
   );
 
+  // Enquadramento legível: encaixa tudo se couber num zoom de leitura; senão
+  // fica no zoom mínimo legível e ancora no começo (topo da raiz na Estrutura,
+  // canto superior esquerdo nas colunas, centro nas Conexões).
+  const frameOverview = useCallback(
+    (duration = 350) => {
+      const el = containerRef.current;
+      const st = useGraphStore.getState();
+      const proj = st.project;
+      if (!el || !proj) return;
+      const all = getNodes().filter((n) => !n.hidden && !n.id.startsWith(SUGGESTION_PREFIX));
+      if (all.length === 0) return;
+      const W = el.clientWidth;
+      const H = el.clientHeight;
+      const pad = W < 640 ? 24 : 48;
+      const b = getNodesBounds(all.map((n) => n.id));
+      if (b.width <= 0 || b.height <= 0) return;
+      const fit = Math.min((W - pad * 2) / b.width, (H - pad * 2) / b.height);
+      // Conexões é um mapa de relações: precisa caber inteiro, com piso menor.
+      const floor = st.lens === 'connections' ? CONNECTIONS_MIN_ZOOM : READABLE_MIN_ZOOM;
+      const zoom = Math.min(1, Math.max(floor, fit));
+      const fitsX = b.width * zoom <= W - pad * 2;
+      const fitsY = b.height * zoom <= H - pad * 2;
+      let x: number;
+      let y: number;
+      if (st.lens === 'connections') {
+        x = W / 2 - (b.x + b.width / 2) * zoom;
+        y = H / 2 - (b.y + b.height / 2) * zoom;
+      } else if (st.lens === 'structure') {
+        // Raiz + primeiro nível centrados no eixo x; topo da árvore no alto.
+        const firstLevel = [
+          proj.rootId,
+          ...all.filter((n) => proj.nodes[n.id]?.parentId === proj.rootId).map((n) => n.id),
+        ].filter((id) => getNode(id));
+        const fb = firstLevel.length > 0 ? getNodesBounds(firstLevel) : b;
+        const cx = fitsX ? b.x + b.width / 2 : fb.x + fb.width / 2;
+        x = W / 2 - cx * zoom;
+        y = fitsY ? (H - b.height * zoom) / 2 - b.y * zoom : pad - b.y * zoom;
+      } else {
+        x = fitsX ? (W - b.width * zoom) / 2 - b.x * zoom : pad - b.x * zoom;
+        y = fitsY ? (H - b.height * zoom) / 2 - b.y * zoom : pad - b.y * zoom;
+      }
+      void setViewport({ x, y, zoom }, { duration });
+    },
+    [getNodes, getNodesBounds, getNode, setViewport],
+  );
+
   // Timers de câmera em refs: um re-render no meio (projeto mudou) não pode
   // cancelar um enquadramento já pedido. Só a desmontagem limpa.
   const camTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -468,13 +555,20 @@ export function GraphCanvas() {
       camTimer,
       () => {
         if (isOnCanvas(initialTarget)) centerOn(initialTarget);
-        else void fitView({ padding: 0.15, duration: 300 });
+        else frameOverview(300);
       },
       60,
     );
     // só na montagem
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Sem alvo: assim que os cards têm tamanho medido, enquadra legível.
+  const didInitialFrame = useRef(false);
+  useEffect(() => {
+    if (didInitialFrame.current || initialTarget || !nodesInitialized) return;
+    didInitialFrame.current = true;
+    schedule(camTimer, () => frameOverview(0), 30);
+  }, [nodesInitialized, initialTarget, frameOverview, schedule]);
 
   // Um efeito só para os pedidos de câmera — breadcrumb (focusNode) chama
   // selectNode junto, e o enquadramento da subárvore tem precedência.
@@ -491,12 +585,7 @@ export function GraphCanvas() {
     let action: (() => void) | null = null;
 
     if (lens !== p.lens) {
-      action = () =>
-        void fitView({
-          padding: 0.15,
-          duration: 350,
-          ...(lens === 'flow' ? { minZoom: FLOW_MIN_ZOOM } : {}),
-        });
+      action = () => frameOverview(350);
     } else if (focusVersion !== p.focusVersion && focusedParentId && project) {
       const ids = [
         focusedParentId,
@@ -526,7 +615,7 @@ export function GraphCanvas() {
     selectedId,
     project,
     isMobile,
-    fitView,
+    frameOverview,
     fitIds,
     centerOn,
     isOnCanvas,
@@ -668,6 +757,38 @@ export function GraphCanvas() {
     setNodes(computedNodes);
   }, [computedNodes]);
 
+  // Lentes de colunas: o layout usa uma altura de linha fixa, mas os cards
+  // expandidos variam. Medidos, empilha cada coluna com folga mínima.
+  useEffect(() => {
+    if (!layout || (lens !== 'state' && lens !== 'risk' && lens !== 'flow')) return;
+    const cols = new Map<number, Node[]>();
+    for (const n of nodes) {
+      if (n.type !== 'concept' || !layout.positions[n.id]) continue;
+      if (!n.measured?.height) return; // espera todos medidos
+      const x = layout.positions[n.id].x;
+      const arr = cols.get(x);
+      if (arr) arr.push(n);
+      else cols.set(x, [n]);
+    }
+    const next: Record<string, number> = {};
+    cols.forEach((arr) => {
+      arr.sort((a, b) => layout.positions[a.id].y - layout.positions[b.id].y);
+      let bottom = -Infinity;
+      for (const n of arr) {
+        // Fluxo mantém as camadas alinhadas (só desce se sobrepor); Risco e
+        // Estado empilham pela altura real.
+        const ly = layout.positions[n.id].y;
+        const y = bottom === -Infinity ? ly : lens === 'flow' ? Math.max(ly, bottom + STACK_GAP) : bottom + STACK_GAP;
+        if (Math.abs(y - n.position.y) > 0.5) next[n.id] = y;
+        bottom = y + (n.measured?.height ?? 0);
+      }
+    });
+    if (Object.keys(next).length === 0) return;
+    setNodes((curr) =>
+      curr.map((n) => (next[n.id] !== undefined ? { ...n, position: { ...n.position, y: next[n.id] } } : n)),
+    );
+  }, [nodes, layout, lens]);
+
   // -------------------------------------------------------------------------
   // Arestas
   // -------------------------------------------------------------------------
@@ -676,6 +797,9 @@ export function GraphCanvas() {
     if (!project || !layout) return [];
     const shown = (id: string) => layout.visible === null || layout.visible.has(id);
     const focusIds = new Set([selectedId, hoveredId].filter(Boolean) as string[]);
+    const dimmable = lens === 'connections' || lens === 'flow';
+    const dimOpacity = (touches: boolean) =>
+      touches ? 1 : focusIds.size > 0 ? EDGE_DIMMED_OPACITY : EDGE_IDLE_OPACITY;
     const base: Edge[] = [];
     for (const e of Object.values(project.edges)) {
       if (!shown(e.source) || !shown(e.target)) continue;
@@ -690,13 +814,15 @@ export function GraphCanvas() {
       } else if (lens === 'state' || lens === 'risk') {
         if (hierarchy || !touchesFocus) continue;
       }
+      const baseStyle = hierarchy ? DECOMPOSITION_EDGE_STYLE : edgeStyleByKind[e.kind];
       base.push({
         id: e.id,
         source: e.source,
         target: e.target,
-        style: hierarchy ? DECOMPOSITION_EDGE_STYLE : edgeStyleByKind[e.kind],
+        style: dimmable ? { ...baseStyle, opacity: dimOpacity(touchesFocus) } : baseStyle,
         animated: !isMobile && !hierarchy && touchesFocus,
-        zIndex: !hierarchy && touchesFocus ? 1 : 0,
+        // Sempre sob os nós: a aresta destacada não risca títulos de cards.
+        zIndex: 0,
       });
     }
 
@@ -707,9 +833,9 @@ export function GraphCanvas() {
           id: fe.id,
           source: fe.source,
           target: fe.target,
-          style: edgeStyleByKind.direct,
+          style: { ...edgeStyleByKind.direct, opacity: dimOpacity(touchesFocus) },
           animated: !isMobile && touchesFocus,
-          zIndex: touchesFocus ? 1 : 0,
+          zIndex: 0,
         });
       }
     }
@@ -771,14 +897,16 @@ export function GraphCanvas() {
         onNodeMouseEnter={onNodeMouseEnter}
         onNodeMouseLeave={onNodeMouseLeave}
         fitView={!initialTarget}
-        fitViewOptions={{ padding: 0.15, ...(lens === 'flow' ? { minZoom: FLOW_MIN_ZOOM } : {}) }}
+        fitViewOptions={{ padding: 0.15, minZoom: READABLE_MIN_ZOOM, maxZoom: 1 }}
         minZoom={0.15}
         maxZoom={2}
+        colorMode="system"
         proOptions={{ hideAttribution: true }}
       >
-        <Background gap={24} size={1} color="#27272a" />
+        {/* size 2: o React Flow escala o ponto pelo zoom; com 1 ele some abaixo de 100%. */}
+        <Background variant={BackgroundVariant.Dots} gap={20} size={2} />
         {/* Controles próprios: no mobile os botões têm 44px de alvo de toque. */}
-        <Controls showZoom={false} showFitView={false} showInteractive={false} className="!shadow-none rounded-sm overflow-hidden border border-border-base">
+        <Controls showZoom={false} showFitView={false} showInteractive={false}>
           {(
             [
               { label: tr.graph.zoomIn, glyph: '+', onClick: () => void zoomIn({ duration: 200 }) },
@@ -791,54 +919,73 @@ export function GraphCanvas() {
               onClick={b.onClick}
               title={b.label}
               aria-label={b.label}
-              className={`!text-sm !leading-none !bg-bg-secondary hover:!bg-bg-elevated !text-text-muted hover:!text-text-primary !border-b !border-border-base last:!border-b-0 ${
-                isMobile ? '!w-11 !h-11' : '!w-8 !h-8'
-              }`}
+              className={`!text-[15px] !leading-none ${isMobile ? '!w-11 !h-11' : '!w-8 !h-8'}`}
             >
               <span aria-hidden>{b.glyph}</span>
             </ControlButton>
           ))}
         </Controls>
-        <Panel position="top-left">
-          <button
-            onClick={handleTidy}
-            title={tr.graph.tidyTitle}
-            className="px-2.5 py-1.5 min-h-[32px] text-[11px] font-mono bg-bg-secondary/90 backdrop-blur-sm border border-border-base rounded-sm text-text-secondary hover:text-ai-accent hover:border-ai-accent/40 transition-colors"
+        {isMobile ? (
+          // Mobile: os três controles numa única barra de vidro (sem frestas
+          // por onde o texto dos cards aparecia), todos com 44px de alvo.
+          <Panel
+            position="top-left"
+            className="glass-host border rounded-card shadow-mac p-1 flex items-center gap-1 max-w-[calc(100%-24px)]"
           >
-            {tr.graph.tidy}
-          </button>
-        </Panel>
-        <Panel position="top-right">
-          <EdgeLegend tr={tr} />
-        </Panel>
+            <button
+              onClick={handleTidy}
+              title={tr.graph.tidyTitle}
+              aria-label={tr.graph.tidy}
+              className="tap btn btn-ghost btn-icon text-text-primary"
+            >
+              <TidyIcon />
+            </button>
+            <select
+              value={lens}
+              onChange={(e) => setLens(e.target.value as Lens)}
+              aria-label={tr.topBar.lensSelectAria}
+              className="tap h-[30px] min-w-0 rounded-control bg-transparent hover:bg-bg-elevated/60 pl-2.5 pr-7 text-control text-text-primary border-0"
+            >
+              {MOBILE_LENSES.map((l) => (
+                <option key={l} value={l}>
+                  {tr.topBar[LENS_LABEL_KEY[l]]}
+                </option>
+              ))}
+            </select>
+            <span aria-hidden className="w-px h-5 bg-border-base/70 shrink-0" />
+            <EdgeLegend key={lens} tr={tr} inBar />
+          </Panel>
+        ) : (
+          <>
+            <Panel position="top-left" className="flex items-center gap-2">
+              <button
+                onClick={handleTidy}
+                title={tr.graph.tidyTitle}
+                className="tap glass btn shadow-mac text-text-primary hover:bg-bg-elevated/60"
+              >
+                <TidyIcon />
+                {tr.graph.tidy}
+              </button>
+            </Panel>
+            <Panel position="top-right">
+              {/* key=lens: trocar de lente fecha a legenda (não cobre colunas novas). */}
+              <EdgeLegend key={lens} tr={tr} />
+            </Panel>
+          </>
+        )}
         {pending && pending.nodes.length > 0 && (
-          <Panel position="top-center" className="!mt-12 md:!mt-3 max-w-[calc(100vw-24px)]">
+          <Panel position="top-center" className="!mt-16 md:!mt-3 max-w-[calc(100vw-24px)]">
             <div
               role="status"
-              className="flex flex-wrap items-center gap-x-2 gap-y-1.5 bg-bg-secondary/95 backdrop-blur-sm border border-ai-accent/50 rounded-sm px-3 py-2 text-xs shadow-lg"
+              className="glass border animate-sheet-in flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card shadow-mac-lg pl-3.5 pr-2 py-2 text-control"
             >
-              <span className="text-ai-accent">◆</span>
+              <span className="ai-icon" aria-hidden>
+                ✦
+              </span>
               <span className="text-text-primary">
                 {tr.graph.stagingSummary(pending.nodes.length, stagingParent?.name ?? '')}
               </span>
               <span className="flex items-center gap-1.5 ml-auto">
-                <button
-                  onClick={() => {
-                    const parentId = pending.parentId;
-                    acceptAllSuggestions();
-                    // Aceitas, a árvore é relayoutada: enquadra a subárvore nova.
-                    focusNode(parentId);
-                  }}
-                  className="tap px-2.5 py-1 min-h-[30px] rounded-sm border border-conf-high/40 bg-conf-high/15 text-conf-high hover:bg-conf-high/30 transition-colors"
-                >
-                  {tr.graph.acceptAll}
-                </button>
-                <button
-                  onClick={rejectAllSuggestions}
-                  className="tap px-2.5 py-1 min-h-[30px] rounded-sm border border-border-base text-text-secondary hover:text-state-problem hover:border-state-problem/40 transition-colors"
-                >
-                  {tr.graph.rejectAll}
-                </button>
                 <button
                   onClick={() => {
                     if (lens !== 'structure') {
@@ -846,9 +993,23 @@ export function GraphCanvas() {
                       schedule(stageTimer, frameStaging, 450);
                     } else frameStaging();
                   }}
-                  className="tap px-2.5 py-1 min-h-[30px] rounded-sm border border-ai-accent/40 text-ai-accent hover:bg-ai-accent/10 transition-colors"
+                  className="tap btn btn-tertiary"
                 >
                   {tr.graph.viewStaging}
+                </button>
+                <button onClick={rejectAllSuggestions} className="tap btn btn-secondary">
+                  {tr.graph.rejectAll}
+                </button>
+                <button
+                  onClick={() => {
+                    const parentId = pending.parentId;
+                    acceptAllSuggestions();
+                    // Aceitas, a árvore é relayoutada: enquadra a subárvore nova.
+                    focusNode(parentId);
+                  }}
+                  className="tap btn btn-primary"
+                >
+                  {tr.graph.acceptAll}
                 </button>
               </span>
             </div>
@@ -856,7 +1017,7 @@ export function GraphCanvas() {
         )}
         {emptyLens && (
           <Panel position="top-center" className="!mt-24">
-            <div className="text-xs text-text-muted bg-bg-secondary/90 border border-border-base rounded-sm px-3 py-2">
+            <div className="glass border rounded-card shadow-mac px-4 py-2.5 text-control text-text-muted">
               {tr.graph.lensEmpty}
             </div>
           </Panel>
@@ -864,33 +1025,46 @@ export function GraphCanvas() {
         {/* The minimap eats a big slice of a phone screen for little return. */}
         {!isMobile && (
           <MiniMap
-            bgColor="#09090b"
-            maskColor="rgba(9, 9, 11, 0.75)"
-            maskStrokeColor="#52525b"
-            maskStrokeWidth={2}
+            maskStrokeWidth={1}
             nodeColor={(n) => {
               if (n.type === 'columnHeader') return 'transparent';
               const d = n.data as unknown as ConceptNodeData | undefined;
-              if (!d) return '#3f3f46';
-              // Suggestions em staging aparecem em roxo pra combinar com as edges.
-              if ((n.data as { isSuggestion?: boolean }).isSuggestion) return '#8b5cf6';
+              if (!d) return 'rgb(var(--text-faint) / .5)';
+              // Suggestions em staging aparecem em violeta pra combinar com as edges.
+              if ((n.data as { isSuggestion?: boolean }).isSuggestion) return 'rgb(var(--ai-accent))';
               // Estados terminais têm precedência visual sobre confiança.
-              if (d.state === 'done') return '#22c55e';
-              if (d.state === 'problem') return '#ef4444';
-              if (d.state === 'discarded') return '#52525b';
+              // Tons baixos: o minimapa orienta, não grita.
+              if (d.state === 'done') return 'rgb(var(--state-done) / .4)';
+              if (d.state === 'problem') return 'rgb(var(--state-problem) / .45)';
+              if (d.state === 'discarded') return 'rgb(var(--state-discarded) / .5)';
               const band = confidenceBand(d.confidence);
-              return band === 'high' ? '#4ade80' : band === 'mid' ? '#fbbf24' : '#f87171';
+              return band === 'high'
+                ? 'rgb(var(--conf-high) / .25)'
+                : band === 'mid'
+                ? 'rgb(var(--conf-mid) / .25)'
+                : 'rgb(var(--conf-low) / .3)';
             }}
-            nodeStrokeColor="#3f3f46"
-            nodeStrokeWidth={2}
-            nodeBorderRadius={3}
+            nodeStrokeColor="transparent"
+            nodeStrokeWidth={0}
+            nodeBorderRadius={12}
             pannable
             zoomable
-            style={{ width: 180, height: 120 }}
+            style={{ width: 168, height: 112 }}
           />
         )}
       </ReactFlow>
     </div>
+  );
+}
+
+function TidyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden className="shrink-0 text-text-muted">
+      <rect x="6" y="1.5" width="4" height="3" rx="1" stroke="currentColor" strokeWidth="1.3" />
+      <rect x="1.5" y="11.5" width="4" height="3" rx="1" stroke="currentColor" strokeWidth="1.3" />
+      <rect x="10.5" y="11.5" width="4" height="3" rx="1" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M8 4.5V8M3.5 11.5V8h9v3.5" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -902,52 +1076,65 @@ export function GraphCanvas() {
 function Swatch({ stroke, dash, width = 2 }: { stroke: string; dash?: string; width?: number }) {
   return (
     <svg width="24" height="6" className="shrink-0" aria-hidden>
-      <line x1="0" y1="3" x2="24" y2="3" stroke={stroke} strokeWidth={width} strokeDasharray={dash} />
+      <line x1="0" y1="3" x2="24" y2="3" stroke={stroke} strokeWidth={width} strokeDasharray={dash} strokeLinecap="round" />
     </svg>
   );
 }
 
-function EdgeLegend({ tr }: { tr: Messages }) {
+function EdgeLegend({ tr, inBar = false }: { tr: Messages; inBar?: boolean }) {
   const [open, setOpen] = useState(false);
   const rows: Array<{ label: string; stroke: string; dash?: string; width?: number }> = [
-    { label: tr.graph.legendDecomposition, stroke: DECOMPOSITION_EDGE_STYLE.stroke, width: 1.25 },
-    { label: tr.graph.legendDirect, stroke: edgeStyleByKind.direct.stroke, width: 2 },
+    { label: tr.graph.legendDecomposition, stroke: DECOMPOSITION_EDGE_STYLE.stroke, width: DECOMPOSITION_EDGE_STYLE.strokeWidth },
+    { label: tr.graph.legendDirect, stroke: edgeStyleByKind.direct.stroke, width: edgeStyleByKind.direct.strokeWidth },
     { label: tr.graph.legendMiddleware, stroke: edgeStyleByKind.middleware.stroke, dash: edgeStyleByKind.middleware.strokeDasharray },
     { label: tr.graph.legendIndependent, stroke: edgeStyleByKind.independent.stroke, dash: edgeStyleByKind.independent.strokeDasharray },
     { label: tr.graph.legendOptional, stroke: edgeStyleByKind.optional.stroke, dash: edgeStyleByKind.optional.strokeDasharray },
     { label: tr.graph.legendSuggestion, stroke: SUGGESTION_EDGE_STYLE.stroke, dash: SUGGESTION_EDGE_STYLE.strokeDasharray },
   ];
   return (
-    <div className="bg-bg-secondary/90 backdrop-blur-sm border border-border-base rounded-sm max-w-[260px]">
+    // Pílula do mesmo tamanho dos outros controles; a legenda abre como
+    // popover (não estica a barra).
+    <div className="relative shrink-0">
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="w-full px-2.5 py-1.5 min-h-[32px] text-[11px] font-mono uppercase tracking-wider text-text-muted hover:text-text-primary flex items-center gap-1.5 transition-colors"
+        className={`tap h-[30px] px-3 rounded-control text-footnote font-medium text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors duration-120 ease-mac ${
+          inBar ? 'hover:bg-bg-elevated/60' : 'glass border shadow-mac'
+        }`}
       >
         <span>{tr.graph.legend}</span>
-        <span className="ml-auto">{open ? '▾' : '▸'}</span>
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          aria-hidden
+          className={`ml-auto text-text-faint transition-transform duration-180 ease-mac ${open ? 'rotate-90' : ''}`}
+        >
+          <path d="M3.5 2l3 3-3 3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
       {open && (
-        <div className="px-2.5 pb-2">
+        <div className="glass border rounded-card shadow-mac-lg animate-sheet-in origin-top-right absolute right-0 top-full mt-1.5 w-[260px] max-w-[calc(100vw-24px)] p-3">
           <ul className="space-y-1.5">
             {rows.map((r) => (
-              <li key={r.label} className="flex items-center gap-2 text-[11px] text-text-secondary">
-                <Swatch stroke={r.stroke} dash={r.dash} width={r.width ?? 2} />
+              <li key={r.label} className="flex items-center gap-2.5 text-footnote text-text-secondary">
+                <Swatch stroke={r.stroke} dash={r.dash} width={r.width ?? 1.5} />
                 <span>{r.label}</span>
               </li>
             ))}
           </ul>
-          <div className="mt-2 pt-2 border-t border-border-base space-y-1 text-[11px] text-text-secondary">
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-3 rounded-[2px] border-2 border-state-done shrink-0" />
+          <hr className="divider my-2.5" />
+          <div className="space-y-1.5 text-footnote text-text-secondary">
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 h-3.5 rounded-[4px] border-[1.5px] border-state-done shrink-0" />
               {tr.graph.legendBorderDone}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-3 rounded-[2px] border-2 border-dashed border-conf-mid shrink-0" />
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 h-3.5 rounded-[4px] border-[1.5px] border-dashed border-conf-mid shrink-0" />
               {tr.graph.legendBorderNoProof}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-3 rounded-[2px] border-2 border-state-problem shrink-0" />
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 h-3.5 rounded-[4px] border-[1.5px] border-state-problem shrink-0" />
               {tr.graph.legendBorderProblem}
             </div>
             <p className="text-text-muted pt-1">{tr.graph.legendDependencyHint}</p>

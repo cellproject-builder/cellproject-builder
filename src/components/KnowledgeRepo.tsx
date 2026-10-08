@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type ReactNode } from 'react';
 import { useKBStore, type IngestProgress } from '@/kb/store';
 import { textSentToModel } from '@/kb/service';
 import { useT } from '@/i18n';
@@ -177,17 +177,15 @@ export function KnowledgeRepo({ open, onClose }: Props) {
       initialFocusRef={dropzoneRef}
       className="max-w-3xl sm:h-auto"
       title={
-        <span className="flex items-baseline gap-3">
-          <span className="text-ai-accent font-mono text-xs uppercase tracking-widest">
-            {tr.kbModal.title}
-          </span>
-          <span className="text-text-muted text-xs font-normal">
+        <span className="flex items-baseline gap-2">
+          <span>{tr.kbModal.title}</span>
+          <span className="text-footnote font-normal tabular-nums text-text-muted">
             {tr.kbModal.docCount(docs.length)}
           </span>
         </span>
       }
     >
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div
           ref={dropzoneRef}
           role="button"
@@ -211,10 +209,10 @@ export function KnowledgeRepo({ open, onClose }: Props) {
             setDragActive(false);
             handleFiles(e.dataTransfer.files);
           }}
-          className={`block border border-dashed rounded-sm p-4 text-center transition-colors cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ai-accent ${
+          className={`flex cursor-pointer flex-col items-center rounded-card border-[1.5px] border-dashed px-6 py-7 text-center transition-colors duration-180 ease-mac ${
             dragActive
-              ? 'border-ai-accent bg-ai-accent/10'
-              : 'border-border-base hover:border-ai-accent/40 hover:bg-ai-accent/5'
+              ? 'border-accent bg-accent/8'
+              : 'border-text-faint/45 bg-bg-elevated/40 hover:border-text-faint/70 hover:bg-bg-elevated/60'
           }`}
         >
           <input
@@ -226,22 +224,25 @@ export function KnowledgeRepo({ open, onClose }: Props) {
             onChange={(e) => handleFiles(e.target.files)}
             className="hidden"
           />
+          <DocGlyph
+            className={`mb-2.5 h-8 w-8 transition-colors duration-180 ease-mac ${
+              dragActive ? 'text-accent' : 'text-text-faint'
+            }`}
+          />
           {dragActive ? (
-            <div className="text-sm text-ai-accent py-1">↓ {tr.kb.dropActive}</div>
+            <div className="text-control font-medium text-accent">{tr.kb.dropActive}</div>
           ) : (
-            <div className="text-sm text-text-secondary">
-              <span className="text-ai-accent">+</span> {tr.kbModal.dropOrClick}
-              <div className="text-[11px] text-text-muted mt-1 max-w-xl mx-auto">
-                {tr.kbModal.dropHint}
-              </div>
-            </div>
+            <>
+              <div className="text-control font-medium text-text-primary">{tr.kbModal.dropOrClick}</div>
+              <div className="mt-1 max-w-md text-footnote text-text-muted">{tr.kbModal.dropHint}</div>
+            </>
           )}
         </div>
 
         {items.length > 0 && (
           <div className="space-y-1.5" aria-live="polite">
             {running && items.length > 1 && (
-              <div className="text-[11px] font-mono text-text-muted">
+              <div className="label tabular-nums">
                 {tr.kb.queueProgress(Math.min(finishedCount + 1, items.length), items.length)}
               </div>
             )}
@@ -258,7 +259,7 @@ export function KnowledgeRepo({ open, onClose }: Props) {
               <button
                 type="button"
                 onClick={() => setItems((prev) => prev.filter((i) => i.progress?.phase !== 'done'))}
-                className="text-[11px] text-text-muted hover:text-text-primary underline-offset-2 hover:underline"
+                className="tap btn btn-tertiary btn-sm -ml-2"
               >
                 {tr.kb.clearFinished}
               </button>
@@ -267,7 +268,7 @@ export function KnowledgeRepo({ open, onClose }: Props) {
         )}
 
         {docs.length > 0 && (
-          <p className="text-[11px] text-text-muted leading-relaxed">{tr.kb.howItWorks}</p>
+          <p className="text-footnote text-text-muted">{tr.kb.howItWorks}</p>
         )}
 
         {docs.length >= FILTER_MIN_DOCS && (
@@ -277,18 +278,18 @@ export function KnowledgeRepo({ open, onClose }: Props) {
             onChange={(e) => setFilter(e.target.value)}
             placeholder={tr.kb.filterPlaceholder}
             aria-label={tr.kb.filterPlaceholder}
-            className="w-full bg-bg-primary border border-border-base rounded-sm px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-ai-accent/60"
+            className="field"
           />
         )}
 
-        <div className="-mx-4 border-t border-border-base">
+        <div className="-mx-5 divide-y divide-border-base/70 border-t border-border-base/70">
           {docs.length === 0 && (
-            <div className="p-8 text-center text-text-muted text-sm italic">
+            <div className="px-5 py-10 text-center text-control text-text-muted">
               {tr.kbModal.emptyState}
             </div>
           )}
           {docs.length > 0 && visibleDocs.length === 0 && (
-            <div className="p-6 text-center text-text-muted text-sm italic">
+            <div className="px-5 py-8 text-center text-control text-text-muted">
               {tr.kb.filterEmpty}
             </div>
           )}
@@ -298,8 +299,12 @@ export function KnowledgeRepo({ open, onClose }: Props) {
             const confirming = confirmRemoveId === d.id;
             const used = usage[d.id];
             return (
-              <div key={d.id} className="border-b border-border-base">
-                <div className="px-4 py-3 flex items-start gap-3 hover:bg-bg-primary/40">
+              <div key={d.id}>
+                <div
+                  className={`flex items-start gap-3 px-5 py-3 transition-colors duration-120 ease-mac ${
+                    expanded ? 'bg-bg-elevated/50' : 'hover:bg-bg-elevated/40'
+                  }`}
+                >
                   <div
                     role="button"
                     tabIndex={0}
@@ -311,48 +316,52 @@ export function KnowledgeRepo({ open, onClose }: Props) {
                         setExpandedId(expanded ? null : d.id);
                       }
                     }}
-                    className="flex-1 min-w-0 cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ai-accent rounded-sm"
+                    className="flex min-w-0 flex-1 cursor-pointer items-start gap-2.5 rounded-control"
                   >
-                    <div className="flex items-baseline gap-2 mb-0.5">
-                      <span className="text-sm text-text-primary font-medium truncate">
-                        {d.titulo}
-                      </span>
-                      <span className="text-[10px] font-mono text-text-muted shrink-0">
-                        {tr.kbModal.levelLabel(d.nivel)}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-text-muted flex items-center gap-2 min-w-0">
-                      <span className="shrink-0">{d.dominio}</span>
-                      <span className="text-border-base">·</span>
-                      <span className="font-mono shrink-0">{tr.kbModal.pageCount(d.pageCount)}</span>
-                      <span className="text-border-base">·</span>
-                      <span className="truncate">{d.filename}</span>
-                    </div>
-                    <div
-                      className={`text-[11px] mt-0.5 ${used ? 'text-ai-accent/80' : 'text-text-muted'}`}
-                      title={used ? tr.kb.lastUsedTitle(used.lastLabel) : undefined}
-                    >
-                      {used ? tr.kb.usedCount(used.count) : tr.kb.neverUsed}
-                    </div>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {d.tags.slice(0, 6).map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-[10px] font-mono px-1.5 py-0.5 bg-bg-elevated border border-border-base rounded-[2px] text-text-secondary"
-                        >
-                          {tag}
+                    <Chevron
+                      className={`mt-[3px] text-text-faint transition-transform duration-180 ease-mac ${
+                        expanded ? 'rotate-90' : ''
+                      }`}
+                    />
+                    <DocGlyph className="mt-px h-5 w-5 shrink-0 text-text-muted" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span className="min-w-0 break-words text-control font-medium text-text-primary">
+                          {d.titulo}
                         </span>
-                      ))}
-                      {d.tags.length > 6 && (
-                        <span className="text-[10px] font-mono text-text-muted">
-                          +{d.tags.length - 6}
-                        </span>
+                        <span className="chip h-[18px] shrink-0 px-1.5">{tr.kbModal.levelLabel(d.nivel)}</span>
+                      </div>
+                      <div className="mt-0.5 flex min-w-0 items-center gap-x-3 text-footnote text-text-muted">
+                        <span className="shrink-0">{d.dominio}</span>
+                        <span className="shrink-0 tabular-nums">{tr.kbModal.pageCount(d.pageCount)}</span>
+                        <span className="truncate">{d.filename}</span>
+                      </div>
+                      <div
+                        className={`mt-0.5 inline-flex items-center gap-1 text-footnote ${used ? 'text-ai-accent' : 'text-text-faint'}`}
+                        title={used ? tr.kb.lastUsedTitle(used.lastLabel) : undefined}
+                      >
+                        {used && <span aria-hidden>✦</span>}
+                        {used ? tr.kb.usedCount(used.count) : tr.kb.neverUsed}
+                      </div>
+                      {d.tags.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {d.tags.slice(0, 6).map((tag) => (
+                            <span key={tag} className="chip h-[18px] px-1.5">
+                              {tag}
+                            </span>
+                          ))}
+                          {d.tags.length > 6 && (
+                            <span className="chip h-[18px] bg-transparent px-1 text-text-muted">
+                              +{d.tags.length - 6}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
                   {confirming ? (
-                    <div className="flex items-center gap-1.5 shrink-0 text-xs">
-                      <span className="text-text-secondary">{tr.kb.removeAsk}</span>
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                      <span className="text-footnote text-text-secondary">{tr.kb.removeAsk}</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -360,7 +369,7 @@ export function KnowledgeRepo({ open, onClose }: Props) {
                           setConfirmRemoveId(null);
                           if (expandedId === d.id) setExpandedId(null);
                         }}
-                        className="tap rounded border border-state-problem/50 px-2 py-0.5 text-state-problem hover:bg-state-problem/15"
+                        className="tap btn btn-danger btn-sm"
                       >
                         {tr.kb.removeYes}
                       </button>
@@ -368,7 +377,7 @@ export function KnowledgeRepo({ open, onClose }: Props) {
                         type="button"
                         autoFocus
                         onClick={() => setConfirmRemoveId(null)}
-                        className="tap rounded border border-border-base px-2 py-0.5 text-text-primary hover:bg-bg-elevated"
+                        className="tap btn btn-secondary btn-sm"
                       >
                         {tr.kb.removeNo}
                       </button>
@@ -378,7 +387,7 @@ export function KnowledgeRepo({ open, onClose }: Props) {
                       type="button"
                       onClick={() => setConfirmRemoveId(d.id)}
                       aria-label={tr.kb.removeAria(d.titulo)}
-                      className="tap text-text-muted hover:text-state-problem text-xs px-1 py-0.5 shrink-0"
+                      className="tap btn btn-ghost btn-sm -mr-2 shrink-0 hover:!text-state-problem"
                     >
                       {tr.kbModal.removeBtn}
                     </button>
@@ -386,32 +395,24 @@ export function KnowledgeRepo({ open, onClose }: Props) {
                 </div>
 
                 {expanded && full && (
-                  <div className="px-4 py-3 bg-bg-primary/40 border-t border-border-base space-y-2 text-xs">
-                    <div>
-                      <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-                        {tr.kbModal.summary}
-                      </div>
-                      <ul className="space-y-0.5 pl-3">
+                  <div className="space-y-3 bg-bg-elevated/50 pb-4 pl-[68px] pr-5 text-control">
+                    <div className="space-y-1">
+                      <div className="label">{tr.kbModal.summary}</div>
+                      <ul className="list-disc space-y-0.5 pl-4 text-text-secondary marker:text-text-faint">
                         {full.summary.resumo.map((b, i) => (
-                          <li key={i} className="relative text-text-secondary leading-relaxed">
-                            <span className="absolute -left-3 text-text-muted">·</span>
-                            {b}
-                          </li>
+                          <li key={i}>{b}</li>
                         ))}
                       </ul>
                     </div>
                     {full.summary.fatos.length > 0 && (
-                      <div>
-                        <div className="text-[10px] font-mono uppercase tracking-wider text-text-muted mb-1">
-                          {tr.kbModal.facts}
-                        </div>
-                        <ul className="space-y-0.5 pl-3">
+                      <div className="space-y-1">
+                        <div className="label">{tr.kbModal.facts}</div>
+                        <ul className="list-disc space-y-0.5 pl-4 text-text-secondary marker:text-text-faint">
                           {full.summary.fatos.map((f, i) => (
-                            <li key={i} className="relative text-text-secondary leading-relaxed">
-                              <span className="absolute -left-3 text-ai-accent">◆</span>
+                            <li key={i}>
                               {f.claim}
                               {f.valor && (
-                                <span className="font-mono text-text-muted ml-1">
+                                <span className="ml-1 font-mono text-footnote text-text-muted">
                                   ({f.valor})
                                 </span>
                               )}
@@ -421,9 +422,7 @@ export function KnowledgeRepo({ open, onClose }: Props) {
                       </div>
                     )}
                     {full.summary.autores && (
-                      <div className="text-[11px] text-text-muted italic">
-                        — {full.summary.autores}
-                      </div>
+                      <div className="text-footnote text-text-muted">{full.summary.autores}</div>
                     )}
                     <SentText text={full.extractedText} tr={tr} />
                   </div>
@@ -434,6 +433,40 @@ export function KnowledgeRepo({ open, onClose }: Props) {
         </div>
       </div>
     </Modal>
+  );
+}
+
+function Chevron({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 12 12" aria-hidden className={`h-3 w-3 shrink-0 ${className ?? ''}`}>
+      <path
+        d="M4.5 2.5 8 6l-3.5 3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// Folha com canto dobrado (ícone de documento estilo Finder).
+function DocGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      aria-hidden
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5 2.5h6.5L15.5 6.5v11H5z" />
+      <path d="M11.5 2.5v4h4M7.5 10.5h5.5M7.5 13.5h5.5" />
+    </svg>
   );
 }
 
@@ -448,14 +481,17 @@ function SentText({ text, tr }: { text: string; tr: Messages }) {
         type="button"
         onClick={() => setShow((v) => !v)}
         aria-expanded={show}
-        className="text-[11px] text-text-muted hover:text-text-primary underline-offset-2 hover:underline"
+        className="tap -ml-1 inline-flex items-center gap-1.5 rounded-chip px-1 py-0.5 text-footnote text-text-muted transition-colors duration-120 ease-mac hover:text-text-primary"
       >
-        {show ? '▾' : '▸'} {tr.kb.viewSentText}
+        <Chevron
+          className={`text-text-faint transition-transform duration-180 ease-mac ${show ? 'rotate-90' : ''}`}
+        />
+        {tr.kb.viewSentText}
       </button>
       {show && (
-        <div className="mt-1">
-          <div className="text-[11px] text-text-muted mb-1">{tr.kb.sentTextNote(sent.length)}</div>
-          <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-text-secondary bg-bg-primary border border-border-base rounded-sm p-2">
+        <div className="mt-1.5 space-y-1.5">
+          <div className="text-footnote tabular-nums text-text-muted">{tr.kb.sentTextNote(sent.length)}</div>
+          <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded-control bg-bg-secondary p-3 font-mono text-footnote text-text-secondary shadow-[inset_0_0_0_1px_rgb(var(--border-base)/0.7)]">
             {sent}
           </pre>
         </div>
@@ -485,6 +521,29 @@ function errorFor(p: IngestProgress, tr: Messages): ClassifiedAIError {
   }
 }
 
+// Linha da fila: ícone de estado + nome do arquivo + fase.
+function QueueLine({
+  icon,
+  name,
+  status,
+  tone = 'muted',
+}: {
+  icon: ReactNode;
+  name: string;
+  status: string;
+  tone?: 'muted' | 'ok' | 'ai';
+}) {
+  const statusColor =
+    tone === 'ok' ? 'text-state-done' : tone === 'ai' ? 'text-ai-accent' : 'text-text-muted';
+  return (
+    <div className="flex min-h-[28px] items-center gap-2.5 rounded-control bg-bg-elevated/50 px-3 py-1.5 text-footnote">
+      <span className="grid h-4 w-4 shrink-0 place-items-center">{icon}</span>
+      <span className="min-w-0 flex-1 truncate text-text-primary">{name}</span>
+      <span className={`shrink-0 tabular-nums ${statusColor}`}>{status}</span>
+    </div>
+  );
+}
+
 function IngestRow({
   it,
   tr,
@@ -499,9 +558,11 @@ function IngestRow({
   const p = it.progress;
   if (!p) {
     return (
-      <div className="text-xs text-text-muted">
-        · {it.file.name} — {tr.kb.queued}
-      </div>
+      <QueueLine
+        icon={<span className="h-1.5 w-1.5 rounded-full bg-text-faint" />}
+        name={it.file.name}
+        status={tr.kb.queued}
+      />
     );
   }
   if (p.phase === 'error') {
@@ -512,24 +573,51 @@ function IngestRow({
         error={errorFor(p, tr)}
         onRetry={canRetry ? onRetry : undefined}
         onAction={{ label: tr.kb.dismiss, onClick: onDismiss }}
-        className="text-xs"
+        className="text-footnote"
       />
     );
   }
   if (p.phase === 'done') {
     return (
-      <div className={`text-xs ${p.duplicate ? 'text-text-secondary' : 'text-state-done'}`}>
-        {p.duplicate ? '=' : '✓'} {p.filename} — {p.duplicate ? tr.kb.duplicate : tr.kb.added}
-      </div>
+      <QueueLine
+        icon={
+          p.duplicate ? (
+            <span className="text-text-muted">=</span>
+          ) : (
+            <span className="grid h-4 w-4 place-items-center rounded-full bg-state-done text-accent-fg">
+              <svg viewBox="0 0 12 12" aria-hidden className="h-3 w-3">
+                <path
+                  d="M2.5 6.3l2.3 2.3 4.7-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  pathLength={1}
+                  strokeDasharray="1"
+                  className="animate-check-draw"
+                />
+              </svg>
+            </span>
+          )
+        }
+        name={p.filename}
+        status={p.duplicate ? tr.kb.duplicate : tr.kb.added}
+        tone={p.duplicate ? 'muted' : 'ok'}
+      />
     );
   }
   const label = p.phase === 'extracting' ? tr.kbModal.extracting : tr.kbModal.summarizing;
   const pageInfo =
     p.phase === 'extracting' && p.totalPages ? ` ${p.pagesDone ?? 0}/${p.totalPages}` : '';
   return (
-    <div className="text-xs text-ai-accent">
-      ◆ {p.filename} — {label}
-      {pageInfo}…
-    </div>
+    <QueueLine
+      icon={
+        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ai-accent/25 border-t-ai-accent" />
+      }
+      name={p.filename}
+      status={`${label}${pageInfo}…`}
+      tone="ai"
+    />
   );
 }
