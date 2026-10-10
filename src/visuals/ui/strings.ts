@@ -1,4 +1,5 @@
 import { useLocaleStore } from '@/i18n';
+import { VisualAssemblyError, assemblyErrorMessage } from '../advancedErrors';
 
 const en = {
   artifactType: 'Artifact', diagramMode: 'Diagram', diagramTitle: 'Interactive diagram', diagramSubtitle: 'Explore relationships in your plan', diagramGenerate: 'Generate diagram', diagramPlaceholder: 'What relationship should we illustrate? Use @ or attach a reference…', diagramGenerating: 'Building your diagram…', diagramElements: 'elements', diagramEmpty: 'Explore a relationship', diagramEmptyHint: 'Create a diagram with optional controls and links to your existing nodes.', diagramNote: 'Exploratory calculations are not physical evidence. Check the assumptions in the canvas.',
@@ -107,6 +108,7 @@ const pt: Strings = {
 };
 export function useVisualStrings(): Strings { return useLocaleStore((s) => s.locale) === 'pt-BR' ? pt : en; }
 export function visualError(reason: unknown, s: Strings): string {
+  if (reason instanceof VisualAssemblyError) return assemblyErrorMessage(reason, s.generate === 'Generate model');
   const message = reason instanceof Error ? reason.message : '';
   const known: Record<string, string> = {
     visualFileTooLarge: s.fileTooLarge, visualFileInvalid: s.fileInvalid, visualImageInvalid: s.fileInvalid, visualPdfInvalid: s.fileInvalid,

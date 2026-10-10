@@ -6,21 +6,32 @@ import { withinGeometryBudget } from './geometrySchema';
 type Group = Pick<DecompositionAssembly['groups'][number], 'partId' | 'objectIds'>;
 type Object = SceneV1['objects'][number];
 
-const customBounds = new WeakMap<NonNullable<Object['geometry']>, Box3>();
+const customVertices = new WeakMap<NonNullable<Object['geometry']>, Float32Array>();
+// The four immutable base meshes are tiny and shared across every scene.
+// Cache CPU positions only; no per-object geometry or GPU buffer is retained.
+const primitiveVertices = new Map<Object['type'], Float32Array>();
 /** Bounds respect the renderer's geometry, scale and XYZ rotations. */
 export function decompositionObjectBounds(object: Object): Box3 {
-  const half = object.type === 'torus' ? new Vector3(.66, .66, .16) : new Vector3(.5, .5, .5);
   const transform = new Matrix4().compose(new Vector3(...object.position),
     new Quaternion().setFromEuler(new Euler(...object.rotation)), new Vector3(...object.scale));
-  if (object.type === 'custom' && object.geometry) {
-    let bounds = customBounds.get(object.geometry);
-    if (!bounds) {
-      const geometry = objectGeometry(object);
-      bounds = geometry.boundingBox!.clone(); geometry.dispose(); customBounds.set(object.geometry, bounds);
-    }
-    return bounds.clone().applyMatrix4(transform);
+  if (object.type === 'box' || (object.type === 'custom' && !object.geometry)) {
+    return new Box3(new Vector3(-.5, -.5, -.5), new Vector3(.5, .5, .5)).applyMatrix4(transform);
   }
-  return new Box3(half.clone().negate(), half).applyMatrix4(transform);
+  let vertices = object.geometry ? customVertices.get(object.geometry) : primitiveVertices.get(object.type);
+  if (!vertices) {
+    const geometry = objectGeometry(object);
+    vertices = new Float32Array(geometry.getAttribute('position').array);
+    geometry.dispose();
+    if (object.geometry) customVertices.set(object.geometry, vertices);
+    else primitiveVertices.set(object.type, vertices);
+  }
+  // Transform the rendered vertices, not a rotated enclosing cube. The latter
+  // falsely enlarges round parts (a 45° sphere rotation grew its box by 41%).
+  const bounds = new Box3(), point = new Vector3();
+  for (let index = 0; index < vertices.length; index += 3) {
+    bounds.expandByPoint(point.fromArray(vertices, index).applyMatrix4(transform));
+  }
+  return bounds;
 }
 const boundsOf = (objects: Object[]) => objects.reduce((bounds, object) => bounds.union(decompositionObjectBounds(object)), new Box3());
 

@@ -12,9 +12,10 @@ import { readVisualImage } from './media';
 import type { VisualPromptInput } from './types';
 import { copyArtifactSnapshot, parseArtifactClipboard, pasteArtifactSnapshot } from './artifactClipboard';
 import { modelAssemblyCurrent, modelAssemblyTxt } from './modelAssembly';
+import { visualError } from './ui/strings';
 import { exportVisualPlan, prepareVisualPlanImport } from './portable';
 
-vi.mock('ai', () => ({ generateObject: vi.fn() }));
+vi.mock('ai', async importOriginal => ({ ...await importOriginal<typeof import('ai')>(), generateObject: vi.fn() }));
 vi.mock('@/ai/client', () => ({ aiModel: { id: 'main' }, assertAIReady: vi.fn(), callOpts: () => ({ maxOutputTokens: 12000 }) }));
 vi.mock('@/ai/research', () => ({ groundedText: vi.fn() }));
 vi.mock('./decompositionResearch', () => ({ readSpecificationDocuments: vi.fn() }));
@@ -24,8 +25,8 @@ const selection: { subject: string; summary: string; nodeIds: string[]; imageIds
 const modulePlan = {
   units: 'illustrative', sharedConstraints: ['A common shaft axis along X.'], unknowns: ['No measured fit.'],
   modules: [
-    { id: 'servo', name: 'Servo', prompt: 'Build the complete servo housing and shaft.', nodeIds: ['drive'], sourceIds: [], center: [-1, 0, 0], size: [2, 2, 2], primitiveBudget: 16 },
-    { id: 'support', name: 'Support', prompt: 'Build the support matching the servo interface.', nodeIds: ['bracket'], sourceIds: [], center: [1, 0, 0], size: [2, 2, 2], primitiveBudget: 16 },
+    { id: 'servo', name: 'Servo', prompt: 'Build the complete servo housing and shaft.', nodeIds: ['drive'], sourceIds: [] as string[], center: [-1, 0, 0], size: [2, 2, 2], primitiveBudget: 16 },
+    { id: 'support', name: 'Support', prompt: 'Build the support matching the servo interface.', nodeIds: ['bracket'], sourceIds: [] as string[], center: [1, 0, 0], size: [2, 2, 2], primitiveBudget: 16 },
   ],
   interfaces: [{ id: 'mount', moduleIds: ['servo', 'support'], anchor: [0, 0, 0], description: 'Common illustrative mounting interface.' }],
 };
@@ -113,6 +114,32 @@ describe('advanced modular generation', () => {
     expect(proposal.assembly?.unknowns).toContain('No mounting drawing.');
     expect(proposal.assembly?.sources[0].id).toBe('datasheet');
   });
+  it('constrains documentary source IDs separately from selected images before asking for a plan', async () => {
+    mutateVisualWorkspace(workspace => ({ ...workspace, artifacts: [{ id: 'servo-image', kind: 'image', label: 'Servo photo', linkedNodeId: 'drive',
+      x: 0, y: 0, width: 100, height: 100, mediaId: 'servo-photo', scene: null, source: null,
+      revisions: [{ scene: null, mediaId: 'servo-photo', createdAt: 1 }], revisionIndex: 0 }] }));
+    queue({ ...selection, imageIds: ['servo-image'], researchTargets: ['Exact servo variant'] });
+    vi.mocked(groundedText).mockResolvedValue({ sources: [{ url: 'https://manufacturer.example/servo', title: 'Servo datasheet' }] } as never);
+    vi.mocked(readSpecificationDocuments).mockResolvedValue({ sources: [{ id: 'datasheet', url: 'https://manufacturer.example/servo', title: 'Servo', text: 'Manufacturer description.', retrievedAt: 1 }], unknowns: [] });
+    await generateVisualModel(input(), options());
+    const request = vi.mocked(generateObject).mock.calls[1][0];
+    const grammar = (request as { schema: { safeParse: (value: unknown) => { success: boolean } } }).schema;
+    const candidate = structuredClone(modulePlan);
+    candidate.modules[0].sourceIds = ['servo-image'];
+    expect(grammar.safeParse(candidate).success).toBe(false);
+    candidate.modules[0].sourceIds = ['datasheet'];
+    expect(grammar.safeParse(candidate).success).toBe(true);
+    candidate.modules[0].nodeIds = ['unrelated'];
+    expect(grammar.safeParse(candidate).success).toBe(false);
+    expect(JSON.parse(request.prompt as string).allowedReferences).toEqual({ nodeIds: ['assembly', 'drive', 'bracket'], sourceIds: ['datasheet'] });
+  });
+  it('requires empty documentary citations when no actual document was retrieved', async () => {
+    queue(); await generateVisualModel(input(), options());
+    const grammar = (vi.mocked(generateObject).mock.calls[1][0] as { schema: { safeParse: (value: unknown) => { success: boolean } } }).schema;
+    const candidate = structuredClone(modulePlan); candidate.modules[0].sourceIds = ['invented-document'];
+    expect(grammar.safeParse(candidate).success).toBe(false);
+    expect(grammar.safeParse(modulePlan).success).toBe(true);
+  });
   it('invalidates the proposal when a descendant changes before application', async () => {
     queue(); const proposal = await generateVisualModel(input(), options());
     mutateNode('drive', { notes: 'Changed motor' });
@@ -150,6 +177,29 @@ describe('advanced modular generation', () => {
     await expect(generateVisualModel(input(), options())).rejects.toThrow('visualAssemblyInvalid');
     expect(getVisualWorkspace(useGraphStore.getState().project).proposals).toHaveLength(0);
     expect(getVisualWorkspace(useGraphStore.getState().project).artifacts).toHaveLength(0);
+  });
+  it('identifies the failing module and actual geometry limit instead of blaming its references', async () => {
+    const generated = moduleResult('Servo', -1);
+    generated.scene.objects[0].position = [-100, 0, 0];
+    vi.mocked(generateObject).mockResolvedValueOnce({ object: selection, finishReason: 'stop' } as never)
+      .mockResolvedValueOnce({ object: modulePlan, finishReason: 'stop' } as never)
+      .mockResolvedValueOnce({ object: generated, finishReason: 'stop' } as never);
+    const failure = await generateVisualModel(input(), options()).catch(error => error);
+    expect(failure).toMatchObject({ message: 'visualAssemblyInvalid', stage: 'module', code: 'bounds', moduleName: 'Servo' });
+    const message = visualError(failure, { generate: 'Gerar modelo', assemblyInvalid: 'GENERIC' } as never);
+    expect(message).toContain('Servo'); expect(message).toContain('limites');
+    expect(message).not.toContain('GENERIC'); expect(message).not.toContain('referências');
+    expect(getVisualWorkspace(useGraphStore.getState().project).proposals).toHaveLength(0);
+    expect(generateObject).toHaveBeenCalledTimes(3); // No hidden paid repair or partial assembly.
+  });
+  it('distinguishes an inconsistent planning anchor from an invalid generated module', async () => {
+    const plan = structuredClone(modulePlan); plan.interfaces[0].anchor = [100, 0, 0];
+    vi.mocked(generateObject).mockResolvedValueOnce({ object: selection, finishReason: 'stop' } as never)
+      .mockResolvedValueOnce({ object: plan, finishReason: 'stop' } as never);
+    const failure = await generateVisualModel(input(), options()).catch(error => error);
+    expect(failure).toMatchObject({ message: 'visualAssemblyInvalid', stage: 'plan', code: 'anchors' });
+    expect(visualError(failure, { generate: 'Generate model', assemblyInvalid: 'GENERIC' } as never)).toContain('Assembly plan');
+    expect(generateObject).toHaveBeenCalledTimes(2);
   });
   it('stops subsequent module requests on cancellation', async () => {
     const controller = new AbortController();
