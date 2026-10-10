@@ -1,3 +1,4 @@
+import { getVaultSession, vaultIsProtected } from './vault/privacy';
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { ExclamationTriangleIcon } from '@radix-ui/react-icons';
 import { captureLegacyBackup, downloadBackup } from './migration';
@@ -45,6 +46,13 @@ export function CloudStatus({ runtime, userId, email, onLogout }: { runtime: Clo
     </button>
     {panelVisible && <div className="cloud-status-panel" id={panelId}><strong>{email}</strong>
       {status.issue && <><p role="alert">{status.issue.message} Seu trabalho atual continua nesta sessão.</p><small>{status.issue.key}</small></>}
+      {vaultIsProtected() && <><p>Cofre aberto neste dispositivo. Armazenamento criptografado; IA recebe somente o contexto que você autorizar compartilhar.</p><button disabled={busy} onClick={() => {
+        setBusy(true); setError('');
+        void requireDataIdle().then(async () => {
+          if (runtime.getSnapshot().issue && rescued) { runtime.dispose(); window.location.reload(); return; }
+          await prepareCurrentData(true); await runtime.flush(); await requireDataIdle(); runtime.dispose(); window.location.reload();
+        }).catch(() => setError('Antes de bloquear, conclua os processos. Se o salvamento falhou, baixe o resgate criptografado e bloqueie novamente.')).finally(() => setBusy(false));
+      }}>{status.issue && rescued ? 'Bloquear após baixar resgate' : 'Bloquear cofre'}</button></>}
       <p>Dados remotos são a fonte principal. Rascunhos sem confirmação ficam somente na memória desta aba.</p>
       <button disabled={busy} onClick={() => {
         setBusy(true); setSendingPasswordLink(true); setError(''); setPasswordLinkSent(false);
@@ -57,7 +65,7 @@ export function CloudStatus({ runtime, userId, email, onLogout }: { runtime: Clo
       {status.issue && <><button disabled={busy} onClick={() => {
         setBusy(true); setError('');
         void requireDataIdle().then(() => prepareCurrentData().catch(() => {})).then(requireDataIdle).then(() => downloadSessionRescue(runtime)).then(rescue => { setRescued(true); setMissing(rescue.missingMediaIds.length); }).catch(reason => setError(reason instanceof Error ? reason.message : 'Falha no resgate.')).finally(() => setBusy(false));
-      }}>Baixar rascunhos de resgate (.json)</button><p>O resgate preserva os documentos e arquivos já lidos nesta aba. Os demais arquivos ficam identificados pelos IDs; este pacote é parcial e requer recuperação manual.</p>{missing !== null && <p role="status">Resgate baixado: {missing} arquivo(s) original(is) ainda precisam ser recuperados da nuvem.</p>}<button disabled={(!saved && !rescued) || busy} onClick={() => void requireDataIdle().then(() => window.location.reload()).catch(reason => setError(reason.message))}>{saved ? 'Reabrir dados remotos após baixar cópia' : 'Reabrir após baixar resgate parcial'}</button></>}
+      }}>Baixar rascunhos de resgate ({vaultIsProtected() ? '.ddvault' : '.json'})</button><p>O resgate preserva os documentos e arquivos já lidos nesta aba. Os demais arquivos ficam identificados pelos IDs; este pacote é parcial e requer recuperação manual.</p>{missing !== null && <p role="status">Resgate baixado: {missing} arquivo(s) original(is) ainda precisam ser recuperados da nuvem.</p>}<button disabled={(!saved && !rescued) || busy} onClick={() => void requireDataIdle().then(() => window.location.reload()).catch(reason => setError(reason.message))}>{saved ? 'Reabrir dados remotos após baixar cópia' : 'Reabrir após baixar resgate parcial'}</button></>}
       <button disabled={!!status.pending || busy} onClick={() => { setBusy(true); void prepareCurrentData(true).then(() => runtime.flush()).then(requireDataIdle).then(() => cloudJson('/api/auth/logout', { method: 'POST', headers: mutationHeaders, body: '{}' })).then(onLogout).catch(reason => setError(reason.message)).finally(() => setBusy(false)); }}>Sair da conta</button>
       {error && <p role="alert">{error}</p>}
     </div>}
@@ -66,7 +74,7 @@ export function CloudStatus({ runtime, userId, email, onLogout }: { runtime: Clo
 export function CloudDataControls() {
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [importing, setImporting] = useState(false);
   const cloud = getCloudRuntime();
-  return <section><h3>Dados e backup</h3><p className="text-control text-text-secondary">Backup completo: planos, chat, documentos e arquivos. As chaves de IA ficam de fora.</p><div className="cloud-actions"><button className="ws-button" disabled={busy} onClick={() => { setBusy(true); setError(''); void saveCurrentBackup().catch(reason => setError(reason instanceof Error ? reason.message : 'Falha no backup.')).finally(() => setBusy(false)); }}>{busy ? 'Preparando…' : 'Exportar backup global (.zip)'}</button>
+  return <section><h3>Dados e backup</h3><p className="text-control text-text-secondary">Backup completo: planos, chat, documentos e arquivos. {getVaultSession() ? 'O arquivo .ddvault é criptografado com a chave do cofre.' : 'O arquivo .zip é legível; guarde em local privado.'} As chaves de IA ficam de fora.</p><div className="cloud-actions"><button className="ws-button" disabled={busy} onClick={() => { setBusy(true); setError(''); void saveCurrentBackup().catch(reason => setError(reason instanceof Error ? reason.message : 'Falha no backup.')).finally(() => setBusy(false)); }}>{busy ? 'Preparando…' : 'Exportar backup global'}</button>
     {cloud && <button className="ws-button" disabled={busy} onClick={() => { setBusy(true); setError(''); void prepareCurrentData(true).then(() => cloud.flush()).then(() => saveCurrentBackup(cloud)).then(() => setImporting(true)).catch(reason => setError(reason.message)).finally(() => setBusy(false)); }}>Baixar cópia atual e importar backup</button>}</div>{error && <p role="alert">{error}</p>}
     {importing && cloud && <div className="cloud-import-overlay" role="dialog" aria-modal="true" aria-label="Importar backup global"><CloudMigration backup={null} snapshot={{ documents: cloud.documents(), media: cloud.media() }} onContinue={() => setImporting(false)} onDone={() => window.location.reload()}/></div>}
   </section>;

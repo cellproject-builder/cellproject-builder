@@ -24,6 +24,32 @@ async function setup(fn, options = {}) {
   try { await fn({ origin, mutationHeaders, auth, raw }); }
   finally { await new Promise(resolve => server.close(resolve)); await rm(dist, { recursive: true, force: true }); }
 }
+test('vault activation quiesces legacy requests and rejects a legacy request already waiting in its preflight', async () => {
+  let releaseMedia, releaseActivation, releasePreflight, mediaEntered, activationEntered, preflightEntered;
+  const mediaWait = new Promise(resolve => { releaseMedia = resolve; });
+  const activationWait = new Promise(resolve => { releaseActivation = resolve; });
+  const preflightWait = new Promise(resolve => { releasePreflight = resolve; });
+  const inMedia = new Promise(resolve => { mediaEntered = resolve; });
+  const inActivation = new Promise(resolve => { activationEntered = resolve; });
+  const inPreflight = new Promise(resolve => { preflightEntered = resolve; });
+  let preflightBlocked = false, mediaWrites = 0, activations = 0;
+  const repository = { writeMedia: async () => { mediaWrites++; mediaEntered(); await mediaWait; return {}; } };
+  const vaultRepository = { assertLegacy: async () => { if (preflightBlocked) { preflightEntered(); await preflightWait; } }, activate: async () => { activations++; activationEntered(); await activationWait; return { revision: 1 }; } };
+  await setup(async ({ origin, mutationHeaders }) => {
+    const post = route => fetch(`${origin}${route}`, { method: 'POST', headers: mutationHeaders, body: '{}', signal: AbortSignal.timeout(2000) });
+    try {
+      const media = post('/api/cloud/media'); await inMedia;
+      assert.equal((await post('/api/cloud/vault/activate')).status, 429); assert.equal(activations, 0);
+      releaseMedia(); assert.equal((await media).status, 200);
+      preflightBlocked = true; const waitingLegacy = post('/api/cloud/media'); await inPreflight;
+      assert.equal((await post('/api/cloud/vault/activate')).status, 429); assert.equal(activations, 0);
+      releasePreflight(); assert.equal((await waitingLegacy).status, 200); assert.equal(mediaWrites, 2);
+      const activation = post('/api/cloud/vault/activate'); await inActivation;
+      assert.equal((await post('/api/cloud/media')).status, 409);
+      releaseActivation(); assert.equal((await activation).status, 200);
+    } finally { releaseMedia(); releaseActivation(); releasePreflight(); }
+  }, { config: { enabled: true, vaultEnabled: true, origin: 'https://test.invalid' }, repository, vaultRepository });
+});
 
 test('production serves shell/assets and health, never source/private paths or an SPA response for API failures', async () => {
   await setup(async ({ origin, raw }) => {

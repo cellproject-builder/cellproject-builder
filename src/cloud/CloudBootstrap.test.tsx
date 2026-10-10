@@ -5,11 +5,36 @@ import { CloudBootstrap } from './CloudBootstrap';
 import { configureCloud } from './runtime';
 import { webcrypto } from 'node:crypto';
 import * as migration from './migration';
+import { createVault } from './vault/crypto';
+import { configureVault } from './vault/privacy';
 let host: HTMLDivElement, root: Root;
 beforeEach(() => { (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.append(host); root = createRoot(host); });
-afterEach(async () => { await act(async () => root.unmount()); host.remove(); configureCloud(null); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(async () => { await act(async () => root.unmount()); host.remove(); configureCloud(null); configureVault(null, false); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 async function fill(input: HTMLInputElement, value: string) { await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); }); }
 async function submit() { await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))); }
+it('does not import application stores before an encrypted-vault unlock or explicit legacy choice', async () => {
+  const load = vi.fn(async () => ({ default: () => <div>Workspace</div> }));
+  const fetcher = vi.fn<typeof fetch>(async path => String(path).endsWith('/config') ? Response.json({ enabled: true, authenticated: true, vaultAvailable: true, user: { id: 'owner', email: 'wylgnerbossman@gmail.com' } }) : String(path).endsWith('/vault') ? Response.json({ vault: null }) : Response.json({ documents: [{ key: 'dynamic_diary-theme', value: 'dark', revision: 1 }], media: [] }));
+  await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={fetcher}/>));
+  expect(host.textContent).toContain('Ativar cofre privado'); expect(load).not.toHaveBeenCalled();
+  await act(async () => Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'Continuar sem ativar agora')!.click());
+  expect(load).toHaveBeenCalledOnce();
+});
+it('unlocks a remote cofre locally before importing stores and never sends the phrase to the server', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const phrase = 'synthetic test-only private vault phrase';
+  const vault = await createVault('owner', phrase), snapshot = { documents: [{ key: 'dynamic_diary-theme', value: 'dark', revision: 1 }], media: [] };
+  const head = { header: vault.header, revision: 1, manifest: await vault.session.seal(JSON.stringify({ snapshot, files: {} }), 'manifest:1') };
+  const load = vi.fn(async () => ({ default: () => <div>Private workspace</div> }));
+  const fetcher = vi.fn<typeof fetch>(async path => String(path).endsWith('/config') ? Response.json({ enabled: true, authenticated: true, vaultAvailable: true, user: { id: 'owner', email: 'wylgnerbossman@gmail.com' } }) : Response.json(head));
+  await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={fetcher}/>));
+  expect(host.textContent).toContain('Desbloquear seu cofre'); expect(load).not.toHaveBeenCalled();
+  await fill(host.querySelector('input[type=password]')!, phrase); await submit();
+  await act(async () => { await vi.waitFor(() => expect(load).toHaveBeenCalledOnce(), { timeout: 10000 }); });
+  expect(load).toHaveBeenCalledOnce(); expect(host.textContent).toContain('Private workspace');
+  expect(fetcher.mock.calls.map(call => String(call[1]?.body ?? '')).join()).not.toContain(phrase);
+  expect(fetcher.mock.calls.some(call => call[0] === '/api/cloud/snapshot')).toBe(false);
+}, 15000);
 it('uses a password login when enabled and clears the password before opening the authenticated workspace', async () => {
   const load = vi.fn(async () => ({ default: () => <div>Workspace</div> })); let authenticated = false;
   const fetcher = vi.fn<typeof fetch>(async path => {

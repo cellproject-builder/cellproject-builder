@@ -69,3 +69,7 @@ O HTML público tem CSP para scripts próprios, WebAssembly e worker próprio/bl
 ## Verificação e limites
 
 `npm run test:gateway` cobre o gateway local e testes offline de autenticação, PKCE (challenge/verifier, cookie, expiração, outro navegador, callbacks paralelos, consumo único), revogação, refresh, origem/CSRF, conflitos, envelopes, upload/readback, paths estáticos, redirects, erros sem segredos e streaming/cancelamento. Supabase e provedores são simulados nesses testes, sem email enviado ou chamadas pagas. O teste SQL de RLS/CAS é coordenado separadamente. Antes de declarar operação remota concluída, conferir login real pelo template padrão no mesmo navegador, round trip dos documentos/mídias, refresh/logout, compatibilidade dos SDKs, backup/importação e restauração no domínio final.
+
+## Cofre com criptografia no cliente
+
+Consulte [encrypted-vault.md](encrypted-vault.md) antes de habilitar CLOUD_VAULT_ENABLED=1. A migração cria estruturas vazias; a frase e ativação são feitas somente pelo próprio usuário. Não desabilite a flag após contas ativarem o cofre. Backend com uma réplica, sem Edge Functions.

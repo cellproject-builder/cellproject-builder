@@ -1,0 +1,132 @@
+import { CloudConflictError, CloudRuntime, cloudJson, decodeBytes, encodeBytes, mutationHeaders, sanitizeCloudDocument, sha256, type CloudSnapshot } from '../runtime';
+import { type CipherEnvelope, type VaultHeader, type VaultSession, validateHeader, validateCipher } from './crypto';
+export interface VaultHead { header: VaultHeader; revision: number; manifest: CipherEnvelope }
+interface PrivateFile { blobId: string; sha256: string; size: number }
+interface Manifest { snapshot: CloudSnapshot; files: Record<string, PrivateFile> }
+interface Pending { body: string; next: Manifest; operationId: string; reply: unknown }
+const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+function validateManifest(value: unknown): Manifest {
+  const data = value as Manifest;
+  if (!data || Object.keys(data).sort().join(',') !== 'files,snapshot' || !data.files || typeof data.files !== 'object' || Array.isArray(data.files)) throw new Error('Manifesto privado inválido.');
+  const check = new CloudRuntime(data.snapshot); check.dispose();
+  if (Object.keys(data.files).length !== data.snapshot.media.length || data.snapshot.media.some(media => {
+    const item = Object.hasOwn(data.files, media.id) ? data.files[media.id] : null; return !item || Object.keys(item).sort().join(',') !== 'blobId,sha256,size' || !/^[a-f0-9-]{36}$/.test(item.blobId) || !/^[a-f0-9]{64}$/.test(item.sha256) || !Number.isSafeInteger(item.size) || item.size < 1 || item.size > 15 * 1024 * 1024;
+  })) throw new Error('Catálogo privado inválido.');
+  return data;
+}
+/** Compatibility transport: existing stores see plaintext in memory, network sees ciphertext only. */
+export class VaultTransport {
+  private chain: Promise<unknown> = Promise.resolve();
+  private pending: Pending | null = null;
+  private completed = new Map<string, unknown>();
+  private requests = new Map<string, string>();
+  private disposed = false;
+  private uploads = new Map<string, { blobId: string; cipherBytes: ArrayBuffer; cipherHash: string }>();
+  private constructor(readonly session: VaultSession, private state: Manifest, private revision: number, private remote: typeof fetch) {}
+  static async open(session: VaultSession, head: VaultHead, remote: typeof fetch = fetch) {
+    if (!head || !Number.isSafeInteger(head.revision) || head.revision < 1 || JSON.stringify(validateHeader(head.header)) !== JSON.stringify(session.header)) throw new Error('Cofre remoto inválido.');
+    const state = validateManifest(JSON.parse(await session.openText(validateCipher(head.manifest), `manifest:${head.revision}`)));
+    return new VaultTransport(session, state, head.revision, remote);
+  }
+  snapshot(): CloudSnapshot { this.available(); return clone(this.state.snapshot); }
+  private available() { if (this.disposed) throw new Error('Cofre bloqueado.'); }
+  private async settle() {
+    if (!this.pending) return;
+    const op = this.pending;
+    const reply = await cloudJson<{ revision: number }>('/api/cloud/vault', { method: 'PUT', headers: mutationHeaders, body: op.body }, this.remote);
+    this.available(); if (reply.revision !== this.revision + 1) throw new Error('Revisão do cofre inválida.');
+    this.state = op.next; this.revision = reply.revision; this.completed.set(op.operationId, op.reply); this.pending = null;
+    for (const [key, upload] of this.uploads) if (Object.values(this.state.files).some(file => file.blobId === upload.blobId)) this.uploads.delete(key);
+  }
+  private async commit(next: Manifest, operationId: string, reply: unknown) {
+    validateManifest(next);
+    const manifest = await this.session.seal(JSON.stringify(next), `manifest:${this.revision + 1}`); this.available();
+    this.pending = { body: JSON.stringify({ manifest, baseRevision: this.revision, operationId }), next, operationId, reply };
+    await this.settle(); return Response.json(reply);
+  }
+  fetch: typeof fetch = (async (input: RequestInfo | URL, init: RequestInit = {}) => {
+    const path = String(input);
+    if (!path.startsWith('/api/cloud/') || path.startsWith('/api/cloud/config') || path.startsWith('/api/cloud/vault')) return this.remote(input, init);
+    const task = this.chain.catch(() => {}).then(async () => {
+      this.available(); await this.settle(); this.available();
+      if (path === '/api/cloud/snapshot' && (!init.method || init.method === 'GET')) return Response.json(this.snapshot());
+      if (path.startsWith('/api/cloud/media/') && (!init.method || init.method === 'GET')) {
+        const id = decodeURIComponent(path.slice('/api/cloud/media/'.length)), item = this.state.files[id]; if (!item) return Response.json({}, { status: 404 });
+        const response = await this.remote(`/api/cloud/vault/blobs/${item.blobId}`, { credentials: 'same-origin', cache: 'no-store' }); if (!response.ok) return response;
+        const bytes = await response.arrayBuffer(); if (bytes.byteLength !== item.size || await sha256(bytes) !== item.sha256) throw new Error('Arquivo criptografado corrompido.');
+        const data = JSON.parse(new TextDecoder().decode(bytes));
+        const plain = await this.session.openBytes(data, `media:${item.blobId}`); this.available(); return new Response(plain);
+      }
+      const body = JSON.parse(String(init.body));
+      if (!body || typeof body.operationId !== 'string') throw new Error('Operação inválida.');
+      const request = String(init.body), prior = this.requests.get(body.operationId);
+      if (prior !== undefined && prior !== request) throw new CloudConflictError();
+      this.requests.set(body.operationId, request);
+      if (this.completed.has(body.operationId)) return Response.json(this.completed.get(body.operationId));
+      const next = clone(this.state);
+      if (path.startsWith('/api/cloud/documents/') && init.method === 'PUT') {
+        const key = decodeURIComponent(path.slice('/api/cloud/documents/'.length)), old = next.snapshot.documents.find(doc => doc.key === key);
+        if ((old?.revision ?? 0) !== body.baseRevision) return Response.json({}, { status: 409 });
+        const item = { key, value: sanitizeCloudDocument(key, body.value), revision: body.baseRevision + 1 };
+        next.snapshot.documents = next.snapshot.documents.filter(doc => doc.key !== key).concat(item);
+        return this.commit(next, body.operationId, { revision: item.revision });
+      }
+      if (path === '/api/cloud/import' && init.method === 'POST') {
+        for (const doc of body.documents) {
+          const old = next.snapshot.documents.find(item => item.key === doc.key);
+          if (old && old.value !== doc.value) throw new CloudConflictError();
+          if (!old) next.snapshot.documents.push({ key: doc.key, value: sanitizeCloudDocument(doc.key, doc.value), revision: 1 });
+        }
+        return this.commit(next, body.operationId, { documents: body.documents.map((doc: { key: string }) => next.snapshot.documents.find(item => item.key === doc.key)) });
+      }
+      if (path === '/api/cloud/media' && init.method === 'POST') {
+        const bytes = decodeBytes(body.base64), hash = await sha256(bytes), old = next.snapshot.media.find(media => media.id === body.id);
+        if (hash !== body.sha256) throw new Error('Integridade do arquivo inválida.');
+        const { base64: _base64, operationId: _operation, ...metadata } = body; metadata.size = bytes.byteLength;
+        if (old) {
+          if (['id', 'mime', 'name', 'sha256', 'size', 'projectId', 'createdAt'].some(field => (old as unknown as Record<string, unknown>)[field] !== metadata[field])) throw new CloudConflictError();
+          return Response.json({ id: old.id, sha256: old.sha256, size: old.size });
+        }
+        const uploadKey = `${body.id}:${hash}`;
+        let upload = this.uploads.get(uploadKey);
+        if (!upload) {
+          const blobId = crypto.randomUUID(), encrypted = await this.session.seal(bytes, `media:${blobId}`);
+          const cipherBytes = new TextEncoder().encode(JSON.stringify(encrypted)).buffer;
+          upload = { blobId, cipherBytes, cipherHash: await sha256(cipherBytes) }; this.uploads.set(uploadKey, upload);
+        }
+        const { blobId, cipherBytes, cipherHash } = upload;
+        const result = await cloudJson<{ id: string; sha256: string; size: number }>('/api/cloud/vault/blobs', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ id: blobId, sha256: cipherHash, base64: encodeBytes(cipherBytes) }) }, this.remote);
+        if (result.id !== blobId || result.sha256 !== cipherHash || result.size !== cipherBytes.byteLength) throw new Error('Upload privado não confirmado.');
+        const readback = await this.remote(`/api/cloud/vault/blobs/${blobId}`, { credentials: 'same-origin', cache: 'no-store' });
+        if (!readback.ok) throw new Error('Não foi possível conferir o upload privado.');
+        const confirmed = await readback.arrayBuffer(); if (await sha256(confirmed) !== cipherHash) throw new Error('Upload privado corrompido.');
+        if (await sha256(await this.session.openBytes(JSON.parse(new TextDecoder().decode(confirmed)), `media:${blobId}`)) !== hash) throw new Error('Arquivo privado inválido.');
+        next.snapshot.media.push(metadata); next.files[body.id] = { blobId, sha256: cipherHash, size: cipherBytes.byteLength };
+        return this.commit(next, body.operationId, { id: body.id, sha256: hash, size: bytes.byteLength });
+      }
+      if (path.startsWith('/api/cloud/media/') && init.method === 'DELETE') {
+        const id = decodeURIComponent(path.slice('/api/cloud/media/'.length)); next.snapshot.media = next.snapshot.media.filter(item => item.id !== id); delete next.files[id];
+        return this.commit(next, body.operationId, { deleted: true });
+      }
+      throw new Error('Operação privada não suportada.');
+    });
+    this.chain = task; return task;
+  }) as typeof fetch;
+  async flush() { await this.chain.catch(() => {}); await this.settle(); }
+  dispose() { this.disposed = true; this.session.dispose(); this.state = { snapshot: { documents: [], media: [] }, files: {} }; this.pending = null; this.completed.clear(); this.requests.clear(); this.uploads.clear(); }
+}
+const activations = new WeakMap<VaultSession, { body: string; head: VaultHead; snapshot: string }>();
+export async function activateVault(session: VaultSession, snapshot: CloudSnapshot, remote: typeof fetch = fetch): Promise<VaultHead> {
+  const check = new CloudRuntime(snapshot); check.dispose();
+  if (snapshot.media.length) throw new Error('A ativação com arquivos antigos exige migração assistida. O conteúdo atual foi preservado.');
+  let activation = activations.get(session);
+  if (activation && activation.snapshot !== JSON.stringify(snapshot)) throw new Error('O conteúdo remoto mudou. Reabra a preparação do cofre.');
+  const manifest = activation?.head.manifest ?? await session.seal(JSON.stringify({ snapshot, files: {} }), 'manifest:1');
+  // Body is kept unchanged by the setup UI when an activation response is lost.
+  const body = activation?.body ?? JSON.stringify({ header: session.header, manifest, expectedDocuments: snapshot.documents.map(({ key, revision }) => ({ key, revision })), operationId: crypto.randomUUID() });
+  if (!activation) { activation = { body, head: { header: session.header, manifest, revision: 1 }, snapshot: JSON.stringify(snapshot) }; activations.set(session, activation); }
+  const reply = await cloudJson<{ revision: number }>('/api/cloud/vault/activate', { method: 'POST', headers: mutationHeaders, body }, remote);
+  if (reply.revision !== 1) throw new Error('Ativação do cofre não confirmada.'); return { header: session.header, manifest, revision: 1 };
+}
+
+

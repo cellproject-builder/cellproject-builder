@@ -1,3 +1,4 @@
+import { encryptedExport, getVaultSession, vaultIsProtected } from './vault/privacy';
 import { CloudRuntime, encodeBytes, sanitizeCloudDocument, sha256 } from './runtime';
 
 /** An explicit partial rescue: never presented or accepted as a complete global backup. */
@@ -18,8 +19,8 @@ export async function captureSessionRescue(runtime: CloudRuntime) {
 }
 export async function downloadSessionRescue(runtime: CloudRuntime) {
   const rescue = await captureSessionRescue(runtime);
-  const url = URL.createObjectURL(new Blob([JSON.stringify(rescue)], { type: 'application/json' }));
-  const link = document.createElement('a'); link.href = url; link.download = `dynamic-diary-resgate-${rescue.exportedAt.slice(0, 10)}.json`; link.click();
+  const url = URL.createObjectURL(vaultIsProtected() ? await encryptedExport(new TextEncoder().encode(JSON.stringify(rescue)).buffer, 'rescue') : new Blob([JSON.stringify(rescue)], { type: 'application/json' }));
+  const link = document.createElement('a'); link.href = url; link.download = `dynamic-diary-resgate-${rescue.exportedAt.slice(0, 10)}${getVaultSession() ? '.ddvault' : '.json'}`; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   return rescue;
 }

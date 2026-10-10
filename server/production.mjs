@@ -7,6 +7,7 @@ import { pipeline } from 'node:stream/promises';
 import { createVisualHandler } from './handler.mjs';
 import { createCloudAuth, readCloudConfig } from './cloudAuth.mjs';
 import { createCloudRepository } from './cloudRepository.mjs';
+import { createVaultRepository, VAULT_LIMIT } from './vaultRepository.mjs';
 import { createAIProxy } from './cloudAI.mjs';
 import { CloudError, sendJson, sendError, readJson } from './cloudUtils.mjs';
 import { DOCUMENT_LIMIT, IMPORT_LIMIT } from './cloudValidation.mjs';
@@ -26,16 +27,18 @@ function publicHeaders(res) {
 }
 
 export function productionConfig(env = process.env) {
-  return { ...readCloudConfig(env), providers: { openrouter: env.OPENROUTER_API_KEY || env.OPENROUTER || '', openai: env.OPENAI_API_KEY || '', anthropic: env.ANTHROPIC_API_KEY || '' }, typesafeKey: env.TYPESAFE_API_KEY || env.TYPESAFE || '' };
+  return { ...readCloudConfig(env), vaultEnabled: env.CLOUD_VAULT_ENABLED === '1', providers: { openrouter: env.OPENROUTER_API_KEY || env.OPENROUTER || '', openai: env.OPENAI_API_KEY || '', anthropic: env.ANTHROPIC_API_KEY || '' }, typesafeKey: env.TYPESAFE_API_KEY || env.TYPESAFE || '' };
 }
 
-export function createProductionHandler({ config = productionConfig(), dist = path.resolve('dist'), auth, repository, fetchImpl = fetch, publicFetch, referenceRegistry } = {}) {
+export function createProductionHandler({ config = productionConfig(), dist = path.resolve('dist'), auth, repository, vaultRepository, fetchImpl = fetch, publicFetch, referenceRegistry } = {}) {
   auth ??= createCloudAuth({ config, fetchImpl }); repository ??= createCloudRepository({ config, fetchImpl });
+  vaultRepository ??= createVaultRepository({ config, fetchImpl });
   const authorized = new WeakMap();
   const visuals = createVisualHandler({ local: false, typesafeKey: config.typesafeKey, authorize: req => authorized.get(req)?.user.id ?? null, fetchImpl, publicFetch, referenceRegistry });
   const ai = createAIProxy({ keys: config.providers, fetchImpl });
   const providers = () => ({ openrouter: config.enabled && Boolean(config.providers?.openrouter), openai: config.enabled && Boolean(config.providers?.openai), anthropic: config.enabled && Boolean(config.providers?.anthropic) });
   const pending = new Map(); let globalPending = 0;
+  const activatingVaults = new Set();
   let canonicalDist;
   const staticFile = async (req, res, route) => {
     if (!['GET', 'HEAD'].includes(req.method)) throw notFound();
@@ -55,7 +58,7 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
     await pipeline(createReadStream(resolved), res);
   };
   const handler = async (req, res) => {
-    let release;
+    let release, activationOwner;
     try {
       publicHeaders(res); if (config.enabled) res.setHeader('strict-transport-security', 'max-age=31536000');
       const route = pathname(req);
@@ -72,7 +75,7 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
       if (route === '/api/cloud/config' && req.method === 'GET') {
         if (config.enabled && !auth.sameOrigin(req)) throw new CloudError(403, 'origin_forbidden', 'This request origin is not permitted.');
         const session = config.enabled ? await auth.authorize(req) : null;
-        sendJson(res, 200, { enabled: config.enabled, authenticated: Boolean(session), ...(config.enabled ? { authMethod: 'email_link', passwordAuth: true } : {}), ...(session ? { user: session.user, passwordSetup: session.passwordSetup === true } : {}), providers: providers() }); return;
+        sendJson(res, 200, { enabled: config.enabled, authenticated: Boolean(session), ...(config.enabled ? { authMethod: 'email_link', passwordAuth: true, ...(config.vaultEnabled ? { vaultAvailable: true } : {}) } : {}), ...(session ? { user: session.user, passwordSetup: session.passwordSetup === true } : {}), providers: providers() }); return;
       }
       if (!config.enabled) throw new CloudError(503, 'cloud_not_configured', 'Cloud access is not configured.');
       if (route === '/api/auth/callback' && req.method === 'GET') {
@@ -93,12 +96,36 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
       if (route === '/api/auth/password' && req.method === 'POST') { const body = await readJson(req, 4096); await auth.setPassword(body.password, session); sendJson(res, 200, { saved: true }); return; }
       if (route.startsWith('/api/visuals/')) { authorized.set(req, session); await visuals(req, res); return; }
       if (route.startsWith('/api/ai/')) { await ai(req, res, session); return; }
+      if (config.vaultEnabled && route === '/api/cloud/vault' && req.method === 'GET') { sendJson(res, 200, await vaultRepository.get(session)); return; }
+      if (config.vaultEnabled && route === '/api/cloud/vault/activate') {
+        if ((pending.get(session.user.id) ?? 0) > 0 || activatingVaults.has(session.user.id)) throw new CloudError(429, 'vault_busy', 'Finish active cloud operations before activating the vault.');
+        activationOwner = session.user.id; activatingVaults.add(activationOwner);
+      }
+      if (config.vaultEnabled && route.startsWith('/api/cloud/') && !route.startsWith('/api/cloud/vault')) {
+        if (activatingVaults.has(session.user.id)) throw new CloudError(409, 'vault_activating', 'Vault activation is in progress.');
+        // Reserve before the asynchronous vault check. Activation cannot overtake
+        // a legacy request whose check observed the previous unencrypted state.
+        const count = pending.get(session.user.id) ?? 0;
+        if (count >= 2 || globalPending >= 4) throw new CloudError(429, 'cloud_rate_limited', 'Too many concurrent cloud operations.');
+        pending.set(session.user.id, count + 1); globalPending++;
+        release = () => { pending.set(session.user.id, pending.get(session.user.id) - 1); globalPending--; };
+        await vaultRepository.assertLegacy(session);
+        // A request waiting on Supabase must not slip through an activation barrier.
+        if (activatingVaults.has(session.user.id)) throw new CloudError(409, 'vault_activating', 'Vault activation is in progress.');
+      }
       if (route === '/api/cloud/snapshot' && req.method === 'GET') { sendJson(res, 200, await repository.snapshot(session)); return; }
-      if (route.startsWith('/api/cloud/')) {
+      if (route.startsWith('/api/cloud/') && !release) {
         const count = pending.get(session.user.id) ?? 0;
         if (count >= 2 || globalPending >= 4) throw new CloudError(429, 'cloud_rate_limited', 'Too many concurrent cloud operations. Please try again later.');
         pending.set(session.user.id, count + 1); globalPending++;
         release = () => { pending.set(session.user.id, pending.get(session.user.id) - 1); globalPending--; };
+      }
+      if (config.vaultEnabled && route === '/api/cloud/vault/activate' && req.method === 'POST') { sendJson(res, 200, await vaultRepository.activate(session, await readJson(req, VAULT_LIMIT))); return; }
+      if (config.vaultEnabled && route === '/api/cloud/vault' && req.method === 'PUT') { sendJson(res, 200, await vaultRepository.write(session, await readJson(req, VAULT_LIMIT))); return; }
+      if (config.vaultEnabled && route === '/api/cloud/vault/blobs' && req.method === 'POST') { sendJson(res, 200, await vaultRepository.writeBlob(session, await readJson(req, 21 * 1024 * 1024))); return; }
+      if (config.vaultEnabled && route.startsWith('/api/cloud/vault/blobs/') && req.method === 'GET') {
+        const bytes = await vaultRepository.readBlob(session, route.slice('/api/cloud/vault/blobs/'.length));
+        res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': bytes.length, 'cache-control': 'private, no-store', 'content-disposition': 'attachment', 'cross-origin-resource-policy': 'same-origin' }); res.end(bytes); return;
       }
       if (route === '/api/cloud/import' && req.method === 'POST') { sendJson(res, 200, await repository.importDocuments(session, await readJson(req, IMPORT_LIMIT * 2 + 32_768))); return; }
       if (route.startsWith('/api/cloud/documents/') && req.method === 'PUT') {
@@ -116,7 +143,7 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
       }
       throw notFound();
     } catch (error) { sendError(res, error); }
-    finally { release?.(); }
+    finally { release?.(); if (activationOwner) activatingVaults.delete(activationOwner); }
   };
   handler.close = () => { auth.close?.(); ai.close(); };
   return handler;

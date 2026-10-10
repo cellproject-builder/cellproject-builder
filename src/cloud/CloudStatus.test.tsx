@@ -8,6 +8,14 @@ vi.mock('@/store', () => ({ hasPendingGraphPersistence: () => false }));
 import { CloudStatus } from './CloudStatus';
 import { CloudRuntime, configureCloud } from './runtime';
 import { registerDataIngestion } from './activity';
+async function settle(assertion: () => void) {
+  let last: unknown;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+    try { assertion(); return; } catch (reason) { last = reason; }
+  }
+  throw last;
+}
 
 it('keeps the saved indicator quiet while its button still opens synchronization details', async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -39,6 +47,7 @@ it('requests a verified password setup link for the signed-in identity from the 
     await act(async () => host.querySelector('button')!.click());
     const button = [...host.querySelectorAll('button')].find(button => button.textContent === 'Criar ou alterar senha'); expect(button).toBeDefined();
     await act(async () => button!.click());
+    await settle(() => { expect(host.querySelector('[role="status"]')?.textContent).toContain('neste navegador'); expect(button!.disabled).toBe(false); });
     expect(fetcher.mock.calls[0][0]).toBe('/api/auth/password/setup-link');
     expect(JSON.parse(fetcher.mock.calls[0][1]!.body as string)).toEqual({ email: 'wylgnerbossman@gmail.com' });
     expect(host.querySelector('[role="status"]')?.textContent).toContain('neste navegador');
@@ -70,10 +79,11 @@ it('blocks complete backup, rescue and logout while chat or a file ingestion is 
     expect(host.querySelector('a[target="_blank"]')?.getAttribute('rel')).toContain('noopener');
     for (const label of ['Baixar cópia completa desta sessão', 'Baixar rascunhos de resgate (.json)', 'Sair da conta']) {
       await act(async () => { [...host.querySelectorAll('button')].find(button => button.textContent === label)!.click(); });
+      await settle(() => expect([...host.querySelectorAll('button')].find(button => button.textContent === label)!.disabled).toBe(false));
       expect(host.textContent).toContain('Aguarde o chat');
     }
     activity.chatRunning = false; const finish = registerDataIngestion();
-    try { await act(async () => { [...host.querySelectorAll('button')].find(button => button.textContent === 'Baixar rascunhos de resgate (.json)')!.click(); }); expect(host.textContent).toContain('leitura dos anexos'); }
+    try { await act(async () => { [...host.querySelectorAll('button')].find(button => button.textContent === 'Baixar rascunhos de resgate (.json)')!.click(); }); await settle(() => expect([...host.querySelectorAll('button')].find(button => button.textContent === 'Baixar rascunhos de resgate (.json)')!.disabled).toBe(false)); expect(host.textContent).toContain('leitura dos anexos'); }
     finally { finish(); }
     expect(logout).not.toHaveBeenCalled(); expect(fetcher).not.toHaveBeenCalled();
   } finally { await act(async () => root.unmount()); host.remove(); configureCloud(null); vi.restoreAllMocks(); }

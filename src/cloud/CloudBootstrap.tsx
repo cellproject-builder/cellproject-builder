@@ -4,6 +4,9 @@ import { captureLegacyBackup, type MigrationBackup } from './migration';
 import { CloudMigration } from './CloudMigration';
 import { CloudStatus } from './CloudStatus';
 import { PasswordSetup } from './PasswordSetup';
+import { VaultGate } from './VaultGate';
+import { VaultTransport, type VaultHead } from './vault/transport';
+import { configureVault } from './vault/privacy';
 import './cloud.css';
 
 interface Props { loadApplication: () => Promise<{ default: ComponentType }>; fetcher?: typeof fetch }
@@ -14,12 +17,13 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
   const [showCode, setShowCode] = useState(false);
   const [loginMethod, setLoginMethod] = useState<'password' | 'link' | 'setup'>('password');
   const [password, setPassword] = useState('');
+  const [vaultGate, setVaultGate] = useState(false), [vaultHead, setVaultHead] = useState<VaultHead | null>(null);
   const emailLink = config?.authMethod === 'email_link';
   const passwordLogin = config?.passwordAuth && loginMethod === 'password', passwordLink = config?.passwordAuth && loginMethod === 'setup';
   const generation = useRef(0);
   const invalidLink = useRef(new URLSearchParams(window.location.search).get('auth_error') === 'link_invalid');
-  async function load(selected: CloudSnapshot | null, next: CloudConfig) {
-    const cloud = selected ? new CloudRuntime(selected, fetcher) : null; configureCloud(cloud, next.providers); setRuntime(cloud); setMigration(false);
+  async function load(selected: CloudSnapshot | null, next: CloudConfig, vault?: VaultTransport) {
+    const cloud = selected ? new CloudRuntime(selected, vault?.fetch ?? fetcher, vault ? () => vault.dispose() : undefined) : null; configureCloud(cloud, next.providers); configureVault(vault?.session ?? null, !!vault); setRuntime(cloud); setMigration(false); setVaultGate(false);
     const application = await loadApplication(); setApp(() => application.default);
   }
   async function refresh(id = ++generation.current) {
@@ -32,6 +36,14 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
       if (!next.authenticated) { if (invalidLink.current) { invalidLink.current = false; setError('Este link expirou ou não é válido neste navegador. Solicite um novo link de acesso.'); } return; }
       if (!next.user?.id || next.user.email.toLowerCase() !== 'wylgnerbossman@gmail.com') throw new Error('Esta conta não tem acesso ao workspace.');
       if (next.passwordSetup) return;
+      if (next.vaultAvailable) {
+        const head = await cloudJson<VaultHead | { vault: null }>('/api/cloud/vault', {}, fetcher); if (id !== generation.current) return;
+        if ('vault' in head && head.vault === null) {
+          const original = await cloudJson<CloudSnapshot>('/api/cloud/snapshot', {}, fetcher); if (id !== generation.current) return;
+          const validation = new CloudRuntime(original, fetcher); validation.dispose(); setSnapshot(original); setVaultHead(null);
+        } else { setVaultHead(head as VaultHead); setSnapshot(null); }
+        setVaultGate(true); return;
+      }
       const remote = await cloudJson<CloudSnapshot>('/api/cloud/snapshot', {}, fetcher); if (id !== generation.current) return;
       // Validate before importing stores; malformed cloud data never falls back to legacy.
       const validation = new CloudRuntime(remote, fetcher); validation.dispose(); setSnapshot(remote);
@@ -70,7 +82,11 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
   function switchMethod(method: typeof loginMethod) { setLoginMethod(method); setPassword(''); setCodeSent(false); setShowCode(false); setToken(''); setError(''); }
   if (App) return <><App/>{runtime && <CloudStatus runtime={runtime} userId={config?.user?.id ?? ''} email={config?.user?.email ?? email} onLogout={() => { runtime.dispose(); window.location.reload(); }}/>}</>;
   return <main className="cloud-entry">
-    {config?.enabled && config.authenticated && config.passwordSetup ? <div className="cloud-auth-flow"><PasswordSetup email={config.user?.email ?? email} fetcher={fetcher} onSaved={() => refresh()}/>{error && <div className="cloud-auth-retry"><p role="alert">{error}</p><button disabled={busy} onClick={() => void refresh()}>Tentar novamente</button></div>}</div> : migration && config && snapshot ? <CloudMigration backup={legacy} snapshot={snapshot} fetcher={fetcher} onContinue={() => void load(snapshot, config).catch(reason => setError(reason.message))} onDone={next => void load(next, config).catch(reason => setError(reason.message))}/> : <section className="cloud-card">
+    {vaultGate && config?.user ? <VaultGate ownerId={config.user.id} head={vaultHead} snapshot={snapshot} fetcher={fetcher} onUnlocked={vault => load(vault.snapshot(), config, vault)} onSkip={() => {
+      if (!snapshot) return; setVaultGate(false);
+      if (snapshot.documents.length) void load(snapshot, config).catch(reason => setError(reason.message));
+      else void captureLegacyBackup().then(backup => { setLegacy(backup.documents.length || backup.media.length ? backup : null); setMigration(true); }).catch(reason => setError(reason.message));
+    }}/> : config?.enabled && config.authenticated && config.passwordSetup ? <div className="cloud-auth-flow"><PasswordSetup email={config.user?.email ?? email} fetcher={fetcher} onSaved={() => refresh()}/>{error && <div className="cloud-auth-retry"><p role="alert">{error}</p><button disabled={busy} onClick={() => void refresh()}>Tentar novamente</button></div>}</div> : migration && config && snapshot ? <CloudMigration backup={legacy} snapshot={snapshot} fetcher={fetcher} onContinue={() => void load(snapshot, config).catch(reason => setError(reason.message))} onDone={next => void load(next, config).catch(reason => setError(reason.message))}/> : <section className="cloud-card">
       <p className="cloud-kicker">DYNAMIC DIARY</p><h1>{config?.enabled && !config.authenticated ? passwordLink ? 'Criar ou recuperar senha' : 'Entrar' : 'Abrindo seus projetos'}</h1>
       {config?.enabled && !config.authenticated && <form onSubmit={event => { event.preventDefault(); void auth(codeSent && (!emailLink || showCode)); }}>
         <label>E-mail<input type="email" autoComplete="email" value={email} disabled={busy || codeSent} onChange={event => setEmail(event.target.value)} required/></label>

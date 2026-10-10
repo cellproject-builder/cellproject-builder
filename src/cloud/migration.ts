@@ -1,3 +1,4 @@
+import { decryptExport, encryptedExport, getVaultSession, vaultIsProtected } from './vault/privacy';
 import { get, entries, createStore } from 'idb-keyval';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { CLOUD_DOCUMENT_KEYS, CloudConflictError, CloudRuntime, cloudJson, decodeBytes, encodeBytes, mutationHeaders, sanitizeCloudDocument, sha256, type CloudSnapshot } from './runtime';
@@ -58,11 +59,13 @@ export async function backupBlob(backup: MigrationBackup): Promise<Blob> {
   const files: Record<string, Uint8Array> = {};
   files['manifest.json'] = strToU8(JSON.stringify({ ...backup, media: backup.media.map(({ base64: _bytes, ...metadata }) => metadata) }));
   for (const file of backup.media) files[`media/${file.id}`] = new Uint8Array(decodeBytes(file.base64));
-  return new Blob([zipSync(files, { level: 0 }) as Uint8Array<ArrayBuffer>], { type: 'application/zip' });
+  const bytes = zipSync(files, { level: 0 }) as Uint8Array<ArrayBuffer>;
+  return vaultIsProtected() ? encryptedExport(bytes.buffer, 'backup') : new Blob([bytes], { type: 'application/zip' });
 }
 export async function readBackup(blob: Blob): Promise<MigrationBackup> {
-  if (blob.size > MAX_BYTES + 64 * 1024 * 1024) throw new Error('Backup muito grande.');
-  const bytes = typeof blob.arrayBuffer === 'function' ? await blob.arrayBuffer() : await new Promise<ArrayBuffer>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result as ArrayBuffer); reader.onerror = reject; reader.readAsArrayBuffer(blob); });
+  if (blob.size > 850 * 1024 * 1024) throw new Error('Backup muito grande.');
+  let bytes = typeof blob.arrayBuffer === 'function' ? await blob.arrayBuffer() : await new Promise<ArrayBuffer>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result as ArrayBuffer); reader.onerror = reject; reader.readAsArrayBuffer(blob); });
+  if (new Uint8Array(bytes)[0] === 123) bytes = await decryptExport(bytes, 'backup');
   let unpackedBytes = 0;
   const files = unzipSync(new Uint8Array(bytes), { filter: item => { unpackedBytes += item.originalSize; if (unpackedBytes > MAX_BYTES + 64 * 1024 * 1024 || (item.name !== 'manifest.json' && !/^media\/[\w-]{1,100}$/.test(item.name))) throw new Error('Estrutura do backup inválida.'); return true; } });
   if (!files['manifest.json']) throw new Error('Manifesto ausente.');
@@ -107,5 +110,5 @@ export async function importBackup(backup: MigrationBackup, fetcher: typeof fetc
 }
 export async function downloadBackup(backup: MigrationBackup) {
   const url = URL.createObjectURL(await backupBlob(backup)); const link = document.createElement('a');
-  link.href = url; link.download = `dynamic-diary-backup-${backup.exportedAt.slice(0, 10)}.zip`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  link.href = url; link.download = `dynamic-diary-backup-${backup.exportedAt.slice(0, 10)}${getVaultSession() ? '.ddvault' : '.zip'}`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

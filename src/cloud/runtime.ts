@@ -1,9 +1,10 @@
+import { authorizeVaultSharing, configureVault } from './vault/privacy';
 export const CLOUD_DOCUMENT_KEYS = ['cellproject-workspace', 'cellproject-graph', 'dynamic_diary-chat', 'cellproject-kb', 'cellproject-config', 'cellproject-locale', 'dynamic_diary-theme', 'dynamic_diary-sidebar-collapsed', 'dynamic_diary:task-view'] as const;
 export type CloudProvider = 'openrouter' | 'openai' | 'anthropic';
 export interface CloudDocument { key: string; value: string; revision: number }
 export interface CloudMedia { id: string; mime: string; name: string; projectId?: string; createdAt?: number; sha256: string; size: number }
 export interface CloudSnapshot { documents: CloudDocument[]; media: CloudMedia[] }
-export interface CloudConfig { enabled: boolean; authenticated: boolean; authMethod?: 'email_link' | 'code'; passwordAuth?: boolean; passwordSetup?: boolean; user?: { id: string; email: string }; providers?: Partial<Record<CloudProvider, boolean>> }
+export interface CloudConfig { enabled: boolean; authenticated: boolean; authMethod?: 'email_link' | 'code'; passwordAuth?: boolean; passwordSetup?: boolean; vaultAvailable?: boolean; user?: { id: string; email: string }; providers?: Partial<Record<CloudProvider, boolean>> }
 export interface CloudIssue { kind: 'conflict' | 'network' | 'session'; key: string; message: string }
 export interface CloudStatus { pending: number; issue: CloudIssue | null; saving: boolean }
 type Operation = { key: string; value: string; operationId: string; baseRevision?: number };
@@ -34,7 +35,7 @@ export class CloudRuntime {
   private status: CloudStatus = { pending: 0, issue: null, saving: false };
   private mediaMetadata = new Map<string, CloudMedia>();
   private mediaBytes = new Map<string, ArrayBuffer>();
-  constructor(snapshot: CloudSnapshot, private fetcher: typeof fetch = fetch) {
+  constructor(snapshot: CloudSnapshot, private fetcher: typeof fetch = fetch, private vaultDisposer?: () => void) {
     if (!snapshot || !Array.isArray(snapshot.documents) || !Array.isArray(snapshot.media)) throw new Error('Snapshot remoto inválido.');
     for (const doc of snapshot.documents) {
       if (!CLOUD_DOCUMENT_KEYS.includes(doc.key as typeof CLOUD_DOCUMENT_KEYS[number]) || typeof doc.value !== 'string' || !Number.isSafeInteger(doc.revision) || doc.revision < 1 || this.confirmed.has(doc.key)) throw new Error('Snapshot remoto inválido.');
@@ -106,7 +107,8 @@ export class CloudRuntime {
     if (this.getSnapshot().issue?.kind !== 'session') return;
     this.publish({ issue: null }); await this.drain();
   }
-  dispose() { this.disposed = true; this.mediaBytes.clear(); this.mediaMetadata.clear(); this.confirmed.clear(); this.drafts.clear(); this.queue = []; this.publish({ issue: null }); }
+  requestFetch(): typeof fetch { return this.fetcher; }
+  dispose() { this.vaultDisposer?.(); if (this.vaultDisposer) configureVault(null); this.disposed = true; this.mediaBytes.clear(); this.mediaMetadata.clear(); this.confirmed.clear(); this.drafts.clear(); this.queue = []; this.publish({ issue: null }); }
   media(): CloudMedia[] { return [...this.mediaMetadata.values()]; }
   cachedMedia(id: string): ArrayBuffer | null { return this.mediaBytes.get(id)?.slice(0) ?? null; }
   async readMedia(id: string): Promise<ArrayBuffer | null> {
@@ -140,6 +142,7 @@ export const cloudProviderAvailable = (provider: CloudProvider) => isCloudEnable
 export const getCloudRuntime = () => runtime;
 /** Report authentication failures without retrying paid requests or changing the selected backend. */
 export async function sessionAwareFetch(input: RequestInfo | URL, init?: RequestInit, fetcher: typeof fetch = fetch): Promise<Response> {
+  authorizeVaultSharing(input, init);
   const response = await fetcher(input, init);
   if (response.status === 401 || response.status === 403) {
     let key = 'api'; try { key = new URL(input instanceof Request ? input.url : String(input), typeof window === 'undefined' ? 'http://localhost' : window.location.href).pathname; } catch { /* Keep a non-sensitive fallback. */ }

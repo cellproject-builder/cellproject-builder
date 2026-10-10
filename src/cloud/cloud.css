@@ -17,3 +17,4 @@ body:has([data-visual-minimized]) .cloud-status-panel{right:-14px;max-height:min
 .cloud-auth-actions{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:16px}
 .cloud-card .cloud-text-button{border:0;padding:6px 0;background:transparent;color:rgb(var(--ai-accent));text-align:left;cursor:pointer}
 .cloud-card input:focus-visible,.cloud-card button:focus-visible{outline:2px solid rgb(var(--ai-accent));outline-offset:3px}
+.cloud-vault-card{max-height:calc(100dvh - 32px);overflow:auto}.cloud-vault-ack{display:flex;align-items:flex-start;gap:10px;margin:18px 0;font-size:13px}.cloud-vault-ack input{width:auto!important;margin-top:3px}.cloud-vault-details{margin-top:22px;font-size:12px;color:rgb(var(--text-secondary));line-height:1.6}.cloud-vault-details summary{cursor:pointer}.cloud-vault-card form{display:flex;flex-direction:column;gap:12px}.cloud-vault-card button{max-width:100%}
