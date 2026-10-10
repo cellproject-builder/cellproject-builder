@@ -18,8 +18,15 @@ const app = [...chunks.values()].filter(chunk => Object.keys(chunk.modules).some
 if (!boot.length || !app.length) throw new Error('Application entries were not found in the production build.');
 const application = closure([...boot, ...app]);
 const modules = application.flatMap(name => Object.keys(chunks.get(name).modules)).map(name => name.replaceAll('\\', '/'));
-const forbidden = modules.filter(name => /\/src\/boards\/(BoardCanvas|BoardComposer|BoardModelPreview)\.tsx$|\/src\/visuals\/rendering\/VisualCanvasLayer\.tsx$|\/src\/kb\/extract\.ts$/.test(name));
+const forbidden = modules.filter(name => /\/src\/boards\/(BoardCanvas|BoardComposer|BoardModelPreview)\.tsx$|\/src\/visuals\/rendering\/VisualCanvasLayer\.tsx$|\/src\/kb\/extract\.ts$|\/node_modules\/@radix-ui\/react-icons\//.test(name));
 const report = {
+  // renderedLength is Rollup's pre-minification contribution. It identifies
+  // import paths to investigate; chunk bytes below are the shipped byte counts.
+  initialModules: application.flatMap(name => Object.entries(chunks.get(name).modules).map(([id, metadata]) => ({
+    id: id.replaceAll('\\', '/').replace(process.cwd().replaceAll('\\', '/') + '/', ''),
+    chunk: name,
+    renderedLength: metadata.renderedLength,
+  }))).sort((left, right) => right.renderedLength - left.renderedLength),
   application: { chunks: application, bytes: application.reduce((total, name) => total + Buffer.byteLength(chunks.get(name).code), 0), gzipBytes: application.reduce((total, name) => total + gzipSync(chunks.get(name).code).length, 0) },
   eagerFeatureModules: forbidden.map(name => name.slice(name.lastIndexOf('/src/') + 1)),
   chunks: [...chunks.values()].map(chunk => ({ file: chunk.fileName, bytes: Buffer.byteLength(chunk.code), gzipBytes: gzipSync(chunk.code).length, imports: chunk.imports, dynamicImports: chunk.dynamicImports })),

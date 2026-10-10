@@ -1,0 +1,6 @@
+{
+  "rank": 1,
+  "id": "KspKABD3",
+  "title": "Recuperar um patinete doador",
+  "policy": "First rank=1 outline, otherwise lowest rank with original order tie-break. Decompose first energy/control/board resource by label, otherwise first resource; no response editing."
+}

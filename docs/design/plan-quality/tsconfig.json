@@ -1,0 +1,6 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": { "types": ["node"], "noUnusedLocals": true, "noUnusedParameters": true },
+  "include": ["../../../scripts/planning-quality-*.ts", "./*.test.ts", "../../../src/vite-env.d.ts"],
+  "references": []
+}

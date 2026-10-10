@@ -1,7 +1,19 @@
-import * as RadixIcons from '@radix-ui/react-icons';
+import { Component as ReactComponent, lazy, Suspense, type ReactNode } from 'react';
 import { softProjectIcons } from '@/components/ui/SoftIcons';
 import { Icon } from '../ui';
 import { DEFAULT_PROJECT_APPEARANCE, type ProjectAppearance } from './projectAppearance';
+import { projectIconIds } from './projectIconIds';
+
+const RadixProjectIcon = lazy(() => import('./RadixProjectIcon'));
+const extendedIds = new Set<string>(projectIconIds);
+
+// A missing cached chunk must not take the workspace down. The stored icon
+// stays intact; the next page load can try the extended catalog again.
+class IconLoadBoundary extends ReactComponent<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() { return this.state.failed ? this.props.fallback : this.props.children; }
+}
 
 const labels: Record<string, [string, string?]> = {
   planner: ['Plano', 'projeto estrutura árvore organizacao estrategia plan'],
@@ -87,9 +99,9 @@ const labels: Record<string, [string, string?]> = {
 const preferred = ['planner','GearIcon','CubeIcon','RocketIcon','CodeIcon','Component1Icon','LayersIcon','RulerSquareIcon','LightningBoltIcon','BarChartIcon','ReaderIcon','GlobeIcon','TargetIcon','Pencil1Icon','HeartIcon','PersonIcon','HomeIcon','CameraIcon','CalendarIcon','DesktopIcon','StarIcon','BackpackIcon','FileTextIcon','ChatBubbleIcon'];
 const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const humanize = (name: string) => name.replace(/Icon$/, '').replace(/([a-z\d])([A-Z])/g, '$1 $2').replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');
-const registry = { ...RadixIcons, ...softProjectIcons } as Record<string, typeof RadixIcons.GearIcon>;
+const registry = softProjectIcons as Record<string, typeof softProjectIcons.GearIcon>;
 
-export const projectIconCatalog = ['planner', ...Object.keys(RadixIcons).filter(key => key.endsWith('Icon'))]
+export const projectIconCatalog = ['planner', ...projectIconIds]
   .map(id => ({id, label: labels[id]?.[0] ?? humanize(id), english: id === 'planner' ? 'Plan' : humanize(id), keywords: normalize(`${id} ${labels[id]?.join(' ') ?? ''} ${humanize(id)}`)}))
   .sort((a, b) => {
     const first = preferred.indexOf(a.id), second = preferred.indexOf(b.id);
@@ -105,7 +117,8 @@ export function searchProjectIcons(query: string) {
 export function ProjectIcon({appearance, size = 20, decorated = false}: {appearance?: ProjectAppearance; size?: number; decorated?: boolean}) {
   const color = typeof appearance?.color === 'string' && /^#[0-9a-f]{6}$/i.test(appearance.color) ? appearance.color : DEFAULT_PROJECT_APPEARANCE.color;
   const Component = appearance?.icon && Object.hasOwn(registry, appearance.icon) ? registry[appearance.icon] : null;
-  return <span data-project-icon={Component ? appearance!.icon : 'planner'} className={decorated ? 'ws-project-glyph is-decorated' : 'ws-project-glyph'} style={{color, ...(decorated ? {backgroundColor:`${color}14`} : {})}} aria-hidden="true">
-    {Component ? <Component width={size} height={size}/> : <Icon name="planner" size={size}/>}
+  const extended = appearance?.icon && extendedIds.has(appearance.icon) ? appearance.icon : null;
+  return <span data-project-icon={Component || extended ? appearance!.icon : 'planner'} className={decorated ? 'ws-project-glyph is-decorated' : 'ws-project-glyph'} style={{color, ...(decorated ? {backgroundColor:`${color}14`} : {})}} aria-hidden="true">
+    {Component ? <Component width={size} height={size}/> : extended ? <IconLoadBoundary fallback={<Icon name="planner" size={size}/>}><Suspense fallback={<Icon name="planner" size={size}/>}><RadixProjectIcon id={extended} size={size}/></Suspense></IconLoadBoundary> : <Icon name="planner" size={size}/>}
   </span>;
 }

@@ -16,22 +16,33 @@ export const isLeafGridParent = (byParent: Map<string, ConceptNodeData[]>, id: s
 export function computeTreeLayout(project: Project): Record<string, { x: number; y: number }> {
   const byParent = childrenByParent(project);
   const widths = new Map<string, number>();
-  const widthOf = (id: string): number => {
-    const cached = widths.get(id);
-    if (cached !== undefined) return cached;
+  const active = new Set<string>();
+  const widthStack = [{ id: project.rootId, exiting: false }];
+  while (widthStack.length > 0) {
+    const { id, exiting } = widthStack.pop()!;
+    if (widths.has(id)) continue;
     const kids = byParent.get(id) ?? [];
-    const w =
-      kids.length === 0
-        ? 1
-        : isLeafGridParent(byParent, id)
-        ? 2
-        : kids.reduce((acc, k) => acc + widthOf(k.id), 0);
-    widths.set(id, w);
-    return w;
-  };
+    if (exiting) {
+      widths.set(id, kids.reduce((sum, kid) => sum + widths.get(kid.id)!, 0));
+      active.delete(id);
+      continue;
+    }
+    if (active.has(id)) throw new Error('Árvore de decomposição inválida: ciclo detectado.');
+    if (kids.length === 0 || isLeafGridParent(byParent, id)) {
+      widths.set(id, kids.length === 0 ? 1 : 2);
+      continue;
+    }
+    active.add(id);
+    widthStack.push({ id, exiting: true });
+    for (let i = kids.length - 1; i >= 0; i--) {
+      widthStack.push({ id: kids[i].id, exiting: false });
+    }
+  }
   const positions: Record<string, { x: number; y: number }> = {};
-  const place = (id: string, depth: number, left: number) => {
-    positions[id] = { x: (left + widthOf(id) / 2) * LAYOUT_X_GAP, y: depth * LAYOUT_Y_GAP };
+  const placementStack = [{ id: project.rootId, depth: 0, left: 0 }];
+  while (placementStack.length > 0) {
+    const { id, depth, left } = placementStack.pop()!;
+    positions[id] = { x: (left + widths.get(id)! / 2) * LAYOUT_X_GAP, y: depth * LAYOUT_Y_GAP };
     if (isLeafGridParent(byParent, id)) {
       const px = positions[id].x;
       (byParent.get(id) ?? []).forEach((kid, i) => {
@@ -40,15 +51,17 @@ export function computeTreeLayout(project: Project): Record<string, { x: number;
           y: (depth + 1) * LAYOUT_Y_GAP + Math.floor(i / 2) * LEAF_GRID_ROW,
         };
       });
-      return;
+      continue;
     }
-    let cursor = left;
-    for (const kid of byParent.get(id) ?? []) {
-      place(kid.id, depth + 1, cursor);
-      cursor += widthOf(kid.id);
+    // Push in reverse so the explicit stack keeps the original sibling order.
+    const kids = byParent.get(id) ?? [];
+    let cursor = left + widths.get(id)!;
+    for (let i = kids.length - 1; i >= 0; i--) {
+      const kid = kids[i];
+      cursor -= widths.get(kid.id)!;
+      placementStack.push({ id: kid.id, depth: depth + 1, left: cursor });
     }
-  };
-  place(project.rootId, 0, 0);
+  }
   const shift = positions[project.rootId]?.x ?? 0;
   for (const pos of Object.values(positions)) pos.x -= shift;
   return positions;

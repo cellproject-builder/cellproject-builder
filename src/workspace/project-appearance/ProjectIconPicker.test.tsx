@@ -4,6 +4,7 @@ import { Simulate } from 'react-dom/test-utils';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ProjectIconPicker } from './ProjectIconPicker';
 import { ProjectIcon, projectIconCatalog, searchProjectIcons } from './projectIcons';
+import { projectIconIds } from './projectIconIds';
 
 let host: HTMLDivElement, root: Root;
 beforeEach(() => {
@@ -18,10 +19,10 @@ it('searches the full SVG catalog by Portuguese synonyms and ignores accents', (
   expect(searchProjectIcons('livro').map(icon => icon.id)).toContain('ReaderIcon');
   expect(searchProjectIcons('not-an-existing-icon')).toEqual([]);
 });
-it('keeps choosing an icon or color inside the draft and does not submit the project form', () => {
+it('keeps choosing an icon or color inside the draft and does not submit the project form', async () => {
   const change = vi.fn(), submit = vi.fn();
   act(() => root.render(<form onSubmit={event => {event.preventDefault(); submit();}}><ProjectIconPicker value={{icon:'planner',color:'#60a5fa'}} onChange={change}/></form>));
-  act(() => Simulate.click(host.querySelector('[aria-label="Escolher ícone do projeto"]')!));
+  await act(async () => { Simulate.click(host.querySelector('[aria-label="Escolher ícone do projeto"]')!); await import('./RadixProjectIcon'); });
   const search = host.querySelector<HTMLInputElement>('[aria-label="Buscar ícones"]')!;
   act(() => Simulate.change(search,{target:{value:'engrenagem'}} as never));
   act(() => Simulate.keyDown(search,{key:'Enter'}));
@@ -31,10 +32,10 @@ it('keeps choosing an icon or color inside the draft and does not submit the pro
   expect(change).toHaveBeenLastCalledWith({icon:'planner',color:'#a78bfa'});
   expect(submit).not.toHaveBeenCalled();
 });
-it('lets the keyboard enter filtered results and select an icon without submitting', () => {
+it('lets the keyboard enter filtered results and select an icon without submitting', async () => {
   const change = vi.fn();
   act(() => root.render(<ProjectIconPicker value={{icon:'planner',color:'#60a5fa'}} onChange={change}/>));
-  act(() => Simulate.click(host.querySelector('[aria-label="Escolher ícone do projeto"]')!));
+  await act(async () => { Simulate.click(host.querySelector('[aria-label="Escolher ícone do projeto"]')!); await import('./RadixProjectIcon'); });
   const search = host.querySelector<HTMLInputElement>('[aria-label="Buscar ícones"]')!;
   act(() => Simulate.change(search,{target:{value:'engrenagem'}} as never));
   act(() => Simulate.keyDown(search,{key:'ArrowDown'}));
@@ -49,13 +50,26 @@ it('renders a safe fallback for unknown stored icons and invalid stored colors',
   expect(host.querySelector<HTMLElement>('[data-project-icon]')?.style.color).toBe('rgb(96, 165, 250)');
   expect(host.innerHTML).not.toContain('https://');
 });
-it('returns keyboard focus to the trigger when the icon library closes', () => {
+it('returns keyboard focus to the trigger when the icon library closes', async () => {
   act(() => root.render(<ProjectIconPicker value={{icon:'planner',color:'#60a5fa'}} onChange={vi.fn()}/>));
   const trigger = host.querySelector<HTMLButtonElement>('[aria-label="Escolher ícone do projeto"]')!;
-  act(() => Simulate.click(trigger));
+  await act(async () => { Simulate.click(trigger); await import('./RadixProjectIcon'); });
   const close = host.querySelector<HTMLButtonElement>('[aria-label="Fechar biblioteca de ícones"]')!;
   act(() => close.focus());
   act(() => Simulate.click(close));
   expect(host.querySelector('[aria-label="Biblioteca de ícones"]')).toBeNull();
   expect(document.activeElement).toBe(trigger);
+});
+
+it('keeps generated searchable IDs in sync with the installed extended catalog', async () => {
+  const icons = await import('@radix-ui/react-icons');
+  expect(projectIconIds).toEqual(Object.keys(icons).filter(id => id.endsWith('Icon')).sort());
+});
+
+it('loads an existing extended icon with its stored identity and size', async () => {
+  await act(async () => root.render(<ProjectIcon appearance={{ icon: 'HeartFilledIcon', color: '#a78bfa' }} size={24}/>));
+  const glyph = host.querySelector<HTMLElement>('[data-project-icon="HeartFilledIcon"]')!;
+  expect(glyph.style.color).toBe('rgb(167, 139, 250)');
+  expect(glyph.querySelector('svg')?.getAttribute('width')).toBe('24');
+  expect(glyph.querySelector('svg')?.classList.contains('lucide')).toBe(false);
 });

@@ -1,0 +1,98 @@
+{
+  "projectName": "Restaurar um doador completo",
+  "projectObjective": "Quero construir um patinete elétrico caseiro; ainda não tenho arquitetura, peças ou desempenho selecionados.",
+  "breadcrumb": [
+    "Restaurar um doador completo",
+    "Recursos",
+    "Bateria protegida e carregador"
+  ],
+  "nodeName": "Bateria protegida e carregador",
+  "nodeKind": "recurso",
+  "nodeFx": "Energia de origem incerta → conjunto original avaliável",
+  "oQue": "Bateria original com BMS (proteção eletrônica da bateria) e carregador original: ~R$ 0 adicional se aprovados. Não abra o pacote; tensão e códigos do 4 Pro são desconhecidos nas fontes fornecidas.",
+  "porQue": "Fornece energia e recarga sem presumir que o carregador do Scooter 4 serve no 4 Pro.",
+  "comoConfirmar": "Laudo de assistência para bateria e carregador: conclusão explícita de aptidão para uso conjunto na variante identificada.",
+  "siblings": [
+    {
+      "name": "Documentação, medições e ferramentas",
+      "fx": "Referência incerta → variante identificável e inspeção possível"
+    },
+    {
+      "name": "Chassi, direção, rodas e freios",
+      "fx": "Base desconhecida → conjunto mecânico original inspecionável"
+    },
+    {
+      "name": "Motor original do doador",
+      "fx": "Propulsão desconhecida → motor original diagnosticável"
+    },
+    {
+      "name": "Controlador, comandos e programa",
+      "fx": "Comandos sem identidade → conjunto de controle original rastreável"
+    },
+    {
+      "name": "Chicote, conectores e isolação",
+      "fx": "Ligações desconhecidas → conexões originais mapeáveis"
+    }
+  ],
+  "strategy": "reaproveitar",
+  "archetype": "construir",
+  "planApproach": "reverse_engineering",
+  "referenceTarget": "Xiaomi Electric Scooter 4 Pro global",
+  "planOverview": [
+    {
+      "category": "Recursos",
+      "name": "Documentação, medições e ferramentas",
+      "oQue": "Manuais da variante, multímetro, torquímetro e ferramentas: ~R$ 200–400 com empréstimos. Documentado: [specs][product] tratam do Scooter 4 não Pro; interfaces do alvo permanecem desconhecidas."
+    },
+    {
+      "category": "Recursos",
+      "name": "Chassi, direção, rodas e freios",
+      "oQue": "Doador completo anunciado como 4 Pro global: ~R$ 1.800–2.600, identidade a confirmar. Preserve chassi, dobra, direção, rodas e freios; consumíveis mecânicos: ~R$ 100–400."
+    },
+    {
+      "category": "Recursos",
+      "name": "Motor original do doador",
+      "oQue": "Motor original instalado na roda: ~R$ 0 adicional se aproveitável. Identifique seu código, cabo e sensores; a potência do Scooter 4 em [specs] não comprova a do 4 Pro."
+    },
+    {
+      "category": "Recursos",
+      "name": "Controlador, comandos e programa",
+      "oQue": "Controlador, acelerador, painel, luzes e firmware (programa interno): ~R$ 0 adicional se íntegros. Obtenha acesso ao aplicativo indicado para a variante e verifique eventual vínculo com o antigo dono."
+    },
+    {
+      "category": "Recursos",
+      "name": "Chicote, conectores e isolação",
+      "oQue": "Chicote original, conectores, proteção por fusível conforme projeto, vedações e isolação: ~R$ 100–200 em reposições. Obtenha mapa de pinos e rotas; aparência semelhante não prova compatibilidade."
+    },
+    {
+      "category": "Execução",
+      "name": "Confirmar variante, fontes e metas",
+      "oQue": "Antes da compra, peça foto da etiqueta e código do modelo. Qual seu peso com bagagem, autonomia, velocidade e inclinação do percurso? Obtenha fonte do 4 Pro; [specs][product] cobrem somente o 4."
+    },
+    {
+      "category": "Execução",
+      "name": "Inspecionar e mapear interfaces",
+      "oQue": "Com alimentação isolada pelo procedimento da variante, fotografe cabos e códigos. Rastreie bateria→controlador→motor, painel e freios; registre encaixes. Peça laudo da bateria antes de energizar."
+    },
+    {
+      "category": "Execução",
+      "name": "Restaurar estrutura, direção e freios",
+      "oQue": "Troque consumíveis por equivalentes confirmados; ajuste dobra, direção e freio conforme manual. Aplique torques e pressão documentados. Chassi trincado exige rejeição, não remendo caseiro."
+    },
+    {
+      "category": "Execução",
+      "name": "Reconectar alimentação e comandos",
+      "oQue": "Sem energia, encaixe motor no controlador, painel e sensores de freio nos conectores mapeados; restaure luzes e vedações. Confira pinos antes de ligar a bateria por último, conforme procedimento original."
+    },
+    {
+      "category": "Execução",
+      "name": "Configurar limites e comandos",
+      "oQue": "Após aprovação elétrica, use o aplicativo original para ativar e selecionar modo conservador. Preserve firmware e limites originais; execute calibração apenas se documentada. Teste comandos com roda suspensa."
+    },
+    {
+      "category": "Execução",
+      "name": "Testar recarga, frenagem e rodagem",
+      "oQue": "Com bateria aprovada, supervisione a recarga original. De capacete, teste em área privada plana: frenagem primeiro, depois percurso com carga informada. Registre distância, velocidade e falhas; pare diante de anomalias."
+    }
+  ]
+}

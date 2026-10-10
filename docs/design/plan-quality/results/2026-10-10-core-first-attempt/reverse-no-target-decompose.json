@@ -1,0 +1,73 @@
+{
+  "case": "reverse-no-target",
+  "stage": "decompose",
+  "status": "success",
+  "startedAt": "2026-10-10T22:42:29.412Z",
+  "firstAttempt": true,
+  "events": [],
+  "output": {
+    "nodes": [
+      {
+        "tempId": "vmQYep",
+        "kind": "recurso",
+        "name": "Controlador original do doador",
+        "fx": "Placa desconhecida → controlador original rastreável",
+        "problem": "",
+        "confidence": 40,
+        "confidenceReason": "Variante, código e revisão da placa ainda não foram identificados.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Controlador (placa que aciona o motor) retirado do próprio doador; prefira conservar o original. DESCONHECIDOS: código, revisão e tensão. Quais inscrições aparecem na etiqueta da placa?",
+        "porQue": "Identificar a placa evita comprar uma reposição que não interprete os comandos originais.",
+        "comoConfirmar": "Código e revisão da placa recebida correspondem à identificação na documentação da variante: correspondência integral."
+      },
+      {
+        "tempId": "cPjV3O",
+        "kind": "recurso",
+        "name": "Acelerador e sensores originais",
+        "fx": "Entradas de comando desconhecidas → peças originais identificadas",
+        "problem": "",
+        "confidence": 40,
+        "confidenceReason": "Tipos de sinais e sensores exigidos dependem da variante desconhecida.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Acelerador e sensores de comando presentes no doador, incluindo o sensor de freio, se previsto. DESCONHECIDOS: códigos e sinais. Quais etiquetas aparecem nessas peças?",
+        "porQue": "Essas peças fornecem os comandos que a placa original precisa reconhecer.",
+        "comoConfirmar": "Códigos do acelerador e dos sensores exigidos constam na documentação da variante: cobertura de 100% das peças."
+      },
+      {
+        "tempId": "49uvWM",
+        "kind": "recurso",
+        "name": "Painel original do doador",
+        "fx": "Painel sem referência → painel aplicável identificado",
+        "problem": "",
+        "confidence": 40,
+        "confidenceReason": "Painéis parecidos podem usar comunicação ou revisões incompatíveis.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Painel de comandos reaproveitado do doador, quando previsto na variante. DESCONHECIDOS: código, revisão e comunicação com a placa. Envie foto da etiqueta ou das inscrições.",
+        "porQue": "O painel pode transmitir comandos e autorizar o funcionamento do controlador.",
+        "comoConfirmar": "Identificação do painel disponível corresponde à referência indicada na documentação da variante: correspondência integral."
+      },
+      {
+        "tempId": "ILz0PB",
+        "kind": "recurso",
+        "name": "Programa e acesso oficiais",
+        "fx": "Exigências digitais desconhecidas → programa e acesso disponíveis",
+        "problem": "",
+        "confidence": 35,
+        "confidenceReason": "Aplicativo, versão e eventual vínculo com o antigo dono são desconhecidos.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Programa original já instalado e aplicativo oficial, se exigido, com acesso autorizado do proprietário. DESCONHECIDOS: versões e vínculo de conta. Qual aplicativo o manual indica?",
+        "porQue": "Um conjunto original pode depender de programa específico ou liberação da conta anterior.",
+        "comoConfirmar": "Pendências entre programa e acesso disponíveis e exigências documentadas da variante: 0."
+      }
+    ],
+    "edges": []
+  },
+  "elapsedMs": 20737,
+  "attempts": [
+    6
+  ]
+}

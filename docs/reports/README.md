@@ -4,6 +4,7 @@ Relatórios registram um recorte datado: comandos, observações e limites. Eles
 
 | Relatório | Recorte |
 | --- | --- |
+| [Qualidade dos planos e desempenho — 10/10/2026](planning-quality-performance-2026-10-10.md) | Piloto real de planejamento, defeitos de critério, travessias profundas e carregamento dos ícones; limites separados |
 | [Publicação — 10/10/2026](production-release-2026-10-10.md) | Escopo integrado, revisão independente, regressões corrigidas e verificações antes do deploy |
 | [Organização e documentação — 10/10/2026](repository-review-2026-10-10.md) | Pastas, arquivos gerados, contratos puros, navegação documental e verificações desta rodada |
 | [Consolidação — 10/10/2026](../consolidation-audit-2026-10-10.md) | Rodada anterior de arquitetura, comportamento e carregamento |

@@ -26,6 +26,9 @@ const docs = [
   ...await files(resolve(root, 'docs/modules'), file => file.endsWith('.md')),
   ...await files(resolve(root, 'docs/research'), file => file.endsWith('.md')),
   'docs/reports/repository-review-2026-10-10.md',
+  'docs/reports/planning-quality-performance-2026-10-10.md',
+  'docs/design/plan-quality/README.md', 'docs/design/plan-quality/RESULTS.md',
+  'docs/design/plan-quality/rubric.md', 'docs/design/plan-quality/performance/README.md',
 ].map(file => resolve(root, file));
 let links = 0;
 for (const file of docs) {

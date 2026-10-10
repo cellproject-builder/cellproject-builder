@@ -7,7 +7,6 @@ import {
   breadcrumbFor,
   buildStagedNodes,
   CRITERION_UNLOCK_MS,
-  pendingParent,
   refCountsAsSignal,
   relatedPartsFor,
   planOverviewFor,
@@ -1252,8 +1251,17 @@ function RefRow({
 // ---------------------------------------------------------------------------
 
 // Diagnóstico do último replanejamento por nó — sobrevive à remontagem do card
-// enquanto as sugestões estão pendentes (o store não guarda o diagnóstico).
-const replanDiagnoses = new Map<string, string>();
+// mesmo sem novas sugestões (o store não guarda o diagnóstico).
+const replanDiagnoses = new Map<string, { origin: string; text: string }>();
+const diagnosisScope = (projectId: string, nodeId: string) => JSON.stringify([projectId, nodeId]);
+const failureOrigin = (projectId: string, node: ConceptNodeData): string => {
+  let reportId: string | undefined;
+  for (let index = node.history.length - 1; index >= 0; index--) {
+    if (node.history[index].kind === 'failure') { reportId = node.history[index].id; break; }
+  }
+  // The history ID distinguishes reports made with the same text in one millisecond.
+  return JSON.stringify([projectId, node.id, node.failureContext, node.failureReportedAt, reportId]);
+};
 
 export function FailureSection(props: SectionProps & { domIds?: boolean }) {
   return <FailureBody key={props.node.id} {...props} />;
@@ -1266,24 +1274,31 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
   const setDraft = useGraphStore((s) => s.setDraft);
   const clearDraft = useGraphStore((s) => s.clearDraft);
   const draft = useGraphStore((s) => s.drafts[node.id]?.failure ?? '');
-  const pendingNode = useGraphStore(pendingParent);
+  // Só as sugestões DESTE nó seguram o replanejar — as de outro nó estacionam.
+  const pendingHere = useGraphStore((s) =>
+    s.pendingSuggestions?.parentId === node.id && s.pendingSuggestions.nodes.length > 0,
+  );
   const replanJob = useGraphStore((s) => Boolean(s.aiJobs[node.id]?.replan));
 
   const [opening, setOpening] = useState(() => draft.trim() !== '');
-  const [diagnosis, setDiagnosis] = useState<string | null>(
-    () => replanDiagnoses.get(node.id) ?? null,
-  );
+  const [, refreshDiagnosis] = useState(0);
+  const savedDiagnosis = replanDiagnoses.get(diagnosisScope(project.id, node.id));
+  const diagnosis = savedDiagnosis?.origin === failureOrigin(project.id, node) ? savedDiagnosis.text : null;
 
   const failed = Boolean(node.failureContext);
-  // Só as sugestões DESTE nó seguram o replanejar — as de outro nó estacionam.
-  const pendingHere = pendingNode?.id === node.id;
-  void project;
 
   const replan = useAIAction(
     async (signal, failure: string): Promise<string | null | undefined> => {
       const proj = useGraphStore.getState().project;
       const cur = proj?.nodes[node.id];
-      if (!proj || !cur) return undefined;
+      if (!proj || proj.id !== project.id || !cur?.failureContext || cur.failureContext.trim() !== failure.trim()) return undefined;
+      const origin = failureOrigin(proj.id, cur);
+      const scope = diagnosisScope(proj.id, cur.id);
+      const reportIsCurrent = () => {
+        const active = useGraphStore.getState().project;
+        const current = active?.nodes[cur.id];
+        return active?.id === proj.id && !!current?.failureContext && failureOrigin(active.id, current) === origin;
+      };
       const all = Object.values(proj.nodes);
       const siblings = all
         .filter((n) => n.parentId === cur.parentId && n.id !== cur.id)
@@ -1301,7 +1316,7 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
         label: tr.notify.failurePromptLabel(proj.objective),
         extra: tr.notify.failurePromptExtra(cur.name, failure),
       });
-      if (signal.aborted) return undefined;
+      if (signal.aborted || !reportIsCurrent()) return undefined;
 
       const result = await replanFromFailure(
         {
@@ -1331,25 +1346,28 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
         kbContext,
         { signal },
       );
-      if (signal.aborted) return undefined;
+      if (signal.aborted || !reportIsCurrent()) return undefined;
 
-      const staged = buildStagedNodes(cur, result.nodes, {
-        notes: tr.groundTruth.failureReplanNotes(failure),
-      });
-      useGraphStore.getState().stageSuggestions(cur.id, staged, result.edges);
+      if (result.nodes.length > 0) {
+        const staged = buildStagedNodes(cur, result.nodes, {
+          notes: tr.groundTruth.failureReplanNotes(failure),
+        });
+        useGraphStore.getState().stageSuggestions(cur.id, staged, result.edges);
+      }
       const diag = result.diagnosis?.trim() || null;
-      if (diag) replanDiagnoses.set(cur.id, diag);
-      else replanDiagnoses.delete(cur.id);
+      if (diag) replanDiagnoses.set(scope, { origin, text: diag });
+      else replanDiagnoses.delete(scope);
       return diag;
     },
     { job: { nodeId: node.id, kind: 'replan' } },
   );
 
   const runReplan = async (failure: string) => {
-    if (!failure.trim() || useGraphStore.getState().pendingSuggestions?.parentId === node.id) return;
+    const pending = useGraphStore.getState().pendingSuggestions;
+    if (!failure.trim() || (pending?.parentId === node.id && pending.nodes.length > 0)) return;
     if (!requireAI()) return;
     const diag = await replan.run(failure.trim());
-    if (diag !== undefined) setDiagnosis(diag);
+    if (diag !== undefined) refreshDiagnosis(value => value + 1);
   };
 
   const replanningElsewhere = !replan.running && replanJob;
@@ -1432,7 +1450,7 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
             )}
           </div>
 
-          {pendingHere && diagnosis && (
+          {diagnosis && (
             <div className="rounded-control bg-ai-accent/8 px-3 py-2.5 text-control">
               <div className="mb-0.5 inline-flex items-center gap-1.5 text-footnote font-medium text-ai-accent">
                 <span aria-hidden>✦</span>
@@ -1474,7 +1492,11 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
             )}
             <button
               type="button"
-              onClick={() => clearFailure(node.id)}
+              onClick={() => {
+                replanDiagnoses.delete(diagnosisScope(project.id, node.id));
+                refreshDiagnosis(value => value + 1);
+                clearFailure(node.id);
+              }}
               className="tap btn btn-secondary"
             >
               {tr.groundTruth.clearFailure}

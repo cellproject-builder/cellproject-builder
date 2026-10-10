@@ -1,0 +1,98 @@
+{
+  "projectName": "Restaurar um Doador Completo",
+  "projectObjective": "Quero construir um patinete elétrico caseiro; ainda não tenho arquitetura, peças ou desempenho selecionados.",
+  "breadcrumb": [
+    "Restaurar um Doador Completo",
+    "Recursos",
+    "Bateria protegida e carregador"
+  ],
+  "nodeName": "Bateria protegida e carregador",
+  "nodeKind": "recurso",
+  "nodeFx": "Energia incerta → alimentação original avaliada",
+  "oQue": "Bateria fechada com BMS (circuito de proteção da bateria) e carregador originais, se presentes no doador. Reposição: ~R$ 700–1.100 e ~R$ 120–200. UNKNOWN: tensão, polaridade e comunicação.",
+  "porQue": "Proteções e carregamento compatível são indispensáveis; não se reutiliza bateria inchada, molhada ou aquecendo.",
+  "comoConfirmar": "Laudo técnico da bateria e do carregador apresenta zero reprovações nos ensaios previstos pelo fabricante.",
+  "siblings": [
+    {
+      "name": "Documentação e requisitos de uso",
+      "fx": "Referência ambígua → variante e necessidades identificáveis"
+    },
+    {
+      "name": "Doador estruturalmente recuperável",
+      "fx": "Peças avulsas → plataforma mecânica original"
+    },
+    {
+      "name": "Motor e controlador originais",
+      "fx": "Tração desconhecida → conjunto identificável e diagnosticável"
+    },
+    {
+      "name": "Comandos e sensores originais",
+      "fx": "Comando incompleto → caminho original de aceleração e frenagem"
+    },
+    {
+      "name": "Chicote e ferramentas específicas",
+      "fx": "Interfaces sem suporte → conexão e diagnóstico possíveis"
+    }
+  ],
+  "strategy": "reaproveitar",
+  "archetype": "construir",
+  "planApproach": "reverse_engineering",
+  "referenceTarget": "Xiaomi Electric Scooter 4 Pro global",
+  "planOverview": [
+    {
+      "category": "Recursos",
+      "name": "Documentação e requisitos de uso",
+      "oQue": "Manual, etiqueta e esquema do doador; consulta gratuita ou ~R$ 150 técnica. DOCUMENTADO: fontes cobrem Scooter 4, não 4 Pro [specs][product]. UNKNOWN: peso total, terreno, velocidade e autonomia."
+    },
+    {
+      "category": "Recursos",
+      "name": "Doador estruturalmente recuperável",
+      "oQue": "Patinete completo usado, ~R$ 1.800–2.700, com quadro, dobra, rodas, freios e iluminação originais. PREMISSA: danos reparáveis; variante ainda desconhecida. Consumíveis mecânicos: ~R$ 100–300."
+    },
+    {
+      "category": "Recursos",
+      "name": "Motor e controlador originais",
+      "oQue": "Motor e controlador (placa que regula o motor), incluídos no doador. Reposição original: ~R$ 250–500 por peça. UNKNOWN: tensão, corrente, sensores e encaixe; não usar valores do Scooter 4 como requisitos."
+    },
+    {
+      "category": "Recursos",
+      "name": "Comandos e sensores originais",
+      "oQue": "Acelerador, painel, sensores de freio e iluminação do doador, incluídos na compra. Reposição: ~R$ 80–250 por item. UNKNOWN: conectores e protocolo (regras de comunicação entre placas)."
+    },
+    {
+      "category": "Recursos",
+      "name": "Chicote e ferramentas específicas",
+      "oQue": "Chicote original, conectores, vedações e fixadores; reposição ~R$ 50–150. Ferramentas emprestadas ou ~R$ 150–300; aplicativo oficial gratuito, se aplicável. Assistência para bateria: ~R$ 150–300."
+    },
+    {
+      "category": "Execução",
+      "name": "Confirmar variante e desempenho",
+      "oQue": "Qual peso total, inclinação, velocidade, autonomia e cidade de uso? Fotografe a etiqueta do doador e obtenha fontes do 4 Pro global; os anexos descrevem somente o 4 [specs][product]."
+    },
+    {
+      "category": "Execução",
+      "name": "Medir interfaces e diagnosticar",
+      "oQue": "Sem energizar, registre encaixes, etiquetas e pinos; confira tensão e polaridade com técnico. Mapeie bateria→controlador→motor e painel→controlador. Rejeite danos de bateria; cote antes de comprar."
+    },
+    {
+      "category": "Execução",
+      "name": "Restaurar estrutura rodas e freios",
+      "oQue": "Com bateria isolada, troque consumíveis por peças da variante; ajuste freio, pneus, rolamentos e trava de dobra conforme manual. Aperte eixos e fixações com torquímetro (chave que mede aperto)."
+    },
+    {
+      "category": "Execução",
+      "name": "Reconectar chicote verificado",
+      "oQue": "Com bateria desconectada, conecte motor ao controlador; painel, acelerador, freio e luzes às portas identificadas. Fixe bateria e vede cabos conforme manual. Técnico conecta alimentação por último."
+    },
+    {
+      "category": "Execução",
+      "name": "Configurar e calibrar comandos",
+      "oQue": "Use aplicativo e firmware (programa interno da placa) oficiais da variante; preserve limites originais. Faça pareamento e calibração de acelerador e freio apenas conforme manual; não instale desbloqueios."
+    },
+    {
+      "category": "Execução",
+      "name": "Testar bancada e percurso fechado",
+      "oQue": "Em suporte firme, teste roda suspensa, corte pelo freio e luzes; carregue supervisionado conforme manual. Depois, com capacete, teste frenagem e percurso privado plano em baixa velocidade, registrando resultados."
+    }
+  ]
+}

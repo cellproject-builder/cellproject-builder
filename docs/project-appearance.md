@@ -18,6 +18,8 @@ Por exemplo, um projeto salvo com `icon: 'GearIcon'` continua guardando `GearIco
 
 Projetos antigos não precisam de migração. IDs válidos desconhecidos são preservados para portabilidade e exibidos com o desenho padrão neste cliente. As escolhas acompanham o envelope existente de persistência, backup e cofre; o exportador tabular também inclui `appearance`. Nenhuma mudança no banco remoto foi necessária.
 
+Os nomes pesquisáveis dos 318 ícones ficam em um módulo estático gerado. Os SVGs comuns carregam com a família compartilhada; o catálogo Radix estendido usa import dinâmico quando um ícone dele é exibido. Se o chunk falhar, uma fronteira local mostra o ícone padrão e preserva o ID/cor salvos. A próxima carga da página pode tentar novamente. O gerador e os testes conferem o catálogo contra a dependência instalada. Ver [medição de carregamento](design/plan-quality/performance/README.md).
+
 ## Evidências e limites
 
 Registro da entrega anterior em 10/10/2026: 1.216 testes aprovados, 8 ignorados e build aprovado. No navegador: escolha por busca e teclado, cor salva após recarregar e seletor sem rolagem horizontal a 390 px CSS. Ao fechar a biblioteca, o foco retorna ao botão de escolha.

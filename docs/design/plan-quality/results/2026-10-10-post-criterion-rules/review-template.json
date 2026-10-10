@@ -1,0 +1,122 @@
+[
+  {
+    "case": "reverse-bounded-source",
+    "status": "not_evaluated",
+    "focus": [
+      "Citação specs/product nas afirmações documentadas",
+      "Separação referência/hipótese/projeto",
+      "Interfaces e limites ausentes nas páginas"
+    ],
+    "dimensions": [
+      {
+        "id": "coverage",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "interfaces",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "source_fidelity",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "coherence",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "question_quality",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "uncertainty",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "criterion_quality",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      }
+    ]
+  },
+  {
+    "case": "reverse-variant-conflict",
+    "status": "not_evaluated",
+    "focus": [
+      "Conflito 4 Pro versus fontes Scooter 4 explicitado",
+      "Pergunta de identificação antes de copiar especificações",
+      "Nenhuma fusão de variantes"
+    ],
+    "dimensions": [
+      {
+        "id": "coverage",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "interfaces",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "source_fidelity",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "coherence",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "question_quality",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "uncertainty",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "criterion_quality",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      }
+    ]
+  }
+]

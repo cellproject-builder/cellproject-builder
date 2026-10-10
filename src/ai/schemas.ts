@@ -208,12 +208,12 @@ export const DecomposeResponseSchema = z.object({
   edges: z.array(SuggestedEdgeSchema).describe('Arestas entre os novos nós. Pode ser vazio.'),
 });
 
-// Replan = decompose + diagnóstico de qual premissa estava errada.
+// Replan = revisão do relato; a causa pode continuar indeterminada.
 export const ReplanResponseSchema = z.object({
   diagnosis: z
     .string()
-    .describe('UMA frase: qual premissa do caminho anterior estava errada, à luz da falha relatada.'),
-  nodes: z.array(SuggestedNodeSchema).describe('2 a 4 nós novos, diferentes da decomposição anterior.'),
+    .describe('UMA frase: o que a evidência fornecida sustenta. Se a causa estiver indeterminada, diga isso e peça a informação ou medida discriminante; só nomeie premissa errada quando houver contradição sustentada.'),
+  nodes: z.array(SuggestedNodeSchema).describe('0 a 4 nós novos justificados, preservando partes úteis existentes. Vazio quando falta esclarecimento antes de propor mudanças.'),
   edges: z.array(SuggestedEdgeSchema).describe('Arestas entre os novos nós. Pode ser vazio.'),
 });
 

@@ -1,0 +1,437 @@
+{
+  "formatVersion": 1,
+  "generatedAt": "2026-10-10T22:46:10.824Z",
+  "purpose": "Supplemental extraction from preserved raw evidence; no paid calls, no original files rewritten, no semantic scoring.",
+  "extractorHashes": {
+    "summary": "bd2fcb43f8427c09f1a43e575617bce5a2289f676de84fc747a7547a1fe3b9c3",
+    "usageParser": "0a374a322e8681eb1f202163179fbe661637711af83098de86a68fb95609a2e3"
+  },
+  "requests": 12,
+  "actualCostUsd": 0.3433099,
+  "reportedPartialCostUsd": 0.3433099,
+  "inputTokens": 51523,
+  "outputTokens": 26037,
+  "semanticEvaluation": "manual review required; schema, string length, duplicate IDs and hash checks do not prove engineering correctness",
+  "attempts": [
+    {
+      "file": "attempt-01.json",
+      "stage": "new-no-reference:outline",
+      "attempt": 1,
+      "status": 200,
+      "elapsedMs": 27654,
+      "usage": {
+        "inputTokens": 3190,
+        "outputTokens": 2121,
+        "costUsd": 0.0291835
+      },
+      "originalRecordedUsage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null
+      },
+      "usageExtractionCorrected": true,
+      "requestHashMatches": true,
+      "responseHashMatches": true,
+      "model": "openai/gpt-6.1-sol",
+      "parameters": {
+        "max_tokens": 8000,
+        "temperature": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "stream": true,
+        "response_format": "json_schema"
+      },
+      "rawJSONParsed": true,
+      "rawNodeCount": 0,
+      "duplicateIds": [],
+      "criteriaOver140Characters": [],
+      "rawHintCount": 0
+    },
+    {
+      "file": "attempt-02.json",
+      "stage": "new-no-reference:expand",
+      "attempt": 2,
+      "status": 200,
+      "elapsedMs": 61459,
+      "usage": {
+        "inputTokens": 4545,
+        "outputTokens": 4271,
+        "costUsd": 0.054071
+      },
+      "originalRecordedUsage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null
+      },
+      "usageExtractionCorrected": true,
+      "requestHashMatches": true,
+      "responseHashMatches": true,
+      "model": "openai/gpt-6.1-sol",
+      "parameters": {
+        "max_tokens": 10000,
+        "temperature": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "stream": true,
+        "response_format": "json_schema"
+      },
+      "rawJSONParsed": true,
+      "rawNodeCount": 16,
+      "duplicateIds": [],
+      "criteriaOver140Characters": [],
+      "rawHintCount": 0
+    },
+    {
+      "file": "attempt-03.json",
+      "stage": "new-no-reference:decompose",
+      "attempt": 3,
+      "status": 200,
+      "elapsedMs": 17681,
+      "usage": {
+        "inputTokens": 4643,
+        "outputTokens": 1182,
+        "costUsd": 0.023426
+      },
+      "originalRecordedUsage": {
+        "inputTokens": 4643,
+        "outputTokens": 1182,
+        "costUsd": 0.023426
+      },
+      "usageExtractionCorrected": false,
+      "requestHashMatches": true,
+      "responseHashMatches": true,
+      "model": "openai/gpt-6.1-sol",
+      "parameters": {
+        "max_tokens": 7000,
+        "temperature": null,
+        "reasoning": {
+          "effort": "medium"
+        },
+        "stream": false,
+        "response_format": "json_schema"
+      },
+      "rawJSONParsed": true,
+      "rawNodeCount": 4,
+      "duplicateIds": [],
+      "criteriaOver140Characters": [],
+      "rawHintCount": 0
+    },
+    {
+      "file": "attempt-04.json",
+      "stage": "reverse-no-target:outline",
+      "attempt": 4,
+      "status": 200,
+      "elapsedMs": 25969,
+      "usage": {
+        "inputTokens": 3224,
+        "outputTokens": 1899,
+        "costUsd": 0.0226613
+      },
+      "originalRecordedUsage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null
+      },
+      "usageExtractionCorrected": true,
+      "requestHashMatches": true,
+      "responseHashMatches": true,
+      "model": "openai/gpt-6.1-sol",
+      "parameters": {
+        "max_tokens": 8000,
+        "temperature": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "stream": true,
+        "response_format": "json_schema"
+      },
+      "rawJSONParsed": true,
+      "rawNodeCount": 0,
+      "duplicateIds": [],
+      "criteriaOver140Characters": [],
+      "rawHintCount": 0
+    },
+    {
+      "file": "attempt-05.json",
+      "stage": "reverse-no-target:expand",
+      "attempt": 5,
+      "status": 200,
+      "elapsedMs": 38940,
+      "usage": {
+        "inputTokens": 4503,
+        "outputTokens": 2721,
+        "costUsd": 0.032826
+      },
+      "originalRecordedUsage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null
+      },
+      "usageExtractionCorrected": true,
+      "requestHashMatches": true,
+      "responseHashMatches": true,
+      "model": "openai/gpt-6.1-sol",
+      "parameters": {
+        "max_tokens": 10000,
+        "temperature": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "stream": true,
+        "response_format": "json_schema"
+      },
+      "rawJSONParsed": true,
+      "rawNodeCount": 12,
+      "duplicateIds": [],
+      "criteriaOver140Characters": [],
+      "rawHintCount": 0
+    },
+    {
+      "file": "attempt-06.json",
+      "stage": "reverse-no-target:decompose",
+      "attempt": 6,
+      "status": 200,
+      "elapsedMs": 20732,
+      "usage": {
+        "inputTokens": 4422,
+        "outputTokens": 1176,
+        "costUsd": 0.0175575
+      },
+      "originalRecordedUsage": {
+        "inputTokens": 4422,
+        "outputTokens": 1176,
+        "costUsd": 0.0175575
+      },
+      "usageExtractionCorrected": false,
+      "requestHashMatches": true,
+      "responseHashMatches": true,
+      "model": "openai/gpt-6.1-sol",
+      "parameters": {
+        "max_tokens": 7000,
+        "temperature": null,
+        "reasoning": {
+          "effort": "medium"
+        },
+        "stream": false,
+        "response_format": "json_schema"
+      },
+      "rawJSONParsed": true,
+      "rawNodeCount": 4,
+      "duplicateIds": [],
+      "criteriaOver140Characters": [],
+      "rawHintCount": 0
+    },
+    {
+      "file": "attempt-07.json",
+      "stage": "reverse-bounded-source:outline",
+      "attempt": 7,
+      "status": 200,
+      "elapsedMs": 28870,
+      "usage": {
+        "inputTokens": 3653,
+        "outputTokens": 2187,
+        "costUsd": 0.0266138
+      },
+      "originalRecordedUsage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null
+      },
+      "usageExtractionCorrected": true,
+      "requestHashMatches": true,
+      "responseHashMatches": true,
+      "model": "openai/gpt-6.1-sol",
+      "parameters": {
+        "max_tokens": 8000,
+        "temperature": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "stream": true,
+        "response_format": "json_schema"
+      },
+      "rawJSONParsed": true,
+      "rawNodeCount": 0,
+      "duplicateIds": [],
+      "criteriaOver140Characters": [],
+      "rawHintCount": 0
+    },
+    {
+      "file": "attempt-08.json",
+      "stage": "reverse-bounded-source:expand",
+      "attempt": 8,
+      "status": 200,
+      "elapsedMs": 39600,
+      "usage": {
+        "inputTokens": 4967,
+        "outputTokens": 2808,
+        "costUsd": 0.034856
+      },
+      "originalRecordedUsage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null
+      },
+      "usageExtractionCorrected": true,
+      "requestHashMatches": true,
+      "responseHashMatches": true,
+      "model": "openai/gpt-6.1-sol",
+      "parameters": {
+        "max_tokens": 10000,
+        "temperature": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "stream": true,
+        "response_format": "json_schema"
+      },
+      "rawJSONParsed": true,
+      "rawNodeCount": 12,
+      "duplicateIds": [],
+      "criteriaOver140Characters": [],
+      "rawHintCount": 1
+    },
+    {
+      "file": "attempt-09.json",
+      "stage": "reverse-bounded-source:decompose",
+      "attempt": 9,
+      "status": 200,
+      "elapsedMs": 25845,
+      "usage": {
+        "inputTokens": 4869,
+        "outputTokens": 1510,
+        "costUsd": 0.022015
+      },
+      "originalRecordedUsage": {
+        "inputTokens": 4869,
+        "outputTokens": 1510,
+        "costUsd": 0.022015
+      },
+      "usageExtractionCorrected": false,
+      "requestHashMatches": true,
+      "responseHashMatches": true,
+      "model": "openai/gpt-6.1-sol",
+      "parameters": {
+        "max_tokens": 7000,
+        "temperature": null,
+        "reasoning": {
+          "effort": "medium"
+        },
+        "stream": false,
+        "response_format": "json_schema"
+      },
+      "rawJSONParsed": true,
+      "rawNodeCount": 4,
+      "duplicateIds": [],
+      "criteriaOver140Characters": [],
+      "rawHintCount": 0
+    },
+    {
+      "file": "attempt-10.json",
+      "stage": "reverse-variant-conflict:outline",
+      "attempt": 10,
+      "status": 200,
+      "elapsedMs": 28137,
+      "usage": {
+        "inputTokens": 3654,
+        "outputTokens": 2090,
+        "costUsd": 0.0256463
+      },
+      "originalRecordedUsage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null
+      },
+      "usageExtractionCorrected": true,
+      "requestHashMatches": true,
+      "responseHashMatches": true,
+      "model": "openai/gpt-6.1-sol",
+      "parameters": {
+        "max_tokens": 8000,
+        "temperature": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "stream": true,
+        "response_format": "json_schema"
+      },
+      "rawJSONParsed": true,
+      "rawNodeCount": 0,
+      "duplicateIds": [],
+      "criteriaOver140Characters": [],
+      "rawHintCount": 0
+    },
+    {
+      "file": "attempt-11.json",
+      "stage": "reverse-variant-conflict:expand",
+      "attempt": 11,
+      "status": 200,
+      "elapsedMs": 40221,
+      "usage": {
+        "inputTokens": 4954,
+        "outputTokens": 2730,
+        "costUsd": 0.0340435
+      },
+      "originalRecordedUsage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null
+      },
+      "usageExtractionCorrected": true,
+      "requestHashMatches": true,
+      "responseHashMatches": true,
+      "model": "openai/gpt-6.1-sol",
+      "parameters": {
+        "max_tokens": 10000,
+        "temperature": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "stream": true,
+        "response_format": "json_schema"
+      },
+      "rawJSONParsed": true,
+      "rawNodeCount": 12,
+      "duplicateIds": [],
+      "criteriaOver140Characters": [],
+      "rawHintCount": 0
+    },
+    {
+      "file": "attempt-12.json",
+      "stage": "reverse-variant-conflict:decompose",
+      "attempt": 12,
+      "status": 200,
+      "elapsedMs": 22729,
+      "usage": {
+        "inputTokens": 4899,
+        "outputTokens": 1342,
+        "costUsd": 0.02041
+      },
+      "originalRecordedUsage": {
+        "inputTokens": 4899,
+        "outputTokens": 1342,
+        "costUsd": 0.02041
+      },
+      "usageExtractionCorrected": false,
+      "requestHashMatches": true,
+      "responseHashMatches": true,
+      "model": "openai/gpt-6.1-sol",
+      "parameters": {
+        "max_tokens": 7000,
+        "temperature": null,
+        "reasoning": {
+          "effort": "medium"
+        },
+        "stream": false,
+        "response_format": "json_schema"
+      },
+      "rawJSONParsed": true,
+      "rawNodeCount": 3,
+      "duplicateIds": [],
+      "criteriaOver140Characters": [],
+      "rawHintCount": 0
+    }
+  ]
+}

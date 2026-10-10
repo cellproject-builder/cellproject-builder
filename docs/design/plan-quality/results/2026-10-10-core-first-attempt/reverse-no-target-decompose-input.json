@@ -1,0 +1,97 @@
+{
+  "projectName": "Restaurar um patinete doador",
+  "projectObjective": "Quero construir um patinete elétrico caseiro; ainda não tenho arquitetura, peças ou desempenho selecionados.",
+  "breadcrumb": [
+    "Restaurar um patinete doador",
+    "Recursos",
+    "Controle, acelerador e programa originais"
+  ],
+  "nodeName": "Controle, acelerador e programa originais",
+  "nodeKind": "recurso",
+  "nodeFx": "Comandos desconhecidos → cadeia de controle identificada",
+  "oQue": "Controlador (placa que aciona o motor), acelerador, painel e sensores originais, incluídos no doador. Programa ou aplicativo oficial, se exigido; reposição do conjunto: ~R$ 200–500.",
+  "porQue": "A placa precisa interpretar os comandos e conversar com os demais componentes da variante.",
+  "comoConfirmar": "Os códigos das peças de controle constam na documentação aplicável à variante.",
+  "siblings": [
+    {
+      "name": "Referência, variante e manual",
+      "fx": "Doador desconhecido → referência rastreável"
+    },
+    {
+      "name": "Chassi, rodas e freios doadores",
+      "fx": "Estrutura sem avaliação → base recuperável identificada"
+    },
+    {
+      "name": "Motor e transmissão originais",
+      "fx": "Propulsão desconhecida → conjunto original identificado"
+    },
+    {
+      "name": "Bateria, proteções e carregador compatíveis",
+      "fx": "Alimentação incerta → conjunto de energia verificável"
+    },
+    {
+      "name": "Cabos, conectores e ferramentas",
+      "fx": "Interfaces sem acesso → montagem e medição possíveis"
+    }
+  ],
+  "strategy": "reaproveitar",
+  "archetype": "construir",
+  "planApproach": "reverse_engineering",
+  "planOverview": [
+    {
+      "category": "Recursos",
+      "name": "Referência, variante e manual",
+      "oQue": "Modelo e variante: DESCONHECIDOS. Qual doador você consegue obter? Envie etiqueta, fotos dos conectores e manual da variante; documentação gratuita quando disponível."
+    },
+    {
+      "category": "Recursos",
+      "name": "Chassi, rodas e freios doadores",
+      "oQue": "Patinete doador completo: ~R$ 1.200–2.200, incluindo estrutura, direção, rodas e freios. Preserve encaixes originais; trincas estruturais exigem avaliação profissional."
+    },
+    {
+      "category": "Recursos",
+      "name": "Motor e transmissão originais",
+      "oQue": "Motor e transmissão, se houver, incluídos no doador. Reposição equivalente: ~R$ 250–600; depende da identificação de fixação, tensão e sinais, não apenas da potência."
+    },
+    {
+      "category": "Recursos",
+      "name": "Bateria, proteções e carregador compatíveis",
+      "oQue": "Bateria fechada, proteção eletrônica, fusível e carregador originais, incluídos no doador quando presentes. Reposição compatível: ~R$ 500–900; não abra nem reconstrua células."
+    },
+    {
+      "category": "Recursos",
+      "name": "Cabos, conectores e ferramentas",
+      "oQue": "Chicote (conjunto organizado de cabos) original e fixadores incluídos. Multímetro, torquímetro emprestado, isolantes, suporte firme e capacete: ~R$ 150–400; reparos de cabos por assistência."
+    },
+    {
+      "category": "Execução",
+      "name": "Identificar variante, metas e interfaces",
+      "oQue": "Peça etiqueta e manual; pergunte massa do condutor, percurso e uso previsto. Mapeie encaixes, tensão, polaridade e comunicação; marque cada dado como DOCUMENTADO, MEDIDO ou DESCONHECIDO."
+    },
+    {
+      "category": "Execução",
+      "name": "Inspecionar doador e substituir defeitos",
+      "oQue": "Com bateria isolada conforme manual, inspecione estrutura, direção, pneus, freios e cabos. Substitua itens reprovados por equivalentes verificados; bateria inchada, molhada ou aquecendo vai à assistência."
+    },
+    {
+      "category": "Execução",
+      "name": "Conectar bateria, controle e comandos",
+      "oQue": "Sem alimentação, ligue motor ao controlador; painel, acelerador e freio às portas identificadas. Confira pinos e polaridade; conecte bateria na sequência do manual. Não adapte fios por cor."
+    },
+    {
+      "category": "Execução",
+      "name": "Configurar controle conforme documentação",
+      "oQue": "Preserve o programa original. Se o manual exigir, use aplicativo oficial para ativar e calibrar comandos; restaure parâmetros da variante, sem desbloquear velocidade ou aumentar corrente."
+    },
+    {
+      "category": "Execução",
+      "name": "Regular freios e corte elétrico",
+      "oQue": "Ajuste cabo ou mecanismo conforme manual. Com roda motriz suspensa em suporte firme, teste o sensor de freio, se previsto: acione o freio enquanto aplica comando leve, longe da roda."
+    },
+    {
+      "category": "Execução",
+      "name": "Testar carga, frenagem e rodagem",
+      "oQue": "Carregue sob supervisão, em local seco e não combustível. Depois teste partida, curvas e parada em baixa velocidade, com capacete, em área privada plana; interrompa por calor, cheiro ou ruído anormal."
+    }
+  ]
+}

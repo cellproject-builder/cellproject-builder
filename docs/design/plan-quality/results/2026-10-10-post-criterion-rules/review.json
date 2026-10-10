@@ -1,0 +1,50 @@
+{
+  "status": "manual_partial_review",
+  "reviewer": "coordinator",
+  "scope": "Two first attempts after criterion prompt changes; not a statistical or causal comparison",
+  "cases": [
+    {
+      "case": "reverse-bounded-source",
+      "stage": "expand",
+      "dimension": "criterion",
+      "score": 1,
+      "evidence": [
+        { "file": "reverse-bounded-source-expand.json", "path": "output.tree.categorias[1].children[0].comoConfirmar", "observation": "Variant code on donor label must match the obtained technical documentation; this tests identity rather than filling requirement fields." },
+        { "file": "reverse-bounded-source-expand.json", "path": "output.tree.categorias[0].children[0]", "observation": "Documents, measurements and tools are explicitly requested, with variant correspondence as their criterion." }
+      ],
+      "counterevidence": [
+        { "file": "reverse-bounded-source-expand.json", "path": "output.tree.categorias[1].children[0].name", "observation": "The same node still promises variant, requirements and interfaces; its identity criterion does not cover all three objectives." },
+        { "file": "reverse-bounded-source-expand.json", "path": "output.tree.categorias[0].children[3].comoConfirmar", "observation": "Official diagnostics with no communication error remain a criterion; actual procedure, access and applicability are still unresolved." }
+      ],
+      "notes": "Documentation acquisition is more explicit; the concrete method is not established. The decomposition selects battery/charger instead of the initial pilot control node, preventing a controlled comparison of the same subproblem."
+    },
+    {
+      "case": "reverse-variant-conflict",
+      "stage": "expand",
+      "dimension": "criterion",
+      "score": 1,
+      "evidence": [
+        { "file": "reverse-variant-conflict-expand.json", "path": "output.tree.categorias[1].children[0].comoConfirmar", "observation": "Photographed label code must match a specifically obtained source, replacing the earlier criterion that merely required filled requirement fields." },
+        { "file": "reverse-variant-conflict-expand.json", "path": "output.tree.categorias[1].children[3].comoConfirmar", "observation": "The insulation test criterion explicitly requires obtaining a variant-specific procedure and limit before final connection; no numeric limit is fabricated here." }
+      ],
+      "counterevidence": [
+        { "file": "reverse-variant-conflict-expand.json", "path": "output.tree.categorias[1].children[0].name", "observation": "The node still joins variant, sources and goals but checks identity only." },
+        { "file": "reverse-variant-conflict-expand.json", "path": "output.tree.categorias[0].children[3].comoConfirmar", "observation": "Original control diagnostics without communication error remain an unresolved method dependency." },
+        { "file": "reverse-variant-conflict-decompose.json", "path": "output.nodes[0].comoConfirmar", "observation": "A legible battery code supports identification only; it cannot establish battery health or compatibility. Those are deferred to a separate generic joint-use report." }
+      ],
+      "notes": "The reviewed expansion and decomposition preserve Scooter 4 versus 4 Pro and do not transfer the reference ratings as measured target properties. No physical compatibility or test has been demonstrated."
+    }
+  ],
+  "notEvaluated": ["Full rubric scoring across all first and subsequent attempts", "Human blinded review", "Physical compatibility", "Generalized quality improvement", "Live replanning"],
+  "independentReview": {
+    "reviewer": "separate lifecycle and benchmark reviewer",
+    "scope": "Only reverse-bounded-source expansion and decomposition, without waiting for or reading the conflict condition",
+    "findings": [
+      "Variant code versus documentation already existed in an earlier resource; moving it into a compound execution step is not evidence of a new general capability.",
+      "The battery report explicitly asks which procedures and limits apply and obtains them before tests; this is a local instruction improvement.",
+      "Official controller diagnostics remain unresolved; several compound nodes only check one promised objective.",
+      "Selecting battery instead of control prevents demonstrating correction of the original four control-child criteria."
+    ],
+    "decision": "Local changes only; criteria remain partial and overall improvement is not established"
+  }
+}

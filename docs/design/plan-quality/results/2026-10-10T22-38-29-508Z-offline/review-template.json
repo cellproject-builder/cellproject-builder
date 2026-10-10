@@ -1,0 +1,242 @@
+[
+  {
+    "case": "new-no-reference",
+    "status": "not_evaluated",
+    "focus": [
+      "Requisitos e alternativas antes de peças",
+      "Ausência de números apresentados como decisões humanas",
+      "Perguntas sobre uso/carga/desempenho"
+    ],
+    "dimensions": [
+      {
+        "id": "coverage",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "interfaces",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "source_fidelity",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "coherence",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "question_quality",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "uncertainty",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "criterion_quality",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      }
+    ]
+  },
+  {
+    "case": "reverse-no-target",
+    "status": "not_evaluated",
+    "focus": [
+      "Identificação do sistema/variante primeiro",
+      "Nenhuma referência comercial inventada",
+      "Lacunas concretas em vez de compatibilidade presumida"
+    ],
+    "dimensions": [
+      {
+        "id": "coverage",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "interfaces",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "source_fidelity",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "coherence",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "question_quality",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "uncertainty",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "criterion_quality",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      }
+    ]
+  },
+  {
+    "case": "reverse-bounded-source",
+    "status": "not_evaluated",
+    "focus": [
+      "Citação specs/product nas afirmações documentadas",
+      "Separação referência/hipótese/projeto",
+      "Interfaces e limites ausentes nas páginas"
+    ],
+    "dimensions": [
+      {
+        "id": "coverage",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "interfaces",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "source_fidelity",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "coherence",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "question_quality",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "uncertainty",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "criterion_quality",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      }
+    ]
+  },
+  {
+    "case": "reverse-variant-conflict",
+    "status": "not_evaluated",
+    "focus": [
+      "Conflito 4 Pro versus fontes Scooter 4 explicitado",
+      "Pergunta de identificação antes de copiar especificações",
+      "Nenhuma fusão de variantes"
+    ],
+    "dimensions": [
+      {
+        "id": "coverage",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "interfaces",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "source_fidelity",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "coherence",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "question_quality",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "uncertainty",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      },
+      {
+        "id": "criterion_quality",
+        "score": null,
+        "evidence": [],
+        "counterevidence": [],
+        "notes": ""
+      }
+    ]
+  }
+]

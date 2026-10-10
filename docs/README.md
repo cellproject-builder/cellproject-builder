@@ -17,6 +17,7 @@ Entrada mantida em 10/10/2026. As fichas descrevem o código desta revisão e ap
 - [Objetivo aprovado SENAI](OBJETIVO_DO_ARTIGO.md): referência canônica da contribuição candidata e do ciclo de evidências.
 - [Guia para artigos](research/README.md): como descrever a implementação, selecionar evidências e evitar conclusões além dos testes.
 - [Laboratórios e protocolos](research/README.md#experimentos-e-artefatos-existentes): comparações 3D, geometria, diagramas e desconstrução.
+- [Qualidade de planos](design/plan-quality/README.md): primeiras respostas reais, condições de referência, rubrica humana e limites; [rodada de qualidade e desempenho](reports/planning-quality-performance-2026-10-10.md).
 - [Template do resumo expandido](Template_ResumoExpandido2026.6bced2c68d504ba99fc5.md) e [referência do congresso](III_Congresso_UniSENAI_SP_2026.md): materiais de redação; verificar as exigências do evento ao submeter.
 
 ## Configuração e contratos específicos

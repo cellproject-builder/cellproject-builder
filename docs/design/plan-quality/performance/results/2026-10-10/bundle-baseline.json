@@ -1,0 +1,4157 @@
+{
+  "initialModules": [
+    {
+      "id": "node_modules/@radix-ui/react-icons/dist/react-icons.esm.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 503054
+    },
+    {
+      "id": "node_modules/ai/dist/index.mjs",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 277088
+    },
+    {
+      "id": "node_modules/@openrouter/ai-sdk-provider/dist/index.mjs",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 170062
+    },
+    {
+      "id": "node_modules/@ai-sdk/openai/dist/index.mjs",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 159819
+    },
+    {
+      "id": "node_modules/@xyflow/react/dist/esm/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 148711
+    },
+    {
+      "id": "node_modules/@ai-sdk/anthropic/dist/index.mjs",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 139640
+    },
+    {
+      "id": "node_modules/react-dom/cjs/react-dom.production.min.js",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 133838
+    },
+    {
+      "id": "node_modules/@xyflow/system/dist/esm/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 104778
+    },
+    {
+      "id": "src/i18n/messages.ts",
+      "chunk": "assets/index-Y70E_Mzz.js",
+      "renderedLength": 90702
+    },
+    {
+      "id": "node_modules/fflate/esm/browser.js",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 89990
+    },
+    {
+      "id": "node_modules/vaul/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 77893
+    },
+    {
+      "id": "src/components/ObjectiveScreen.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 73301
+    },
+    {
+      "id": "src/store.ts",
+      "chunk": "assets/store-9oyC5a64.js",
+      "renderedLength": 68072
+    },
+    {
+      "id": "src/components/TutorMode.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 66848
+    },
+    {
+      "id": "src/components/GraphCanvas.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 62632
+    },
+    {
+      "id": "src/ai/service.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 62060
+    },
+    {
+      "id": "node_modules/@ai-sdk/provider-utils/dist/index.mjs",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 61920
+    },
+    {
+      "id": "src/components/GroundTruth.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 58745
+    },
+    {
+      "id": "node_modules/zod/v4/core/schemas.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 57466
+    },
+    {
+      "id": "node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider-utils/dist/index.mjs",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 54255
+    },
+    {
+      "id": "node_modules/@ai-sdk/gateway/dist/index.mjs",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 53928
+    },
+    {
+      "id": "node_modules/@ai-sdk/anthropic/node_modules/@ai-sdk/provider-utils/dist/index.mjs",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 52816
+    },
+    {
+      "id": "src/components/DetailPanel.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 51854
+    },
+    {
+      "id": "src/data/demoProject.ts",
+      "chunk": "assets/store-9oyC5a64.js",
+      "renderedLength": 45414
+    },
+    {
+      "id": "src/visuals/ui/VisualExplorer.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 29845
+    },
+    {
+      "id": "node_modules/zod/v4/classic/schemas.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 28516
+    },
+    {
+      "id": "src/workspace/Workspace.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 25123
+    },
+    {
+      "id": "src/components/KnowledgeRepo.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 24803
+    },
+    {
+      "id": "src/visuals/rendering/VisualArtifactNode.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 24311
+    },
+    {
+      "id": "src/chat/AssistantChat.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 23444
+    },
+    {
+      "id": "src/workspace/NoteCanvas.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 23152
+    },
+    {
+      "id": "src/components/ApiKeyGate.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 21521
+    },
+    {
+      "id": "src/components/TopBar.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 21501
+    },
+    {
+      "id": "src/workspace/NoteInkOverlay.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 21494
+    },
+    {
+      "id": "src/workspace/Notes.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 21372
+    },
+    {
+      "id": "node_modules/zod/v4/core/json-schema-processors.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 20326
+    },
+    {
+      "id": "src/workspace/messages.ts",
+      "chunk": "assets/index-Y70E_Mzz.js",
+      "renderedLength": 19743
+    },
+    {
+      "id": "src/visuals/ui/strings.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 18723
+    },
+    {
+      "id": "src/cloud/CloudBootstrap.tsx",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 18604
+    },
+    {
+      "id": "src/visuals/decompositionResearch.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 18398
+    },
+    {
+      "id": "src/visuals/media.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 18168
+    },
+    {
+      "id": "src/workspace/demoData.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 17863
+    },
+    {
+      "id": "src/workspace/WorkshopSceneProps.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 16771
+    },
+    {
+      "id": "node_modules/zod/v4/core/to-json-schema.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 16125
+    },
+    {
+      "id": "src/visuals/ui/ImageGallery.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 16039
+    },
+    {
+      "id": "src/ai/plannerTools.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 15978
+    },
+    {
+      "id": "src/cloud/vault/transport.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 15251
+    },
+    {
+      "id": "node_modules/d3-zoom/src/zoom.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 15242
+    },
+    {
+      "id": "src/cloud/runtime.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 15195
+    },
+    {
+      "id": "src/components/ReadingMode.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 14524
+    },
+    {
+      "id": "src/visuals/domain.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 14451
+    },
+    {
+      "id": "node_modules/zod/v4/core/checks.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 14196
+    },
+    {
+      "id": "src/ink/live.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 14078
+    },
+    {
+      "id": "src/components/ConceptNode.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 13847
+    },
+    {
+      "id": "node_modules/zod/v4/core/util.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 13756
+    },
+    {
+      "id": "src/workspace/Projects.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 13467
+    },
+    {
+      "id": "node_modules/zod/v4/core/api.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 12984
+    },
+    {
+      "id": "src/workspace/store.ts",
+      "chunk": "assets/store-Dj1E2lIY.js",
+      "renderedLength": 12866
+    },
+    {
+      "id": "src/chat/ChatImageCarousel.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 12860
+    },
+    {
+      "id": "src/cloud/CloudStatus.tsx",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 12790
+    },
+    {
+      "id": "src/visuals/VisualWorkspaceBridge.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 12347
+    },
+    {
+      "id": "src/ai/workspaceTools.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 12337
+    },
+    {
+      "id": "node_modules/@radix-ui/react-dialog/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 12268
+    },
+    {
+      "id": "src/workspace/NotesLibrary.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 12263
+    },
+    {
+      "id": "src/visuals/normalize.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 12247
+    },
+    {
+      "id": "src/visuals/ui/TabbedVisualExplorer.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 11911
+    },
+    {
+      "id": "src/ink/PlannerInkLayer.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 11720
+    },
+    {
+      "id": "src/visuals/componentFit.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 11555
+    },
+    {
+      "id": "src/chat/store.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 11353
+    },
+    {
+      "id": "src/kb/store.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 11276
+    },
+    {
+      "id": "src/visuals/ui/PromptComposer.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 11045
+    },
+    {
+      "id": "node_modules/d3-color/src/color.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 10969
+    },
+    {
+      "id": "src/cloud/PasswordVaultGate.tsx",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 10808
+    },
+    {
+      "id": "src/visuals/modelingGuide.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 10502
+    },
+    {
+      "id": "src/visuals/ui/FloatingPopup.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 10112
+    },
+    {
+      "id": "src/visuals/refinement.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 10041
+    },
+    {
+      "id": "src/visuals/searchIntent.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 9909
+    },
+    {
+      "id": "src/workspace/Scrum.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 9659
+    },
+    {
+      "id": "src/visuals/ui/PopupTabs.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 9654
+    },
+    {
+      "id": "src/visuals/diagram/model.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 9390
+    },
+    {
+      "id": "src/workspace/NoteDiagramComposer.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 9370
+    },
+    {
+      "id": "src/visuals/search.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 9262
+    },
+    {
+      "id": "src/visuals/ui/ModelAssemblyInspector.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 9169
+    },
+    {
+      "id": "src/workspace/NoteNotebook.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 9000
+    },
+    {
+      "id": "src/cloud/migration.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 8862
+    },
+    {
+      "id": "src/ai/schemas.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 8834
+    },
+    {
+      "id": "src/ai/agents/workspaceAgent.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 8739
+    },
+    {
+      "id": "node_modules/@ai-sdk/openai/node_modules/@ai-sdk/provider/dist/index.mjs",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 8737
+    },
+    {
+      "id": "src/ink/geometry.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 8646
+    },
+    {
+      "id": "node_modules/@ai-sdk/provider/dist/index.mjs",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 8627
+    },
+    {
+      "id": "src/cloud/VaultGate.tsx",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 8533
+    },
+    {
+      "id": "node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 8465
+    },
+    {
+      "id": "src/visuals/ui/sessionStore.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 8348
+    },
+    {
+      "id": "src/components/Markdown.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 8246
+    },
+    {
+      "id": "src/chat/ChatComposer.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 8117
+    },
+    {
+      "id": "src/chat/messages.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 8082
+    },
+    {
+      "id": "src/ai/planStructure.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 7868
+    },
+    {
+      "id": "node_modules/react-remove-scroll/dist/es2015/SideEffect.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 7798
+    },
+    {
+      "id": "node_modules/@radix-ui/react-focus-scope/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 7749
+    },
+    {
+      "id": "src/ai/visualTools.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 7701
+    },
+    {
+      "id": "node_modules/react/cjs/react.production.min.js",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 7672
+    },
+    {
+      "id": "src/visuals/ui/ModelPromptRefiner.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 7527
+    },
+    {
+      "id": "src/cloud/PasswordSetup.tsx",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 7498
+    },
+    {
+      "id": "src/visuals/diagram/generation.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 7487
+    },
+    {
+      "id": "src/cloud/vault/crypto.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 7385
+    },
+    {
+      "id": "node_modules/@ai-sdk/anthropic/node_modules/@ai-sdk/provider/dist/index.mjs",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 7275
+    },
+    {
+      "id": "src/workspace/project-appearance/projectIcons.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 6980
+    },
+    {
+      "id": "node_modules/eventsource-parser/dist/index.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 6853
+    },
+    {
+      "id": "src/workspace/PixelEngineer.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 6647
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/metrics/NoopMeter.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 6498
+    },
+    {
+      "id": "src/components/ui/SoftIcons.tsx",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 6463
+    },
+    {
+      "id": "src/workspace/project-appearance/ProjectIconPicker.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 6241
+    },
+    {
+      "id": "src/workspace/planner.ts",
+      "chunk": "assets/planner-C4T6wg0C.js",
+      "renderedLength": 6210
+    },
+    {
+      "id": "src/workspace/Comments.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 6176
+    },
+    {
+      "id": "src/cloud/vault/deviceKeys.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 6087
+    },
+    {
+      "id": "src/workspace/noteImages.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 6066
+    },
+    {
+      "id": "src/workspace/Board.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 5878
+    },
+    {
+      "id": "src/attachments/files.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 5878
+    },
+    {
+      "id": "src/cloud/vault/passwordAccess.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 5761
+    },
+    {
+      "id": "src/workspace/NoteRewriteDialog.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 5713
+    },
+    {
+      "id": "src/chat/references.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 5599
+    },
+    {
+      "id": "src/visuals/geometrySchema.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 5596
+    },
+    {
+      "id": "src/App.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 5561
+    },
+    {
+      "id": "node_modules/zustand/esm/middleware.mjs",
+      "chunk": "assets/middleware-CwQPZdBN.js",
+      "renderedLength": 5524
+    },
+    {
+      "id": "src/workspace/noteDiagram.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 5430
+    },
+    {
+      "id": "src/graph/autoLayout.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 5426
+    },
+    {
+      "id": "node_modules/aria-hidden/dist/es2015/index.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 5359
+    },
+    {
+      "id": "node_modules/d3-drag/src/drag.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 5292
+    },
+    {
+      "id": "src/visuals/generation.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 5263
+    },
+    {
+      "id": "src/ai/research.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 5242
+    },
+    {
+      "id": "src/workspace/SprintTimeline.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 5109
+    },
+    {
+      "id": "src/ink/InkToolbar.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 5099
+    },
+    {
+      "id": "src/components/ui/OverflowMenu.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 5067
+    },
+    {
+      "id": "src/config/store.ts",
+      "chunk": "assets/store-BRXv1_0D.js",
+      "renderedLength": 5054
+    },
+    {
+      "id": "src/visuals/controller.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 5000
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/internal/semver.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 4922
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/api/diag.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 4844
+    },
+    {
+      "id": "src/components/MobileSheet.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 4826
+    },
+    {
+      "id": "src/cloud/CloudSessionRecovery.tsx",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 4826
+    },
+    {
+      "id": "src/attachments/FileAttachments.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 4785
+    },
+    {
+      "id": "node_modules/zod/v4/core/regexes.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 4679
+    },
+    {
+      "id": "node_modules/scheduler/cjs/scheduler.production.min.js",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 4668
+    },
+    {
+      "id": "node_modules/@radix-ui/react-presence/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 4643
+    },
+    {
+      "id": "src/workspace/TaskEditor.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 4587
+    },
+    {
+      "id": "src/kb/service.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 4531
+    },
+    {
+      "id": "src/cloud/passwordAuth.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 4521
+    },
+    {
+      "id": "src/boards/model.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 4514
+    },
+    {
+      "id": "src/visuals/searchContext.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 4509
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/schedule.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 4460
+    },
+    {
+      "id": "src/visuals/decompositionSchema.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 4456
+    },
+    {
+      "id": "node_modules/react-remove-scroll/dist/es2015/handleScroll.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 4398
+    },
+    {
+      "id": "src/visuals/advancedErrors.ts",
+      "chunk": "assets/advancedErrors-Bs_Tp0bZ.js",
+      "renderedLength": 4337
+    },
+    {
+      "id": "src/workspace/TaskList.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 4227
+    },
+    {
+      "id": "src/visuals/useArtifactClipboard.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 4185
+    },
+    {
+      "id": "node_modules/zod/v3/ZodError.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 4151
+    },
+    {
+      "id": "src/visuals/ui/ModelArtifactEditor.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 4105
+    },
+    {
+      "id": "src/visuals/advancedContext.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 4105
+    },
+    {
+      "id": "src/visuals/modelAssembly.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 4090
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/data.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 4066
+    },
+    {
+      "id": "src/components/ui/ExpandedChrome.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 4065
+    },
+    {
+      "id": "src/visuals/diagram/DiagramView.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 4057
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/api/context.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 3963
+    },
+    {
+      "id": "src/components/ui/Toast.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 3854
+    },
+    {
+      "id": "src/components/ui/Modal.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 3746
+    },
+    {
+      "id": "src/pwa/InstallApp.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 3685
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/diag/ComponentLogger.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 3625
+    },
+    {
+      "id": "src/components/StatusBar.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 3607
+    },
+    {
+      "id": "src/chat/ChatPlanChanges.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 3603
+    },
+    {
+      "id": "src/cloud/CloudMigration.tsx",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 3582
+    },
+    {
+      "id": "node_modules/@radix-ui/react-slot/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 3540
+    },
+    {
+      "id": "src/pwa/install.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 3509
+    },
+    {
+      "id": "node_modules/zod/v4/core/parse.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 3485
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/baggage/internal/baggage-impl.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 3466
+    },
+    {
+      "id": "src/cloud/vault/privacy.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 3438
+    },
+    {
+      "id": "src/visuals/artifactClipboard.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 3408
+    },
+    {
+      "id": "src/ai/planIntake.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 3403
+    },
+    {
+      "id": "node_modules/idb-keyval/dist/index.js",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 3294
+    },
+    {
+      "id": "node_modules/@radix-ui/react-context/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 3269
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/api/propagation.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 3243
+    },
+    {
+      "id": "src/ai/client.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 3199
+    },
+    {
+      "id": "src/hooks/useAIAction.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 3168
+    },
+    {
+      "id": "src/components/ui/InlineError.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 3163
+    },
+    {
+      "id": "node_modules/react-remove-scroll-bar/dist/es2015/component.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 3150
+    },
+    {
+      "id": "src/visuals/projectSearchContext.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 3148
+    },
+    {
+      "id": "src/workspace/noteCanvasModel.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 3106
+    },
+    {
+      "id": "src/visuals/diagram/contrast.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 3065
+    },
+    {
+      "id": "node_modules/use-sync-external-store/cjs/use-sync-external-store-shim/with-selector.production.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 2977
+    },
+    {
+      "id": "src/visuals/modelRevision.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2912
+    },
+    {
+      "id": "node_modules/d3-timer/src/timer.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 2889
+    },
+    {
+      "id": "src/ai/rateLimit.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 2887
+    },
+    {
+      "id": "src/components/suggestionActions.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2870
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/shared/src/build/buildLucideIconNode.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 2795
+    },
+    {
+      "id": "src/visuals/vision.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 2792
+    },
+    {
+      "id": "node_modules/d3-dispatch/src/dispatch.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 2730
+    },
+    {
+      "id": "src/chat/ImageProjectFit.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2723
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/api/trace.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 2599
+    },
+    {
+      "id": "src/visuals/clipboard.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2571
+    },
+    {
+      "id": "node_modules/zod/v3/helpers/util.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 2554
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/style.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 2540
+    },
+    {
+      "id": "src/components/ui/ProgressRing.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2537
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/NoopTracer.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 2478
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/attr.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 2472
+    },
+    {
+      "id": "node_modules/zod/v4/core/errors.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 2465
+    },
+    {
+      "id": "src/workspace/TaskPresentation.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2403
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/internal/global-utils.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 2395
+    },
+    {
+      "id": "node_modules/use-sidecar/dist/es2015/medium.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2376
+    },
+    {
+      "id": "src/workspace/NoteTextActions.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2348
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/NonRecordingSpan.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 2346
+    },
+    {
+      "id": "node_modules/use-sync-external-store/cjs/use-sync-external-store-shim.production.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 2342
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/context/NoopContextManager.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 2292
+    },
+    {
+      "id": "src/visuals/drag.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2209
+    },
+    {
+      "id": "\u0000vite/preload-helper.js",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 2206
+    },
+    {
+      "id": "node_modules/tslib/tslib.es6.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2189
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/context/context.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 2173
+    },
+    {
+      "id": "src/visuals/rendering/VisualLinkEdge.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2162
+    },
+    {
+      "id": "node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2152
+    },
+    {
+      "id": "src/visuals/ui/ModelReferencePreview.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2151
+    },
+    {
+      "id": "src/visuals/decompositionState.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2141
+    },
+    {
+      "id": "node_modules/zod/v4/core/core.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 2139
+    },
+    {
+      "id": "node_modules/zod/v3/types.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 2095
+    },
+    {
+      "id": "src/workspace/TaskCard.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2068
+    },
+    {
+      "id": "src/cloud/CloudInkConnection.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 2053
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/transform/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 2038
+    },
+    {
+      "id": "node_modules/react-remove-scroll/dist/es2015/UI.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 2024
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/api/metrics.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 2024
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/on.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 2024
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/ProxyTracerProvider.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 2011
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/tween.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 1978
+    },
+    {
+      "id": "src/visuals/portable.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1925
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/context-utils.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1924
+    },
+    {
+      "id": "src/ink/canvasModel.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 1878
+    },
+    {
+      "id": "src/workspace/noteTextMessages.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1875
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/ProxyTracer.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1839
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/diag/types.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1829
+    },
+    {
+      "id": "src/workspace/AsciiWorkshop.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1802
+    },
+    {
+      "id": "node_modules/@vercel/oidc/dist/index-browser.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1801
+    },
+    {
+      "id": "src/workspace/sprintCalendar.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1775
+    },
+    {
+      "id": "src/kb/schemas.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 1761
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/classed.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 1742
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/string.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 1739
+    },
+    {
+      "id": "node_modules/use-callback-ref/dist/es2015/useMergeRef.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1660
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/zoom.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 1657
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/baggage/context-helpers.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1656
+    },
+    {
+      "id": "node_modules/@vercel/oidc/dist/auth-errors.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1644
+    },
+    {
+      "id": "src/workspace/noteCanvasSummary.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 1600
+    },
+    {
+      "id": "src/workspace/ui.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1590
+    },
+    {
+      "id": "src/graph/treeLayout.ts",
+      "chunk": "assets/store-9oyC5a64.js",
+      "renderedLength": 1580
+    },
+    {
+      "id": "src/visuals/ui/uiStore.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 1563
+    },
+    {
+      "id": "src/cloud/rescue.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 1532
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/Icon.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 1513
+    },
+    {
+      "id": "src/workspace/noteInkModel.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 1510
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/spancontext-utils.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1459
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/diag/internal/logLevelLogger.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1456
+    },
+    {
+      "id": "src/ai/noteRewrite.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1448
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/attr.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 1444
+    },
+    {
+      "id": "src/ink/InkStroke.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1423
+    },
+    {
+      "id": "node_modules/zod/v4/core/registries.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 1404
+    },
+    {
+      "id": "node_modules/@xyflow/react/node_modules/zustand/esm/vanilla.mjs",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 1398
+    },
+    {
+      "id": "node_modules/@vercel/oidc/dist/get-context.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1383
+    },
+    {
+      "id": "src/workspace/PageHeader.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1373
+    },
+    {
+      "id": "node_modules/d3-zoom/src/transform.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 1369
+    },
+    {
+      "id": "node_modules/zod/v4/classic/errors.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 1351
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/boxes.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 1332
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/platform/browser/globalThis.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1328
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 1300
+    },
+    {
+      "id": "\u0000vite/modulepreload-polyfill.js",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 1280
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 1262
+    },
+    {
+      "id": "src/attachments/NodeFileSources.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1250
+    },
+    {
+      "id": "node_modules/react-style-singleton/dist/es2015/singleton.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1240
+    },
+    {
+      "id": "src/workspace/uiRequests.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 1217
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/propagation/NoopTextMapPropagator.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1204
+    },
+    {
+      "id": "node_modules/react/cjs/react-jsx-runtime.production.min.js",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 1201
+    },
+    {
+      "id": "node_modules/use-callback-ref/dist/es2015/useRef.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1184
+    },
+    {
+      "id": "src/visuals/rendering/viewStore.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1152
+    },
+    {
+      "id": "src/workspace/noteCanvasPersistence.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 1132
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/component.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 1128
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/attrTween.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 1112
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/propagation/TextMapPropagator.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1090
+    },
+    {
+      "id": "src/i18n/store.ts",
+      "chunk": "assets/index-Y70E_Mzz.js",
+      "renderedLength": 1087
+    },
+    {
+      "id": "node_modules/zod/v4/core/doc.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 1080
+    },
+    {
+      "id": "src/visuals/diagram/useDiagramPalette.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 1041
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/metrics/NoopMeterProvider.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1023
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/NoopTracerProvider.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 1019
+    },
+    {
+      "id": "src/visuals/projectBoundary.ts",
+      "chunk": "assets/store-9oyC5a64.js",
+      "renderedLength": 1013
+    },
+    {
+      "id": "node_modules/react-remove-scroll-bar/dist/es2015/utils.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 983
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/diag-api.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 983
+    },
+    {
+      "id": "node_modules/zustand/esm/vanilla.mjs",
+      "chunk": "assets/storage-Dq0gpZmA.js",
+      "renderedLength": 975
+    },
+    {
+      "id": "src/visuals/references.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 969
+    },
+    {
+      "id": "node_modules/d3-drag/src/event.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 969
+    },
+    {
+      "id": "src/ai/transport.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 968
+    },
+    {
+      "id": "src/ai/availability.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 946
+    },
+    {
+      "id": "node_modules/@xyflow/react/node_modules/zustand/esm/shallow.mjs",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 945
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/style.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 935
+    },
+    {
+      "id": "node_modules/@xyflow/react/node_modules/zustand/esm/traditional.mjs",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 932
+    },
+    {
+      "id": "src/visuals/rendering/geometry.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 930
+    },
+    {
+      "id": "node_modules/zod/v4/classic/iso.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 919
+    },
+    {
+      "id": "node_modules/@radix-ui/react-compose-refs/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 916
+    },
+    {
+      "id": "node_modules/d3-transition/src/selection/transition.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 915
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/lasso-select.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 908
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/baggage/utils.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 903
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/wand-sparkles.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 897
+    },
+    {
+      "id": "src/main.tsx",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 895
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/trace_flags.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 891
+    },
+    {
+      "id": "src/cloud/storage.ts",
+      "chunk": "assets/storage-Dq0gpZmA.js",
+      "renderedLength": 880
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/pen-tool.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 873
+    },
+    {
+      "id": "node_modules/@radix-ui/react-primitive/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 867
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/dispatch.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 856
+    },
+    {
+      "id": "node_modules/@radix-ui/react-focus-guards/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 850
+    },
+    {
+      "id": "src/components/LanguageToggle.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 840
+    },
+    {
+      "id": "src/cloud/vault/passwordSetup.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 835
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/notebook-pen.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 832
+    },
+    {
+      "id": "src/theme.ts",
+      "chunk": "assets/theme-DaHR2NG5.js",
+      "renderedLength": 832
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/invalid-span-constants.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 827
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/layers.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 826
+    },
+    {
+      "id": "node_modules/d3-drag/src/nodrag.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 820
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/on.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 805
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/rocket.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 803
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/sun.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 799
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/end.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 796
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/keyboard.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 789
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/context-api.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 788
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/propagation-api.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 782
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace-api.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 782
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/settings.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 782
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/metrics-api.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 774
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/selectAll.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 767
+    },
+    {
+      "id": "node_modules/zod/v4/classic/parse.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 766
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/sliders-horizontal.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 761
+    },
+    {
+      "id": "src/graph/useCanvasSize.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 755
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/star.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 748
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/styleTween.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 748
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/enter.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 720
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/ruler.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 719
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/hand.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 718
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/file-text.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 712
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/select.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 712
+    },
+    {
+      "id": "src/chat/AssistantChatDock.tsx",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 708
+    },
+    {
+      "id": "src/ink/model.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 703
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/backpack.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 694
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/version.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 691
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/network.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 691
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/volume-2.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 691
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/package.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 684
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/createLucideIcon.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 673
+    },
+    {
+      "id": "node_modules/zustand/esm/react.mjs",
+      "chunk": "assets/storage-Dq0gpZmA.js",
+      "renderedLength": 669
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/layout-dashboard.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 663
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/share-2.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 663
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/transform/decompose.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 661
+    },
+    {
+      "id": "src/attachments/projectFiles.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 647
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/sort.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 646
+    },
+    {
+      "id": "node_modules/d3-selection/src/pointer.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 643
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/accessibility.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 639
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/camera.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 632
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/pin.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 632
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/trash.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 631
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/bot.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 629
+    },
+    {
+      "id": "src/ai/sdkCompatibility.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 628
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/pencil-line.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 622
+    },
+    {
+      "id": "src/visuals/diagram/prompt.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 620
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/property.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 620
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/selectAll.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 619
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/transform/parse.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 619
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/merge.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 617
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/id-card.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 611
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/move.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 611
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/transition.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 611
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/box.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 610
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/merge.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 608
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/textTween.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 604
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/scissors.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 603
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/triangle-alert.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 603
+    },
+    {
+      "id": "node_modules/d3-transition/src/interrupt.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 603
+    },
+    {
+      "id": "node_modules/eventsource-parser/dist/stream.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 601
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/refresh-cw.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 595
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/chart-pie.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 593
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/laptop.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 593
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/list.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 593
+    },
+    {
+      "id": "node_modules/@radix-ui/react-use-escape-keydown/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 590
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/house.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 590
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/face-slightly-smiling.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 587
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/select.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 586
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/book-open.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 583
+    },
+    {
+      "id": "src/references/chatHandoff.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 582
+    },
+    {
+      "id": "src/hooks/useAIReveal.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 581
+    },
+    {
+      "id": "node_modules/d3-selection/src/creator.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 580
+    },
+    {
+      "id": "src/ai/assistant.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 579
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/folder-open.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 577
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/send.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 577
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/eraser.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 574
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/sticky-note.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 573
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/maximize.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 566
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/minimize.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 566
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/list-checks.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 565
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/pencil.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 565
+    },
+    {
+      "id": "node_modules/react-remove-scroll/dist/es2015/aggresiveCapture.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 560
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/file.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 560
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/chart-column.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 558
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/map-pin.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 552
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/shared/src/utils/toCamelCase.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 551
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/shield.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 550
+    },
+    {
+      "id": "node_modules/d3-selection/src/array.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 550
+    },
+    {
+      "id": "node_modules/react-style-singleton/dist/es2015/component.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 549
+    },
+    {
+      "id": "node_modules/use-callback-ref/dist/es2015/assignRef.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 548
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/badge.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 548
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/compass.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 548
+    },
+    {
+      "id": "node_modules/react-style-singleton/dist/es2015/hook.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 546
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/image.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 544
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/video.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 544
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/panel-left-close.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 542
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/zap.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 542
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/status.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 541
+    },
+    {
+      "id": "node_modules/@radix-ui/react-portal/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 540
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/monitor.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 540
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/calendar.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 539
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/heart.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 538
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/panel-left-open.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 538
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/rotate-ccw-clock.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 538
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/mouse-pointer-2.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 536
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/text.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 535
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/table.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 534
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/pen.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 533
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/shared/src/build/buildLucideIconForReact.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 532
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/lock-keyhole.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 532
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/columns-3.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 530
+    },
+    {
+      "id": "node_modules/use-sidecar/dist/es2015/exports.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 528
+    },
+    {
+      "id": "src/cloud/activity.ts",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 528
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/value.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 528
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/message-circle.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 526
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/archive.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 525
+    },
+    {
+      "id": "node_modules/react-dom/index.js",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 524
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/headphones.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 522
+    },
+    {
+      "id": "src/visuals/imagePlacement.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 520
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/html.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 519
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/activity.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 517
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/bookmark.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 513
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/timer.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 513
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/folder.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 509
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/globe.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 508
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/join.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 508
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/link.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 503
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/rgb.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 502
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/filter.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 501
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/target.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 498
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/duration.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 494
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/moon.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 493
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/upload.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 490
+    },
+    {
+      "id": "src/visuals/promptReferences.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 485
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/color.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 484
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/filter.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 479
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/highlighter.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 478
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/type.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 478
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/circle-check.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 475
+    },
+    {
+      "id": "src/hooks/useMediaQuery.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 474
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/shared/src/utils/toLucideIconData.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 473
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/delay.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 472
+    },
+    {
+      "id": "src/workspace/sidebarPreference.ts",
+      "chunk": "assets/store-B_83gvWr.js",
+      "renderedLength": 470
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/mail.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 468
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/smartphone.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 460
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/undo-2.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 456
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/redo-2.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 455
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/clone.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 453
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/menu.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 447
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/user.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 447
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/circle-dot.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 445
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/text.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 436
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/blend.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 433
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/arrow-down-right.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 429
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/search.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 427
+    },
+    {
+      "id": "node_modules/d3-zoom/src/event.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 427
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/clock.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 424
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/arrow-right.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 421
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/arrow-down.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 420
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/arrow-left.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 420
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/arrow-up.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 415
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/shared/src/build/defaultAttributes.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 414
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/code.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 412
+    },
+    {
+      "id": "src/planningIntent.ts",
+      "chunk": "assets/store-9oyC5a64.js",
+      "renderedLength": 403
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/plus.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 400
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/insert.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 400
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/x.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 398
+    },
+    {
+      "id": "node_modules/classcat/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 397
+    },
+    {
+      "id": "src/graph/treeIndex.ts",
+      "chunk": "assets/store-9oyC5a64.js",
+      "renderedLength": 395
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/cloud.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 392
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/selectChildren.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 385
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/order.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 380
+    },
+    {
+      "id": "node_modules/@radix-ui/react-id/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 375
+    },
+    {
+      "id": "node_modules/d3-drag/src/noevent.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 371
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/shared/src/utils/mergeClasses.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 370
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/chevron-right.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 369
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/circle.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 367
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/chevron-down.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 366
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/selectChild.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 364
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/object.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 359
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/shared/src/utils/hasA11yProp.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 358
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/check.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 356
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/array.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 347
+    },
+    {
+      "id": "node_modules/react-remove-scroll-bar/dist/es2015/constants.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 346
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/icons/minus.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 346
+    },
+    {
+      "id": "node_modules/@radix-ui/primitive/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 332
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/easeVarying.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 328
+    },
+    {
+      "id": "node_modules/d3-color/src/define.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 324
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/numberArray.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 321
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/shared/src/utils/toPascalCase.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 317
+    },
+    {
+      "id": "node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 313
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/ease.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 310
+    },
+    {
+      "id": "node_modules/d3-selection/src/namespace.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 302
+    },
+    {
+      "id": "node_modules/zod/v3/helpers/errorUtil.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 292
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/each.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 288
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/remove.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 286
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/shared/src/utils/toKebabCase.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 266
+    },
+    {
+      "id": "src/workspace/project-appearance/projectAppearance.ts",
+      "chunk": "assets/store-Dj1E2lIY.js",
+      "renderedLength": 262
+    },
+    {
+      "id": "src/safeHref.ts",
+      "chunk": "assets/store-9oyC5a64.js",
+      "renderedLength": 260
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/node.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 257
+    },
+    {
+      "id": "node_modules/d3-selection/src/namespaces.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 250
+    },
+    {
+      "id": "node_modules/use-sync-external-store/shim/with-selector.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 250
+    },
+    {
+      "id": "src/hooks/useReviewingParents.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 249
+    },
+    {
+      "id": "src/ai/actions.ts",
+      "chunk": "assets/planner-C4T6wg0C.js",
+      "renderedLength": 248
+    },
+    {
+      "id": "node_modules/react/jsx-runtime.js",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 243
+    },
+    {
+      "id": "node_modules/react-dom/client.js",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 242
+    },
+    {
+      "id": "node_modules/react-remove-scroll/dist/es2015/Combination.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 235
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/iterator.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 234
+    },
+    {
+      "id": "node_modules/scheduler/index.js",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 230
+    },
+    {
+      "id": "node_modules/nanoid/index.browser.js",
+      "chunk": "assets/index.browser-BY9c7rfI.js",
+      "renderedLength": 226
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/interpolate.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 218
+    },
+    {
+      "id": "node_modules/d3-selection/src/window.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 214
+    },
+    {
+      "id": "src/i18n/index.ts",
+      "chunk": "assets/index-Y70E_Mzz.js",
+      "renderedLength": 207
+    },
+    {
+      "id": "node_modules/use-sync-external-store/shim/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 206
+    },
+    {
+      "id": "node_modules/d3-timer/src/timeout.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 203
+    },
+    {
+      "id": "node_modules/d3-selection/src/select.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 202
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/append.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 201
+    },
+    {
+      "id": "node_modules/react/index.js",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 198
+    },
+    {
+      "id": "node_modules/d3-selection/src/matcher.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 195
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/lower.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 171
+    },
+    {
+      "id": "node_modules/d3-selection/src/selectorAll.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 167
+    },
+    {
+      "id": "node_modules/d3-zoom/src/noevent.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 160
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/remove.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 154
+    },
+    {
+      "id": "node_modules/zod/v4/classic/compat.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 151
+    },
+    {
+      "id": "node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 149
+    },
+    {
+      "id": "node_modules/d3-selection/src/selector.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 147
+    },
+    {
+      "id": "node_modules/get-nonce/dist/es2015/index.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 145
+    },
+    {
+      "id": "\u0000node_modules/use-sync-external-store/shim/with-selector.js?commonjs-es-import",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 143
+    },
+    {
+      "id": "\u0000commonjsHelpers.js",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 140
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/raise.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 138
+    },
+    {
+      "id": "node_modules/d3-transition/src/transition/selection.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 138
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/call.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 133
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/size.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 133
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/date.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 133
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/datum.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 132
+    },
+    {
+      "id": "node_modules/d3-selection/src/sourceEvent.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 129
+    },
+    {
+      "id": "node_modules/lucide-react/dist/esm/context.mjs",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 124
+    },
+    {
+      "id": "\u0000node_modules/react-dom/index.js?commonjs-es-import",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 112
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/number.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 112
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/exit.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 110
+    },
+    {
+      "id": "\u0000node_modules/react/index.js?commonjs-es-import",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 109
+    },
+    {
+      "id": "node_modules/d3-transition/src/selection/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 107
+    },
+    {
+      "id": "node_modules/d3-transition/src/selection/interrupt.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 103
+    },
+    {
+      "id": "node_modules/d3-ease/src/cubic.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 91
+    },
+    {
+      "id": "node_modules/nanoid/url-alphabet/index.js",
+      "chunk": "assets/index.browser-BY9c7rfI.js",
+      "renderedLength": 87
+    },
+    {
+      "id": "node_modules/zod/v4/classic/coerce.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 73
+    },
+    {
+      "id": "node_modules/d3-selection/src/constant.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 67
+    },
+    {
+      "id": "node_modules/react-remove-scroll/dist/es2015/sidecar.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 62
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/sparse.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 62
+    },
+    {
+      "id": "node_modules/zod/v4/core/versions.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 62
+    },
+    {
+      "id": "src/workspace/types.ts",
+      "chunk": "assets/store-Dj1E2lIY.js",
+      "renderedLength": 58
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/nodes.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 57
+    },
+    {
+      "id": "node_modules/d3-selection/src/selection/empty.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 53
+    },
+    {
+      "id": "\u0000node_modules/@vercel/oidc/dist/index-browser.js?commonjs-es-import",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 48
+    },
+    {
+      "id": "\u0000node_modules/use-sync-external-store/cjs/use-sync-external-store-shim.production.js?commonjs-exports",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 45
+    },
+    {
+      "id": "\u0000node_modules/react/jsx-runtime.js?commonjs-es-import",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 44
+    },
+    {
+      "id": "src/data/workspaceRepository.ts",
+      "chunk": "assets/store-Dj1E2lIY.js",
+      "renderedLength": 44
+    },
+    {
+      "id": "\u0000node_modules/react/cjs/react-jsx-runtime.production.min.js?commonjs-exports",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 40
+    },
+    {
+      "id": "node_modules/react-remove-scroll/dist/es2015/medium.js",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 38
+    },
+    {
+      "id": "src/brand.ts",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 37
+    },
+    {
+      "id": "\u0000node_modules/react-dom/client.js?commonjs-es-import",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 36
+    },
+    {
+      "id": "\u0000node_modules/scheduler/cjs/scheduler.production.min.js?commonjs-exports",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 34
+    },
+    {
+      "id": "\u0000node_modules/react-dom/cjs/react-dom.production.min.js?commonjs-exports",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 33
+    },
+    {
+      "id": "\u0000node_modules/use-sync-external-store/shim/with-selector.js?commonjs-module",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 33
+    },
+    {
+      "id": "\u0000node_modules/use-sync-external-store/cjs/use-sync-external-store-shim/with-selector.production.js?commonjs-exports",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 33
+    },
+    {
+      "id": "node_modules/d3-drag/src/constant.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 32
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/constant.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 32
+    },
+    {
+      "id": "\u0000node_modules/react/jsx-runtime.js?commonjs-module",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 31
+    },
+    {
+      "id": "\u0000node_modules/react/cjs/react.production.min.js?commonjs-exports",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 30
+    },
+    {
+      "id": "\u0000node_modules/scheduler/index.js?commonjs-module",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 30
+    },
+    {
+      "id": "node_modules/d3-zoom/src/constant.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 30
+    },
+    {
+      "id": "\u0000node_modules/react-dom/index.js?commonjs-module",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 29
+    },
+    {
+      "id": "\u0000node_modules/react/index.js?commonjs-module",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 26
+    },
+    {
+      "id": "\u0000node_modules/use-sync-external-store/shim/index.js?commonjs-module",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 25
+    },
+    {
+      "id": "\u0000node_modules/react-dom/client.js?commonjs-exports",
+      "chunk": "assets/react-IldY8Plo.js",
+      "renderedLength": 16
+    },
+    {
+      "id": "src/attachments/attachments.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/components/planner-mobile.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/components/ui/ExpandedChrome.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/visuals/ui/model-editing.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/visuals/diagram/diagram.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/visuals/rendering/visual-canvas.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/visuals/ui/decomposition.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/visuals/ui/visuals.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/visuals/ui/popup-tabs.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/visuals/visual-drop.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/ink/ink.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/ink/planner-ink.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/components/DetailPanel.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/chat/chat.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/pwa/pwa.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/ascii-workshop.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/project-appearance/project-icons.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/Board.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/SprintTimeline.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/NoteTextActions.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/NotesLibrary.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/NoteCanvas.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/note-diagram.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/NotesNotebook.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/Comments.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/design-system.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/workspace.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/PageHeader.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/workspace/mobile.css",
+      "chunk": "assets/App-DOPfd-vE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/platform/browser/index.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/baggage/internal/symbol.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/diag/consoleLogger.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/metrics/Metric.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/SamplingResult.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/span_kind.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/internal/tracestate-validators.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/internal/tracestate-impl.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/trace/internal/utils.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/@opentelemetry/api/build/esm/index.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/@standard-schema/spec/dist/index.js",
+      "chunk": "assets/ai-sdk-Mpa70vVE.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/cloud/cloud.css",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "src/index.css",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "index.html",
+      "chunk": "assets/index-CsXe8wOm.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/@xyflow/react/dist/style.css",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-dispatch/src/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-selection/src/create.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-selection/src/local.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-selection/src/pointers.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-selection/src/selectAll.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-selection/src/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-drag/src/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-color/src/math.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-color/src/lab.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-color/src/cubehelix.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-color/src/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/basis.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/basisClosed.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/discrete.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/hue.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/round.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/hsl.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/lab.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/hcl.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/cubehelix.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/piecewise.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/quantize.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-interpolate/src/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-timer/src/interval.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-timer/src/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-ease/src/linear.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-ease/src/quad.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-ease/src/poly.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-ease/src/sin.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-ease/src/math.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-ease/src/exp.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-ease/src/circle.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-ease/src/bounce.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-ease/src/back.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-ease/src/elastic.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-ease/src/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-transition/src/active.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-transition/src/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/d3-zoom/src/index.js",
+      "chunk": "assets/xyflow-DJbzyYHp.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/ar.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/az.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/be.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/bg.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/ca.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/cs.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/da.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/de.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/en.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/eo.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/es.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/fa.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/fi.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/fr.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/fr-CA.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/he.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/hu.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/hy.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/id.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/is.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/it.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/ja.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/ka.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/km.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/kh.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/ko.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/lt.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/mk.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/ms.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/nl.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/no.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/ota.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/ps.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/pl.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/pt.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/ru.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/sl.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/sv.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/ta.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/th.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/tr.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/uk.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/ua.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/ur.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/uz.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/vi.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/zh-CN.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/zh-TW.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/yo.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/locales/index.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/core/json-schema-generator.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/core/json-schema.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/core/index.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/classic/checks.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/classic/from-json-schema.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/classic/external.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/index.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/classic/index.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v4/index.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v3/locales/en.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v3/errors.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v3/helpers/parseUtil.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v3/helpers/typeAliases.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v3/external.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    },
+    {
+      "id": "node_modules/zod/v3/index.js",
+      "chunk": "assets/zod-BNsuxmX4.js",
+      "renderedLength": 0
+    }
+  ],
+  "application": {
+    "chunks": [
+      "assets/App-DOPfd-vE.js",
+      "assets/advancedErrors-Bs_Tp0bZ.js",
+      "assets/ai-sdk-Mpa70vVE.js",
+      "assets/index-CsXe8wOm.js",
+      "assets/index-Y70E_Mzz.js",
+      "assets/index.browser-BY9c7rfI.js",
+      "assets/middleware-CwQPZdBN.js",
+      "assets/planner-C4T6wg0C.js",
+      "assets/react-IldY8Plo.js",
+      "assets/storage-Dq0gpZmA.js",
+      "assets/store-9oyC5a64.js",
+      "assets/store-BRXv1_0D.js",
+      "assets/store-B_83gvWr.js",
+      "assets/store-Dj1E2lIY.js",
+      "assets/theme-DaHR2NG5.js",
+      "assets/xyflow-DJbzyYHp.js",
+      "assets/zod-BNsuxmX4.js"
+    ],
+    "bytes": 2566067,
+    "gzipBytes": 765490
+  },
+  "eagerFeatureModules": [],
+  "chunks": [
+    {
+      "file": "assets/index-CsXe8wOm.js",
+      "bytes": 223772,
+      "gzipBytes": 69138,
+      "imports": [
+        "assets/react-IldY8Plo.js",
+        "assets/zod-BNsuxmX4.js",
+        "assets/xyflow-DJbzyYHp.js"
+      ],
+      "dynamicImports": [
+        "assets/store-B_83gvWr.js",
+        "assets/planner-C4T6wg0C.js",
+        "assets/store-9oyC5a64.js",
+        "assets/store-Dj1E2lIY.js",
+        "assets/store-B_83gvWr.js",
+        "assets/planner-C4T6wg0C.js",
+        "assets/store-9oyC5a64.js",
+        "assets/CloudLiveSync-CPUEP244.js",
+        "assets/App-DOPfd-vE.js",
+        "assets/store-BRXv1_0D.js",
+        "assets/theme-DaHR2NG5.js",
+        "assets/store-Dj1E2lIY.js"
+      ]
+    },
+    {
+      "file": "assets/react-IldY8Plo.js",
+      "bytes": 143379,
+      "gzipBytes": 45983,
+      "imports": [],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/zod-BNsuxmX4.js",
+      "bytes": 80960,
+      "gzipBytes": 21914,
+      "imports": [],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/xyflow-DJbzyYHp.js",
+      "bytes": 184363,
+      "gzipBytes": 59966,
+      "imports": [
+        "assets/react-IldY8Plo.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/ai-sdk-Mpa70vVE.js",
+      "bytes": 476084,
+      "gzipBytes": 123487,
+      "imports": [
+        "assets/zod-BNsuxmX4.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/pdf-AqCX91rv.js",
+      "bytes": 452206,
+      "gzipBytes": 134783,
+      "imports": [],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/three-BssHNXMZ.js",
+      "bytes": 562300,
+      "gzipBytes": 143158,
+      "imports": [],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/App-DOPfd-vE.js",
+      "bytes": 1019754,
+      "gzipBytes": 288900,
+      "imports": [
+        "assets/index-CsXe8wOm.js",
+        "assets/react-IldY8Plo.js",
+        "assets/xyflow-DJbzyYHp.js",
+        "assets/store-9oyC5a64.js",
+        "assets/store-BRXv1_0D.js",
+        "assets/index-Y70E_Mzz.js",
+        "assets/store-B_83gvWr.js",
+        "assets/planner-C4T6wg0C.js",
+        "assets/index.browser-BY9c7rfI.js",
+        "assets/storage-Dq0gpZmA.js",
+        "assets/store-Dj1E2lIY.js",
+        "assets/advancedErrors-Bs_Tp0bZ.js",
+        "assets/theme-DaHR2NG5.js",
+        "assets/ai-sdk-Mpa70vVE.js",
+        "assets/zod-BNsuxmX4.js"
+      ],
+      "dynamicImports": [
+        "assets/DecompositionPanel-BZQX1z7q.js",
+        "assets/VisualCanvasLayer-C9w7a9DS.js",
+        "assets/DynamicBoards-D4PUnu00.js",
+        "assets/LandingPage-B0jcFDxa.js"
+      ]
+    },
+    {
+      "file": "assets/CloudLiveSync-CPUEP244.js",
+      "bytes": 7018,
+      "gzipBytes": 2610,
+      "imports": [
+        "assets/react-IldY8Plo.js",
+        "assets/planner-C4T6wg0C.js",
+        "assets/store-B_83gvWr.js",
+        "assets/index-CsXe8wOm.js",
+        "assets/store-9oyC5a64.js",
+        "assets/store-Dj1E2lIY.js",
+        "assets/index.browser-BY9c7rfI.js",
+        "assets/index-Y70E_Mzz.js",
+        "assets/middleware-CwQPZdBN.js",
+        "assets/storage-Dq0gpZmA.js",
+        "assets/ai-sdk-Mpa70vVE.js",
+        "assets/zod-BNsuxmX4.js",
+        "assets/theme-DaHR2NG5.js",
+        "assets/store-BRXv1_0D.js",
+        "assets/xyflow-DJbzyYHp.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/store-B_83gvWr.js",
+      "bytes": 246257,
+      "gzipBytes": 88727,
+      "imports": [
+        "assets/middleware-CwQPZdBN.js",
+        "assets/index.browser-BY9c7rfI.js",
+        "assets/store-Dj1E2lIY.js",
+        "assets/index-CsXe8wOm.js",
+        "assets/ai-sdk-Mpa70vVE.js",
+        "assets/planner-C4T6wg0C.js",
+        "assets/storage-Dq0gpZmA.js",
+        "assets/theme-DaHR2NG5.js",
+        "assets/index-Y70E_Mzz.js",
+        "assets/store-9oyC5a64.js",
+        "assets/store-BRXv1_0D.js",
+        "assets/zod-BNsuxmX4.js"
+      ],
+      "dynamicImports": [
+        "assets/extract-YT_b910L.js",
+        "assets/extract-YT_b910L.js",
+        "assets/index-CsXe8wOm.js",
+        "assets/extract-YT_b910L.js",
+        "assets/advancedGeneration-CSOHs-RC.js",
+        "assets/extract-YT_b910L.js"
+      ]
+    },
+    {
+      "file": "assets/store-BRXv1_0D.js",
+      "bytes": 3477,
+      "gzipBytes": 1444,
+      "imports": [
+        "assets/middleware-CwQPZdBN.js",
+        "assets/storage-Dq0gpZmA.js",
+        "assets/index-CsXe8wOm.js",
+        "assets/index-Y70E_Mzz.js",
+        "assets/react-IldY8Plo.js",
+        "assets/zod-BNsuxmX4.js",
+        "assets/xyflow-DJbzyYHp.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/theme-DaHR2NG5.js",
+      "bytes": 682,
+      "gzipBytes": 435,
+      "imports": [
+        "assets/storage-Dq0gpZmA.js",
+        "assets/react-IldY8Plo.js",
+        "assets/index-CsXe8wOm.js",
+        "assets/zod-BNsuxmX4.js",
+        "assets/xyflow-DJbzyYHp.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/planner-C4T6wg0C.js",
+      "bytes": 4237,
+      "gzipBytes": 1613,
+      "imports": [
+        "assets/store-9oyC5a64.js",
+        "assets/index.browser-BY9c7rfI.js",
+        "assets/index-Y70E_Mzz.js",
+        "assets/store-Dj1E2lIY.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/store-Dj1E2lIY.js",
+      "bytes": 9060,
+      "gzipBytes": 3240,
+      "imports": [
+        "assets/middleware-CwQPZdBN.js",
+        "assets/storage-Dq0gpZmA.js",
+        "assets/index-CsXe8wOm.js",
+        "assets/index.browser-BY9c7rfI.js",
+        "assets/zod-BNsuxmX4.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/store-9oyC5a64.js",
+      "bytes": 72504,
+      "gzipBytes": 23456,
+      "imports": [
+        "assets/middleware-CwQPZdBN.js",
+        "assets/storage-Dq0gpZmA.js",
+        "assets/index.browser-BY9c7rfI.js",
+        "assets/index-Y70E_Mzz.js",
+        "assets/index-CsXe8wOm.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/index-Y70E_Mzz.js",
+      "bytes": 94532,
+      "gzipBytes": 33578,
+      "imports": [
+        "assets/middleware-CwQPZdBN.js",
+        "assets/storage-Dq0gpZmA.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/index.browser-BY9c7rfI.js",
+      "bytes": 190,
+      "gzipBytes": 204,
+      "imports": [],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/middleware-CwQPZdBN.js",
+      "bytes": 2073,
+      "gzipBytes": 1026,
+      "imports": [],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/storage-Dq0gpZmA.js",
+      "bytes": 1205,
+      "gzipBytes": 667,
+      "imports": [
+        "assets/react-IldY8Plo.js",
+        "assets/index-CsXe8wOm.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/LandingPage-B0jcFDxa.js",
+      "bytes": 21085,
+      "gzipBytes": 6303,
+      "imports": [
+        "assets/react-IldY8Plo.js",
+        "assets/index-Y70E_Mzz.js",
+        "assets/App-DOPfd-vE.js",
+        "assets/middleware-CwQPZdBN.js",
+        "assets/storage-Dq0gpZmA.js",
+        "assets/index-CsXe8wOm.js",
+        "assets/zod-BNsuxmX4.js",
+        "assets/xyflow-DJbzyYHp.js",
+        "assets/store-9oyC5a64.js",
+        "assets/index.browser-BY9c7rfI.js",
+        "assets/store-BRXv1_0D.js",
+        "assets/store-B_83gvWr.js",
+        "assets/store-Dj1E2lIY.js",
+        "assets/ai-sdk-Mpa70vVE.js",
+        "assets/planner-C4T6wg0C.js",
+        "assets/theme-DaHR2NG5.js",
+        "assets/advancedErrors-Bs_Tp0bZ.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/DynamicBoards-D4PUnu00.js",
+      "bytes": 64658,
+      "gzipBytes": 22420,
+      "imports": [
+        "assets/react-IldY8Plo.js",
+        "assets/index-CsXe8wOm.js",
+        "assets/store-Dj1E2lIY.js",
+        "assets/App-DOPfd-vE.js",
+        "assets/xyflow-DJbzyYHp.js",
+        "assets/index.browser-BY9c7rfI.js",
+        "assets/store-B_83gvWr.js",
+        "assets/store-BRXv1_0D.js",
+        "assets/ai-sdk-Mpa70vVE.js",
+        "assets/planner-C4T6wg0C.js",
+        "assets/zod-BNsuxmX4.js",
+        "assets/middleware-CwQPZdBN.js",
+        "assets/storage-Dq0gpZmA.js",
+        "assets/store-9oyC5a64.js",
+        "assets/index-Y70E_Mzz.js",
+        "assets/advancedErrors-Bs_Tp0bZ.js",
+        "assets/theme-DaHR2NG5.js"
+      ],
+      "dynamicImports": [
+        "assets/BoardModelPreview-CVq5IcOF.js",
+        "assets/VisualCanvasLayer-C9w7a9DS.js"
+      ]
+    },
+    {
+      "file": "assets/extract-YT_b910L.js",
+      "bytes": 1182,
+      "gzipBytes": 695,
+      "imports": [
+        "assets/pdf-AqCX91rv.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/VisualCanvasLayer-C9w7a9DS.js",
+      "bytes": 6678,
+      "gzipBytes": 3047,
+      "imports": [
+        "assets/react-IldY8Plo.js",
+        "assets/xyflow-DJbzyYHp.js",
+        "assets/three-BssHNXMZ.js",
+        "assets/store-B_83gvWr.js",
+        "assets/App-DOPfd-vE.js",
+        "assets/decompositionLayout-CFkwxqYC.js",
+        "assets/index-CsXe8wOm.js",
+        "assets/modelItem-DMjXjHf_.js",
+        "assets/middleware-CwQPZdBN.js",
+        "assets/index.browser-BY9c7rfI.js",
+        "assets/store-Dj1E2lIY.js",
+        "assets/storage-Dq0gpZmA.js",
+        "assets/zod-BNsuxmX4.js",
+        "assets/ai-sdk-Mpa70vVE.js",
+        "assets/planner-C4T6wg0C.js",
+        "assets/store-9oyC5a64.js",
+        "assets/index-Y70E_Mzz.js",
+        "assets/theme-DaHR2NG5.js",
+        "assets/store-BRXv1_0D.js",
+        "assets/advancedErrors-Bs_Tp0bZ.js",
+        "assets/objectGeometry-Jgxn365t.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/DecompositionPanel-BZQX1z7q.js",
+      "bytes": 35738,
+      "gzipBytes": 12153,
+      "imports": [
+        "assets/react-IldY8Plo.js",
+        "assets/index-Y70E_Mzz.js",
+        "assets/store-9oyC5a64.js",
+        "assets/store-Dj1E2lIY.js",
+        "assets/store-B_83gvWr.js",
+        "assets/ai-sdk-Mpa70vVE.js",
+        "assets/index.browser-BY9c7rfI.js",
+        "assets/index-CsXe8wOm.js",
+        "assets/decompositionLayout-CFkwxqYC.js",
+        "assets/zod-BNsuxmX4.js",
+        "assets/App-DOPfd-vE.js",
+        "assets/store-BRXv1_0D.js",
+        "assets/middleware-CwQPZdBN.js",
+        "assets/storage-Dq0gpZmA.js",
+        "assets/planner-C4T6wg0C.js",
+        "assets/theme-DaHR2NG5.js",
+        "assets/xyflow-DJbzyYHp.js",
+        "assets/three-BssHNXMZ.js",
+        "assets/objectGeometry-Jgxn365t.js",
+        "assets/advancedErrors-Bs_Tp0bZ.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/advancedGeneration-CSOHs-RC.js",
+      "bytes": 14209,
+      "gzipBytes": 5872,
+      "imports": [
+        "assets/ai-sdk-Mpa70vVE.js",
+        "assets/three-BssHNXMZ.js",
+        "assets/store-B_83gvWr.js",
+        "assets/store-9oyC5a64.js",
+        "assets/index-Y70E_Mzz.js",
+        "assets/advancedErrors-Bs_Tp0bZ.js",
+        "assets/index-CsXe8wOm.js",
+        "assets/decompositionLayout-CFkwxqYC.js",
+        "assets/zod-BNsuxmX4.js",
+        "assets/middleware-CwQPZdBN.js",
+        "assets/index.browser-BY9c7rfI.js",
+        "assets/store-Dj1E2lIY.js",
+        "assets/storage-Dq0gpZmA.js",
+        "assets/react-IldY8Plo.js",
+        "assets/planner-C4T6wg0C.js",
+        "assets/theme-DaHR2NG5.js",
+        "assets/xyflow-DJbzyYHp.js",
+        "assets/store-BRXv1_0D.js",
+        "assets/objectGeometry-Jgxn365t.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/advancedErrors-Bs_Tp0bZ.js",
+      "bytes": 3538,
+      "gzipBytes": 1712,
+      "imports": [],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/decompositionLayout-CFkwxqYC.js",
+      "bytes": 2154,
+      "gzipBytes": 1099,
+      "imports": [
+        "assets/three-BssHNXMZ.js",
+        "assets/objectGeometry-Jgxn365t.js",
+        "assets/index-CsXe8wOm.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/BoardModelPreview-CVq5IcOF.js",
+      "bytes": 3634,
+      "gzipBytes": 1615,
+      "imports": [
+        "assets/react-IldY8Plo.js",
+        "assets/three-BssHNXMZ.js",
+        "assets/modelItem-DMjXjHf_.js",
+        "assets/objectGeometry-Jgxn365t.js",
+        "assets/index-CsXe8wOm.js",
+        "assets/zod-BNsuxmX4.js",
+        "assets/xyflow-DJbzyYHp.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/modelItem-DMjXjHf_.js",
+      "bytes": 3266,
+      "gzipBytes": 1653,
+      "imports": [
+        "assets/objectGeometry-Jgxn365t.js",
+        "assets/index-CsXe8wOm.js",
+        "assets/three-BssHNXMZ.js"
+      ],
+      "dynamicImports": []
+    },
+    {
+      "file": "assets/objectGeometry-Jgxn365t.js",
+      "bytes": 1103,
+      "gzipBytes": 597,
+      "imports": [
+        "assets/three-BssHNXMZ.js"
+      ],
+      "dynamicImports": []
+    }
+  ]
+}

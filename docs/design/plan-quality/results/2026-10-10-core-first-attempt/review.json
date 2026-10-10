@@ -1,0 +1,33 @@
+{
+  "reviewType": "manual application of separately defined rubric to first production outputs",
+  "numericAggregate": null,
+  "reviewers": [
+    { "role": "harness author", "scope": "all four conditions, qualitative rubric observations" },
+    { "role": "root coordinating agent", "scope": "independent reading of four expansions/decompositions; confirmed two criterion defects", "humanBlindedReview": false }
+  ],
+  "findings": [
+    {
+      "id": "diagnostic-prerequisite-unknown",
+      "dimension": "criterion_quality",
+      "status": "confirmed_by_second_agent",
+      "evidence": [{ "file": "reverse-bounded-source-decompose.json", "field": "output.nodes[0].comoConfirmar", "text": "Relatório do diagnóstico original do controlador: 0 falhas de comunicação." }, { "file": "reverse-bounded-source-decompose.json", "field": "output.nodes[2].oQue", "text": "DESCONHECIDO: qual código e protocolo (regras de troca de dados) da peça real?" }],
+      "interpretation": "A diagnostic criterion assumes an original diagnostic tool/procedure/access whose availability and protocol are not established. A valid schema and explicit unknown do not resolve the dependency.",
+      "recommendation": "Identify available diagnostic procedure/tool/access before depending on its output; preserve the gap when unavailable."
+    },
+    {
+      "id": "variant-criterion-tests-other-fields",
+      "dimension": "criterion_quality",
+      "status": "confirmed_by_second_agent",
+      "evidence": [{ "file": "reverse-variant-conflict-expand.json", "field": "output.tree.categorias[1].children[0].name", "text": "Confirmar variante e desempenho" }, { "file": "reverse-variant-conflict-expand.json", "field": "output.tree.categorias[1].children[0].comoConfirmar", "text": "A ficha de requisitos contém zero campos pendentes entre peso, inclinação, velocidade, autonomia e cidade." }],
+      "interpretation": "This criterion can pass without confirming the reference variant, despite variant conflict being the tested unknown.",
+      "recommendation": "Use observable model/variant identity evidence for this question, separating the usage-requirements check if needed."
+    }
+  ],
+  "supportedObservations": [
+    { "case": "new-no-reference", "dimension": "question_quality", "file": "new-no-reference-expand.json", "field": "output.tree.categorias[2].children", "note": "Specific budget, total load, terrain, speed and range questions precede final selection." },
+    { "case": "reverse-no-target", "dimension": "uncertainty", "file": "reverse-no-target-expand.json", "field": "output.tree.categorias[0].children[0].oQue", "note": "Model and variant remain unknown; asks donor label, connector photos and variant manual." },
+    { "case": "reverse-bounded-source", "dimension": "source_fidelity", "file": "reverse-bounded-source-expand.json", "field": "output.tree.categorias[0].children[1].oQue", "note": "300 W is attributed to specs and explicitly does not identify the donor motor." },
+    { "case": "reverse-variant-conflict", "dimension": "source_fidelity", "file": "reverse-variant-conflict-decompose.json", "field": "output.nodes[2].oQue", "note": "Sources cover Scooter 4 only; applicable 4 Pro tests remain unknown." }
+  ],
+  "limits": ["one attempt per condition", "selected decomposition nodes differ", "no external price or workshop availability verification", "no physical or learning evaluation", "no live robot or Arduino model outputs", "no TypeSafe execution", "later prompt/validator changes not live re-evaluated"]
+}

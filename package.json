@@ -17,7 +17,11 @@
     "test:all": "npm test && npm run test:gateway",
     "check:gateway": "node scripts/check-visual-gateway.mjs",
     "check:bundle": "node scripts/audit-client-bundle.mjs --check",
-    "check:repo": "node scripts/check-repository.mjs"
+    "check:repo": "node scripts/check-repository.mjs",
+    "test:planning-quality": "vitest run --config docs/design/plan-quality/vitest.config.ts",
+    "bench:planner": "vitest run --config scripts/planner-performance.config.ts",
+    "bench:gateway": "node scripts/planner-load.mjs",
+    "test:planner-load": "node --test scripts/planner-load.test.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.30",
