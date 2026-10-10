@@ -26,7 +26,7 @@ afterEach(()=>{act(()=>root.unmount());configureLiveInk(null);configureCloud(nul
 const click=(label:string)=>act(()=>Simulate.click(host.querySelector(`[aria-label="${label}"]`)!));
 const key=(key:string,options:Record<string,unknown>={})=>act(()=>Simulate.keyDown(host.querySelector('[data-board-canvas]')!,{key,...options}));
 const items=()=>useWorkspaceStore.getState().boards[id].document.items;
-const pointer=(type:'pointerDown'|'pointerMove'|'pointerUp'|'pointerCancel',x:number,y:number,extra:Record<string,unknown>={})=>{const values={pointerId:1,button:0,isPrimary:true,clientX:x,clientY:y,pointerType:'mouse',...extra};act(()=>Simulate[type](host.querySelector('.db-drawing-layer')!,values));};
+const pointer=(type:'pointerDown'|'pointerMove'|'pointerUp'|'pointerCancel'|'lostPointerCapture',x:number,y:number,extra:Record<string,unknown>={})=>{const values={pointerId:1,button:0,isPrimary:true,clientX:x,clientY:y,pointerType:'mouse',...extra};act(()=>Simulate[type](host.querySelector('.db-drawing-layer')!,values));};
 const cloudBoard=async()=>{
   await flushWorkspacePersistence();
   const state=useWorkspaceStore.persist.getOptions().partialize!(useWorkspaceStore.getState());
@@ -87,6 +87,25 @@ it('holds remote refresh during drawing and erasing even without an online chann
   click('Borracha de traços');pointer('pointerDown',10,20);expect(hasActiveDataIngestions()).toBe(true);
   pointer('pointerCancel',60,80);expect(hasActiveDataIngestions()).toBe(false);
   pointer('pointerDown',10,20);act(()=>root.unmount());expect(hasActiveDataIngestions()).toBe(false);
+});
+it.each(['pointerCancel','lostPointerCapture'] as const)('ignores secondary %s while the active pen finishes one board stroke',type=>{
+  click('Desenhar');pointer('pointerDown',10,20,{pointerType:'pen',pressure:.2});pointer('pointerMove',30,40,{pointerType:'pen',pressure:.4});
+  pointer('pointerDown',200,200,{pointerId:2,pointerType:'touch',isPrimary:false});
+  pointer(type,200,200,{pointerId:2,pointerType:'touch',isPrimary:false});
+  expect(hasActiveDataIngestions()).toBe(true);expect(items()).toHaveLength(0);
+  pointer('pointerMove',50,60,{pointerType:'pen',pressure:.6});pointer('pointerUp',70,80,{pointerType:'pen',pressure:.8});pointer('pointerUp',70,80,{pointerType:'pen',pressure:.8});
+  expect(items()).toHaveLength(1);
+  const drawing=items()[0];if(drawing.kind!=='drawing')throw new Error('missing drawing');
+  expect(drawing.points.map(point=>({x:drawing.x+point.x,y:drawing.y+point.y,pressure:point.pressure}))).toEqual([{x:10,y:20,pressure:.2},{x:30,y:40,pressure:.4},{x:50,y:60,pressure:.6},{x:70,y:80,pressure:.8}]);
+  expect(hasActiveDataIngestions()).toBe(false);
+});
+it.each(['pointerCancel','lostPointerCapture'] as const)('discards the active board pen on %s and allows another gesture',type=>{
+  click('Desenhar');pointer('pointerDown',10,20,{pointerType:'pen'});pointer('pointerMove',30,40,{pointerType:'pen'});
+  expect(hasActiveDataIngestions()).toBe(true);
+  pointer(type,30,40);pointer('pointerUp',50,60);
+  expect(hasActiveDataIngestions()).toBe(false);expect(items()).toHaveLength(0);
+  pointer('pointerDown',70,80,{pointerType:'pen'});pointer('pointerUp',90,100,{pointerType:'pen'});
+  expect(items()).toHaveLength(1);expect(hasActiveDataIngestions()).toBe(false);
 });
 it('holds remote refresh only during an actual object drag and releases on stop, cancellation, or close',()=>{
   click('Adicionar cartão');const first=flow.props.nodes[0];

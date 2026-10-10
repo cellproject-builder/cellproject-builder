@@ -13,6 +13,8 @@ import { configureVault } from './vault/privacy';
 import { readDeviceVault } from './vault/deviceKeys';
 import { configureLiveInk } from '@/ink/live';
 import { CloudInkConnection } from './CloudInkConnection';
+import { hasOfflineCheckpoints, openOfflineWorkspace, prepareOfflineWorkspace, type OfflineWorkspace } from './offline/session';
+import { revokeOfflineAuthorization } from './offline/repository';
 import './cloud.css';
 
 const CloudLiveSync = lazy(() => import('./CloudLiveSync').then(module => ({ default: module.CloudLiveSync })));
@@ -27,22 +29,38 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
   const [password, setPassword] = useState('');
   const [vaultGate, setVaultGate] = useState(false), [vaultHead, setVaultHead] = useState<VaultHead | null>(null);
   const [deviceError, setDeviceError] = useState('');
+  const [networkOnline, setNetworkOnline] = useState(() => navigator.onLine !== false), [connectionIssue, setConnectionIssue] = useState(false);
   const emailLink = config?.authMethod === 'email_link';
   const passwordLogin = config?.passwordAuth && loginMethod === 'password', passwordLink = config?.passwordAuth && loginMethod === 'setup';
   const generation = useRef(0);
   const submittedPassword = useRef<string | null>(null);
   const activeRuntime = useRef<CloudRuntime | null>(null);
+  const activeOffline = useRef<OfflineWorkspace | null>(null);
   const invalidLink = useRef(new URLSearchParams(window.location.search).get('auth_error') === 'link_invalid');
-  async function load(selected: CloudSnapshot | null, next: CloudConfig, vault?: VaultTransport) {
+  async function load(selected: CloudSnapshot | null, next: CloudConfig, vault?: VaultTransport, restored?: OfflineWorkspace) {
     const id = generation.current;
     let ink: CloudInkConnection | null = null;
-    const cloud = selected ? new CloudRuntime(selected, vault?.fetch ?? fetcher, vault ? () => { ink?.dispose(); vault.dispose(); } : undefined, vault ? () => vault.refreshSnapshot() : undefined) : null;
+    if (vault && typeof navigator.locks?.request !== 'function' && await hasOfflineCheckpoints(vault.session)) throw new Error('Este navegador não consegue retomar a cópia offline com segurança. Use um navegador com suporte à edição offline. Seus rascunhos foram preservados.');
+    // Restore the durable queue before importing persisted domain stores. A new
+    // runtime made only from the head would discard its unconfirmed operations.
+    const offline = restored ?? (vault && typeof navigator.locks?.request === 'function' ? await prepareOfflineWorkspace(next, vault, fetcher) : null);
+    if (offline) vault = offline.vault;
+    const privateVault = vault;
+    const cloud = offline?.runtime ?? (selected ? new CloudRuntime(selected, privateVault?.fetch ?? fetcher, privateVault ? () => { ink?.dispose(); privateVault.dispose(); } : undefined, privateVault ? () => privateVault.refreshSnapshot() : undefined) : null);
+    if (id !== generation.current) { cloud?.dispose(); return; }
+    activeOffline.current = offline;
     activeRuntime.current = cloud;
     configureCloud(cloud, next.providers); configureVault(vault?.session ?? null, !!vault);
     configureLiveInk(null);
     if (cloud && vault && next.liveInkAvailable) ink = new CloudInkConnection({ runtime: cloud, session: vault.session, fetcher });
-    try { const application = await loadApplication(); if (id !== generation.current) { cloud?.dispose(); return; } ink?.start(); setRuntime(cloud); setMigration(false); setVaultGate(false); setApp(() => application.default); }
+    try { const application = await loadApplication(); if (id !== generation.current) { cloud?.dispose(); return; } offline?.start(); ink?.start(); setRuntime(cloud); setMigration(false); setVaultGate(false); setApp(() => application.default); }
     catch (reason) { ink?.dispose(); if (getCloudRuntime() === cloud) { configureCloud(null); configureLiveInk(null); configureVault(null, !!vault); } throw reason; }
+  }
+  async function openCached(id: number) {
+    setConnectionIssue(true);
+    const cached = await openOfflineWorkspace(fetcher);
+    if (id !== generation.current) { cached?.runtime.dispose(); return; }
+    if (cached) { setConfig(cached.config); await load(cached.vault.snapshot(), cached.config, cached.vault, cached); }
   }
   async function verifyAccount(ownerId: string) {
     const latest = await cloudJson<CloudConfig>('/api/cloud/config', {}, fetcher);
@@ -50,9 +68,13 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
     return latest;
   }
   async function refresh(id = ++generation.current) {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setConnectionIssue(false);
     try {
-      const next = await cloudJson<CloudConfig>('/api/cloud/config', {}, fetcher); if (id !== generation.current) return;
+      if (navigator.onLine === false) { await openCached(id); return; }
+      let next: CloudConfig;
+      try { next = await cloudJson<CloudConfig>('/api/cloud/config', {}, fetcher); }
+      catch (reason) { if (reason instanceof TypeError) { if (id === generation.current) await openCached(id); return; } throw reason; }
+      if (id !== generation.current) return;
       if (typeof next.enabled !== 'boolean' || typeof next.authenticated !== 'boolean') throw new Error('Configuração remota inválida.');
       setConfig(next);
       if (!next.enabled) { await load(null, next); return; }
@@ -99,6 +121,12 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
     finally { if (id === generation.current) setBusy(false); }
   }
   useEffect(() => {
+    if (App) return;
+    const connected = () => setNetworkOnline(true), disconnected = () => setNetworkOnline(false);
+    window.addEventListener('online', connected); window.addEventListener('offline', disconnected);
+    return () => { window.removeEventListener('online', connected); window.removeEventListener('offline', disconnected); };
+  }, [App]);
+  useEffect(() => {
     if (new URLSearchParams(window.location.search).has('auth_error')) { const clean = new URL(window.location.href); clean.searchParams.delete('auth_error'); window.history.replaceState(window.history.state, '', clean.pathname + clean.search + clean.hash); }
     const id = ++generation.current; void refresh(id); return () => {
       generation.current++;
@@ -130,11 +158,18 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
   }
   function switchMethod(method: typeof loginMethod) { submittedPassword.current = null; setLoginMethod(method); setPassword(''); setCodeSent(false); setShowCode(false); setToken(''); setError(''); }
   async function restartLogin() {
+    await revokeOfflineAuthorization();
     await cloudJson('/api/auth/logout', { method: 'POST', headers: mutationHeaders, body: '{}' }, fetcher);
     submittedPassword.current = null; setPassword(''); setVaultGate(false); setVaultHead(null); setSnapshot(null); setDeviceError('');
     await refresh();
   }
-  if (App) return <><App/>{runtime && <><Suspense fallback={null}><CloudLiveSync runtime={runtime}/></Suspense><CloudStatus runtime={runtime} userId={config?.user?.id ?? ''} email={config?.user?.email ?? email} passwordProvider={config?.passwordProvider} fetcher={fetcher} onLogout={() => { runtime.dispose(); window.location.reload(); }}/></>}</>;
+  if (App) return <><App/>{runtime && <><Suspense fallback={null}><CloudLiveSync runtime={runtime}/></Suspense><CloudStatus runtime={runtime} userId={config?.user?.id ?? ''} email={config?.user?.email ?? email} passwordProvider={config?.passwordProvider} fetcher={fetcher} onResume={activeOffline.current ? async () => { await activeOffline.current!.reconnect(); const issue = runtime.getSnapshot().issue; if (issue) throw new Error(issue.message); } : undefined} onLogout={() => { runtime.dispose(); window.location.reload(); }}/></>}</>;
+  if (connectionIssue) return <main className="cloud-entry"><section className="cloud-card">
+    <p className="cloud-kicker">DYNAMIC DIARY</p><h1>Sem conexão</h1>
+    <p role="alert">{error || 'Não foi possível conectar ao servidor e não há uma cópia offline disponível neste aparelho. Conecte-se à internet e abra seus projetos uma vez para prepará-la.'}</p>
+    {networkOnline && <p role="status">Tente novamente para conferir o acesso ao servidor.</p>}
+    <button disabled={busy || !networkOnline} onClick={() => void refresh()}>{busy ? 'Conectando…' : 'Tentar novamente'}</button>
+  </section></main>;
   return <main className="cloud-entry">
     {vaultGate && config?.user && config.passwordProvider ? <PasswordVaultGate key={`${config.user.id}:${vaultHead?.header.id ?? 'new'}`} ownerId={config.user.id} email={config.user.email} provider={config.passwordProvider} head={vaultHead} snapshot={snapshot} fetcher={fetcher} takeLoginPassword={() => { const secret = submittedPassword.current; submittedPassword.current = null; return secret; }} onRetry={() => window.location.reload()} onRestart={restartLogin} onUnlocked={async vault => {
       const id = generation.current;

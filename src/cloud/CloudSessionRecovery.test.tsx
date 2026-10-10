@@ -81,3 +81,14 @@ it('keeps the existing separate-tab fallback when no password provider is config
   expect(host.querySelector('a[target="_blank"]')?.getAttribute('rel')).toContain('noopener');
   expect(host.textContent).toContain('Retomar salvamento nesta aba');
 });
+
+it('uses the offline owner and vault reconnect gate after reauthentication without replacing the runtime', async () => {
+  const fetcher = vi.fn<typeof fetch>(async path => String(path).startsWith(provider.url) ? Response.json({ access_token: 'synthetic-access', refresh_token: 'synthetic-refresh' }) : Response.json({ authenticated: true }));
+  await mount(fetcher);
+  const resumeRuntime = vi.spyOn(runtime, 'resumeAfterAuthentication'), reconnect = vi.fn(async () => {});
+  await act(async () => root.render(<CloudSessionRecovery runtime={runtime} userId="owner" email="synthetic@example.test" provider={provider} fetcher={fetcher} onResume={reconnect}/>));
+  await submit('synthetic-private-password');
+  expect(reconnect).toHaveBeenCalledOnce(); expect(resumeRuntime).not.toHaveBeenCalled(); expect(getCloudRuntime()).toBe(runtime);
+  await act(async () => window.dispatchEvent(new Event('focus')));
+  expect(reconnect).toHaveBeenCalledTimes(2);
+});

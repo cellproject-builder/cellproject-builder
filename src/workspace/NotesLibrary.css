@@ -138,6 +138,7 @@
   .ws-notes.mobile-editing .ws-note-library { display:none; }
   .ws-notes.mobile-editing .ws-editor-container { display:flex; flex-direction:column; }
   .ws-notes .ws-note-editor { flex:1; min-height:0; }
+  .ws-notes .ws-note-mobile-navigation { display:flex; flex:none; align-items:center; gap:var(--ws-space-2); }
   .ws-notes .ws-notes-back { display:block; align-self:flex-start; padding:11px 16px 3px; font-size:13px; color:var(--note-accent); }
 }
 @media (prefers-reduced-motion:reduce) {

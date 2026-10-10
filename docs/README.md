@@ -27,7 +27,7 @@ Entrada mantida em 10/10/2026. As fichas descrevem o código desta revisão e ap
 | Projetos e fontes | [Anexos](plan-attachments.md), [aparência](project-appearance.md), [pesquisa no chat](chat-component-research.md) |
 | Superfícies visuais | [Abas do estúdio](visual-studio-tabs.md), [caderno](notes-visual-notebook.md), [validação do canvas](visual-canvas-validation.md) |
 | Modelagem | [Guia adaptado de skills](visual-modeling-skills.md), [decomposição](design/object-decomposition.md), [geração avançada](design/advanced-model-generation.md) |
-| Evolução proposta | [Direção do Dairo](dairo-direction.md), [conceito inicial](CONCEPT.md) |
+| Evolução proposta | [Biblioteca de fontes nos canvases](superpowers/specs/2026-10-10-canvas-source-library-design.md), [direção do Dairo](dairo-direction.md), [conceito inicial](CONCEPT.md) |
 
 Os documentos específicos preservam detalhes e validações anteriores; o catálogo dos módulos orienta a leitura atual. Uma recomendação, protótipo ou checklist antigo não prova entrega.
 

@@ -147,3 +147,60 @@ it('recovers a transient read failure on the next poll without blocking local ed
   await runtime.refreshRemote(); expect(runtime.getSnapshot().issue).toBeNull(); expect(fetcher).toHaveBeenCalledTimes(2);
   await runtime.write('cellproject-workspace', 'real input'); expect(fetcher).toHaveBeenCalledTimes(3);
 });
+
+function checkpointStore() {
+  const data = new Map<string, unknown>();
+  return {
+    data,
+    read: async <T,>(slot: string) => (data.has(slot) ? structuredClone(data.get(slot)) : null) as T | null,
+    write: vi.fn(async (slot: string, value: unknown) => { data.set(slot, structuredClone(value)); }),
+    remove: async (slot: string) => { data.delete(slot); },
+  };
+}
+const durableValue = (text: string) => JSON.stringify({ version: 2, state: { projects: {}, text } });
+it('rehydrates an offline draft and sends its durable operation only after account verification', async () => {
+  const persistence = checkpointStore(), fetcher = vi.fn<typeof fetch>(async () => Response.json({ revision: 5 }));
+  let verified = false;
+  const options = { persistence, networkReady: () => verified };
+  const first = new CloudRuntime(snapshot(), fetcher, undefined, undefined, options);
+  await first.write('cellproject-workspace', durableValue('offline draft'));
+  expect(fetcher).not.toHaveBeenCalled(); expect(first.getSnapshot()).toMatchObject({ pending: 1, localSaved: true, offline: true });
+  const saved = await persistence.read<any>('runtime');
+  expect(saved.queue).toHaveLength(1); first.dispose();
+  const restored = new CloudRuntime(snapshot(), fetcher, undefined, undefined, { ...options, checkpoint: saved });
+  expect(restored.get('cellproject-workspace')).toBe(durableValue('offline draft'));
+  await restored.retry(); expect(fetcher).not.toHaveBeenCalled();
+  verified = true; restored.notifyNetworkState(); await restored.retry();
+  expect(fetcher).toHaveBeenCalledOnce();
+  expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body)).operationId).toBe(saved.queue[0].operationId);
+  expect(restored.getSnapshot()).toMatchObject({ pending: 0, localSaved: true, offline: false });
+});
+it('keeps a draft in memory and blocks sending when its local checkpoint fails', async () => {
+  const persistence = checkpointStore(), fetcher = vi.fn<typeof fetch>(async () => Response.json({ revision: 5 }));
+  persistence.write.mockRejectedValue(new Error('quota exhausted'));
+  const runtime = new CloudRuntime(snapshot(), fetcher, undefined, undefined, { persistence });
+  await runtime.write('cellproject-workspace', durableValue('preserved despite quota'));
+  expect(runtime.get('cellproject-workspace')).toBe(durableValue('preserved despite quota'));
+  expect(fetcher).not.toHaveBeenCalled(); expect(runtime.getSnapshot()).toMatchObject({ pending: 1, localSaved: false, localError: 'quota exhausted' });
+  await expect(runtime.flush()).rejects.toThrow('quota');
+  persistence.write.mockImplementation(async (slot, value) => { persistence.data.set(slot, structuredClone(value)); });
+  await runtime.retry(); expect(fetcher).toHaveBeenCalledOnce(); expect(runtime.getSnapshot()).toMatchObject({ pending: 0, localSaved: true });
+});
+it('restores a conflict without retrying or discarding the queued draft', async () => {
+  const persistence = checkpointStore(), fetcher = vi.fn<typeof fetch>(async () => Response.json({}, { status: 409 }));
+  const runtime = new CloudRuntime(snapshot(), fetcher, undefined, undefined, { persistence });
+  await runtime.write('cellproject-workspace', durableValue('conflict draft'));
+  const saved = await persistence.read<any>('runtime'); runtime.dispose();
+  const restored = new CloudRuntime(snapshot(), fetcher, undefined, undefined, { persistence, checkpoint: saved });
+  await restored.retry(); expect(fetcher).toHaveBeenCalledOnce();
+  expect(restored.getSnapshot()).toMatchObject({ pending: 1, issue: { kind: 'conflict' } });
+  expect(restored.get('cellproject-workspace')).toBe(durableValue('conflict draft'));
+});
+it('rejects malformed runtime checkpoints before selecting any stored draft', async () => {
+  const persistence = checkpointStore(), runtime = new CloudRuntime(snapshot(), fetch, undefined, undefined, { persistence, networkReady: () => false });
+  await runtime.write('cellproject-workspace', durableValue('valid'));
+  const saved = await persistence.read<any>('runtime');
+  for (const checkpoint of [{ ...saved, version: 99 }, { ...saved, queue: [...saved.queue, saved.queue[0]] }, { ...saved, drafts: [['unknown-document', 'private']] }, { ...saved, queue: [{ ...saved.queue[0], baseRevision: -1 }] }]) {
+    expect(() => new CloudRuntime(snapshot(), fetch, undefined, undefined, { persistence, checkpoint })).toThrow();
+  }
+});

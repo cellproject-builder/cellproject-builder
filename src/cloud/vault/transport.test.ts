@@ -12,7 +12,7 @@ function receiverSensitiveFetch(remote: typeof fetch): typeof fetch {
     return remote(input, init);
   } as typeof fetch;
 }
-async function fixture(wrap: (remote: typeof fetch) => typeof fetch = remote => remote) {
+async function fixture(wrap: (remote: typeof fetch) => typeof fetch = remote => remote, options = {}) {
   const vault = await createVault('owner', 'test-only exclusive secret phrase');
   let revision = 1, lose = false, loseBlob = false; const bodies: string[] = [], blobs = new Map<string, string>(), replies = new Map<string, number>();
   let head = { header: vault.header, revision, manifest: await vault.session.seal(JSON.stringify({ snapshot, files: {} }), 'manifest:1') };
@@ -27,7 +27,7 @@ async function fixture(wrap: (remote: typeof fetch) => typeof fetch = remote => 
     }
     return Response.json(head);
   });
-  const transport = await VaultTransport.open(vault.session, head, wrap(fetcher));
+  const transport = await VaultTransport.open(vault.session, head, wrap(fetcher), options);
   return { vault, transport, fetcher, bodies, loseNext: () => { lose = true; }, loseUpload: () => { loseBlob = true; } };
 }
 it.each(['/api/cloud/config', '/api/cloud/vault', '/api/live/ink'])('forwards %s without using the transport as the native fetch receiver', async path => {
@@ -36,6 +36,197 @@ it.each(['/api/cloud/config', '/api/cloud/vault', '/api/live/ink'])('forwards %s
   expect(response.ok).toBe(true);
   expect(f.fetcher.mock.calls.at(-1)).toEqual([path, { signal: controller.signal, credentials: 'same-origin', cache: 'no-store' }]);
   f.transport.dispose();
+});
+
+function checkpointStore() {
+  const data = new Map<string, unknown>();
+  return {
+    data,
+    read: async <T,>(slot: string) => (data.has(slot) ? structuredClone(data.get(slot)) : null) as T | null,
+    write: vi.fn(async (slot: string, value: unknown) => { data.set(slot, structuredClone(value)); }),
+    remove: async (slot: string) => { data.delete(slot); },
+  };
+}
+it('restores an ambiguous encrypted commit and replays identical bytes after account verification', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  const value = '{"version":1,"state":{"private":"durable lost response"}}';
+  const runtime = new CloudRuntime(snapshot, f.transport.fetch, undefined, undefined, { persistence });
+  f.loseNext(); await runtime.write('dynamic_diary-chat', value);
+  const savedTransport = await persistence.read('transport'), savedRuntime = await persistence.read('runtime');
+  const key = f.vault.session.deviceKeyForStorage(); f.transport.dispose(); runtime.dispose();
+  let verified = false;
+  const transport = await VaultTransport.restore(sessionFromDeviceKey('owner', f.vault.header, key), savedTransport, f.fetcher, { persistence, networkReady: () => verified });
+  const restored = new CloudRuntime(transport.snapshot(), transport.fetch, undefined, undefined, { persistence, checkpoint: savedRuntime, networkReady: () => verified, acknowledgeOperation: id => transport.acknowledgeOperation(id) });
+  await transport.reconcileOperations(restored.checkpoint().queue.map(op => op.operationId));
+  await restored.retry(); expect(f.bodies).toHaveLength(1);
+  verified = true; await restored.retry();
+  expect(f.bodies).toHaveLength(2); expect(f.bodies[1]).toBe(f.bodies[0]); expect(restored.get('dynamic_diary-chat')).toBe(value); expect(restored.getSnapshot().pending).toBe(0);
+});
+it('replays a durable receipt when the tab closes between transport ACK and runtime checkpoint', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  const value = '{"version":1,"state":{"private":"ACK crash window"}}';
+  persistence.write.mockImplementation(async (slot, next: any) => { if (slot === 'runtime' && next.queue.length === 0) throw new Error('tab closed before runtime ACK'); persistence.data.set(slot, structuredClone(next)); });
+  const runtime = new CloudRuntime(snapshot, f.transport.fetch, undefined, undefined, { persistence });
+  await runtime.write('dynamic_diary-chat', value);
+  const savedTransport = await persistence.read('transport'), savedRuntime = await persistence.read('runtime');
+  persistence.write.mockImplementation(async (slot, next) => { persistence.data.set(slot, structuredClone(next)); });
+  const key = f.vault.session.deviceKeyForStorage(); f.transport.dispose(); runtime.dispose();
+  const transport = await VaultTransport.restore(sessionFromDeviceKey('owner', f.vault.header, key), savedTransport, f.fetcher, { persistence });
+  const restored = new CloudRuntime(transport.snapshot(), transport.fetch, undefined, undefined, { persistence, checkpoint: savedRuntime, acknowledgeOperation: id => transport.acknowledgeOperation(id) });
+  await restored.retry(); expect(f.bodies).toHaveLength(1); expect(restored.getSnapshot().pending).toBe(0); expect(restored.documents()[0].revision).toBe(2);
+});
+it('never sends prepared ciphertext whose local journal failed', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  persistence.write.mockRejectedValue(new Error('quota exhausted'));
+  const body = JSON.stringify({ value: 'dark', baseRevision: 0, operationId: 'durable-quota' });
+  await expect(f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body })).rejects.toThrow('quota');
+  expect(f.bodies).toHaveLength(0);
+});
+it('does not deliver an ACK receipt until its transport checkpoint succeeds', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  let failAck = true;
+  persistence.write.mockImplementation(async (slot, value: any) => { if (slot === 'transport' && value.head.revision === 2 && failAck) throw new Error('ACK quota'); persistence.data.set(slot, structuredClone(value)); });
+  const body = JSON.stringify({ value: 'dark', baseRevision: 0, operationId: 'ACK-quota' });
+  await expect(f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body })).rejects.toThrow('ACK quota');
+  await expect(f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body })).rejects.toThrow('ACK quota');
+  expect(f.bodies).toHaveLength(1);
+  failAck = false;
+  expect((await f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body })).ok).toBe(true);
+  expect((await persistence.read<any>('transport')).head.revision).toBe(2);
+});
+it('reconciles an orphan receipt after runtime ACK was saved but transport cleanup failed', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  persistence.write.mockImplementation(async (slot, value: any) => { if (slot === 'transport' && value.head.revision === 2 && value.completed.length === 0) throw new Error('cleanup quota'); persistence.data.set(slot, structuredClone(value)); });
+  const runtime = new CloudRuntime(snapshot, f.transport.fetch, undefined, undefined, { persistence, acknowledgeOperation: id => f.transport.acknowledgeOperation(id) });
+  await runtime.write('dynamic_diary-theme', 'dark');
+  const savedRuntime = await persistence.read<any>('runtime'), savedTransport = await persistence.read('transport');
+  expect(savedRuntime.queue).toHaveLength(0);
+  const transport = await VaultTransport.restore(f.vault.session, savedTransport, f.fetcher, { persistence });
+  expect(transport.hasPendingOperations()).toBe(true);
+  await expect(transport.reconcileOperations([])).rejects.toThrow('cleanup quota');
+  expect(transport.checkpoint().completed).toHaveLength(1);
+  persistence.write.mockImplementation(async (slot, value) => { persistence.data.set(slot, structuredClone(value)); });
+  await transport.reconcileOperations([]);
+  expect(transport.hasPendingOperations()).toBe(false);
+  expect((await persistence.read<any>('transport')).completed).toHaveLength(0);
+  expect(f.bodies).toHaveLength(1);
+});
+it('fails closed for a restored ciphertext with no matching runtime operation', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  f.loseNext();
+  await expect(f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body: JSON.stringify({ value: 'dark', baseRevision: 0, operationId: 'orphan-pending' }) })).rejects.toThrow();
+  const saved = await persistence.read('transport'), transport = await VaultTransport.restore(f.vault.session, saved, f.fetcher, { persistence });
+  await expect(transport.reconcileOperations([])).rejects.toThrow(/pendente|recuper/i);
+  await expect(transport.fetch('/api/cloud/documents/dynamic_diary-sidebar-collapsed', { method: 'PUT', body: JSON.stringify({ value: 'true', baseRevision: 0, operationId: 'unrelated' }) })).rejects.toThrow(/pendente|recuper/i);
+  expect(f.bodies).toHaveLength(1);
+  expect(await persistence.read('transport')).toEqual(saved);
+});
+it('drops acknowledged upload retry bytes and receipts only after a durable runtime save', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  const runtime = new CloudRuntime(snapshot, f.transport.fetch, undefined, undefined, { persistence, acknowledgeOperation: id => f.transport.acknowledgeOperation(id) });
+  await runtime.writeMedia({ id: 'clean-upload', mime: 'text/plain', name: 'private.txt', bytes: new TextEncoder().encode('private bytes').buffer });
+  expect(f.transport.checkpoint()).toMatchObject({ uploads: [], completed: [], requests: [], pending: null });
+  expect((await persistence.read<any>('runtime')).confirmed.media).toHaveLength(1);
+});
+it('recovers a lost media manifest ACK after reload only after account verification', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  const writer = new CloudRuntime(snapshot, f.transport.fetch, undefined, undefined, { persistence });
+  await writer.persistCheckpoint(); f.loseNext();
+  await expect(writer.writeMedia({ id: 'lost-media-ack', mime: 'text/plain', name: 'private.txt', bytes: new TextEncoder().encode('original media').buffer })).rejects.toThrow('response lost');
+  const saved = await persistence.read('transport'), runtimeCheckpoint = await persistence.read('runtime');
+  let verified = false;
+  const transport = await VaultTransport.restore(f.vault.session, saved, f.fetcher, { persistence, networkReady: () => verified });
+  await transport.reconcileOperations([]);
+  const calls = f.fetcher.mock.calls.length;
+  await expect(transport.recoverAuxiliaryOperations()).rejects.toThrow(/conexão|confirmada/);
+  await expect(transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body: JSON.stringify({ value: 'dark', baseRevision: 0, operationId: 'unrelated' }) })).rejects.toThrow();
+  expect(f.fetcher.mock.calls).toHaveLength(calls);
+  verified = true;
+  const ids = await transport.recoverAuxiliaryOperations();
+  expect(f.bodies).toHaveLength(2); expect(f.bodies[1]).toBe(f.bodies[0]);
+  const runtime = new CloudRuntime(transport.snapshot(), transport.fetch, undefined, undefined, { persistence, checkpoint: runtimeCheckpoint });
+  expect(await runtime.adoptRecoveredSnapshot(transport.snapshot())).toBe(true);
+  for (const id of ids) await transport.acknowledgeOperation(id);
+  expect(runtime.media().map(item => item.id)).toContain('lost-media-ack');
+  expect(transport.hasPendingOperations()).toBe(false);
+  verified = false;
+  expect(new TextDecoder().decode((await runtime.readMedia('lost-media-ack'))!)).toBe('original media');
+});
+it('recovers an upload interrupted before manifest preparation with the same blob and cipher bytes', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  const writer = new CloudRuntime(snapshot, f.transport.fetch, undefined, undefined, { persistence });
+  await writer.persistCheckpoint(); f.loseUpload();
+  await expect(writer.writeMedia({ id: 'lost-blob', mime: 'text/plain', name: 'private.txt', bytes: new TextEncoder().encode('original blob').buffer })).rejects.toThrow('upload response lost');
+  expect(f.bodies).toHaveLength(0);
+  const transport = await VaultTransport.restore(f.vault.session, await persistence.read('transport'), f.fetcher, { persistence });
+  await transport.reconcileOperations([]);
+  await transport.recoverAuxiliaryOperations();
+  const uploads = f.fetcher.mock.calls.filter(call => String(call[0]).endsWith('/blobs'));
+  expect(uploads).toHaveLength(2); expect(uploads[1][1]!.body).toBe(uploads[0][1]!.body);
+  expect(transport.snapshot().media.map(item => item.id)).toContain('lost-blob');
+  expect(f.bodies).toHaveLength(1);
+});
+it('recovers an interrupted import and preserves queued document drafts until durable adoption', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  const body = JSON.stringify({ documents: [{ key: 'dynamic_diary-theme', value: 'dark' }], operationId: 'lost-import' });
+  f.loseNext(); await expect(f.transport.fetch('/api/cloud/import', { method: 'POST', body })).rejects.toThrow('response lost');
+  const transport = await VaultTransport.restore(f.vault.session, await persistence.read('transport'), f.fetcher, { persistence });
+  const runtime = new CloudRuntime(snapshot, transport.fetch, undefined, undefined, { persistence, networkReady: () => false });
+  const draft = '{"version":1,"state":{"private":"offline draft during import recovery"}}';
+  await runtime.write('dynamic_diary-chat', draft);
+  await transport.reconcileOperations(runtime.checkpoint().queue.map(op => op.operationId));
+  const ids = await transport.recoverAuxiliaryOperations();
+  const apply = vi.fn();
+  expect(await runtime.adoptRecoveredSnapshot(transport.snapshot(), { isIdle: () => false, apply })).toBe(false);
+  expect(runtime.get('dynamic_diary-theme')).toBeNull(); expect(apply).not.toHaveBeenCalled();
+  expect(await runtime.adoptRecoveredSnapshot(transport.snapshot(), { isIdle: () => true, apply })).toBe(true);
+  expect(apply).toHaveBeenCalledWith([{ key: 'dynamic_diary-theme', value: 'dark', revision: 1 }]);
+  expect(runtime.get('dynamic_diary-chat')).toBe(draft); expect(runtime.getSnapshot().pending).toBe(1);
+  for (const id of ids) await transport.acknowledgeOperation(id);
+  expect(f.bodies[1]).toBe(f.bodies[0]); expect(f.bodies).toHaveLength(2);
+  expect((await persistence.read<any>('runtime')).confirmed.documents.some((doc: any) => doc.key === 'dynamic_diary-theme')).toBe(true);
+});
+it('recovers media metadata after transport ACK but before its runtime checkpoint without another PUT', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  const writer = new CloudRuntime(snapshot, f.transport.fetch, undefined, undefined, { persistence });
+  await writer.persistCheckpoint();
+  persistence.write.mockImplementation(async (slot, value: any) => { if (slot === 'runtime' && value.confirmed.media.length) throw new Error('media runtime quota'); persistence.data.set(slot, structuredClone(value)); });
+  await expect(writer.writeMedia({ id: 'ACK-media', mime: 'text/plain', name: 'private.txt', bytes: new TextEncoder().encode('ACK metadata').buffer })).rejects.toThrow('media runtime quota');
+  const savedTransport = await persistence.read('transport'), savedRuntime = await persistence.read('runtime');
+  persistence.write.mockImplementation(async (slot, value) => { persistence.data.set(slot, structuredClone(value)); });
+  const transport = await VaultTransport.restore(f.vault.session, savedTransport, f.fetcher, { persistence });
+  await transport.reconcileOperations([]);
+  const ids = await transport.recoverAuxiliaryOperations();
+  const runtime = new CloudRuntime(transport.snapshot(), transport.fetch, undefined, undefined, { persistence, checkpoint: savedRuntime });
+  await runtime.adoptRecoveredSnapshot(transport.snapshot());
+  for (const id of ids) await transport.acknowledgeOperation(id);
+  expect(f.bodies).toHaveLength(1); expect(runtime.media().map(item => item.id)).toContain('ACK-media');
+  expect(transport.hasPendingOperations()).toBe(false);
+});
+it('rejects a changed auxiliary body, fingerprint or unsupported route before any recovery request', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  f.loseNext(); await expect(f.transport.fetch('/api/cloud/import', { method: 'POST', body: JSON.stringify({ documents: [{ key: 'dynamic_diary-theme', value: 'dark' }], operationId: 'descriptor-check' }) })).rejects.toThrow();
+  const saved = await persistence.read<any>('transport'), calls = f.fetcher.mock.calls.length;
+  const changedBody = structuredClone(saved); changedBody.auxiliary[0][1].body = changedBody.auxiliary[0][1].body.replace('dark', 'light');
+  await expect(VaultTransport.restore(f.vault.session, changedBody, f.fetcher, { persistence })).rejects.toThrow(/recuperação/);
+  const changedRoute = structuredClone(saved), descriptor = changedRoute.auxiliary[0][1]; descriptor.path = '/api/cloud/config';
+  descriptor.fingerprint = await sha256(new TextEncoder().encode(JSON.stringify([descriptor.method, descriptor.path, descriptor.body])).buffer);
+  changedRoute.requests[0][1] = descriptor.fingerprint;
+  await expect(VaultTransport.restore(f.vault.session, changedRoute, f.fetcher, { persistence })).rejects.toThrow(/recuperação/);
+  expect(f.fetcher.mock.calls).toHaveLength(calls);
+});
+it('reads previously viewed encrypted media after reload offline and refuses offline uploads', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  const bytes = new TextEncoder().encode('cached private media').buffer;
+  const writer = new CloudRuntime(snapshot, f.transport.fetch);
+  await writer.writeMedia({ id: 'offline-media', mime: 'text/plain', name: 'private.txt', bytes });
+  const first = await f.transport.fetch('/api/cloud/media/offline-media'); expect(await first.text()).toBe('cached private media');
+  const saved = await persistence.read('transport'), key = f.vault.session.deviceKeyForStorage(); f.transport.dispose();
+  const transport = await VaultTransport.restore(sessionFromDeviceKey('owner', f.vault.header, key), saved, f.fetcher, { persistence, networkReady: () => false });
+  const calls = f.fetcher.mock.calls.length;
+  expect(await (await transport.fetch('/api/cloud/media/offline-media')).text()).toBe('cached private media');
+  await expect(transport.fetch('/api/cloud/media', { method: 'POST', body: '{}' })).rejects.toThrow(/conexão|conect/i);
+  expect(f.fetcher.mock.calls).toHaveLength(calls);
 });
 it('preserves abort propagation for a receiver-sensitive passthrough request', async () => {
   const f = await fixture(receiverSensitiveFetch), controller = new AbortController();
