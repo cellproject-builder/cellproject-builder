@@ -9,6 +9,16 @@ const FLOW_COOKIE = '__Host-cellproject_auth_flow';
 const FLOW_LIFETIME = 15 * 60_000;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 
+export function isPublishablePasswordKey(value) {
+  if (typeof value !== 'string' || value.length > 8192) return false;
+  if (/^sb_publishable_[A-Za-z0-9_-]{1,256}$/.test(value)) return true;
+  if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value)) return false;
+  try {
+    const [header, payload] = value.split('.').slice(0, 2).map(part => JSON.parse(Buffer.from(part, 'base64url').toString('utf8')));
+    return header?.alg === 'HS256' && payload?.role === 'anon' && payload.iss === 'supabase' && payload.ref === 'wxfootrnfiqpzhmjwgck';
+  } catch { return false; }
+}
+
 // No env reads at import time; credentials are never serialized to public configuration.
 export function readCloudConfig(env = process.env) {
   const enabled = env.CELLPROJECT_CLOUD_ENABLED === 'true';
@@ -18,11 +28,15 @@ export function readCloudConfig(env = process.env) {
   try { origin = new URL(env.APP_ORIGIN); } catch { fail(); }
   if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash || origin.origin !== env.APP_ORIGIN) fail();
   if (env.SUPABASE_URL !== PROJECT_URL || !env.SUPABASE_PUBLISHABLE_KEY?.trim()) fail();
+  const publishableKey = env.SUPABASE_PUBLISHABLE_KEY.trim();
+  // This value is intentionally sent to the browser. Refuse server credentials
+  // even if an operator accidentally placed them in the publishable variable.
+  if (!isPublishablePasswordKey(publishableKey)) fail();
   if (env.SUPABASE_ALLOWED_EMAIL && env.SUPABASE_ALLOWED_EMAIL !== EMAIL) fail();
   if (env.SUPABASE_ALLOWED_USER_ID && !UUID.test(env.SUPABASE_ALLOWED_USER_ID)) fail();
   const alternateOrigins = (env.APP_ALTERNATE_ORIGINS ?? '').split(',').map(value => value.trim()).filter(Boolean);
   for (const value of alternateOrigins) { let alternate; try { alternate = new URL(value); } catch { fail(); } if (alternate.protocol !== 'https:' || alternate.username || alternate.password || alternate.origin !== value) fail(); }
-  return { enabled, origin: origin.origin, alternateOrigins, supabaseUrl: PROJECT_URL, publishableKey: env.SUPABASE_PUBLISHABLE_KEY.trim(), allowedEmail: EMAIL, allowedUserId: env.SUPABASE_ALLOWED_USER_ID || null, sessionLifetime: 8 * 60 * 60_000, bucket: 'cellproject-media' };
+  return { enabled, origin: origin.origin, alternateOrigins, supabaseUrl: PROJECT_URL, publishableKey, allowedEmail: EMAIL, allowedUserId: env.SUPABASE_ALLOWED_USER_ID || null, sessionLifetime: 8 * 60 * 60_000, bucket: 'cellproject-media' };
 }
 
 export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = {}) {
@@ -111,6 +125,12 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = 
     if (await call('/rest/v1/rpc/cellproject_authorized', { token, body: {} }) !== true) throw deny();
     return { user, tokenExpiresAt };
   };
+  const passwordSessionId = (token, userId) => {
+    validateToken(token, userId);
+    const claim = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+    if (claim.role !== 'authenticated' || !UUID.test(claim.session_id) || !Array.isArray(claim.amr) || !claim.amr.some(value => value?.method === 'password' && Number.isFinite(value.timestamp))) throw deny();
+    return claim.session_id;
+  };
   const issueSession = async (issued, req, res, assertActive = () => {}, passwordSetup = false) => {
     const user = validateUser(issued?.user); validateToken(issued?.access_token, user.id);
     if (typeof issued.refresh_token !== 'string' || !issued.refresh_token || issued.refresh_token.length > 16_384) throw deny();
@@ -147,7 +167,34 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = 
     sameOrigin,
     requestCode(email, req, res) { return requestLink(email, req, res, 'sign_in'); },
     requestPasswordSetup(email, req, res) { return requestLink(email, req, res, 'password_setup'); },
+    async acceptPasswordSession(input, req, res) {
+      throttle('password', req, 10);
+      if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).sort().join(',') !== 'accessToken,refreshToken' || typeof input.accessToken !== 'string' || !input.accessToken || input.accessToken.length > 32768 || typeof input.refreshToken !== 'string' || !input.refreshToken || input.refreshToken.length > 16384) throw deny();
+      const priorId = handle(req), prior = sessions.get(priorId);
+      const flowId = handle(req, FLOW_COOKIE), flow = flows.get(flowId) ?? inFlightFlows.get(flowId);
+      const assertActive = () => { if (closed || req.aborted || res.destroyed || (prior && sessions.get(priorId) !== prior) || flow?.cancelled) throw deny(); };
+      assertActive();
+      // /user and the authorization RPC authenticate the incoming token before
+      // its claims are used. Refresh then proves the supplied pair belongs to
+      // that same provider session and rotates the credential held by the app.
+      const checked = await identity(input.accessToken); assertActive();
+      const sessionId = passwordSessionId(input.accessToken, checked.user.id);
+      const issued = await call('/auth/v1/token?grant_type=refresh_token', { body: { refresh_token: input.refreshToken } });
+      assertActive();
+      if (validateUser(issued?.user).id !== checked.user.id) throw deny();
+      const refreshed = await identity(issued.access_token); assertActive();
+      if (refreshed.user.id !== checked.user.id || passwordSessionId(issued.access_token, checked.user.id) !== sessionId) throw deny();
+      return issueSession(issued, req, res, assertActive);
+    },
+    async passwordSetupSession(req) {
+      const authorization = await api.authorize(req);
+      if (!authorization) throw deny();
+      const session = sessions.get(authorization.id);
+      if (!session?.passwordSetup || session.passwordConfirmedAt + FLOW_LIFETIME < now()) throw new CloudError(403, 'reauthentication_required', 'Solicite um novo link para redefinir sua senha.');
+      return { accessToken: session.accessToken };
+    },
     async signInPassword(email, password, req, res) {
+      if (config.vaultEnabled) throw new CloudError(426, 'password_client_upgrade_required', 'Atualize a página para entrar com segurança.');
       throttle('password', req, 10); email = emailInput(email);
       const invalidCredentials = () => new CloudError(401, 'invalid_credentials', 'E-mail ou senha incorretos.');
       if (typeof password !== 'string' || password.length < 1 || password.length > 128) throw invalidCredentials();
@@ -205,6 +252,7 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = 
       } catch (error) { sessions.delete(id); if (error instanceof CloudError && error.status >= 500) throw error; return null; }
     },
     async setPassword(password, authorization) {
+      if (config.vaultEnabled) throw new CloudError(426, 'password_client_upgrade_required', 'Atualize a página para redefinir sua senha com segurança.');
       const session = sessions.get(authorization?.id);
       const assertActive = () => {
         if (closed || !session || sessions.get(authorization?.id) !== session || session.expiresAt <= now() || session.user.id !== authorization?.user?.id) throw deny();

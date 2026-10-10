@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { canvasInkSchema } from '@/ink/canvasModel';
 import type { VisualArtifact, VisualPromptInput, VisualWorkspace } from './types';
 import { createDecompositionSchema } from './decompositionSchema';
 import { modelAssemblySchema, modelAssemblyMatchesScene } from './modelAssembly';
@@ -48,7 +49,7 @@ const proposalSchema = z.union([
   proposalBase.extend({ kind: z.literal('model').optional(), scene: sceneSchema, assembly: modelAssemblySchema.optional() }).strict().refine(p => !p.assembly || modelAssemblyMatchesScene(p.assembly, p.scene), 'visualAssemblyInvalid'),
   proposalBase.extend({ kind: z.literal('diagram'), scene: z.null(), diagram: diagramSchema }).strict(),
 ]);
-const workspaceSchema = z.object({ version: z.literal(1), mode: z.enum(['approval', 'automatic']), artifacts: z.array(artifactSchema).max(512), proposals: z.array(proposalSchema).max(40), drafts: z.object({ search: promptSchema, model: promptSchema }).strict() }).strict().refine(w => new Set(w.artifacts.map(a => a.id)).size === w.artifacts.length && new Set(w.proposals.map(p => p.id)).size === w.proposals.length, 'visualDuplicateId').refine(w => !hasArtifactSourceCycle(w.artifacts), 'visualSourceCycle');
+const workspaceSchema = z.object({ version: z.literal(1), mode: z.enum(['approval', 'automatic']), artifacts: z.array(artifactSchema).max(512), proposals: z.array(proposalSchema).max(40), drafts: z.object({ search: promptSchema, model: promptSchema }).strict(), ink: canvasInkSchema.optional() }).strict().refine(w => new Set(w.artifacts.map(a => a.id)).size === w.artifacts.length && new Set(w.proposals.map(p => p.id)).size === w.proposals.length, 'visualDuplicateId').refine(w => !hasArtifactSourceCycle(w.artifacts), 'visualSourceCycle');
 
 const emptyInput = (): VisualPromptInput => ({ text: '', mentions: [], attachments: [] });
 export const EMPTY_VISUAL_WORKSPACE: VisualWorkspace = { version: 1, mode: 'approval', artifacts: [], proposals: [], drafts: { search: emptyInput(), model: emptyInput() } };

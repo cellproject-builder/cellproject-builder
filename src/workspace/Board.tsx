@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { PlusIcon, RowsIcon, ViewVerticalIcon } from '@radix-ui/react-icons';
+import { PlusIcon, RowsIcon, ViewVerticalIcon } from '@/components/ui/SoftIcons';
 import { useT } from '@/i18n';
 import { useWorkspaceStore } from './store';
 import { TASK_STATUSES, type Task, type TaskStatus } from './types';

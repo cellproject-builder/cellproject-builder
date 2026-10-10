@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PlannerSnapshot } from '@/workspace/types';
+import { createBoardDocument } from '@/boards/model';
+import { createNoteInk } from '@/workspace/noteInkModel';
 import { createWorkspaceBackup, restoreWorkspaceBackup, workspaceToDatabaseRows, chatToDatabaseRows, type ChatData, type WorkspaceData } from './workspaceTransfer';
 
 const owner = 'da552827-202d-4adb-b035-ae25e71a0e6a';
@@ -30,6 +32,71 @@ function fixture(): WorkspaceData {
 }
 
 describe('portable workspace exports', () => {
+  it('retains free ink independently of notebook and typed content in backup and row export', () => {
+    const data = fixture();
+    const ink = { ...createNoteInk(), strokes: [{ id: 'stroke-1', color: '#abcdef', width: 3, tool: 'pencil' as const, opacity: .7, points: [{ x: 2, y: 3 }], anchor: { id: 'block:block-10', x: 0, y: 0, width: 1200 } }] };
+    data.notes['note-10'].ink = ink;
+    const backup = createWorkspaceBackup(data, 5000);
+    expect(restoreWorkspaceBackup(JSON.parse(JSON.stringify(backup))).notes['note-10']).toEqual(data.notes['note-10']);
+    const rows = workspaceToDatabaseRows(data, owner, 5000).rows;
+    expect(rows.notes[0].ink).toEqual(ink);
+    expect(rows.notes[0].ink).not.toBe(ink);
+    expect(rows.notes[0].canvas).toBeNull();
+    expect(rows.notes[1].ink).toBeNull();
+    const invalid = JSON.parse(JSON.stringify(backup));
+    invalid.data.notes['note-10'].ink.strokes[0].anchor.width = 0;
+    expect(() => restoreWorkspaceBackup(invalid)).toThrow('desenho livre inválido');
+  });
+  it('round-trips independent boards without losing their positioned content and connections', () => {
+    const data: WorkspaceData = { ...fixture(), boards: { board: { id: 'board', title: 'Esboço', archived: true, createdAt: 1000, updatedAt: 3000, document: { ...createBoardDocument(), items: [{ id: 'card', kind: 'card', x: -50, y: 100, width: 240, height: 150, text: '**Ideia**', color: '#abcdef', fontSize: 18 }], viewport: { x: -100, y: 50, zoom: .5 } } } } };
+    const backup = createWorkspaceBackup(data, 5000), restored = restoreWorkspaceBackup(JSON.parse(JSON.stringify(backup)));
+    expect(restored.boards).toEqual(data.boards);
+    expect(restored.boards).not.toBe(data.boards);
+    expect(workspaceToDatabaseRows(data, owner, 5000).rows.boards).toEqual([{ owner_id: owner, id: 'board', title: 'Esboço', archived: true, document: data.boards!.board.document, created_at: '1970-01-01T00:00:01.000Z', updated_at: '1970-01-01T00:00:03.000Z' }]);
+    expect(workspaceToDatabaseRows(fixture(), owner, 5000).rows.boards).toEqual([]);
+  });
+
+  it('rejects an invalid independent board without mutating a portable backup', () => {
+    const raw = { ...createWorkspaceBackup(fixture(), 5000), data: { ...fixture(), boards: { bad: { id: 'bad', document: { version: 99 } } } } };
+    const original = structuredClone(raw);
+    expect(() => restoreWorkspaceBackup(raw)).toThrow('quadro inválido');
+    expect(raw).toEqual(original);
+  });
+
+  it('preserves stable unknown icon IDs in backups and exports optional appearance as JSONB data', () => {
+    const data = fixture();
+    const appearance = { icon: 'FutureRobotIcon', color: '#A1b2C3' };
+    data.projects['project-10'].appearance = appearance;
+    const backup = createWorkspaceBackup(data, 5000);
+    expect(restoreWorkspaceBackup(JSON.parse(JSON.stringify(backup))).projects['project-10'].appearance).toEqual(appearance);
+    const row = workspaceToDatabaseRows(data, owner, 5000).rows.projects[0];
+    expect(row.appearance).toEqual(appearance);
+    expect(row.appearance).not.toBe(appearance);
+    delete data.projects['project-10'].appearance;
+    expect(workspaceToDatabaseRows(data, owner, 5000).rows.projects[0].appearance).toBeNull();
+  });
+
+  it('refuses a malformed notebook on restore while preserving the backup for recovery', () => {
+    const backup = createWorkspaceBackup(fixture(), 5000);
+    const raw = JSON.parse(JSON.stringify(backup));
+    raw.data.notes['note-10'].canvas = { version: 9, items: [] };
+    const original = structuredClone(raw);
+    expect(() => restoreWorkspaceBackup(raw)).toThrow('caderno inválido');
+    expect(raw).toEqual(original);
+  });
+
+  it('preserves visual note documents in backups and optional SQL row exports', () => {
+    const data = fixture();
+    const canvas = { version: 1 as const, width: 1000, height: 800, paper: 'plain' as const, strokes: [], items: [] };
+    data.notes['note-10'] = { ...data.notes['note-10'], canvas };
+    const backup = createWorkspaceBackup(data, 5000);
+    expect(restoreWorkspaceBackup(JSON.parse(JSON.stringify(backup))).notes['note-10'].canvas).toEqual(canvas);
+    const rows = workspaceToDatabaseRows(data, owner, 5000).rows;
+    expect(rows.notes[0].canvas).toEqual(canvas);
+    expect(rows.notes[1].canvas).toBeNull();
+    expect(rows.notes[0].canvas).not.toBe(canvas);
+  });
+
   it('round-trips a versioned JSON backup without actions, credentials or view state', () => {
     const data = fixture();
     const runtime = { ...data, apiKey: 'private', activeProjectId: 'project-10', surface: 'notes', createProject: () => 'id' };
@@ -56,7 +123,7 @@ describe('portable workspace exports', () => {
     const data = fixture();
     const snapshot = workspaceToDatabaseRows(data, owner, 5000);
     expect(snapshot).toMatchObject({ format: 'cellproject-workspace-rows', version: 1, exportedAt: '1970-01-01T00:00:05.000Z', ownerId: owner });
-    expect(snapshot.rows.projects).toEqual([{ owner_id: owner, id: 'project-10', name: 'Project', objective: 'Deliver', archived: false, created_at: '1970-01-01T00:00:01.000Z', updated_at: '1970-01-01T00:00:02.000Z', planner_snapshot: planner }]);
+    expect(snapshot.rows.projects).toEqual([{ owner_id: owner, id: 'project-10', name: 'Project', objective: 'Deliver', archived: false, appearance: null, created_at: '1970-01-01T00:00:01.000Z', updated_at: '1970-01-01T00:00:02.000Z', planner_snapshot: planner }]);
     expect(snapshot.rows.tasks).toEqual([{ owner_id: owner, id: 'task-10', project_id: 'project-10', title: 'Build', description: 'Details', status: 'done', priority: 'high', due_date: null, sprint_id: 'sprint-10', source_node_id: 'node-10', source_plan_id: 'plan-10', created_at: '1970-01-01T00:00:02.000Z', updated_at: '1970-01-01T00:00:03.000Z' }]);
     expect(snapshot.rows.sprints[0]).toMatchObject({ owner_id: owner, id: 'sprint-10', project_id: 'project-10', start_date: '2026-10-08', end_date: '2026-10-22', completed_at: '1970-01-01T00:00:04.000Z' });
     expect(snapshot.rows.notes[0]).toMatchObject({ owner_id: owner, id: 'note-10', project_id: 'project-10', task_id: 'task-10', folder_id: 'folder-10', blocks: data.notes['note-10'].blocks, deleted_at: '1970-01-01T00:00:04.000Z' });

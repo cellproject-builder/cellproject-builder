@@ -7,7 +7,7 @@ import { useWorkspaceStore } from '@/workspace/store';
 import { requestChatReferences } from '@/references/chatHandoff';
 import { getPlannerOwnerId } from '@/workspace/planner';
 import type { Project } from '@/types';
-import { VisualExplorer } from './ui/VisualExplorer';
+import { TabbedVisualExplorer as VisualExplorer } from './ui/TabbedVisualExplorer';
 import { useVisualPopupStore } from './ui/uiStore';
 import { getVisualWorkspace, listMentionTargets, findMentionTarget, saveVisualDraft, setVisualMode, watchVisualScope, mutateVisualWorkspace, rejectVisualProposal, removeVisualProposalHistory } from './domain';
 import { addLocalImage, addReferenceImage, attachVisualFile, readVisualMedia } from './media';
@@ -155,8 +155,8 @@ export function VisualWorkspaceBridge({ project, containerRef, selectedArtifactI
       </button>
     </div>
     <VisualExplorer projectId={project.id} workspace={workspace} listMentions={listMentionTargets} selectedNode={selectedNodeId ? findMentionTarget(selectedNodeId, 'node') : undefined} onDraft={saveVisualDraft}
-      onAttach={attachVisualFile} onSearch={(input, signal) => runVisualSearch(input, { signal })}
-      onGenerate={(input, signal, onProgress) => runVisualGeneration(input, { signal, onProgress })} onAdd={onAdd}
+      onAttach={attachVisualFile} onSearch={(input, signal, onDetails) => runVisualSearch(input, { signal, openPopup: false, onDetails })}
+      onGenerate={(input, signal, onProgress) => runVisualGeneration(input, { signal, onProgress, openPopup: false })} onAdd={onAdd}
       onRefine={(input, request, signal) => refineVisualPrompt(input, request, { signal })} isRefinementCurrent={isModelRefinementCurrent}
       onApply={applyModelAtViewport} onReject={rejectVisualProposal} onRemoveHistory={removeVisualProposalHistory} onMode={setVisualMode} onMedia={readVisualMedia} externalSearch={search}
       onAssess={(reference, input, signal) => reviewVisualReference(reference, input, { signal })}

@@ -1,6 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { GearIcon } from '@radix-ui/react-icons';
-import { useT } from '@/i18n';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { GearIcon, DashboardIcon } from '@/components/ui/SoftIcons';
+import { useT, useLocaleStore } from '@/i18n';
 import { PRODUCT_NAME } from '@/brand';
 import { useThemeStore, type Theme } from '@/theme';
 import { AssistantChat } from '@/chat/AssistantChat';
@@ -25,9 +25,13 @@ import { TaskEditor } from './TaskEditor';
 import type { ManagedProject, Surface, Task, TaskStatus } from './types';
 import { Empty, Icon, attempt } from './ui';
 import { PageHeader, PageHeaderContext } from './PageHeader';
+import { ProjectIcon } from './project-appearance/projectIcons';
 import './design-system.css';
 import './workspace.css';
 import './PageHeader.css';
+import './mobile.css';
+
+const DynamicBoards = lazy(() => import('@/boards/DynamicBoards').then(module => ({ default: module.DynamicBoards })));
 
 function Overview({ project, onAdd, onPlan, onNotes, onEditProject }: { project: ManagedProject; onAdd: () => void; onPlan: () => void; onNotes: (id?: string) => void; onEditProject: () => void }) {
   const tr = useT().workspace;
@@ -42,7 +46,7 @@ function Overview({ project, onAdd, onPlan, onNotes, onEditProject }: { project:
   const progress = projectProgress(project.planner?.project ?? null);
   const evidence = projectEvidenceProgress(project.planner?.project ?? null);
   return <div className="ws-page">
-    <PageHeader title={project.name} description={project.objective || tr.objectivePlaceholder} actions={<button className="ws-button" onClick={onEditProject}><Icon name="edit" size={16} />{tr.edit}</button>} />
+    <PageHeader title={project.name} titleIcon={<ProjectIcon appearance={project.appearance} size={20}/>} description={project.objective || tr.objectivePlaceholder} actions={<button className="ws-button" onClick={onEditProject}><Icon name="edit" size={16} />{tr.edit}</button>} />
     <section className="ws-panel ws-plan-focus">
       <div className="ws-plan-intro"><div className="ws-plan-icon"><Icon name="planner" size={25} /></div><h2>{tr.planner}</h2><p>{tr.planHint}</p><button className="ws-button primary" onClick={onPlan}>{project.planner?.project ? tr.continuePlan : tr.buildPlan}<Icon name="arrow" size={15} /></button></div>
       <div className="ws-plan-summary"><h3>{tr.planProgress}</h3>{progress.total > 0 ? <><div className="ws-plan-count"><span aria-hidden><ProgressRing total={progress.total} done={progress.done} withProof={evidence.withEvidence} size={32} /></span><strong>{tr.resolvedParts(progress.done, progress.total)}</strong></div><p>{tr.evidenceCount(evidence.withEvidence)} · {tr.knownCount(evidence.assumedKnown)}</p></> : <p>{tr.draftPlan}</p>}<small>{tr.planProgressHint}</small></div>
@@ -64,6 +68,7 @@ function Overview({ project, onAdd, onPlan, onNotes, onEditProject }: { project:
 export function Workspace({ planner, canvasMaximized = false }: { planner: ReactNode; canvasMaximized?: boolean }) {
   const tr = useT().workspace;
   const theme = useThemeStore((s) => s.theme);
+  const english = useLocaleStore((s) => s.locale) === 'en';
   const setTheme = useThemeStore((s) => s.setTheme);
   const sideCollapsed = useSidebarStore((s) => s.collapsed);
   const toggleSideCollapsed = useSidebarStore((s) => s.toggleCollapsed);
@@ -77,6 +82,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
   const [sideOpen, setSideOpen] = useState(false);
   const [settings, setSettings] = useState(false);
   const [editingProject, setEditingProject] = useState(false);
+  const [boardMaximized, setBoardMaximized] = useState(false);
   const [taskEditor, setTaskEditor] = useState<{ task?: Task; status?: TaskStatus } | null>(null);
   const project = activeProjectId ? projects[activeProjectId] : undefined;
   useEffect(() => { initializeWorkspace(); return connectPlanner(); }, []);
@@ -110,8 +116,8 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
   const mobileMenu = <button className="ws-icon-button ws-mobile-menu" aria-label={tr.navigation} aria-expanded={sideOpen} aria-controls="workspace-sidebar" onClick={() => setSideOpen(!sideOpen)}><Icon name="menu" /></button>;
   const headerShell = {
     navigation: mobileMenu,
-    breadcrumb: project && surface !== 'projects' ? <><button onClick={() => navigate('projects')}>{tr.projects}</button><span>/</span>{surface !== 'overview' && <><button onClick={() => go('overview')}>{project.name}</button><span>/</span></>}</> : null,
-    status: project?.archived && surface !== 'projects' ? <span className="ws-badge">{tr.archived}</span> : null,
+    breadcrumb: project && surface !== 'projects' && surface !== 'boards' ? <><button onClick={() => navigate('projects')}>{tr.projects}</button><span>/</span>{surface !== 'overview' && <><button className="ws-project-identity" onClick={() => go('overview')}><ProjectIcon appearance={project.appearance} size={14}/>{project.name}</button><span>/</span></>}</> : null,
+    status: project?.archived && surface !== 'projects' && surface !== 'boards' ? <span className="ws-badge">{tr.archived}</span> : null,
   };
   return <AssistantChatDockProvider><div className={`ws-app ${surface === 'notes' ? 'notes-surface' : ''} ${canvasMaximized ? 'is-canvas-maximized' : ''}`}>
     {sideOpen && <button className="ws-sidebar-scrim" aria-label={tr.close} onClick={() => setSideOpen(false)} />}
@@ -120,23 +126,26 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
       <p className="ws-nav-label">{tr.workspace}</p>
       <nav><button className={`ws-nav-item ${surface === 'projects' ? 'selected' : ''}`} aria-label={tr.myProjects} title={tr.myProjects} onClick={() => { navigate('projects'); setSideOpen(false); }}><Icon name="projects" /><span>{tr.myProjects}</span><small>{Object.values(projects).filter((p) => !p.archived).length}</small></button>
         <button className={`ws-nav-item ${surface === 'notes' && !noteScope ? 'selected' : ''}`} aria-label={tr.diary} aria-current={surface === 'notes' && !noteScope ? 'page' : undefined} title={tr.diary} onClick={() => { setNoteScope(null); setNoteId(null); navigate('notes'); setSideOpen(false); }}><Icon name="notes" /><span>{tr.diary}</span></button>
+        <button className={`ws-nav-item ${surface === 'boards' ? 'selected' : ''}`} aria-label="Dynamic Board" aria-current={surface === 'boards' ? 'page' : undefined} title="Dynamic Board" onClick={() => { useWorkspaceStore.setState({ activeBoardId: null }); navigate('boards'); setSideOpen(false); }}><DashboardIcon width={18} height={18} aria-hidden="true"/><span>Dynamic Board</span></button>
       </nav>
-      {project && <><p className="ws-nav-label ws-project-nav-title" title={project.name}><span>{project.name}</span>{project.archived && <span className="ws-badge">{tr.archived}</span>}</p><nav>{(['planner', 'overview', 'kanban', 'scrum', 'notes'] as const).map(navItem)}</nav></>}
+      {project && <><p className="ws-nav-label ws-project-nav-title" title={project.name}><ProjectIcon appearance={project.appearance} size={14}/><span>{project.name}</span>{project.archived && <span className="ws-badge">{tr.archived}</span>}</p><nav>{(['planner', 'overview', 'kanban', 'scrum', 'notes'] as const).map(navItem)}</nav></>}
       <div className="ws-sidebar-bottom"><button className="ws-nav-item" aria-label={tr.preferences} title={tr.preferences} aria-haspopup="dialog" aria-expanded={settings} onClick={() => setSettings(true)}><GearIcon width={18} height={18} aria-hidden="true" /><span>{tr.preferences}</span></button><div className="ws-sidebar-tools"><LanguageToggle /><span><i />{isCloudEnabled() ? 'Workspace na nuvem' : tr.localData}</span></div></div>
     </aside>
     <div className="ws-main">{surface === 'planner' && project && <header className="ws-header">
       {mobileMenu}
       <div className="ws-breadcrumb">
-        <button onClick={() => navigate('projects')}>{tr.projects}</button><span>/</span><button onClick={() => go('overview')}>{project.name}</button><span>/</span>
+        <button onClick={() => navigate('projects')}>{tr.projects}</button><span>/</span><button className="ws-project-identity" onClick={() => go('overview')}><ProjectIcon appearance={project.appearance} size={14}/>{project.name}</button><span>/</span>
         <strong>{tr.planner}</strong>
       </div>
       {project?.archived && <span className="ws-badge">{tr.archived}</span>}
       <button className="ws-button small ws-push-right" onClick={() => go('overview')}>{tr.backWorkspace}</button>
     </header>}
       <PageHeaderContext.Provider value={headerShell}>
-      <main className={`ws-content ${surface === 'notes' ? 'is-notes' : ''} ${surface === 'planner' && project ? 'is-planner' : ''}`} key={`${surface}-${surface === 'notes' ? noteScope : activeProjectId}`}>
-        {surface === 'projects' ? <Projects /> : surface === 'notes' ? <Notes key={`${noteScope}-${noteId}`} projectId={noteScope} initialNoteId={noteId} /> : !project ? <Projects /> : surface === 'overview' ? <Overview project={project} onAdd={() => setTaskEditor({})} onPlan={() => go('planner')} onNotes={openNotes} onEditProject={() => setEditingProject(true)} /> : surface === 'kanban' ? <Board projectId={project.id} onEdit={(task) => setTaskEditor({ task })} onAdd={(status) => setTaskEditor({ status })} /> : surface === 'scrum' ? <Scrum projectId={project.id} onEdit={(task) => setTaskEditor({ task })} onAdd={() => setTaskEditor({})} /> : planner}
+      <Suspense fallback={<div role="status" aria-busy="true" className="ws-page">{english ? 'Loading…' : 'Carregando…'}</div>}>
+      <main className={`ws-content ${surface === 'boards' ? 'is-boards' : ''} ${surface === 'notes' ? 'is-notes' : ''} ${surface === 'planner' && project ? 'is-planner' : ''}`} key={`${surface}-${surface === 'notes' ? noteScope : surface === 'boards' ? 'boards' : activeProjectId}`}>
+        {surface === 'boards' ? <DynamicBoards english={english} onMaximizedChange={setBoardMaximized}/> : surface === 'projects' ? <Projects /> : surface === 'notes' ? <Notes key={`${noteScope}-${noteId}`} projectId={noteScope} initialNoteId={noteId} /> : !project ? <Projects /> : surface === 'overview' ? <Overview project={project} onAdd={() => setTaskEditor({})} onPlan={() => go('planner')} onNotes={openNotes} onEditProject={() => setEditingProject(true)} /> : surface === 'kanban' ? <Board projectId={project.id} onEdit={(task) => setTaskEditor({ task })} onAdd={(status) => setTaskEditor({ status })} /> : surface === 'scrum' ? <Scrum projectId={project.id} onEdit={(task) => setTaskEditor({ task })} onAdd={() => setTaskEditor({})} /> : planner}
       </main>
+      </Suspense>
       </PageHeaderContext.Provider>
     </div>
     {settings && <ApiKeyGate title={tr.preferences} onClose={() => setSettings(false)} preferences={
@@ -152,7 +161,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
         <div className="border-t border-border-base/70 pt-4"><h3 className="text-control font-semibold text-text-primary">{tr.settings}</h3></div>
       </div>
     } />}
-    <AssistantChat suspended={canvasMaximized} />
+    <AssistantChat suspended={canvasMaximized || boardMaximized || surface === 'boards'} />
     {editingProject && project && <ProjectForm project={project} onClose={() => setEditingProject(false)} />}
     {taskEditor && project && <TaskEditor key={taskEditor.task?.id ?? 'new'} projectId={project.id} task={taskEditor.task} initialStatus={taskEditor.status} onClose={() => setTaskEditor(null)} onSource={source} />}
   </div></AssistantChatDockProvider>;

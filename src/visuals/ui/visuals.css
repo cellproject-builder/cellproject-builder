@@ -211,3 +211,64 @@
 .visual-vision-choice { display: flex; align-items: flex-start; gap: 9px; padding: 0 12px 12px; font-size: 11px; color: rgb(var(--text-primary)); cursor: pointer; }
 .visual-vision-choice input { margin-top: 2px; accent-color: rgb(var(--ai-accent)); }
 .visual-vision-choice small { display: block; margin-top: 3px; font-size: 10px; line-height: 1.5; color: rgb(var(--text-muted)); }
+
+/* Phone windows keep the same resizable/tabbed lifecycle, with readable
+   content and real touch targets instead of scaling the desktop UI down. */
+@media (max-width:639px) {
+  .visual-popup { font-size:14px; line-height:1.5; max-height:calc(100dvh - 16px - env(safe-area-inset-bottom)); border-radius:14px; }
+  .visual-popup .visual-popup-header { gap:6px; padding:8px 10px; min-height:60px; }
+  .visual-popup .visual-popup-header h2 { font-size:15px; }
+  .visual-popup-header p, .visual-header-grip, .visual-key-hint { display:none; }
+  .visual-popup .visual-popup-body { padding:12px 10px max(18px,env(safe-area-inset-bottom)); scroll-padding-block:12px; }
+  .visual-popup .visual-icon-button { width:44px; height:44px; min-width:44px; min-height:44px; border-radius:10px; }
+  .visual-popup .visual-close { font-size:24px!important; }
+  .visual-popup :is(.visual-button,.visual-refinement-trigger,.visual-refinement-find,.visual-refinement-back,.visual-reject) { min-height:44px; font-size:13px!important; }
+  .visual-popup .visual-button { gap:7px; padding:8px 12px; }
+  .visual-popup :is(textarea,select,input:not([type="checkbox"]):not([type="range"])) { font-size:16px!important; }
+  .visual-popup select { min-height:44px; }
+  .visual-popup .visual-composer textarea { min-height:92px; line-height:1.5; }
+  .visual-popup .visual-composer-toolbar { padding:4px 6px 6px; gap:4px; flex-wrap:wrap; }
+  .visual-popup .visual-composer-tools { flex:1; }
+  .visual-popup .visual-chip { font-size:12px; min-height:36px; padding:0 2px 0 8px; gap:4px; }
+  .visual-popup .visual-chip-kind { font-size:11px; }
+  .visual-popup .visual-chip button { width:36px; height:36px; }
+  .visual-popup .visual-mention-menu button { min-height:48px; padding:10px; }
+  .visual-popup .visual-mention-menu strong { font-size:14px; }
+  .visual-popup .visual-mention-menu small { font-size:12px; max-width:100%; }
+  .visual-popup :is(.visual-local-hint,.visual-search-intent,.visual-search-uncertainty,.visual-search-review,.visual-search-intent details,.visual-mode label,.visual-mode p,.visual-model-note,.visual-chat-handoff p,.visual-construction-mode > span,.visual-construction-mode > p,.visual-assembly-plan,.visual-refinement-intro,.visual-refinement-hint,.visual-refinement-field > span,.visual-refinement-confirm,.visual-refinement-confirm small,.visual-vision-choice,.visual-vision-choice small,.visual-progress,.visual-error,.visual-refinement-understanding p,.visual-refinement-result li,.visual-refinement-original > summary,.visual-refinement-assumptions > summary) { font-size:13px; line-height:1.55; }
+  .visual-popup :is(.visual-refinement-understanding h3,.visual-refinement-answer > strong) { font-size:16px; line-height:1.4; }
+  .visual-popup :is(.visual-refinement-heading strong,.visual-refinement-result h4,.visual-refinement-answer > p) { font-size:14px; }
+  .visual-popup .visual-refinement-reference-tabs button { min-height:44px; font-size:12px; }
+  .visual-popup :is(.visual-refinement-original > summary,.visual-refinement-assumptions > summary,.visual-assembly-plan summary) { display:flex; align-items:center; min-height:44px; }
+  .visual-popup :is(.visual-vision-choice,.visual-refinement-confirm) { align-items:center; min-height:44px; }
+  .visual-popup input[type="checkbox"] { width:18px; height:18px; flex:none; }
+  .visual-popup .visual-segmented button { min-height:44px; padding:7px 12px; font-size:13px; }
+  .visual-popup .visual-gallery-toolbar { font-size:13px; gap:8px; }
+  .visual-popup .visual-grid { gap:8px; }
+  .visual-popup .visual-card-image { height:112px; }
+  .visual-popup .visual-card-info { padding:8px; }
+  .visual-popup .visual-card-info strong { font-size:13px; }
+  .visual-popup .visual-card-info a { min-height:32px; align-items:center; font-size:12px; }
+  .visual-popup .visual-card > small { font-size:12px!important; }
+  .visual-popup .visual-card-actions { justify-content:space-between; gap:0; padding:2px; }
+  .visual-popup .visual-card-actions button { min-width:44px; min-height:44px; font-size:12px; padding:5px; }
+  .visual-popup .visual-card-actions > button span { display:none; }
+  .visual-popup .visual-card-actions .visual-card-add { margin-right:0; font-size:18px; }
+  .visual-popup .visual-card-actions button > svg { width:18px; height:18px; }
+  .visual-popup .visual-gallery-footer { font-size:13px; margin-top:12px; }
+  .visual-popup .visual-proposal-text strong { font-size:14px; line-height:1.4; }
+  .visual-popup :is(.visual-proposal-text small,.visual-applied,.visual-stale,.visual-proposals > h3,.visual-empty p) { font-size:13px; }
+  .visual-popup .visual-proposal-actions { max-width:100%; gap:8px; }
+  .visual-popup .visual-apply { max-width:none; font-size:13px!important; }
+  .visual-popup .visual-deck { min-height:350px; }
+  .visual-popup .visual-deck-slot { width:76%; left:12%; }
+  .visual-popup .visual-deck .visual-card-image { height:160px; }
+  .visual-minimized-tools { left:12px; bottom:max(16px,env(safe-area-inset-bottom)); transform:none; justify-content:flex-start; max-width:calc(100vw - 88px); gap:6px; }
+  .visual-minimized-tool { min-width:0; min-height:52px; max-width:100%; padding:8px 10px; }
+  .visual-minimized-tool strong { font-size:13px; }
+  .visual-minimized-tool small { font-size:12px; }
+}
+@media (max-width:359px) {
+  .visual-popup .visual-grid { grid-template-columns:minmax(0,1fr); }
+  .visual-popup .visual-card-image { height:150px; }
+}

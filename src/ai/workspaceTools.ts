@@ -10,6 +10,8 @@ import { createVisualTools } from './visualTools';
 import { readRateLimit } from './rateLimit';
 import { useSidebarStore } from '@/workspace/sidebarPreference';
 import { loadWorkspaceDemo } from '@/workspace/demoData';
+import { summarizeNoteCanvas } from '@/workspace/noteCanvasSummary';
+import { projectAppearanceSchema } from '@/workspace/project-appearance/projectAppearance';
 
 const id = z.string().min(1).max(100);
 const text = z.string().max(100_000);
@@ -19,8 +21,8 @@ const block = z.object({ id: id.optional(), type: z.enum(['text', 'heading', 'bu
 const task = z.object({ title: z.string().min(1).max(240), description: text.optional(), status: z.enum(['todo', 'doing', 'review', 'done']).optional(), priority: z.enum(['low', 'medium', 'high']).optional(), dueDate: z.string().optional(), sprintId: nullableId }).strict();
 const note = z.object({ title: z.string().max(500).optional(), text: text.optional(), blocks: z.array(block).min(1).max(500).optional(), projectId: nullableId, taskId: nullableId, folderId: nullableId, pinned: z.boolean().optional() }).strict();
 export const workspaceActionSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('create_project'), name: z.string().min(1).max(240), objective: text.optional() }).strict(),
-  z.object({ action: z.literal('update_project'), id, patch: z.object({ name: z.string().min(1).max(240).optional(), objective: text.optional(), archived: z.boolean().optional() }).strict() }).strict(),
+  z.object({ action: z.literal('create_project'), name: z.string().min(1).max(240), objective: text.optional(), appearance: projectAppearanceSchema.optional() }).strict(),
+  z.object({ action: z.literal('update_project'), id, patch: z.object({ name: z.string().min(1).max(240).optional(), objective: text.optional(), archived: z.boolean().optional(), appearance: projectAppearanceSchema.optional() }).strict() }).strict(),
   z.object({ action: z.literal('navigate'), surface: z.enum(['projects', 'overview', 'kanban', 'scrum', 'notes', 'planner']), projectId: nullableId, noteId: id.optional(), taskId: id.optional() }).strict(),
   z.object({ action: z.literal('open_settings') }).strict(),
   z.object({ action: z.literal('set_appearance'), theme: z.enum(['oled', 'dark', 'light']) }).strict(),
@@ -51,12 +53,16 @@ export const workspaceReadSchema = z.object({ collection: z.enum(['projects', 't
 export function readWorkspace(raw: unknown) {
   const input = workspaceReadSchema.parse(raw), state = useWorkspaceStore.getState();
   const records = Object.values(state[input.collection]) as unknown as Record<string, unknown>[];
-  const matching = records.filter((r) => (!input.id || r.id === input.id) && (!input.projectId || (input.collection === 'projects' ? r.id : r.projectId) === input.projectId) && (!input.query || JSON.stringify(r).toLocaleLowerCase().includes(input.query.toLocaleLowerCase())));
+  const matching = records.filter((r) => (!input.id || r.id === input.id) && (!input.projectId || (input.collection === 'projects' ? r.id : r.projectId) === input.projectId) && (!input.query || JSON.stringify(input.collection === 'notes' ? { title: r.title, blocks: r.blocks, canvasSummary: summarizeNoteCanvas(r.canvas, true) } : r).toLocaleLowerCase().includes(input.query.toLocaleLowerCase())));
   const offset = input.offset ?? 0, limit = input.limit ?? 30;
   const items = matching.slice(offset, offset + limit).map((r) => {
-    const { planner: _planner, attachments: _attachments, ...rest } = r;
+    const { planner: _planner, attachments: _attachments, canvas: _canvas, ...rest } = r;
     if (input.collection === 'projects') return { ...rest, attachments: (_attachments as { id: string; name: string; kind: string; truncated: boolean }[] | undefined)?.map(({ id, name, kind, truncated }) => ({ id, name, kind, truncated })) };
-    return input.collection === 'notes' && !input.id ? { ...rest, blocks: undefined, preview: (r.blocks as { text: string }[]).map((b) => b.text).join('\n').slice(0, 300) } : rest;
+    if (input.collection === 'notes') {
+      const canvasSummary = summarizeNoteCanvas(_canvas, !!input.id);
+      return { ...rest, ...(canvasSummary ? { canvasSummary } : {}), ...(!input.id ? { blocks: undefined, preview: (r.blocks as { text: string }[]).map((b) => b.text).join('\n').slice(0, 300) } : {}) };
+    }
+    return rest;
   });
   return { items, total: matching.length, offset, nextOffset: offset + items.length < matching.length ? offset + items.length : null, currentProjectId: state.activeProjectId, surface: state.surface };
 }
@@ -74,7 +80,7 @@ export async function executeWorkspaceAction(raw: unknown, signal?: AbortSignal)
   const state = useWorkspaceStore.getState();
   let result: unknown = { changed: true };
   switch (input.action) {
-    case 'create_project': result = { id: state.createProject(input.name, input.objective) }; break;
+    case 'create_project': result = { id: state.createProject(input.name, input.objective, input.appearance) }; break;
     case 'update_project': state.updateProject(input.id, input.patch); break;
     case 'navigate': result = requestWorkspaceUI(input); break;
     case 'open_settings': requestWorkspaceUI({ settings: true }); break;
@@ -146,7 +152,7 @@ export function createAssistantTools(signal: AbortSignal, onAction: (event: Assi
     return next;
   };
   return {
-    workspace_read: tool({ description: 'Read actual project/task/issue/sprint/note/folder/comment records. Paginated; use IDs from results, never guess them. Projects exclude planner snapshots. A note id returns its full blocks. currentProjectId is the explicit chat context; visibleProjectId, when present, is only the project currently shown in the editor.', inputSchema: workspaceReadSchema, execute: execute('workspace_read', input => {
+    workspace_read: tool({ description: 'Read actual project/task/issue/sprint/note/folder/comment records. Paginated; use IDs from results, never guess them. Projects exclude planner snapshots. A note id returns its full blocks and a bounded text summary of visual items; image pixels and diagram internals are not included or analyzed. currentProjectId is the explicit chat context; visibleProjectId, when present, is only the project currently shown in the editor.', inputSchema: workspaceReadSchema, execute: execute('workspace_read', input => {
       const result = readWorkspace(input);
       return control?.contextProjectId !== undefined ? { ...result, visibleProjectId: result.currentProjectId, currentProjectId: control.contextProjectId } : result;
     }) }),

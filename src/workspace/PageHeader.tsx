@@ -9,13 +9,14 @@ export const PageHeaderContext = createContext<{
 
 type PageHeaderProps = {
   title: string;
+  titleIcon?: ReactNode;
   description?: string;
   controls?: ReactNode;
   actions?: ReactNode;
 };
 
 /** Shared page chrome. Each surface owns the controls, state and actions in its slots. */
-export function PageHeader({ title, description, controls, actions }: PageHeaderProps) {
+export function PageHeader({ title, titleIcon, description, controls, actions }: PageHeaderProps) {
   const shell = useContext(PageHeaderContext);
   return <header className={`ws-page-header ${controls ? 'has-controls' : ''}`}>
     <div className="ws-page-header-row">
@@ -23,7 +24,7 @@ export function PageHeader({ title, description, controls, actions }: PageHeader
         {shell?.navigation}
         <div className="ws-page-header-location">
           {shell?.breadcrumb && <div className="ws-breadcrumb">{shell.breadcrumb}</div>}
-          <h1 title={title}>{title}</h1>
+          <h1 title={title}>{titleIcon}{title}</h1>
           {shell?.status}
         </div>
       </div>

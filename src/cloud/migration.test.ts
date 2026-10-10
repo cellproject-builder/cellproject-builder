@@ -2,6 +2,7 @@ import { webcrypto } from 'node:crypto';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { captureLegacyBackup, validateBackup, importBackup, backupBlob, readBackup } from './migration';
 import { CLOUD_DOCUMENT_KEYS, CloudConflictError, decodeBytes } from './runtime';
+import { createBoardDocument } from '@/boards/model';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 afterEach(() => vi.unstubAllGlobals());
@@ -22,6 +23,30 @@ it('rejects altered documents or bytes before making import requests', async () 
   const backup = await captureLegacyBackup(source());
   backup.documents[0].value = backup.documents[0].value.replace('paid', 'changed'); await expect(validateBackup(backup)).rejects.toThrow('integridade');
   const next = await captureLegacyBackup(source()); next.media[0].base64 = 'AA=='; await expect(validateBackup(next)).rejects.toThrow('integridade');
+});
+it('refuses invalid note canvases before uploading a global backup and preserves the input', async () => {
+  const backup = await captureLegacyBackup(source());
+  const document = backup.documents.find(item => item.key === 'cellproject-workspace')!;
+  const envelope = JSON.parse(document.value);
+  envelope.state.notes = { bad: { canvas: { version: 9 } } };
+  document.value = JSON.stringify(envelope);
+  const original = structuredClone(backup), fetcher = vi.fn<typeof fetch>();
+  await expect(importBackup(backup, fetcher)).rejects.toThrow('caderno inválido');
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(backup).toEqual(original);
+});
+it('preserves independent boards inside a global ZIP without adding a cloud document key', async () => {
+  const previous = source(), board = { id: 'board', title: 'Esboço', archived: false, createdAt: 1, updatedAt: 2, document: createBoardDocument() };
+  const backup = await captureLegacyBackup({ ...previous, getDocument: async key => key === 'cellproject-workspace' ? JSON.stringify({ version: 2, state: { boards: { board } } }) : previous.getDocument(key) });
+  const restored = await readBackup(await backupBlob(backup));
+  expect(JSON.parse(restored.documents.find(item => item.key === 'cellproject-workspace')!.value).state.boards.board).toEqual(board);
+});
+it('refuses invalid boards before importing any global backup requests and keeps the original', async () => {
+  const backup = await captureLegacyBackup(source()), document = backup.documents.find(item => item.key === 'cellproject-workspace')!;
+  const envelope = JSON.parse(document.value); envelope.state.boards = { bad: { id: 'bad', document: { version: 99 } } }; document.value = JSON.stringify(envelope);
+  const original = structuredClone(backup), fetcher = vi.fn<typeof fetch>();
+  await expect(importBackup(backup, fetcher)).rejects.toThrow('quadro inválido');
+  expect(fetcher).not.toHaveBeenCalled(); expect(backup).toEqual(original);
 });
 it('uploads bytes before importing envelopes, verifies independent readback and preserves source data', async () => {
   const backup = await captureLegacyBackup(source()); const calls: string[] = [];

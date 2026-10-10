@@ -1,14 +1,20 @@
-import { useEffect, useRef, useState, type ComponentType } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import { CloudHttpError, CloudRuntime, cloudJson, configureCloud, getCloudRuntime, mutationHeaders, type CloudConfig, type CloudSnapshot } from './runtime';
 import { captureLegacyBackup, type MigrationBackup } from './migration';
 import { CloudMigration } from './CloudMigration';
 import { CloudStatus } from './CloudStatus';
 import { PasswordSetup } from './PasswordSetup';
 import { VaultGate } from './VaultGate';
+import { PasswordVaultGate } from './PasswordVaultGate';
+import { signInPassword } from './passwordAuth';
+import { preparePasswordProtection } from './vault/passwordSetup';
 import { VaultTransport, type VaultHead } from './vault/transport';
-import { configureVault } from './vault/privacy';
+import { configureVault, getVaultSession } from './vault/privacy';
 import { readDeviceVault } from './vault/deviceKeys';
+import { configureLiveInk, getLiveInk, LiveInkChannel } from '@/ink/live';
 import './cloud.css';
+
+const CloudLiveSync = lazy(() => import('./CloudLiveSync').then(module => ({ default: module.CloudLiveSync })));
 
 interface Props { loadApplication: () => Promise<{ default: ComponentType }>; fetcher?: typeof fetch }
 export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
@@ -23,15 +29,19 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
   const emailLink = config?.authMethod === 'email_link';
   const passwordLogin = config?.passwordAuth && loginMethod === 'password', passwordLink = config?.passwordAuth && loginMethod === 'setup';
   const generation = useRef(0);
+  const submittedPassword = useRef<string | null>(null);
   const activeRuntime = useRef<CloudRuntime | null>(null);
   const invalidLink = useRef(new URLSearchParams(window.location.search).get('auth_error') === 'link_invalid');
   async function load(selected: CloudSnapshot | null, next: CloudConfig, vault?: VaultTransport) {
     const id = generation.current;
-    const cloud = selected ? new CloudRuntime(selected, vault?.fetch ?? fetcher, vault ? () => vault.dispose() : undefined) : null;
+    let ink: LiveInkChannel | null = null;
+    const cloud = selected ? new CloudRuntime(selected, vault?.fetch ?? fetcher, vault ? () => { ink?.dispose(); if (getLiveInk() === ink) configureLiveInk(null); vault.dispose(); } : undefined, vault ? () => vault.refreshSnapshot() : undefined) : null;
     activeRuntime.current = cloud;
     configureCloud(cloud, next.providers); configureVault(vault?.session ?? null, !!vault);
-    try { const application = await loadApplication(); if (id !== generation.current) { cloud?.dispose(); return; } setRuntime(cloud); setMigration(false); setVaultGate(false); setApp(() => application.default); }
-    catch (reason) { if (getCloudRuntime() === cloud) { configureCloud(null); configureVault(null, !!vault); } throw reason; }
+    if (cloud && vault && next.liveInkAvailable) ink = new LiveInkChannel({ session: vault.session, fetcher, isActive: () => getVaultSession() === vault.session && getCloudRuntime() === cloud });
+    configureLiveInk(ink);
+    try { const application = await loadApplication(); if (id !== generation.current) { cloud?.dispose(); return; } ink?.start(); setRuntime(cloud); setMigration(false); setVaultGate(false); setApp(() => application.default); }
+    catch (reason) { ink?.dispose(); if (getCloudRuntime() === cloud) { configureCloud(null); configureLiveInk(null); configureVault(null, !!vault); } throw reason; }
   }
   async function verifyAccount(ownerId: string) {
     const latest = await cloudJson<CloudConfig>('/api/cloud/config', {}, fetcher);
@@ -56,6 +66,7 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
           const validation = new CloudRuntime(original, fetcher); validation.dispose(); setSnapshot(original); setVaultHead(null);
         } else {
           const current = head as VaultHead; setVaultHead(current); setSnapshot(null); configureVault(null, true);
+          if (next.passwordProvider) { setVaultGate(true); return; }
           let session;
           try {
             session = await readDeviceVault(next.user.id, current.header);
@@ -90,6 +101,7 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
     if (new URLSearchParams(window.location.search).has('auth_error')) { const clean = new URL(window.location.href); clean.searchParams.delete('auth_error'); window.history.replaceState(window.history.state, '', clean.pathname + clean.search + clean.hash); }
     const id = ++generation.current; void refresh(id); return () => {
       generation.current++;
+      submittedPassword.current = null;
       const cloud = activeRuntime.current; activeRuntime.current = null; cloud?.dispose();
       // Clear the global adapter after child cleanup, so unmounting stores cannot write to local persistence.
       queueMicrotask(() => { if (cloud && getCloudRuntime() === cloud) configureCloud(null); });
@@ -101,8 +113,9 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
     try {
       if (email.trim().toLowerCase() !== 'wylgnerbossman@gmail.com') throw new Error('Use a conta autorizada para este workspace.');
       if (passwordLogin) {
-        const result = await cloudJson<{ authenticated: boolean }>('/api/auth/password/sign-in', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ email: email.trim().toLowerCase(), password }) }, fetcher);
+        const result = config?.passwordProvider ? await signInPassword(email.trim().toLowerCase(), password, config.passwordProvider, fetcher) : await cloudJson<{ authenticated: boolean }>('/api/auth/password/sign-in', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ email: email.trim().toLowerCase(), password }) }, fetcher);
         if (!result.authenticated) throw new Error('Login recusado.');
+        submittedPassword.current = config?.passwordProvider ? password : null;
         setPassword(''); await refresh(); return;
       }
       if (passwordLink) {
@@ -114,10 +127,19 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
     } catch (reason) { setError(reason instanceof CloudHttpError && reason.status === 429 ? 'Você fez muitas tentativas. Aguarde um pouco e tente novamente.' : passwordLogin ? 'Não foi possível entrar. Confira seu e-mail e senha e tente novamente.' : passwordLink ? 'Não foi possível enviar o link de senha. Tente novamente em instantes.' : reason instanceof Error ? reason.message : 'Não foi possível entrar.'); }
     finally { setPassword(''); setBusy(false); }
   }
-  function switchMethod(method: typeof loginMethod) { setLoginMethod(method); setPassword(''); setCodeSent(false); setShowCode(false); setToken(''); setError(''); }
-  if (App) return <><App/>{runtime && <CloudStatus runtime={runtime} userId={config?.user?.id ?? ''} email={config?.user?.email ?? email} onLogout={() => { runtime.dispose(); window.location.reload(); }}/>}</>;
+  function switchMethod(method: typeof loginMethod) { submittedPassword.current = null; setLoginMethod(method); setPassword(''); setCodeSent(false); setShowCode(false); setToken(''); setError(''); }
+  async function restartLogin() {
+    await cloudJson('/api/auth/logout', { method: 'POST', headers: mutationHeaders, body: '{}' }, fetcher);
+    submittedPassword.current = null; setPassword(''); setVaultGate(false); setVaultHead(null); setSnapshot(null); setDeviceError('');
+    await refresh();
+  }
+  if (App) return <><App/>{runtime && <><Suspense fallback={null}><CloudLiveSync runtime={runtime}/></Suspense><CloudStatus runtime={runtime} userId={config?.user?.id ?? ''} email={config?.user?.email ?? email} onLogout={() => { runtime.dispose(); window.location.reload(); }}/></>}</>;
   return <main className="cloud-entry">
-    {vaultGate && config?.user ? <VaultGate key={`${config.user.id}:${vaultHead?.header.id ?? 'new'}`} ownerId={config.user.id} head={vaultHead} snapshot={snapshot} fetcher={fetcher} deviceError={deviceError} onUnlocked={async vault => {
+    {vaultGate && config?.user && config.passwordProvider ? <PasswordVaultGate key={`${config.user.id}:${vaultHead?.header.id ?? 'new'}`} ownerId={config.user.id} email={config.user.email} provider={config.passwordProvider} head={vaultHead} snapshot={snapshot} fetcher={fetcher} takeLoginPassword={() => { const secret = submittedPassword.current; submittedPassword.current = null; return secret; }} onRetry={() => window.location.reload()} onRestart={restartLogin} onUnlocked={async vault => {
+      const id = generation.current;
+      try { const latest = await verifyAccount(config.user!.id); if (id !== generation.current) { vault.dispose(); return; } await load(vault.snapshot(), latest, vault); }
+      catch (reason) { vault.dispose(); throw reason; }
+    }}/> : vaultGate && config?.user ? <VaultGate key={`${config.user.id}:${vaultHead?.header.id ?? 'new'}`} ownerId={config.user.id} head={vaultHead} snapshot={snapshot} fetcher={fetcher} deviceError={deviceError} onUnlocked={async vault => {
       const id = generation.current;
       try { const latest = await verifyAccount(config.user!.id); if (id !== generation.current) { vault.dispose(); return; } await load(vault.snapshot(), latest, vault); }
       catch (reason) { vault.dispose(); throw reason; }
@@ -125,7 +147,7 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
       if (!snapshot) return; setVaultGate(false);
       if (snapshot.documents.length) void load(snapshot, config).catch(reason => setError(reason.message));
       else void captureLegacyBackup().then(backup => { setLegacy(backup.documents.length || backup.media.length ? backup : null); setMigration(true); }).catch(reason => setError(reason.message));
-    }}/> : config?.enabled && config.authenticated && config.passwordSetup ? <div className="cloud-auth-flow"><PasswordSetup email={config.user?.email ?? email} fetcher={fetcher} onSaved={() => refresh()}/>{error && <div className="cloud-auth-retry"><p role="alert">{error}</p><button disabled={busy} onClick={() => void refresh()}>Tentar novamente</button></div>}</div> : migration && config && snapshot ? <CloudMigration backup={legacy} snapshot={snapshot} fetcher={fetcher} onContinue={() => void load(snapshot, config).catch(reason => setError(reason.message))} onDone={next => void load(next, config).catch(reason => setError(reason.message))}/> : <section className="cloud-card">
+    }}/> : config?.enabled && config.authenticated && config.passwordSetup ? <div className="cloud-auth-flow"><PasswordSetup email={config.user?.email ?? email} provider={config.passwordProvider} fetcher={fetcher} prepareProtection={config.passwordProvider && config.vaultAvailable && config.user ? secret => preparePasswordProtection(config.user!.id, secret, fetcher) : undefined} onSaved={secret => { submittedPassword.current = config.passwordProvider ? secret ?? null : null; return refresh(); }}/>{error && <div className="cloud-auth-retry"><p role="alert">{error}</p><button disabled={busy} onClick={() => void refresh()}>Tentar novamente</button></div>}</div> : migration && config && snapshot ? <CloudMigration backup={legacy} snapshot={snapshot} fetcher={fetcher} onContinue={() => void load(snapshot, config).catch(reason => setError(reason.message))} onDone={next => void load(next, config).catch(reason => setError(reason.message))}/> : <section className="cloud-card">
       <p className="cloud-kicker">DYNAMIC DIARY</p><h1>{config?.enabled && !config.authenticated ? passwordLink ? 'Criar ou recuperar senha' : 'Entrar' : 'Abrindo seus projetos'}</h1>
       {config?.enabled && !config.authenticated && <form onSubmit={event => { event.preventDefault(); void auth(codeSent && (!emailLink || showCode)); }}>
         <label>E-mail<input type="email" autoComplete="email" value={email} disabled={busy || codeSent} onChange={event => setEmail(event.target.value)} required/></label>

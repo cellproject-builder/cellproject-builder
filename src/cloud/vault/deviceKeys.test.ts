@@ -1,7 +1,7 @@
 import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { createVault, sessionFromDeviceKey, type CipherEnvelope } from './crypto';
-import { rememberDeviceVault, readDeviceVault, readDeviceRecovery, readPreparedDeviceVault, downloadDeviceRecovery } from './deviceKeys';
+import { createVault, recoverVault, sessionFromDeviceKey, type CipherEnvelope } from './crypto';
+import { DEVICE_VAULT_DATABASE, rememberDeviceVault, readDeviceVault, readDeviceRecovery, readPreparedDeviceVault, downloadDeviceRecovery } from './deviceKeys';
 beforeEach(() => { vi.stubGlobal('crypto', webcrypto); });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 it('persists a non-extractable handle and encrypted recovery, scoped to account and exact header', async () => {
@@ -78,3 +78,47 @@ it.each(['account', 'vault'] as const)('rejects recovery ciphertext copied from 
     restored!.dispose();
   } finally { source.session.dispose(); target.dispose(); }
 });
+
+interface StoredTestRecord { fingerprint: string; probe: CipherEnvelope; recovery: CipherEnvelope | null; key: CryptoKey; header: unknown }
+async function storedEntries(): Promise<Array<[IDBValidKey, StoredTestRecord]>> {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open(DEVICE_VAULT_DATABASE, 1); open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result, transaction = db.transaction('keys', 'readonly'), store = transaction.objectStore('keys');
+      const keys = store.getAllKeys(), values = store.getAll();
+      transaction.oncomplete = () => { db.close(); resolve(keys.result.map((key, index) => [key, values.result[index]])); };
+      transaction.onerror = transaction.onabort = () => { db.close(); reject(transaction.error); };
+    };
+  });
+}
+async function corruptFingerprint(id: string) {
+  await new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open(DEVICE_VAULT_DATABASE, 1); open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result, transaction = db.transaction('keys', 'readwrite'), store = transaction.objectStore('keys'), record = store.get(id);
+      record.onsuccess = () => store.put({ ...record.result, fingerprint: 'invalid synthetic fingerprint' }, id);
+      transaction.oncomplete = () => { db.close(); resolve(); }; transaction.onerror = transaction.onabort = () => { db.close(); reject(transaction.error); };
+    };
+  });
+}
+
+it('rejects replacing an invalid local record by default, then archives it and verifies a recovery-based repair', async () => {
+  const vault = await createVault(crypto.randomUUID(), 'synthetic preserved-record phrase'), owner = vault.session.ownerId;
+  await rememberDeviceVault(vault.session, { recoveryKey: vault.recoveryKey });
+  const id = JSON.stringify(['vault', owner, vault.header.id]), proof = await vault.session.seal('same private data after repair', 'repair-proof');
+  await corruptFingerprint(id);
+  const original = (await storedEntries()).find(([key]) => key === id)![1];
+  await expect(readDeviceVault(owner, vault.header)).rejects.toThrow('não corresponde');
+  await expect(rememberDeviceVault(vault.session, { recoveryKey: vault.recoveryKey })).rejects.toThrow('outra chave');
+  const before = await storedEntries(); expect(before.find(([key]) => key === id)![1].fingerprint).toBe(original.fingerprint);
+  expect(before.filter(([key]) => typeof key === 'string' && key.startsWith(JSON.stringify(['previous-device-key', owner, vault.header.id]).slice(0, -1)))).toHaveLength(0);
+  const recovered = await recoverVault(owner, vault.header, vault.recoveryKey);
+  await rememberDeviceVault(recovered, { recoveryKey: vault.recoveryKey, replaceInvalidRecord: true });
+  const entries = await storedEntries(), archived = entries.filter(([key]) => typeof key === 'string' && key.startsWith(JSON.stringify(['previous-device-key', owner, vault.header.id]).slice(0, -1)));
+  expect(archived).toHaveLength(1); expect(JSON.parse(String(archived[0][0])).slice(0, 3)).toEqual(['previous-device-key', owner, vault.header.id]);
+  expect(archived[0][1].fingerprint).toBe(original.fingerprint); expect(archived[0][1].header).toEqual(original.header); expect(archived[0][1].probe).toEqual(original.probe); expect(archived[0][1].recovery).toEqual(original.recovery);
+  const restored = await readDeviceVault(owner, vault.header); expect(restored).not.toBeNull(); expect(restored!.deviceKeyForStorage().extractable).toBe(false);
+  expect(await restored!.openText(proof, 'repair-proof')).toBe('same private data after repair'); expect(await readDeviceRecovery(restored!)).toBe(vault.recoveryKey);
+  expect(JSON.stringify(entries)).not.toContain(vault.recoveryKey);
+  restored!.dispose(); recovered.dispose(); vault.session.dispose();
+}, 15000);

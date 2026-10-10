@@ -5,6 +5,7 @@ import { requestWorkspaceUI } from '@/workspace/uiRequests';
 import { useConfigStore } from '@/config/store';
 import { useSidebarStore } from '@/workspace/sidebarPreference';
 import { createAssistantTools, executeWorkspaceAction, readWorkspace } from './workspaceTools';
+import type { NoteCanvasDocument } from '@/workspace/noteCanvasModel';
 
 beforeEach(async () => {
   await store.persist.rehydrate();
@@ -43,6 +44,17 @@ it('rejects unknown action fields before mutating state', async () => {
   expect(Object.values(store.getState().projects)).toHaveLength(0);
 });
 
+it('lets the assistant create and update project icons through the same validated store actions', async () => {
+  const project = await executeWorkspaceAction({ action: 'create_project', name: 'Robô', appearance: { icon: 'GearIcon', color: '#60a5fa' } }) as { id: string };
+  expect(store.getState().projects[project.id].appearance).toEqual({ icon: 'GearIcon', color: '#60a5fa' });
+  await executeWorkspaceAction({ action: 'update_project', id: project.id, patch: { appearance: { icon: 'FutureRobotIcon', color: '#10b981' } } });
+  expect(readWorkspace({ collection: 'projects', id: project.id }).items[0]).toMatchObject({ appearance: { icon: 'FutureRobotIcon', color: '#10b981' } });
+  const before = store.getState();
+  await expect(executeWorkspaceAction({ action: 'create_project', name: 'Inválido', appearance: { icon: '🚀', color: '#60a5fa' } })).rejects.toThrow();
+  await expect(executeWorkspaceAction({ action: 'update_project', id: project.id, patch: { name: 'Não aplicar', appearance: { icon: 'GearIcon', color: 'red' } } })).rejects.toThrow();
+  expect(store.getState()).toBe(before);
+});
+
 it('stops a cancelled action before it writes', async () => {
   const controller = new AbortController(); controller.abort();
   await expect(executeWorkspaceAction({ action: 'create_project', name: 'Projeto' }, controller.signal)).rejects.toThrow();
@@ -56,6 +68,50 @@ it('returns paginated workspace records without configuration credentials', () =
   expect(result.items).toHaveLength(1);
   expect(result.total).toBe(2);
   expect(JSON.stringify(result)).not.toContain('secret-sentinel');
+});
+
+it('summarizes visual notes without exposing pixels or diagram internals to workspace reads', () => {
+  const id = store.getState().createNote({ title: 'Caderno visual' });
+  const visualNote = { ...store.getState().notes[id], canvas: {
+    version: 1, width: 1000, height: 800, strokes: [{ id: 'stroke', points: [{ x: 1, y: 2 }], color: '#fff', width: 2 }],
+    items: [
+      { id: 'image', kind: 'image', src: 'data:image/png;base64,private-pixels-sentinel', label: 'Placa do protótipo', x: 0, y: 0, width: 200, height: 100 },
+      { id: 'text', kind: 'text', text: 'Comparar hipóteses de carga', color: '#fff', fontSize: 18, x: 10, y: 10, width: 200, height: 100 },
+      { id: 'diagram', kind: 'diagram', diagram: { title: 'Torque por distância', elements: [{ private: 'diagram-internals-sentinel' }] }, values: {}, x: 20, y: 20, width: 200, height: 100 },
+    ],
+  } as unknown as NoteCanvasDocument };
+  store.setState({ notes: { [id]: visualNote } });
+
+  const listing = readWorkspace({ collection: 'notes' });
+  expect(listing.items[0]).not.toHaveProperty('canvas');
+  expect(listing.items[0]).toHaveProperty('canvasSummary', { strokeCount: 1, itemCount: 3, imageCount: 1, textCount: 1, diagramCount: 1 });
+  expect(JSON.stringify(listing)).not.toContain('Placa do protótipo');
+  const detail = readWorkspace({ collection: 'notes', id });
+  expect(detail.items[0]).not.toHaveProperty('canvas');
+  expect(detail.items[0]).toHaveProperty('canvasSummary.items', [
+    { id: 'image', kind: 'image', label: 'Placa do protótipo' },
+    { id: 'text', kind: 'text', text: 'Comparar hipóteses de carga' },
+    { id: 'diagram', kind: 'diagram', title: 'Torque por distância' },
+  ]);
+  expect(JSON.stringify(detail)).not.toMatch(/private-pixels-sentinel|data:image|diagram-internals-sentinel/);
+  expect(readWorkspace({ collection: 'notes', query: 'private-pixels-sentinel' }).total).toBe(0);
+  expect(readWorkspace({ collection: 'notes', query: 'hipóteses de carga' }).total).toBe(1);
+});
+
+it('bounds visual note context even when many large items are present', () => {
+  const id = store.getState().createNote({ title: 'Rascunhos' });
+  const visualNote = { ...store.getState().notes[id], canvas: {
+    version: 1, width: 1000, height: 800, strokes: [],
+    items: Array.from({ length: 120 }, (_, index) => ({ id: `text-${index}`, kind: 'text', text: 'a'.repeat(50_000), color: '#fff', fontSize: 18, x: 0, y: 0, width: 200, height: 100 })),
+  } as unknown as NoteCanvasDocument };
+  store.setState({ notes: { [id]: visualNote } });
+  const detail = readWorkspace({ collection: 'notes', id });
+  const summary = detail.items[0].canvasSummary as { itemCount: number; items: { text?: string }[]; omittedItems: number };
+  expect(summary.itemCount).toBe(120);
+  expect(summary.items.length).toBeLessThanOrEqual(30);
+  expect(summary.items.reduce((count, item) => count + (item.text?.length ?? 0), 0)).toBeLessThanOrEqual(4000);
+  expect(summary.items.every(item => !item.text || item.text.length <= 500)).toBe(true);
+  expect(summary.omittedItems).toBeGreaterThan(0);
 });
 
 it('reports the explicit chat context separately from the visible workspace project', async () => {

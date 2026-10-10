@@ -61,3 +61,15 @@
 @media (pointer:coarse) {
   .planner-detail-footer .btn, .planner-detail-content .btn:not(.btn-icon) { min-height:44px; }
 }
+@media (max-width:767px) {
+  .planner-detail-sheet { font-size:14px; line-height:1.55; }
+  .planner-detail-sheet :is(.text-body,.text-control,.label) { font-size:14px; line-height:1.55; }
+  .planner-detail-sheet .text-footnote { font-size:12px; line-height:1.5; }
+  .planner-detail-sheet :is(input,textarea,select) { font-size:16px; }
+  .planner-detail-sheet :is(.btn,summary,select) { min-height:44px; }
+  .planner-detail-sheet .btn-icon { min-width:44px; min-height:44px; }
+  .planner-detail-sheet .planner-detail-header { padding:12px 16px; }
+  .planner-detail-sheet .planner-detail-status .chip { min-height:26px; font-size:12px; }
+  .planner-detail-footer .btn { min-height:44px!important; font-size:14px; }
+  .planner-detail-sheet :is(pre,code) { overflow-wrap:anywhere; }
+}

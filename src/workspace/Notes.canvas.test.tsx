@@ -1,0 +1,167 @@
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { Simulate } from 'react-dom/test-utils';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { useLocaleStore } from '@/i18n';
+import { useWorkspaceStore as store, flushWorkspacePersistence } from './store';
+import { createWorkspaceBackup, restoreWorkspaceBackup } from '@/data/workspaceTransfer';
+import { createNoteCanvas } from './noteCanvasModel';
+import { Notes } from './Notes';
+import { importNoteImage } from './noteImages';
+import { readVisualMedia } from '@/visuals/media';
+import { torqueDiagram } from '@/visuals/diagram/fixture';
+import { assertDataTransitionIdle, hasActiveDataIngestions, registerDataIngestion } from '@/cloud/activity';
+
+vi.mock('./noteImages', async importOriginal => ({...await importOriginal<typeof import('./noteImages')>(),importNoteImage:vi.fn()}));
+vi.mock('@/visuals/media', async importOriginal => ({...await importOriginal<typeof import('@/visuals/media')>(),readVisualMedia:vi.fn()}));
+vi.mock('@/cloud/activity', async importOriginal => {const actual=await importOriginal<typeof import('@/cloud/activity')>(); return {...actual,registerDataIngestion:vi.fn(actual.registerDataIngestion)};});
+const pixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6cWoAAAAASUVORK5CYII=';
+let host:HTMLDivElement, root:Root, id:string;
+beforeEach(async () => {
+  (globalThis as {IS_REACT_ACT_ENVIRONMENT?:boolean}).IS_REACT_ACT_ENVIRONMENT = true;
+  useLocaleStore.setState({locale:'pt-BR'}); await store.persist.rehydrate();
+  store.setState({notes:{},projects:{},tasks:{},folders:{}});
+  id = store.getState().createNote({title:'Caderno de teste'});
+  store.getState().updateNote(id, {blocks:[{id:'paragraph',type:'text',text:'Minha observação original.'}]});
+  vi.mocked(importNoteImage).mockResolvedValue({src:pixel,width:100,height:60,label:'Imagem colada'});
+  host = document.createElement('div'); document.body.append(host); root = createRoot(host);
+  await act(async () => {root.render(<Notes initialNoteId={id}/>); await flushWorkspacePersistence();});
+});
+afterEach(async () => {await act(async () => root.unmount()); host.remove(); vi.clearAllMocks();});
+const button = (label:string) => host.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!;
+async function pasteImage() {
+  const event = new Event('paste', {bubbles:true,cancelable:true});
+  Object.defineProperty(event,'clipboardData',{value:{items:[{kind:'file',type:'image/png',getAsFile:() => new File(['png'],'test.png',{type:'image/png'})}],files:[],getData:() => ''}});
+  await act(async () => {host.querySelector('[data-block]')!.dispatchEvent(event); await flushWorkspacePersistence();});
+  return event;
+}
+it('opens a compact drawing mode and restores the same text editor when leaving it', async () => {
+  const paragraph = host.querySelector<HTMLTextAreaElement>('[data-block]')!;
+  act(() => Simulate.click(button('Desenhar na nota')));
+  expect(host.querySelector('.ws-note-editor.is-drawing')).not.toBeNull();
+  expect(host.querySelector<HTMLElement>('.ws-note-format')?.hidden).toBe(true);
+  expect(host.querySelector('[data-note-canvas]')).not.toBeNull();
+  act(() => Simulate.click(button('Maximizar editor')));
+  expect(host.querySelector('.ws-notes.is-maximized')).not.toBeNull();
+  act(() => Simulate.click(button('Voltar ao texto')));
+  expect(host.querySelector('[data-block]')).toBe(paragraph);
+  expect(paragraph.value).toBe('Minha observação original.');
+});
+it('pastes images into the note, keeps existing text, and preserves the notebook through backup and rehydration', async () => {
+  const event = await pasteImage(); expect(event.defaultPrevented).toBe(true);
+  const canvas = store.getState().notes[id].canvas!;
+  expect(canvas.items).toHaveLength(1); expect(canvas.items[0]).toMatchObject({kind:'image',src:pixel});
+  expect(store.getState().notes[id].blocks[0].text).toBe('Minha observação original.');
+  expect(host.querySelector('.ws-note-notebook')?.hasAttribute('hidden')).toBe(false);
+  const backup = createWorkspaceBackup(store.getState(), Date.now());
+  expect(restoreWorkspaceBackup(backup).notes[id].canvas).toEqual(canvas);
+  await act(async () => {await flushWorkspacePersistence(); await store.persist.rehydrate();});
+  expect(store.getState().notes[id].canvas).toEqual(canvas);
+});
+it('does not alter a trashed note on paste', async () => {
+  await act(async () => {store.getState().trashNote(id); await flushWorkspacePersistence();});
+  act(() => Simulate.click(button('Apagadas recentemente')));
+  expect(await pasteImage()).toMatchObject({defaultPrevented:false});
+  expect(importNoteImage).not.toHaveBeenCalled();
+});
+it('pastes an image snapshot copied from the plan without inserting its JSON into the text', async () => {
+  vi.mocked(readVisualMedia).mockResolvedValue(new Blob(['image'],{type:'image/png'}));
+  const event = new Event('paste',{bubbles:true,cancelable:true});
+  const text = 'cellproject-visual-artifact:v1\n' + JSON.stringify({version:1,projectId:'plan',ownerId:null,view:{yaw:0,pitch:0,explosion:0,selectedPart:null},artifact:{id:'image',label:'Board',kind:'image',x:0,y:0,width:280,height:220,linkedNodeId:null,scene:null,mediaId:'media',source:null,revisions:[{scene:null,mediaId:'media',createdAt:1}],revisionIndex:0}});
+  Object.defineProperty(event,'clipboardData',{value:{items:[],files:[],getData:() => text}});
+  await act(async () => {host.querySelector('[data-block]')!.dispatchEvent(event); await flushWorkspacePersistence();});
+  expect(event.defaultPrevented).toBe(true);
+  expect(readVisualMedia).toHaveBeenCalledWith('media');
+  expect(store.getState().notes[id].canvas?.items[0]).toMatchObject({kind:'image',src:pixel});
+  expect(store.getState().notes[id].blocks[0].text).toBe('Minha observação original.');
+});
+it('cancels an in-flight image paste when leaving the note', async () => {
+  let finish!: (value:Awaited<ReturnType<typeof importNoteImage>>) => void;
+  vi.mocked(importNoteImage).mockImplementation(() => new Promise(resolve => {finish = resolve;}));
+  await pasteImage();
+  const signal = vi.mocked(importNoteImage).mock.calls[0][1]!;
+  let other = ''; act(() => {other = store.getState().createNote({title:'Outra nota'});});
+  await act(async () => root.render(<Notes key={other} initialNoteId={other}/>));
+  await act(async () => {finish({src:pixel,width:100,height:60,label:'Imagem atrasada'}); await flushWorkspacePersistence();});
+  expect(signal.aborted).toBe(true);
+  expect(store.getState().notes[id].canvas).toBeUndefined();
+  expect(store.getState().notes[other].canvas).toBeUndefined();
+});
+it('pastes an interactive diagram independently of its source plan links', async () => {
+  const event = new Event('paste',{bubbles:true,cancelable:true});
+  const diagram = torqueDiagram('plan-servo','plan-test');
+  const text = 'cellproject-visual-artifact:v1\n' + JSON.stringify({version:1,projectId:'plan',ownerId:null,view:{yaw:0,pitch:0,explosion:0,selectedPart:null},artifact:{id:'diagram',label:diagram.title,kind:'diagram',diagram,diagramValues:{mass:.7},x:0,y:0,width:620,height:520,linkedNodeId:'plan-servo',scene:null,mediaId:null,source:null,revisions:[{scene:null,mediaId:null,diagram,createdAt:1}],revisionIndex:0}});
+  Object.defineProperty(event,'clipboardData',{value:{items:[],files:[],getData:() => text}});
+  await act(async () => {host.querySelector('[data-block]')!.dispatchEvent(event); await flushWorkspacePersistence();});
+  expect(event.defaultPrevented).toBe(true);
+  const item = store.getState().notes[id].canvas?.items[0];
+  expect(item?.kind).toBe('diagram');
+  if (item?.kind !== 'diagram') throw new Error('Expected diagram');
+  expect(item.diagram.elements.every(element => element.nodeId === null)).toBe(true);
+  expect(item.values.mass).toBe(.7);
+  expect(host.querySelector<HTMLInputElement>('.kind-diagram input[type="range"]')?.value).toBe('0.7');
+  expect(host.querySelectorAll('.kind-diagram input[type="range"]')).toHaveLength(2);
+});
+it('validates canvas updates and preserves ink when only note text is edited', async () => {
+  const canvas = {...createNoteCanvas(),strokes:[{id:'stroke',color:'#a896c9',width:2,points:[{x:10,y:20},{x:30,y:40}]}]};
+  await act(async () => store.getState().updateNote(id, {canvas}));
+  expect(() => store.getState().updateNote(id,{canvas:{...canvas,strokes:[...canvas.strokes,...canvas.strokes]}})).toThrow();
+  await act(async () => store.getState().updateNote(id,{title:'Título revisto'}));
+  expect(store.getState().notes[id].canvas).toEqual(canvas);
+});
+it('blocks backup/logout throughout an image conversion and releases the guard after saving', async () => {
+  let finish!: (value:Awaited<ReturnType<typeof importNoteImage>>) => void;
+  vi.mocked(importNoteImage).mockImplementation(() => new Promise(resolve => {finish = resolve;}));
+  await pasteImage();
+  expect(hasActiveDataIngestions()).toBe(true);
+  expect(() => assertDataTransitionIdle(false,false)).toThrow('leitura dos anexos');
+  expect(store.getState().notes[id].canvas).toBeUndefined();
+  await act(async () => {finish({src:pixel,width:100,height:60,label:'Imagem salva'}); await flushWorkspacePersistence();});
+  expect(store.getState().notes[id].canvas?.items).toHaveLength(1);
+  expect(hasActiveDataIngestions()).toBe(false);
+  expect(() => assertDataTransitionIdle(false,false)).not.toThrow();
+});
+it('releases a failed image conversion without changing the note', async () => {
+  let fail!: (reason:Error) => void;
+  vi.mocked(importNoteImage).mockImplementation(() => new Promise((_resolve,reject) => {fail = reject;}));
+  await pasteImage(); expect(hasActiveDataIngestions()).toBe(true);
+  await act(async () => {fail(new Error('noteImageInvalid'));});
+  expect(hasActiveDataIngestions()).toBe(false);
+  expect(store.getState().notes[id].canvas).toBeUndefined();
+  expect(store.getState().notes[id].blocks[0].text).toBe('Minha observação original.');
+});
+it('tracks copied media from its first read through conversion using one guard and cancels on close', async () => {
+  let read!: (value:Blob) => void, convert!: (value:Awaited<ReturnType<typeof importNoteImage>>) => void;
+  vi.mocked(readVisualMedia).mockImplementation(() => new Promise(resolve => {read = resolve;}));
+  vi.mocked(importNoteImage).mockImplementation(() => new Promise(resolve => {convert = resolve;}));
+  const event=new Event('paste',{bubbles:true,cancelable:true});
+  const text='cellproject-visual-artifact:v1\n'+JSON.stringify({version:1,projectId:'plan',ownerId:null,view:{yaw:0,pitch:0,explosion:0,selectedPart:null},artifact:{id:'image',label:'Board',kind:'image',x:0,y:0,width:280,height:220,linkedNodeId:null,scene:null,mediaId:'media',source:null,revisions:[{scene:null,mediaId:'media',createdAt:1}],revisionIndex:0}});
+  Object.defineProperty(event,'clipboardData',{value:{items:[],files:[],getData:() => text}});
+  await act(async () => {host.querySelector('[data-block]')!.dispatchEvent(event);});
+  expect(hasActiveDataIngestions()).toBe(true);
+  expect(registerDataIngestion).toHaveBeenCalledOnce();
+  await act(async () => {read(new Blob(['image'],{type:'image/png'}));});
+  expect(importNoteImage).toHaveBeenCalledOnce();
+  expect(hasActiveDataIngestions()).toBe(true);
+  expect(registerDataIngestion).toHaveBeenCalledOnce();
+  const signal=vi.mocked(importNoteImage).mock.calls[0][1]!;
+  await act(async () => root.unmount());
+  expect(signal.aborted).toBe(true);
+  expect(hasActiveDataIngestions()).toBe(false);
+  await act(async () => {convert({src:pixel,width:100,height:60,label:'Imagem atrasada'});});
+  expect(store.getState().notes[id].canvas).toBeUndefined();
+});
+it('releases a copied-media read immediately when closing before the read completes', async () => {
+  let read!: (value:Blob) => void;
+  vi.mocked(readVisualMedia).mockImplementation(() => new Promise(resolve => {read = resolve;}));
+  const event=new Event('paste',{bubbles:true,cancelable:true});
+  const text='cellproject-visual-artifact:v1\n'+JSON.stringify({version:1,projectId:'plan',ownerId:null,view:{yaw:0,pitch:0,explosion:0,selectedPart:null},artifact:{id:'image',label:'Board',kind:'image',x:0,y:0,width:280,height:220,linkedNodeId:null,scene:null,mediaId:'media',source:null,revisions:[{scene:null,mediaId:'media',createdAt:1}],revisionIndex:0}});
+  Object.defineProperty(event,'clipboardData',{value:{items:[],files:[],getData:() => text}});
+  await act(async () => {host.querySelector('[data-block]')!.dispatchEvent(event);});
+  expect(hasActiveDataIngestions()).toBe(true);
+  await act(async () => root.unmount());
+  expect(hasActiveDataIngestions()).toBe(false);
+  await act(async () => {read(new Blob(['image'],{type:'image/png'}));});
+  expect(importNoteImage).not.toHaveBeenCalled();
+  expect(store.getState().notes[id].canvas).toBeUndefined();
+});

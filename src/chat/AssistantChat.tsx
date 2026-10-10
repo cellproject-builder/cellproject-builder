@@ -7,6 +7,7 @@ import { useGraphStore } from '@/store';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { requestWorkspaceUI } from '@/workspace/uiRequests';
 import { Icon } from '@/workspace/ui';
+import { ChatBubbleIcon } from '@/components/ui/SoftIcons';
 import { ExplanationContent } from '@/components/Markdown';
 import { actionLabel, chatEn, chatPt } from './messages';
 import { chatCooldownUntil, retryChatPersistence, sendChatMessage, stopChat, useChatStore } from './store';
@@ -37,7 +38,7 @@ function imageSearchResult(value: unknown) {
   return { projectId: result.projectId, planId: typeof result.planId === 'string' ? result.planId : undefined, images, input: result.input, groups, fits, contextRevision: typeof result.contextRevision === 'string' ? result.contextRevision : undefined, searchUncertainty: typeof result.searchUncertainty === 'string' ? result.searchUncertainty.slice(0, 300) : '', contextPartial: result.contextPartial === true };
 }
 
-function ChatIcon() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M20 15a3 3 0 0 1-3 3H9l-5 3V6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3z" strokeLinejoin="round"/><path d="M8 8h8M8 12h5" strokeLinecap="round"/></svg>; }
+function ChatIcon() { return <ChatBubbleIcon size={20} />; }
 export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   const english = useLocaleStore((s) => s.locale) === 'en', tr = english ? chatEn : chatPt;
   const state = useChatStore();

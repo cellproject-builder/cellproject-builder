@@ -11,6 +11,9 @@ import { openPlanner, plannerBusy } from './planner';
 import { projectEvidenceProgress, projectProgress, useGraphStore } from '@/store';
 import { ProgressRing } from '@/components/ui/ProgressRing';
 import { AsciiWorkshop } from './AsciiWorkshop';
+import { ProjectIconPicker } from './project-appearance/ProjectIconPicker';
+import { ProjectIcon } from './project-appearance/projectIcons';
+import { DEFAULT_PROJECT_APPEARANCE } from './project-appearance/projectAppearance';
 
 function enterPlan(projectId: string) {
   openPlanner(projectId);
@@ -21,16 +24,18 @@ function enterPlan(projectId: string) {
 
 export function ProjectForm({ project, initialObjective = '', initialRules = [], onClose }: { project?: ManagedProject; initialObjective?: string; initialRules?: string[]; onClose: () => void }) {
   const tr = useT().workspace;
+  const english = useLocaleStore((s) => s.locale === 'en');
   const [name, setName] = useState(project?.name ?? '');
   const [objective, setObjective] = useState(project?.objective ?? initialObjective);
+  const [appearance, setAppearance] = useState(project?.appearance ?? DEFAULT_PROJECT_APPEARANCE);
   return <Modal open onClose={onClose} title={project ? tr.editProject : tr.newProject}>
     <form className="ws-form" onSubmit={(e) => { e.preventDefault(); attempt(() => {
       const store = useWorkspaceStore.getState();
-      if (project) store.updateProject(project.id, { name, objective });
+      if (project) store.updateProject(project.id, { name, objective, appearance });
       else {
         if (!objective.trim()) return;
         if (plannerBusy()) throw new Error('plannerBusy');
-        const id = store.createProject(name.trim() || objective.trim().slice(0, 80), objective);
+        const id = store.createProject(name.trim() || objective.trim().slice(0, 80), objective, appearance);
         enterPlan(id);
         if (initialRules.length) useGraphStore.getState().setObjectiveDraft({ rules: [...initialRules] });
       }
@@ -40,6 +45,7 @@ export function ProjectForm({ project, initialObjective = '', initialRules = [],
       <label>{tr.objective}<textarea autoFocus={!project} required={!project} value={objective} onChange={(e) => setObjective(e.target.value)} placeholder={tr.objectivePlaceholder} rows={4} /></label>
       {!project && initialRules.length > 0 && <section className="ws-study-rules" aria-label={tr.research.rulesLabel}><h3>{tr.research.rulesLabel}</h3><ul>{initialRules.map((rule) => <li key={rule}>{rule}</li>)}</ul><p>{tr.research.rulesHint}</p></section>}
       <label>{project ? tr.projectName : tr.optionalProjectName}<input autoFocus={Boolean(project)} required={Boolean(project)} value={name} onChange={(e) => setName(e.target.value)} placeholder={tr.namePlaceholder} maxLength={160} /></label>
+      <ProjectIconPicker value={appearance} onChange={setAppearance} english={english}/>
       <div className="ws-form-actions">{project && <button type="button" className="ws-button ws-push-left" onClick={() => { useWorkspaceStore.getState().updateProject(project.id, { archived: !project.archived }); onClose(); }}>{project.archived ? tr.unarchive : tr.archive}</button>}<button type="button" className="ws-button" onClick={onClose}>{tr.cancel}</button><button className="ws-button primary" disabled={project ? !name.trim() : !objective.trim()}>{project ? tr.save : tr.continueToPlan}</button></div>
     </form>
   </Modal>;
@@ -54,6 +60,7 @@ export function Projects() {
   const [creating, setCreating] = useState<{ objective: string; rules?: string[] } | null>(null);
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [starterInterest, setStarterInterest] = useState<number | null>(null);
+  const [editing, setEditing] = useState<ManagedProject | null>(null);
   const loadDemo = async () => {
     if (loadingDemo) return;
     setLoadingDemo(true);
@@ -91,18 +98,19 @@ export function Projects() {
       <details className="ws-research-question"><summary>{tr.research.questionLabel}</summary><p>{tr.research.question}</p></details>
       <p className="ws-research-case">{tr.research.caseLabel}</p>
     </section>}
-    {visible.length ? <div className="ws-project-grid">{visible.map((project, index) => {
+    {visible.length ? <div className="ws-project-grid">{visible.map((project) => {
       const progress = projectProgress(project.planner?.project ?? null);
       const evidence = projectEvidenceProgress(project.planner?.project ?? null);
-      return <button className="ws-project-card" key={project.id} onClick={() => attempt(() => enterPlan(project.id))}>
-        <div className="ws-card-top"><span className={`ws-project-symbol color-${index % 4}`}><Icon name="planner" size={22} /></span><Icon name="arrow" size={16} /></div>
+      return <div className="ws-project-card-shell" key={project.id}><button className="ws-project-card" onClick={() => attempt(() => enterPlan(project.id))}>
+        <div className="ws-card-top"><ProjectIcon appearance={project.appearance} size={22} decorated/><Icon name="arrow" size={16} /></div>
         <h2>{project.name}</h2><p>{project.objective || tr.planHint}</p>
         <div className="ws-card-plan-status">{progress.total > 0 ? <><span aria-hidden><ProgressRing total={progress.total} done={progress.done} withProof={evidence.withEvidence} /></span><span>{tr.resolvedParts(progress.done, progress.total)}</span></> : <span>{tr.draftPlan}</span>}</div>
         <div className="ws-card-meta"><span>{tr.evidenceCount(evidence.withEvidence)}{evidence.assumedKnown > 0 && ` · ${tr.knownCount(evidence.assumedKnown)}`}</span><span>{shortDate(project.updatedAt)}</span></div>
-      </button>;
+      </button><button className="ws-project-customize ws-icon-button" aria-label={`${english ? 'Customize project' : 'Personalizar projeto'} ${project.name}`} title={english ? 'Customize project' : 'Personalizar projeto'} onClick={() => setEditing(project)}><Icon name="edit" size={15}/></button></div>;
     })}</div> : <Empty title={all.length || query ? tr.noResults : tr.noProjects} hint={all.length || query ? tr.noResultsHint : tr.noProjectsHint}>
       {!archived && <button className="ws-button primary" onClick={() => setCreating({ objective: '' })}><Icon name="plus" />{tr.newProject}</button>}
     </Empty>}
     {creating !== null && <ProjectForm initialObjective={creating.objective} initialRules={creating.rules} onClose={() => setCreating(null)} />}
+    {editing && <ProjectForm project={editing} onClose={() => setEditing(null)}/>}
   </div>;
 }

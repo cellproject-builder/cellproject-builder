@@ -17,6 +17,8 @@ create table public.projects (
   name text not null check (length(btrim(name)) > 0),
   objective text not null default '',
   archived boolean not null default false,
+  -- Optional SVG export ID and hexadecimal color; unknown future IDs stay portable.
+  appearance jsonb check (appearance is null or jsonb_typeof(appearance) = 'object'),
   -- The full per-project planner snapshot preserves graph nodes/edges, drafts,
   -- paid suggestions, objective drafts and archives without flattening their schema.
   planner_snapshot jsonb check (planner_snapshot is null or jsonb_typeof(planner_snapshot) = 'object'),
@@ -88,6 +90,10 @@ create table public.notes (
   -- Ordered blocks retain IDs, type, text, checked/bold/italic as JSONB.
   -- No synthetic timestamps or IDs are invented for these embedded objects.
   blocks jsonb not null default '[]'::jsonb check (jsonb_typeof(blocks) = 'array'),
+  -- Optional notebook drawing/images/diagrams. Legacy notes remain NULL.
+  canvas jsonb check (canvas is null or jsonb_typeof(canvas) = 'object'),
+  -- Optional free ink over typed note sections, separate from the notebook.
+  ink jsonb check (ink is null or jsonb_typeof(ink) = 'object'),
   project_id text,
   task_id text,
   folder_id text,

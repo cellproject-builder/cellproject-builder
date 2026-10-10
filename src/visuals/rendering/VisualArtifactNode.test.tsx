@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({ listMentions: vi.fn(), handoff: vi.fn(), setLi
 vi.mock('../domain', () => ({ listMentionTargets: mocks.listMentions, removeVisualArtifact: vi.fn(), revertVisualArtifact: mocks.revert, setVisualArtifactLink: mocks.setLink, updateVisualArtifact: mocks.updateGeometry }));
 vi.mock('@/references/chatHandoff', () => ({ requestChatReferences: mocks.handoff }));
 vi.mock('@/workspace/planner', () => ({ getPlannerOwnerId: () => 'managed-project-1' }));
-vi.mock('../decomposition', () => ({ decompositionAssemblyCurrent: mocks.assemblyCurrent }));
+vi.mock('../decompositionState', () => ({ decompositionAssemblyCurrent: mocks.assemblyCurrent }));
 vi.mock('../ui/ModelArtifactEditor', () => ({ ModelArtifactEditor: ({ onClose }: { onClose: () => void }) => <div aria-label="Model adjustment"><button onClick={onClose}>Close editor</button></div> }));
 
 let host: HTMLDivElement;

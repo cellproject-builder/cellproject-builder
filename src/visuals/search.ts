@@ -8,7 +8,6 @@ import { compactSearchContext } from './searchContext';
 import { imageSearchQueries, resolveImageSearchIntent, type ImageSearchIntent } from './searchIntent';
 import type { ImageReference, VisualPromptInput, VisualSearchReview } from './types';
 
-let activeSearch: AbortController | null = null;
 const cancelled = () => new DOMException('Visual search scope changed or request cancelled.', 'AbortError');
 
 async function gateway(path: string, signal: AbortSignal, body?: unknown): Promise<unknown> {
@@ -46,8 +45,7 @@ function reviewFromResponse(raw: unknown): VisualSearchReview | undefined {
 /** Research supplies source pages only. Image URLs are extracted and registered by the local gateway. */
 export async function searchVisualImages(input: VisualPromptInput, options: { signal: AbortSignal; beforeRequest?: () => Promise<void>; projectBackground?: string; onIntent?: (intent: ImageSearchIntent) => void; onReview?: (review: VisualSearchReview) => void; onTargets?: (matches: Record<string, number[]>) => void }): Promise<ImageReference[]> {
   options.signal.throwIfAborted();
-  activeSearch?.abort();
-  const controller = new AbortController(); activeSearch = controller;
+  const controller = new AbortController();
   const abort = () => controller.abort(options.signal.reason);
   options.signal.addEventListener('abort', abort, { once: true });
   const projectId = useGraphStore.getState().project?.id ?? null;
@@ -116,7 +114,6 @@ export async function searchVisualImages(input: VisualPromptInput, options: { si
     return references;
   } finally {
     options.signal.removeEventListener('abort', abort);
-    if (activeSearch === controller) activeSearch = null;
   }
 }
 

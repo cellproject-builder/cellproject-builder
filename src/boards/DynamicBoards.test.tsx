@@ -1,0 +1,31 @@
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { Simulate } from 'react-dom/test-utils';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { useWorkspaceStore } from '@/workspace/store';
+import { DynamicBoards } from './DynamicBoards';
+vi.mock('./BoardCanvas',()=>({BoardCanvas:({boardId,onBack}:{boardId:string;onBack():void})=><section data-open-board={boardId}><button onClick={onBack}>Voltar aos quadros</button></section>}));
+let host:HTMLDivElement,root:Root;
+beforeEach(()=>{(globalThis as {IS_REACT_ACT_ENVIRONMENT?:boolean}).IS_REACT_ACT_ENVIRONMENT=true;useWorkspaceStore.setState({boards:{},activeBoardId:null,projects:{},notes:{},surface:'boards'});host=document.createElement('div');document.body.append(host);root=createRoot(host);});
+afterEach(()=>{act(()=>root.unmount());host.remove();});
+it('creates and reopens a standalone board without creating notes or projects',()=>{
+  act(()=>root.render(<DynamicBoards english={false}/>));
+  act(()=>Simulate.click(host.querySelector('[aria-label="Novo quadro"]')!));
+  const state=useWorkspaceStore.getState(),id=state.activeBoardId!;
+  expect(state.boards[id].title).toBe('Novo quadro');expect(state.notes).toEqual({});expect(state.projects).toEqual({});
+  expect(host.querySelector('[data-open-board]')?.getAttribute('data-open-board')).toBe(id);
+  act(()=>Simulate.click(host.querySelector('[data-open-board] button')!));
+  expect(host.textContent).toContain('Novo quadro');
+  act(()=>Simulate.click(host.querySelector(`[data-board-open="${id}"]`)!));
+  expect(useWorkspaceStore.getState().activeBoardId).toBe(id);
+});
+it('archives and restores boards from the library without deleting their contents',()=>{
+  const id=useWorkspaceStore.getState().createBoard('Ideias');useWorkspaceStore.setState({activeBoardId:null});
+  act(()=>root.render(<DynamicBoards/>));
+  act(()=>Simulate.click(host.querySelector(`[data-board-archive="${id}"]`)!));
+  expect(useWorkspaceStore.getState().boards[id].archived).toBe(true);
+  expect(host.querySelector(`[data-board-open="${id}"]`)).toBeNull();
+  act(()=>Simulate.click(host.querySelector('[aria-label="Quadros arquivados"]')!));
+  act(()=>Simulate.click(host.querySelector(`[data-board-restore="${id}"]`)!));
+  expect(useWorkspaceStore.getState().boards[id].archived).toBe(false);
+});

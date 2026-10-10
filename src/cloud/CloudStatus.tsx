@@ -1,12 +1,11 @@
 import { getVaultSession, vaultIsProtected } from './vault/privacy';
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
-import { ExclamationTriangleIcon } from '@radix-ui/react-icons';
+import { ExclamationTriangleIcon } from '@/components/ui/SoftIcons';
 import { captureLegacyBackup, downloadBackup } from './migration';
 import { CloudRuntime, cloudJson, getCloudRuntime, mutationHeaders } from './runtime';
 import { CloudMigration } from './CloudMigration';
 import { downloadSessionRescue } from './rescue';
 import { assertDataTransitionIdle } from './activity';
-import { downloadDeviceRecovery } from './vault/deviceKeys';
 
 async function requireDataIdle() {
   const [chat, planner] = await Promise.all([import('@/chat/store'), import('@/workspace/planner')]);
@@ -42,7 +41,6 @@ export function CloudStatus({ runtime, userId, email, onLogout }: { runtime: Clo
   useEffect(() => { setSaved(false); setRescued(false); }, [status]);
   useEffect(() => { let live = true; void import('@/store').then(graph => { if (live) pendingGraph.current = graph.hasPendingGraphPersistence; }); const unload = (event: BeforeUnloadEvent) => { if (runtime.getSnapshot().pending || pendingGraph.current()) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', unload); return () => { live = false; window.removeEventListener('beforeunload', unload); }; }, [runtime]);
   async function backup() { setBusy(true); setError(''); try { await saveCurrentBackup(runtime); setSaved(true); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha no backup.'); } finally { setBusy(false); } }
-  async function recoveryKey() { setBusy(true); setError(''); try { const session = getVaultSession(); if (!session) throw new Error('Abra o cofre antes de baixar a recuperação.'); await downloadDeviceRecovery(session); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível baixar a recuperação.'); } finally { setBusy(false); } }
   async function leave() {
     if (busy) return; setBusy(true); setError('');
     try {
@@ -60,7 +58,7 @@ export function CloudStatus({ runtime, userId, email, onLogout }: { runtime: Clo
     </button>
     {panelVisible && <div className="cloud-status-panel" id={panelId}><strong>{email}</strong>
       {status.issue && <><p role="alert">{status.issue.message} Seu trabalho atual continua nesta sessão.</p><small>{status.issue.key}</small></>}
-      {vaultIsProtected() && <><p>Cofre aberto. Este navegador permanece lembrado após sair; o próximo acesso exige login. Limpar seus dados ou usar outro dispositivo exige recuperação.</p><button disabled={busy} onClick={() => void recoveryKey()}>Baixar chave de recuperação</button></>}
+      {vaultIsProtected() && <p>Seus dados estão protegidos. Este aparelho continua autorizado após sair da conta. Use sua senha para entrar.</p>}
       <p>Dados remotos são a fonte principal. Rascunhos sem confirmação ficam somente na memória desta aba.</p>
       <button disabled={busy} onClick={() => {
         setBusy(true); setSendingPasswordLink(true); setError(''); setPasswordLinkSent(false);
@@ -83,8 +81,7 @@ export function CloudDataControls() {
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [importing, setImporting] = useState(false);
   const cloud = getCloudRuntime();
   return <section><h3>Dados e backup</h3><p className="text-control text-text-secondary">Backup completo: planos, chat, documentos e arquivos. {getVaultSession() ? 'O arquivo .ddvault é criptografado com a chave do cofre.' : 'O arquivo .zip é legível; guarde em local privado.'} As chaves de IA ficam de fora.</p><div className="cloud-actions"><button className="ws-button" disabled={busy} onClick={() => { setBusy(true); setError(''); void saveCurrentBackup().catch(reason => setError(reason instanceof Error ? reason.message : 'Falha no backup.')).finally(() => setBusy(false)); }}>{busy ? 'Preparando…' : 'Exportar backup global'}</button>
-    {getVaultSession() && <button className="ws-button" disabled={busy} onClick={() => { setBusy(true); setError(''); const session = getVaultSession()!; void downloadDeviceRecovery(session).catch(reason => setError(reason.message)).finally(() => setBusy(false)); }}>Baixar chave de recuperação</button>}
-    {cloud && <button className="ws-button" disabled={busy} onClick={() => { setBusy(true); setError(''); void prepareCurrentData(true).then(() => cloud.flush()).then(() => saveCurrentBackup(cloud)).then(() => setImporting(true)).catch(reason => setError(reason.message)).finally(() => setBusy(false)); }}>Baixar cópia atual e importar backup</button>}</div>{getVaultSession() && <p className="text-control text-text-secondary">A recuperação é opcional e abre seus dados em outro navegador. Em cofres antigos, sua frase ou chave original continua válida.</p>}{error && <p role="alert">{error}</p>}
+    {cloud && <button className="ws-button" disabled={busy} onClick={() => { setBusy(true); setError(''); void prepareCurrentData(true).then(() => cloud.flush()).then(() => saveCurrentBackup(cloud)).then(() => setImporting(true)).catch(reason => setError(reason.message)).finally(() => setBusy(false)); }}>Baixar cópia atual e importar backup</button>}</div>{getVaultSession() && <p className="text-control text-text-secondary">Para recuperar a senha pelo e-mail, use um aparelho já autorizado. Sem a senha e sem esse aparelho, os dados privados não podem ser recuperados.</p>}{error && <p role="alert">{error}</p>}
     {importing && cloud && <div className="cloud-import-overlay" role="dialog" aria-modal="true" aria-label="Importar backup global"><CloudMigration backup={null} snapshot={{ documents: cloud.documents(), media: cloud.media() }} onContinue={() => setImporting(false)} onDone={() => window.location.reload()}/></div>}
   </section>;
 }

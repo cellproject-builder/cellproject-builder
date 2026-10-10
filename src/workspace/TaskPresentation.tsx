@@ -1,4 +1,4 @@
-import { ArrowDownIcon, ArrowUpIcon, BarChartIcon, CheckCircledIcon, CircleIcon, CountdownTimerIcon, Half2Icon } from '@radix-ui/react-icons';
+import { ArrowDownIcon, ArrowUpIcon, BarChartIcon, CheckCircledIcon, CircleIcon, CountdownTimerIcon, Half2Icon } from '@/components/ui/SoftIcons';
 import { useT } from '@/i18n';
 import { useWorkspaceStore } from './store';
 import { TASK_STATUSES, type Priority, type Task, type TaskStatus } from './types';

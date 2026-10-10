@@ -19,7 +19,7 @@ vi.mock('./controller', () => ({
   setVisualPlacementResolver: vi.fn(), useVisualSearchStore: () => null,
   applyModelAtViewport: vi.fn(), runVisualGeneration: vi.fn(), runVisualSearch: vi.fn(),
 }));
-vi.mock('./ui/VisualExplorer', () => ({ VisualExplorer: () => null }));
+vi.mock('./ui/TabbedVisualExplorer', () => ({ TabbedVisualExplorer: () => null }));
 vi.mock('./media', () => ({ addLocalImage: vi.fn(), addReferenceImage: vi.fn(), attachVisualFile: vi.fn(), readVisualMedia: vi.fn() }));
 vi.mock('./clipboard', () => ({ copyVisualReference: vi.fn(), referenceFromClipboard: vi.fn() }));
 vi.mock('./search', () => ({ reviewVisualReference: vi.fn() }));

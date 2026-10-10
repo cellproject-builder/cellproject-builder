@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { CalendarIcon, ChatBubbleIcon, ChevronDownIcon, ChevronRightIcon, Link2Icon, PlusIcon } from '@radix-ui/react-icons';
+import { CalendarIcon, ChatBubbleIcon, ChevronDownIcon, ChevronRightIcon, Link2Icon, PlusIcon } from '@/components/ui/SoftIcons';
 import { useLocaleStore, useT } from '@/i18n';
 import { TASK_STATUSES, type Task, type TaskStatus } from './types';
 import { PriorityMark, StatusIcon, TaskStatusControl, taskReference } from './TaskPresentation';

@@ -55,16 +55,16 @@ export async function readPreparedDeviceVault(ownerId: string): Promise<{ sessio
   return { session: await restore(ownerId, value.header, value), activation: value.activation };
 }
 /** Readback + authenticated probe are required before any remote activation is allowed. */
-export async function rememberDeviceVault(session: VaultSession, options: { recoveryKey?: string; activation?: PreparedVaultActivation } = {}) {
+export async function rememberDeviceVault(session: VaultSession, options: { recoveryKey?: string; activation?: PreparedVaultActivation; replaceInvalidRecord?: boolean } = {}) {
   const id = recordId(session.ownerId, session.header.id), previous = await read<DeviceRecord>(id);
-  if (previous && previous.fingerprint !== await fingerprint(session.header)) throw new Error('Já existe outra chave para este cofre neste navegador.');
+  if (previous && previous.fingerprint !== await fingerprint(session.header) && !options.replaceInvalidRecord) throw new Error('Já existe outra chave para este cofre neste navegador.');
   const record: DeviceRecord = {
     version: 1, ownerId: session.ownerId, vaultId: session.header.id, header: session.header, fingerprint: await fingerprint(session.header),
     key: session.deviceKeyForStorage(), probe: await session.seal(PROBE, 'device-key-probe'),
-    recovery: options.recoveryKey ? await session.seal(options.recoveryKey, 'device-recovery') : previous?.recovery ?? null,
+    recovery: options.recoveryKey ? await session.seal(options.recoveryKey, 'device-recovery') : options.replaceInvalidRecord ? null : previous?.recovery ?? null,
     activation: options.activation ?? previous?.activation ?? null,
   };
-  await storage<void>('readwrite', store => { store.put(record, id); if (record.activation) store.put(id, pendingId(session.ownerId)); });
+  await storage<void>('readwrite', store => { if (previous && options.replaceInvalidRecord) store.put(previous, JSON.stringify(['previous-device-key', session.ownerId, session.header.id, crypto.randomUUID()])); store.put(record, id); if (record.activation) store.put(id, pendingId(session.ownerId)); });
   const saved = await read<DeviceRecord>(id); if (!saved) throw new Error('A chave não foi confirmada neste navegador. Nenhum dado remoto foi alterado.');
   const tested = await restore(session.ownerId, session.header, saved);
   try {

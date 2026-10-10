@@ -3,10 +3,25 @@ import { persist, createJSONStorage, type StateStorage } from 'zustand/middlewar
 import { workspaceRepository } from '@/data/workspaceRepository';
 import { getCloudRuntime } from '@/cloud/runtime';
 import { nanoid } from 'nanoid';
+import { noteCanvasSchema } from './noteCanvasModel';
+import { noteInkSchema } from './noteInkModel';
+import { assertNoteImageBudget } from './noteImages';
+import { validatePersistedNoteCanvases } from './noteCanvasPersistence';
+import { projectAppearanceSchema, type ProjectAppearance } from './project-appearance/projectAppearance';
+import { assertBoardWorkspaceImageBudget, boardRecordSchema, createBoardDocument, validatePersistedBoards, type BoardRecord } from '@/boards/model';
 import { TASK_STATUSES, type ManagedProject, type Task, type TaskInput, type TaskComment, type Sprint, type SprintInput, type Note, type Folder, type PlannerSnapshot, type Surface } from './types';
 
 let writes: Promise<void> = Promise.resolve();
 let lastWriteError: unknown = null;
+interface HydrationAttempt {
+  source: ReturnType<typeof getCloudRuntime>;
+  done: Promise<void>;
+  finish: () => void;
+  pending: boolean;
+  reported: boolean;
+  error?: unknown;
+}
+let hydrationAttempt: HydrationAttempt | undefined;
 const storage: StateStorage = {
   getItem: (key) => workspaceRepository.getItem(key),
   setItem: (key, value) => {
@@ -36,6 +51,8 @@ const validDate = (date: string) => /^\d{4}-\d{2}-\d{2}$/.test(date) &&
   Number.isFinite(Date.parse(date)) && new Date(date).toISOString().slice(0, 10) === date;
 
 export interface WorkspaceState {
+  boards: Record<string, BoardRecord>;
+  activeBoardId: string | null;
   projects: Record<string, ManagedProject>;
   tasks: Record<string, Task>;
   comments: Record<string, TaskComment>;
@@ -45,8 +62,11 @@ export interface WorkspaceState {
   activeProjectId: string | null;
   surface: Surface;
   legacyImported: boolean;
-  createProject: (name: string, objective?: string) => string;
-  updateProject: (id: string, patch: Partial<Pick<ManagedProject, 'name' | 'objective' | 'archived'>>) => void;
+  createBoard: (title?: string) => string;
+  openBoard: (id: string) => void;
+  updateBoard: (id: string, patch: Partial<Pick<BoardRecord, 'title' | 'archived' | 'document'>>) => void;
+  createProject: (name: string, objective?: string, appearance?: ProjectAppearance) => string;
+  updateProject: (id: string, patch: Partial<Pick<ManagedProject, 'name' | 'objective' | 'archived' | 'appearance'>>) => void;
   selectProject: (id: string) => void;
   navigate: (surface: Surface) => void;
   savePlanner: (id: string, snapshot: PlannerSnapshot) => void;
@@ -61,7 +81,7 @@ export interface WorkspaceState {
   startSprint: (id: string) => void;
   completeSprint: (id: string) => void;
   createNote: (input?: Partial<Pick<Note, 'projectId' | 'taskId' | 'folderId' | 'title'>>) => string;
-  updateNote: (id: string, patch: Partial<Pick<Note, 'title' | 'blocks' | 'projectId' | 'taskId' | 'folderId' | 'pinned'>>) => void;
+  updateNote: (id: string, patch: Partial<Pick<Note, 'title' | 'blocks' | 'canvas' | 'ink' | 'projectId' | 'taskId' | 'folderId' | 'pinned'>>) => void;
   trashNote: (id: string) => void;
   restoreNote: (id: string) => void;
   createFolder: (name: string) => string;
@@ -79,24 +99,50 @@ function checkTask(state: WorkspaceState, task: Task) {
   }
 }
 function checkNote(state: WorkspaceState, note: Note) {
+  if (note.ink !== undefined) noteInkSchema.parse(note.ink);
+  if (note.canvas) {
+    noteCanvasSchema.parse(note.canvas);
+    assertNoteImageBudget(Object.values(state.notes).filter(item => item.id !== note.id), {}, note.canvas.items.flatMap(item => item.kind === 'image' ? [item.src] : []));
+  }
   if (note.projectId && !state.projects[note.projectId]) throw new Error('projectMissing');
   if (note.folderId && !state.folders[note.folderId]) throw new Error('folderMissing');
   if (note.taskId && (!state.tasks[note.taskId] || state.tasks[note.taskId].projectId !== note.projectId)) throw new Error('invalidTask');
+  assertBoardWorkspaceImageBudget(state.boards ?? {}, { ...state.notes, [note.id]: note });
 }
 
 export const useWorkspaceStore = create<WorkspaceState>()(persist((set, get) => ({
+  boards: {}, activeBoardId: null,
   projects: {}, tasks: {}, comments: {}, sprints: {}, notes: {}, folders: {},
   activeProjectId: null, surface: 'projects', legacyImported: false,
-  createProject: (name, objective = '') => {
+  createBoard: (title = 'Novo quadro') => {
     const id = nanoid(10), now = Date.now();
-    const project: ManagedProject = { id, name: required(name), objective: objective.trim(), archived: false, createdAt: now, updatedAt: now };
+    const board = boardRecordSchema.parse({ id, title, document: createBoardDocument(), archived: false, createdAt: now, updatedAt: now });
+    set(state => ({ boards: { ...state.boards, [id]: board }, activeBoardId: id, surface: 'boards' }));
+    return id;
+  },
+  openBoard: id => {
+    if (!get().boards[id]) throw new Error('boardMissing');
+    set({ activeBoardId: id, surface: 'boards' });
+  },
+  updateBoard: (id, patch) => set(state => {
+    const board = state.boards[id];
+    if (!board) throw new Error('boardMissing');
+    const next = boardRecordSchema.parse({ ...board, ...patch, id: board.id, createdAt: board.createdAt, updatedAt: Date.now() });
+    const boards = { ...state.boards, [id]: next };
+    assertBoardWorkspaceImageBudget(boards, state.notes);
+    return { boards };
+  }),
+  createProject: (name, objective = '', appearance) => {
+    const id = nanoid(10), now = Date.now();
+    const project: ManagedProject = { id, name: required(name), objective: objective.trim(), archived: false, createdAt: now, updatedAt: now, ...(appearance === undefined ? {} : { appearance: projectAppearanceSchema.parse(appearance) }) };
     set((s) => ({ projects: { ...s.projects, [id]: project }, activeProjectId: id, surface: 'overview' }));
     return id;
   },
   updateProject: (id, patch) => set((s) => {
     const project = s.projects[id];
     if (!project) throw new Error('projectMissing');
-    const next = { ...project, ...patch, updatedAt: Date.now() };
+    // Validate only the incoming customization; older projects keep their stored data.
+    const next = { ...project, ...patch, ...(patch.appearance === undefined ? {} : { appearance: projectAppearanceSchema.parse(patch.appearance) }), updatedAt: Date.now() };
     next.name = required(next.name);
     return { projects: { ...s.projects, [id]: next } };
   }),
@@ -221,10 +267,43 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set, get) => 
 }), {
   name: 'cellproject-workspace', version: 2,
   storage: createJSONStorage(() => storage),
-  partialize: ({ projects, tasks, comments, sprints, notes, folders, legacyImported }) => ({ projects, tasks, comments, sprints, notes, folders, legacyImported }),
-  migrate: (persisted) => ({ ...(persisted as Partial<WorkspaceState>), comments: (persisted as Partial<WorkspaceState>).comments ?? {} }),
+  partialize: ({ projects, tasks, comments, sprints, notes, folders, boards, legacyImported }) => ({ projects, tasks, comments, sprints, notes, folders, boards, legacyImported }),
+  migrate: (persisted) => ({ ...(persisted as Partial<WorkspaceState>), comments: (persisted as Partial<WorkspaceState>).comments ?? {}, boards: (persisted as Partial<WorkspaceState>).boards === undefined ? {} : (persisted as Partial<WorkspaceState>).boards }),
   merge: (persisted, current) => {
     const saved = persisted as Partial<WorkspaceState> | undefined;
-    return { ...current, ...saved, comments: saved?.comments ?? {} };
+    validatePersistedNoteCanvases(saved?.notes);
+    validatePersistedBoards(saved?.boards, saved?.notes);
+    return { ...current, ...saved, comments: saved?.comments ?? {}, boards: saved?.boards ?? {}, activeBoardId: null };
+  },
+  onRehydrateStorage: () => {
+    // A superseding hydration must release any bootstrap waiting on the old one.
+    hydrationAttempt?.finish();
+    let finish!: () => void;
+    const attempt: HydrationAttempt = {
+      source: getCloudRuntime(), done: new Promise<void>(resolve => { finish = resolve; }),
+      finish: () => { attempt.pending = false; finish(); }, pending: true, reported: false,
+    };
+    hydrationAttempt = attempt;
+    return (_state, error) => { attempt.error = error; attempt.finish(); };
   },
 }));
+
+/** Zustand absorbs hydration errors; surface them to bootstrap instead of waiting on Splash forever. */
+export async function ensureWorkspaceHydrated(): Promise<void> {
+  for (;;) {
+    let attempt = hydrationAttempt;
+    const sameSource = attempt?.source === getCloudRuntime();
+    if (sameSource && !attempt?.pending && !attempt?.error && useWorkspaceStore.persist.hasHydrated()) return;
+    if (!sameSource || !attempt || !attempt.pending && (!attempt.error || attempt.reported)) {
+      const loading = useWorkspaceStore.persist.rehydrate();
+      attempt = hydrationAttempt;
+      await loading;
+    }
+    await attempt?.done;
+    if (attempt !== hydrationAttempt) continue;
+    if (attempt) attempt.reported = true;
+    if (attempt?.error) throw attempt.error;
+    if (!useWorkspaceStore.persist.hasHydrated()) throw new Error('Não foi possível abrir os dados do workspace. Tente novamente.');
+    return;
+  }
+}

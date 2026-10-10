@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { MagicWandIcon } from '@radix-ui/react-icons';
+import { MagicWandIcon } from '@/components/ui/SoftIcons';
 import { useLocaleStore, useT } from '@/i18n';
 import type { NoteBlock } from './types';
 import { NoteRewriteDialog, type NoteTextTarget } from './NoteRewriteDialog';

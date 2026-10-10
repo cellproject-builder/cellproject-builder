@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { modelArtifactItem, modelItem } from './VisualCanvasLayer';
 import type { VisualArtifact } from '../types';
 import { modelSceneFingerprint } from '../modelAssembly';
-vi.mock('../decomposition', () => ({ decompositionAssemblyCurrent: () => true }));
+vi.mock('../decompositionState', () => ({ decompositionAssemblyCurrent: () => true }));
 
 describe('linked decomposition rendering', () => {
   it('zooms the camera projection without changing the modeled geometry, dimensions or assembly', () => {

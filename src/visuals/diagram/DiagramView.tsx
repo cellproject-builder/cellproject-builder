@@ -1,5 +1,7 @@
-import { createElement, useMemo } from 'react';
+import { createElement, useMemo, useRef } from 'react';
 import { diagramSchema, resolveDiagramElements, type DiagramV1 } from './model';
+import { readableDiagramElements } from './contrast';
+import { useDiagramPalette } from './useDiagramPalette';
 import './diagram.css';
 
 const attrs = ['x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'width', 'height', 'rx', 'd', 'points', 'fill', 'stroke', 'strokeWidth', 'fontSize'] as const;
@@ -8,11 +10,13 @@ export function DiagramView({ diagram, values = {}, nodeNames = {}, onParameter,
   diagram: DiagramV1; values?: Record<string, number>; nodeNames?: Record<string, string>; onParameter?: (id: string, value: number) => void; onSelectNode?: (id: string) => void; english?: boolean;
 }) {
   const parsed = useMemo(() => diagramSchema.safeParse(diagram), [diagram]);
+  const host = useRef<HTMLDivElement>(null);
+  const palette = useDiagramPalette(host, parsed.success);
   if (!parsed.success) return <span role="alert">{english ? 'Invalid diagram' : 'Diagrama inválido'}</span>;
   const valid = parsed.data;
   let elements;
-  try { elements = resolveDiagramElements(valid, values); } catch { return <span role="alert">{english ? 'Invalid diagram parameters' : 'Parâmetros do diagrama inválidos'}</span>; }
-  return <div className="visual-diagram">
+  try { elements = readableDiagramElements(resolveDiagramElements(valid, values), palette); } catch { return <span role="alert">{english ? 'Invalid diagram parameters' : 'Parâmetros do diagrama inválidos'}</span>; }
+  return <div className="visual-diagram" ref={host}>
     <svg viewBox={valid.viewBox.join(' ')} preserveAspectRatio="xMidYMid meet" role="group" aria-label={valid.title} style={{ overflow: 'hidden' }}>
       <title>{valid.title}</title>
       {elements.map(e => {

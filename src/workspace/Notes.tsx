@@ -1,7 +1,7 @@
 import { useContext, useEffect, useLayoutEffect, useRef, useState, type TextareaHTMLAttributes } from 'react';
 import { nanoid } from 'nanoid';
-import { EnterFullScreenIcon, ExitFullScreenIcon } from '@radix-ui/react-icons';
-import { useT } from '@/i18n';
+import { EnterFullScreenIcon, ExitFullScreenIcon, Pencil1Icon, ImageIcon, MagicWandIcon } from '@/components/ui/SoftIcons';
+import { useLocaleStore, useT } from '@/i18n';
 import { Modal } from '@/components/ui/Modal';
 import { toast } from '@/components/ui/Toast';
 import { flushWorkspacePersistence, useWorkspaceStore } from './store';
@@ -10,6 +10,9 @@ import { Empty, Icon, attempt } from './ui';
 import { NoteTextActions } from './NoteTextActions';
 import { NotesLibrary, type NoteFilter } from './NotesLibrary';
 import { PageHeaderContext } from './PageHeader';
+import { NoteNotebook, type NoteNotebookTools } from './NoteNotebook';
+import { NoteInkOverlay } from './NoteInkOverlay';
+import './NotesNotebook.css';
 
 function AutoText(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -37,13 +40,18 @@ function AutoText(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
 
 function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: { note: Note; onTrash: () => void; onRestore: () => void; maximized: boolean; onToggleMaximized: () => void }) {
   const tr = useT().workspace;
+  const english = useLocaleStore(state => state.locale) === 'en';
   const projects = useWorkspaceStore((s) => s.projects);
   const tasks = useWorkspaceStore((s) => s.tasks);
   const folders = useWorkspaceStore((s) => s.folders);
   const [activeBlock, setActiveBlock] = useState(note.blocks[0]?.id);
   const [connections, setConnections] = useState(false);
+  const [notebookVisible, setNotebookVisible] = useState(!!note.canvas);
+  const [drawing, setDrawing] = useState(false);
+  const notebook = useRef<NoteNotebookTools>(null);
   const [saveState, setSaveState] = useState<'saving' | 'saved' | 'error'>('saving');
   const editorRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null), inkToolsRef = useRef<HTMLDivElement>(null);
   const trashed = note.deletedAt !== null;
   const patch = (value: Parameters<ReturnType<typeof useWorkspaceStore.getState>['updateNote']>[1]) => attempt(() => useWorkspaceStore.getState().updateNote(note.id, value));
   const updateBlock = (id: string, value: Partial<NoteBlock>) => patch({ blocks: note.blocks.map((block) => block.id === id ? { ...block, ...value } : block) });
@@ -66,33 +74,40 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
     void flushWorkspacePersistence().then(() => { if (current) setSaveState('saved'); }).catch(() => { if (current) setSaveState('error'); });
     return () => { current = false; };
   }, [note]);
-  return <section className="ws-note-editor" ref={editorRef}>
+  return <section className={`ws-note-editor${drawing ? ' is-drawing' : ''}`} ref={editorRef}>
     <div className="ws-note-toolbar">
-      <div className="ws-note-format">{!trashed && <>
+      <div className="ws-note-format" hidden={drawing}>{!trashed && <>
         <select aria-label={tr.text} value={selectedBlock?.type ?? 'text'} onChange={(e) => selectedBlock && updateBlock(selectedBlock.id, { type: e.target.value as BlockType })}>{(['text', 'heading', 'bullet', 'check'] as const).map((type) => <option key={type} value={type}>{type === 'check' ? tr.checklist : tr[type]}</option>)}</select>
         <button aria-label={tr.bold} title={tr.bold} aria-pressed={!!selectedBlock?.bold} className="ws-icon-button note-bold" onMouseDown={(e) => e.preventDefault()} onClick={() => selectedBlock && updateBlock(selectedBlock.id, { bold: !selectedBlock.bold })}>B</button>
         <button aria-label={tr.italic} title={tr.italic} aria-pressed={!!selectedBlock?.italic} className="ws-icon-button note-italic" onMouseDown={(e) => e.preventDefault()} onClick={() => selectedBlock && updateBlock(selectedBlock.id, { italic: !selectedBlock.italic })}>I</button>
         <button className="ws-icon-button" aria-label={tr.checklist} title={tr.checklist} onMouseDown={(e) => e.preventDefault()} onClick={() => { if (selectedBlock && !selectedBlock.text) updateBlock(selectedBlock.id, { type: 'check', checked: false }); else addBlock('check'); }}><Icon name="check" /></button>
       </>}</div>
+      {!trashed && <div className="ws-note-insert-tools">
+        <button type="button" className="ws-icon-button" aria-label={drawing ? english ? 'Back to text' : 'Voltar ao texto' : english ? 'Draw in note' : 'Desenhar na nota'} title={drawing ? english ? 'Back to text' : 'Voltar ao texto' : english ? 'Draw in note' : 'Desenhar na nota'} aria-pressed={drawing} onClick={() => setDrawing(!drawing)}><Pencil1Icon aria-hidden="true" /></button>
+        {!notebookVisible && <><button type="button" className="ws-icon-button" aria-label={english ? 'Add image to note' : 'Adicionar imagem à nota'} title={english ? 'Add image to note' : 'Adicionar imagem à nota'} onClick={() => notebook.current?.addImage()}><ImageIcon aria-hidden="true" /></button>
+        <button type="button" className="ws-icon-button" aria-label={english ? 'Generate note diagram' : 'Gerar diagrama na nota'} title={english ? 'Generate note diagram' : 'Gerar diagrama na nota'} onClick={() => notebook.current?.generate()}><MagicWandIcon aria-hidden="true" /></button></>}
+      </div>}
       <span className={`ws-save-state ${saveState === 'error' ? 'save-error' : ''}`} role="status">{saveState === 'saved' ? tr.saved : saveState === 'error' ? tr.saveFailed : tr.saving}</span>
       {saveState === 'error' && <button className="ws-icon-button" aria-label={tr.retrySave} title={tr.retrySave} onClick={() => patch({})}><Icon name="scrum" size={15} /></button>}
       {trashed ? <button className="ws-button small" onClick={onRestore}>{tr.restore}</button> : <>
-        <button className={`ws-icon-button ${note.pinned ? 'is-pinned' : ''}`} aria-label={note.pinned ? tr.unpin : tr.pin} title={note.pinned ? tr.unpin : tr.pin} aria-pressed={note.pinned} onClick={() => patch({ pinned: !note.pinned })}><Icon name="pin" /></button>
-        <button className="ws-icon-button" aria-label={tr.noteLink} title={tr.noteLink} aria-expanded={connections} onClick={() => setConnections(!connections)}><Icon name="projects" /></button>
-        <button className="ws-icon-button" aria-label={tr.trashNote} title={tr.trashNote} onClick={onTrash}><Icon name="trash" /></button>
+        <button className={`ws-icon-button ws-note-secondary ${note.pinned ? 'is-pinned' : ''}`} aria-label={note.pinned ? tr.unpin : tr.pin} title={note.pinned ? tr.unpin : tr.pin} aria-pressed={note.pinned} onClick={() => patch({ pinned: !note.pinned })}><Icon name="pin" /></button>
+        <button className="ws-icon-button ws-note-secondary" aria-label={tr.noteLink} title={tr.noteLink} aria-expanded={connections} onClick={() => setConnections(!connections)}><Icon name="projects" /></button>
+        <button className="ws-icon-button ws-note-secondary" aria-label={tr.trashNote} title={tr.trashNote} onClick={onTrash}><Icon name="trash" /></button>
       </>}
       <button type="button" className="ws-icon-button" aria-label={maximized ? tr.restoreEditor : tr.maximizeEditor} title={maximized ? `${tr.restoreEditor} (Esc)` : tr.maximizeEditor} aria-pressed={maximized} onMouseDown={(e) => e.preventDefault()} onClick={onToggleMaximized}>{maximized ? <ExitFullScreenIcon aria-hidden="true" /> : <EnterFullScreenIcon aria-hidden="true" />}</button>
     </div>
+    <div className="ws-note-ink-tools-host" ref={inkToolsRef} hidden={(!drawing && !notebookVisible && !note.canvas) || trashed} />
     {connections && !trashed && <div className="ws-note-connections">
       <label>{tr.project}<select value={note.projectId ?? ''} onChange={(e) => patch({ projectId: e.target.value || null, taskId: null })}><option value="">{tr.noProject}</option>{Object.values(projects).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       <label>{tr.linkedTask}<select disabled={!note.projectId} value={note.taskId ?? ''} onChange={(e) => patch({ taskId: e.target.value || null })}><option value="">{tr.noTask}</option>{Object.values(tasks).filter((t) => t.projectId === note.projectId).map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
       <label>{tr.folder}<select value={note.folderId ?? ''} onChange={(e) => patch({ folderId: e.target.value || null })}><option value="">{tr.noFolder}</option>{Object.values(folders).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select></label>
     </div>}
     <div className="ws-note-paper">
+      <div className="ws-note-document" ref={bodyRef} data-note-document>
       <p className="ws-note-date">{new Intl.DateTimeFormat(document.documentElement.lang || 'pt-BR', { dateStyle: 'long', timeStyle: 'short' }).format(note.updatedAt)}</p>
-      <AutoText className="ws-note-title" aria-label={tr.noteTitle} placeholder={tr.untitled} value={note.title} readOnly={trashed} onChange={(e) => patch({ title: e.target.value })} />
+      <AutoText className="ws-note-title" data-ink-anchor="title" aria-label={tr.noteTitle} placeholder={tr.untitled} value={note.title} readOnly={trashed} onChange={(e) => patch({ title: e.target.value })} />
       {note.projectId && <span className="ws-note-project-label"><Icon name="projects" size={13} />{projects[note.projectId]?.name}{note.taskId && ` / ${tasks[note.taskId]?.title ?? ''}`}</span>}
-      <div className="ws-note-blocks">{note.blocks.map((block) => <div className={`ws-note-block type-${block.type} ${block.checked ? 'is-checked' : ''} ${block.bold ? 'is-bold' : ''} ${block.italic ? 'is-italic' : ''}`} key={block.id}>
+      <div className="ws-note-blocks">{note.blocks.map((block) => <div className={`ws-note-block type-${block.type} ${block.checked ? 'is-checked' : ''} ${block.bold ? 'is-bold' : ''} ${block.italic ? 'is-italic' : ''}`} key={block.id} data-ink-anchor={`block:${block.id}`}>
         {!trashed && <NoteTextActions noteId={note.id} block={block} input={() => editorRef.current?.querySelector<HTMLTextAreaElement>(`[data-block="${block.id}"]`)} onFormat={(value) => updateBlock(block.id, value)} />}
         {block.type === 'check' && <input type="checkbox" disabled={trashed} aria-label={block.text || tr.checklist} checked={!!block.checked} onChange={(e) => updateBlock(block.id, { checked: e.target.checked })} />}
         {block.type === 'bullet' && <span className="ws-bullet" aria-hidden>•</span>}
@@ -104,6 +119,9 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
         {!trashed && <button className="ws-remove-block" aria-label={tr.removeBlock} onClick={() => removeBlock(block.id)}><Icon name="close" size={13} /></button>}
       </div>)}</div>
       {!trashed && <button className="ws-add-block" onClick={() => addBlock('text')}><Icon name="plus" size={14} />{tr.addBlock}</button>}
+      <NoteNotebook ref={notebook} note={note} editorRef={editorRef} visible={notebookVisible || !!note.canvas} onReveal={() => setNotebookVisible(true)} english={english} toolsRef={inkToolsRef} toolsVisible={!drawing && (notebookVisible || !!note.canvas)}/>
+      <NoteInkOverlay note={note} bodyRef={bodyRef} toolsRef={inkToolsRef} drawing={drawing} onDrawingChange={setDrawing} english={english}/>
+      </div>
     </div>
   </section>;
 }
@@ -135,12 +153,12 @@ export function Notes({ projectId = null, initialNoteId = null }: { projectId?: 
   const selected = candidates.find((n) => n.id === selectedId) ?? visible[0];
   useEffect(() => { if (!selected) setMaximized(false); }, [selected]);
   const changeFilter = (value: NoteFilter) => { setFilter(value); setSelectedId(null); setMobileEditor(false); };
-  const create = (folderId: string | null = null) => {
-    const id = attempt(() => useWorkspaceStore.getState().createNote({ projectId, folderId }));
+  const create = (folderId: string | null = null, targetProjectId = projectId) => {
+    const id = attempt(() => useWorkspaceStore.getState().createNote({ projectId: targetProjectId ?? null, folderId }));
     if (id) { setFilter('all'); setQuery(''); setSelectedId(id); setMobileEditor(true); }
   };
   return <div className={`ws-notes ${mobileEditor ? 'mobile-editing' : ''} ${maximized && selected ? 'is-maximized' : ''}`}>
-    <NotesLibrary notes={visible} folders={Object.values(folders)} selectedId={selected?.id ?? null} filter={filter} query={query}
+    <NotesLibrary notes={visible} folders={Object.values(folders)} projectId={projectId} selectedId={selected?.id ?? null} filter={filter} query={query}
       counts={{ all: scoped.filter((n) => n.deletedAt === null).length, pinned: scoped.filter((n) => n.deletedAt === null && n.pinned).length, trash: scoped.filter((n) => n.deletedAt !== null).length }}
       onQuery={(value) => { setQuery(value); setSelectedId(null); }} onFilter={changeFilter}
       onSelect={(id) => { setSelectedId(id); setMobileEditor(true); }} onCreate={create} onNewFolder={() => setFolderOpen(true)}

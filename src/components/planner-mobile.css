@@ -1,0 +1,55 @@
+/* These controls live in screen space. The graph's world-space cards retain
+   their geometry and zoom, so making touch controls readable never reflows it. */
+.planner-legend-symbol { display:none; }
+
+@media (max-width:767px) {
+  .planner-topbar { min-height:56px; padding:4px 8px; gap:6px; }
+  .planner-project-summary { flex:1; gap:6px; font-size:14px; line-height:1.4; }
+  .planner-topbar-spacer { display:none; }
+  .planner-project-summary .text-footnote { font-size:12px; }
+  .planner-view-switch .segmented-item { min-height:44px; padding:0 10px; font-size:13px; }
+  .planner-topbar .btn-icon { min-width:44px; min-height:44px; }
+  .planner-topbar [role="menu"] { max-width:calc(100vw - 24px); max-height:70dvh; overflow:auto; }
+  .planner-topbar [role="menuitem"] { min-height:44px; font-size:14px; }
+
+  .planner-canvas-toolbar {
+    display:grid;
+    grid-template-columns:44px minmax(0,1fr) 44px 44px;
+    gap:4px;
+    padding:4px;
+    width:calc(100% - 16px);
+    margin:8px!important;
+    max-width:440px;
+  }
+  .planner-canvas-toolbar .planner-tidy { grid-column:1; grid-row:1; }
+  .planner-canvas-toolbar .planner-lens-select { grid-column:2; grid-row:1; width:100%; height:44px; font-size:16px; }
+  .planner-canvas-toolbar .planner-maximize { grid-column:3; grid-row:1; }
+  .planner-canvas-toolbar .planner-legend { grid-column:4; grid-row:1; margin:0; }
+  .planner-canvas-toolbar .planner-layout-select { grid-column:1 / -1; grid-row:2; width:100%; height:44px; font-size:16px; border-top:1px solid rgb(var(--border-base) / .5); border-radius:0; }
+  .planner-canvas-toolbar .btn-icon,
+  .planner-canvas-toolbar .planner-legend button { width:44px; min-height:44px; padding:0; justify-content:center; }
+  .planner-legend-symbol { display:block; }
+  .planner-legend-label, .planner-legend button > svg:last-child { display:none; }
+  .planner-legend .text-footnote { font-size:13px; line-height:1.5; }
+  .planner-legend > div > div { max-height:65dvh; overflow:auto; }
+  .planner-staging-panel { margin-top:116px!important; max-height:45dvh; overflow:auto; }
+  .planner-staging-panel [role="status"] { font-size:14px; line-height:1.45; }
+  .planner-staging-panel .btn { min-height:44px; }
+  /* Two aligned rows: zoom above, pencil/image/3D below. A vertical zoom
+     stack otherwise occupies the same area as the visual-tool launcher. */
+  [data-layout-mode] .react-flow__controls { left:12px; bottom:80px; margin:0; flex-direction:row; }
+  [data-layout-mode] .react-flow__controls-button { border-bottom:0; border-right:1px solid rgb(var(--border-base) / .7); }
+  [data-layout-mode] .react-flow__controls-button:last-child { border-right:0; }
+  [data-layout-mode] .visual-canvas-actions,
+  [data-layout-mode] .react-flow:has(.react-flow__controls) ~ .visual-canvas-actions { left:64px; bottom:24px; flex-direction:row; gap:8px; }
+  /* Drawing has its own compact palette. Hide the other floating controls
+     while it is open instead of stacking them beneath the pen controls. */
+  [data-layout-mode]:has(.planner-ink-tools.is-open) .react-flow__controls,
+  [data-layout-mode]:has(.planner-ink-tools.is-open) .visual-canvas-actions { visibility:hidden; pointer-events:none; }
+}
+
+@media (max-width:359px) {
+  .planner-topbar { padding-inline:5px; gap:4px; }
+  .planner-view-switch .segmented-item { padding-inline:8px; }
+  .planner-project-summary { gap:4px; font-size:13px; }
+}

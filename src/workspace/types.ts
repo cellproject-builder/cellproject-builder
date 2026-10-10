@@ -1,6 +1,6 @@
 import type { GraphState } from '@/store';
 
-export type Surface = 'projects' | 'overview' | 'kanban' | 'scrum' | 'notes' | 'planner';
+export type Surface = 'projects' | 'overview' | 'kanban' | 'scrum' | 'notes' | 'planner' | 'boards';
 export const TASK_STATUSES = ['todo', 'doing', 'review', 'done'] as const;
 export type TaskStatus = typeof TASK_STATUSES[number];
 export type Priority = 'low' | 'medium' | 'high';
@@ -10,6 +10,7 @@ export type PlannerSnapshot = Pick<GraphState,
   'pendingSuggestions' | 'parkedSuggestions' | 'archivedProject' | 'archivedPending'>;
 
 export interface ManagedProject {
+  appearance?: import('./project-appearance/projectAppearance').ProjectAppearance;
   attachments?: import('@/attachments/files').PlanFile[];
   id: string;
   name: string;
@@ -71,6 +72,8 @@ export interface Note {
   id: string;
   title: string;
   blocks: NoteBlock[];
+  canvas?: import('./noteCanvasModel').NoteCanvasDocument;
+  ink?: import('./noteInkModel').NoteInkDocument;
   projectId: string | null;
   taskId: string | null;
   folderId: string | null;

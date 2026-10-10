@@ -6,7 +6,7 @@ import { requestChatReferences } from '@/references/chatHandoff';
 import { getPlannerOwnerId } from '@/workspace/planner';
 import { listMentionTargets, removeVisualArtifact, revertVisualArtifact, setVisualArtifactLink, updateVisualArtifact, setDiagramParameter } from '../domain';
 import { readVisualMedia } from '../media';
-import { decompositionAssemblyCurrent } from '../decomposition';
+import { decompositionAssemblyCurrent } from '../decompositionState';
 import { modelAssemblyCurrent } from '../modelAssembly';
 import type { VisualArtifact } from '../types';
 import { useVisualPopupStore } from '../ui/uiStore';

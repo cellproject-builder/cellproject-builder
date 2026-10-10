@@ -95,6 +95,58 @@ const search = (value: string) => {
 };
 
 describe('unified note library', () => {
+  it('groups project notes virtually without duplicating personal folders or rewriting their saved folder IDs', async () => {
+    const robot = store.getState().createProject('Robótica');
+    const strategy = store.getState().createProject('Estratégia');
+    const personalFolder = store.getState().createFolder('Pesquisa pessoal');
+    const projectNote = addNote('Dimensões do servo', { projectId: robot, folderId: personalFolder });
+    addNote('Mapa da estratégia', { projectId: strategy });
+    addNote('Leitura pessoal', { folderId: personalFolder });
+    addNote('Lembrete solto');
+    await renderNotes();
+    expect(previewTitles(group('Projetos'))).toEqual(['Dimensões do servo', 'Mapa da estratégia']);
+    expect(previewTitles(group('Robótica'))).toEqual(['Dimensões do servo']);
+    expect(previewTitles(group('Pesquisa pessoal'))).toEqual(['Leitura pessoal']);
+    expect(previewTitles(group('Sem pasta'))).toEqual(['Lembrete solto']);
+    expect(library().querySelectorAll('.ws-note-preview')).toHaveLength(4);
+    expect(store.getState().notes[projectNote].folderId).toBe(personalFolder);
+    expect(group('Projetos').querySelector('[aria-label="Excluir pasta: Projetos"]')).toBeNull();
+  });
+
+  it('filters the last seven days and orders note names without mutating update timestamps', async () => {
+    const z = addNote('Zeta');
+    const a = addNote('Álgebra');
+    const old = addNote('Arquivo antigo');
+    const now = Date.now();
+    store.setState(state => ({ notes: { ...state.notes, [z]: { ...state.notes[z], updatedAt: now }, [a]: { ...state.notes[a], updatedAt: now - 1000 }, [old]: { ...state.notes[old], updatedAt: now - 8 * 86400000 } } }));
+    await renderNotes();
+    act(() => Simulate.click(button('Recentes')));
+    expect(previewTitles()).toEqual(['Zeta', 'Álgebra'].sort());
+    const sort = library().querySelector<HTMLSelectElement>('[aria-label="Ordenar notas"]')!;
+    expect(sort).not.toBeNull();
+    act(() => Simulate.change(sort, { target: { value: 'name' } } as never));
+    expect(Array.from(library().querySelectorAll('.ws-note-preview strong')).map(title => title.textContent)).toEqual(['Álgebra', 'Zeta']);
+    act(() => Simulate.click(button('Todas as notas')));
+    expect(Array.from(library().querySelectorAll('.ws-note-preview strong')).map(title => title.textContent)).toEqual(['Álgebra', 'Arquivo antigo', 'Zeta']);
+    expect(store.getState().notes[z].updatedAt).toBe(now);
+    expect(store.getState().notes[old].updatedAt).toBe(now - 8 * 86400000);
+  });
+
+  it('creates directly in a virtual project folder and keeps personal note creation separate', async () => {
+    const projectId = store.getState().createProject('Robótica');
+    await renderNotes();
+    act(() => Simulate.click(button('Nova nota: Robótica')));
+    await act(async () => { await flushWorkspacePersistence(); });
+    const projectNote = Object.values(store.getState().notes)[0];
+    expect(projectNote).toMatchObject({ projectId, folderId: null, deletedAt: null });
+    expect(previewTitles(group('Robótica'))).toEqual(['Nova nota']);
+    act(() => Simulate.click(button('Nova nota')));
+    await act(async () => { await flushWorkspacePersistence(); });
+    const personalNote = Object.values(store.getState().notes).find(note => note.id !== projectNote.id);
+    expect(personalNote).toMatchObject({ projectId: null, folderId: null, deletedAt: null });
+    expect(previewTitles(group('Sem pasta'))).toEqual(['Nova nota']);
+  });
+
   it('shows folders and their notes together and lets each group collapse independently', async () => {
     const folderId = store.getState().createFolder('Trabalho');
     addNote('Registro pessoal');

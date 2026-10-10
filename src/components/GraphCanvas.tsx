@@ -22,15 +22,14 @@ import {
   isBlocked,
   canConcludeNode,
   stepSequence,
-  childrenByParent,
   effectiveLeaves,
   isActionableKind,
   nextPendingForTutor,
   pendingParent,
-  isLeafGridParent,
   type Lens,
-  LAYOUT_Y_GAP,
 } from '@/store';
+import { childrenByParent } from '@/graph/treeIndex';
+import { isLeafGridParent, LAYOUT_Y_GAP } from '@/graph/treeLayout';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useReviewingParents } from '@/hooks/useReviewingParents';
 import { useT } from '@/i18n';
@@ -44,7 +43,9 @@ import { getVisualWorkspace, updateVisualArtifact } from '@/visuals/domain';
 import { VisualArtifactNode } from '@/visuals/rendering/VisualArtifactNode';
 import { VisualLinkEdge } from '@/visuals/rendering/VisualLinkEdge';
 import { VisualWorkspaceBridge } from '@/visuals/VisualWorkspaceBridge';
+import { PlannerInkLayer } from '@/ink/PlannerInkLayer';
 import { useVisualPopupStore } from '@/visuals/ui/uiStore';
+import './planner-mobile.css';
 
 // ---------------------------------------------------------------------------
 // Cabeçalho de coluna (lentes Risco/Estado) — nó não interativo.
@@ -1308,13 +1309,13 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
         <Panel
           ref={toolbarRef}
           position="top-left"
-          className={`flex flex-wrap items-center gap-2 !mr-3 w-[calc(100%-24px)] ${isMobile ? 'bar-solid border rounded-card shadow-mac p-1' : ''}`}
+          className={`planner-canvas-toolbar flex flex-wrap items-center gap-2 !mr-3 w-[calc(100%-24px)] ${isMobile ? 'bar-solid border rounded-card shadow-mac p-1' : ''}`}
         >
           <button
             onClick={handleTidy}
             title={tr.graph.tidyTitle}
             aria-label={tr.graph.tidy}
-            className={`tap btn text-text-primary ${isMobile ? 'btn-ghost btn-icon' : 'glass shadow-mac hover:bg-bg-elevated/60'}`}
+            className={`planner-tidy tap btn text-text-primary ${isMobile ? 'btn-ghost btn-icon' : 'glass shadow-mac hover:bg-bg-elevated/60'}`}
           >
             <TidyIcon />
             {!isMobile && canvasSize.width >= 540 && tr.graph.tidy}
@@ -1322,7 +1323,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
           {isMobile && (
             <select name="lens" value={lens} onChange={(e) => setLens(e.target.value as Lens)}
               aria-label={tr.topBar.lensSelectAria}
-              className="tap h-9 min-w-0 rounded-control bg-transparent pl-2 pr-6 text-control text-text-primary border-0">
+              className="planner-lens-select tap h-9 min-w-0 rounded-control bg-transparent pl-2 pr-6 text-control text-text-primary border-0">
               {MOBILE_LENSES.map((l) => <option key={l} value={l}>{tr.topBar[LENS_LABEL_KEY[l]]}</option>)}
             </select>
           )}
@@ -1330,7 +1331,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
             <select name="graph-layout" value={layoutMode}
               onChange={(e) => changeLayoutMode(e.target.value as GraphLayoutMode)}
               aria-label={tr.graph.layoutMode} title={tr.graph.layoutHint}
-              className={`tap min-w-0 max-w-full rounded-control pl-2.5 pr-7 text-control text-text-primary ${isMobile ? 'h-11 bg-transparent border-0' : 'h-8 glass border shadow-mac'}`}>
+              className={`planner-layout-select tap min-w-0 max-w-full rounded-control pl-2.5 pr-7 text-control text-text-primary ${isMobile ? 'h-11 bg-transparent border-0' : 'h-8 glass border shadow-mac'}`}>
               <option value="auto">{tr.graph.layoutAuto} · {canvasSize.orientation === 'horizontal' ? tr.graph.layoutHorizontal : tr.graph.layoutVertical}</option>
               <option value="horizontal">{tr.graph.layoutHorizontal}</option>
               <option value="vertical">{tr.graph.layoutVertical}</option>
@@ -1350,15 +1351,15 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
           {onToggleMaximized && <button type="button" onClick={onToggleMaximized}
             aria-label={maximized ? tr.graph.restoreCanvas : tr.graph.maximizeCanvas}
             title={maximized ? tr.graph.restoreCanvas : tr.graph.maximizeCanvas} aria-pressed={maximized}
-            className={`tap btn btn-icon text-text-primary ${isMobile ? 'btn-ghost' : 'glass border shadow-mac hover:bg-bg-elevated/60'}`}>
+            className={`planner-maximize tap btn btn-icon text-text-primary ${isMobile ? 'btn-ghost' : 'glass border shadow-mac hover:bg-bg-elevated/60'}`}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d={maximized ? 'M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5' : 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5'} />
             </svg>
           </button>}
-          <div className="ml-auto"><EdgeLegend key={lens} tr={tr} inBar={isMobile} /></div>
+          <div className="planner-legend ml-auto"><EdgeLegend key={lens} tr={tr} inBar={isMobile} /></div>
         </Panel>
         {pending && pending.nodes.length > 0 && (
-          <Panel position="top-center" className="!mt-16 md:!mt-3 max-w-[calc(100vw-24px)]">
+          <Panel position="top-center" className="planner-staging-panel !mt-16 md:!mt-3 max-w-[calc(100vw-24px)]">
             <div
               role="status"
               className="glass border animate-sheet-in flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card shadow-mac-lg pl-3.5 pr-2 py-2 text-control"
@@ -1449,6 +1450,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
         )}
       </ReactFlow>
       {project && <VisualWorkspaceBridge project={project} containerRef={containerRef} selectedArtifactId={selectedVisualId?.slice(7) ?? null} onSelectArtifact={id => setSelectedVisualId(id ? `visual:${id}` : null)} />}
+      {project && <PlannerInkLayer key={project.id} project={project} containerRef={containerRef} />}
     </div>
   );
 }
@@ -1518,11 +1520,13 @@ function EdgeLegend({ tr, inBar = false }: { tr: Messages; inBar?: boolean }) {
         ref={buttonRef}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        aria-label={tr.graph.legend}
         className={`tap h-[30px] px-3 rounded-control text-footnote font-medium text-text-secondary hover:text-text-primary flex items-center gap-2 transition-colors duration-120 ease-mac ${
           inBar ? 'hover:bg-bg-elevated/60' : 'glass border shadow-mac'
         }`}
       >
-        <span>{tr.graph.legend}</span>
+        <svg className="planner-legend-symbol" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
+        <span className="planner-legend-label">{tr.graph.legend}</span>
         <svg
           width="10"
           height="10"

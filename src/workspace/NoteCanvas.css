@@ -1,0 +1,46 @@
+.note-canvas{position:relative;min-width:0;margin:18px 0 6px;color:rgb(var(--text-primary,228 226 232))}
+.note-canvas-dock{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0;}
+.note-canvas-tools{position:relative;z-index:5;display:flex;align-items:center;flex-wrap:wrap;gap:2px;width:max-content;max-width:100%;padding:2px;margin:0;border:0;border-radius:11px;background:transparent}
+.note-canvas-tools button,.note-canvas-options button{display:grid;place-items:center;width:30px;height:30px;padding:0;flex:0 0 auto;border:0;border-radius:8px;background:transparent;color:rgb(var(--text-secondary,170 167 177));cursor:pointer}
+.note-canvas-tools button:hover,.note-canvas-options button:hover{background:rgb(var(--text-primary,255 255 255)/.05);color:rgb(var(--text-primary,238 238 238))}
+.note-canvas-tools button[aria-pressed=true],.note-canvas-options button[aria-pressed=true]{background:#b69be51c;color:#c8b2ec}
+.note-canvas-tools button:disabled{opacity:.3;cursor:default}
+.note-canvas-tools button:focus-visible,.note-canvas-options :focus-visible,.note-canvas-stage:focus-visible,.note-canvas-item button:focus-visible{outline:2px solid #b69be580;outline-offset:2px}
+.note-canvas-divider{height:16px;width:1px;background:rgb(var(--border-base,52 50 56)/.7);margin:0 3px;flex:0 0 auto}
+.note-canvas-options{position:relative;z-index:6;display:flex;align-items:center;flex-wrap:wrap;gap:8px;width:max-content;max-width:100%;margin:0;padding:3px 8px;border-left:1px solid rgb(var(--border-base,51 50 57)/.7);background:transparent}
+.note-canvas-options input[type=color]{width:25px;height:25px;padding:0;border:0;background:none;cursor:pointer;border-radius:50%;overflow:hidden}
+.note-canvas-options input[type=range]{width:72px;accent-color:#b69be5}
+.note-canvas-options select{max-width:120px;border:0;border-radius:6px;background:rgb(var(--bg-elevated,37 36 42));color:inherit;padding:5px;font-size:11px}
+.note-canvas-viewport{position:relative;width:100%;max-width:100%;max-height:min(65dvh,760px);overflow:auto;overscroll-behavior:contain;border-radius:var(--radius-card,12px);scrollbar-width:thin;scrollbar-color:rgb(var(--text-muted,120 116 128)/.3) transparent}
+.note-canvas-stage{position:relative;width:100%;min-width:0;isolation:isolate;container-type:inline-size;background-color:transparent;outline:none;overflow:hidden;border-radius:var(--radius-card,12px);-webkit-user-select:none;user-select:none}
+.note-canvas-stage.tool-pen,.note-canvas-stage.tool-eraser,.note-canvas-stage.tool-text{touch-action:none;cursor:crosshair}
+.note-canvas-stage.tool-select{touch-action:pan-x pan-y}
+.note-canvas-stage.paper-dots{background-image:radial-gradient(circle,#88848f2b .8px,transparent 1px);background-size:var(--note-grid,24px) var(--note-grid,24px)}
+.note-canvas-stage.paper-grid{background-image:linear-gradient(#88848f16 1px,transparent 1px),linear-gradient(90deg,#88848f16 1px,transparent 1px);background-size:var(--note-grid,24px) var(--note-grid,24px)}
+.note-canvas-stage.paper-lines{background-image:linear-gradient(transparent calc(100% - 1px),#88848f22 1px);background-size:100% var(--note-grid,24px)}
+.note-canvas-ink{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:2}
+.tool-select .note-canvas-ink path{pointer-events:stroke;cursor:pointer}
+.note-canvas-ink path.is-selected{filter:drop-shadow(0 0 2px #b69be5)}
+.note-canvas-item{position:absolute;z-index:1;min-width:0;min-height:0;border-radius:var(--radius-card,12px);touch-action:none;outline:1px solid transparent;outline-offset:0}
+.tool-select .note-canvas-item{cursor:grab}
+.note-canvas-item.is-selected{outline-color:#b69be56e;z-index:3}
+.note-canvas-item img{display:block;width:100%;height:100%;object-fit:contain;border-radius:inherit;pointer-events:none;-webkit-user-drag:none}
+.note-canvas-item .note-canvas-text{height:100%;white-space:pre-wrap;overflow-wrap:anywhere;overflow:hidden;line-height:1.45;cursor:inherit}
+.note-canvas-item textarea{width:100%;height:100%;padding:0;border:0;outline:none;resize:none;background:transparent;line-height:1.45;overflow:auto;font:inherit;user-select:text;cursor:text}
+.note-canvas-item.kind-diagram{overflow:visible}
+.note-canvas-item.kind-diagram .visual-diagram{width:100%;height:100%;max-height:100%;overflow:auto;cursor:default}
+.note-canvas-item.kind-diagram .visual-diagram>svg{min-height:0;flex:1 1 auto;max-height:70%}
+.note-canvas-item.kind-diagram .visual-diagram-controls{flex:0 0 auto;padding:4px 7px;gap:5px}
+.note-canvas-item.kind-diagram .visual-diagram-controls label{font-size:10px}
+.note-canvas-item.kind-diagram .visual-diagram-controls details{font-size:10px}
+.note-canvas-stage:not(.tool-select) .note-canvas-item{pointer-events:none}
+.note-canvas-item>button{position:absolute;z-index:4;display:grid;place-items:center;width:22px;height:22px;padding:0;border:1px solid #b69be547;border-radius:6px;background:rgb(var(--bg-secondary,37 35 43));color:rgb(var(--ai-accent,194 172 217));cursor:pointer;touch-action:none}
+.note-canvas-item .note-canvas-move{left:2px;top:2px;cursor:grab}
+.note-canvas-item .note-canvas-remove{right:2px;top:2px}
+.note-canvas-item .note-canvas-resize{right:0;bottom:0;cursor:nwse-resize}
+.note-canvas-error{display:block;text-align:center;font-size:11px;color:#e7a89e;margin:5px 0}
+.note-canvas-ink-tools{margin:0;max-width:100%;position:relative;z-index:6;border-left:1px solid rgb(var(--border-base)/.5);padding-left:7px}
+.ws-notes.is-maximized .note-canvas-tools,.ws-note-editor.is-drawing .note-canvas-tools{padding:2px;margin-bottom:0}
+.ws-notes.is-maximized .note-canvas-viewport,.ws-note-editor.is-drawing .note-canvas-viewport{max-height:calc(100dvh - 180px)}
+@media(max-width:480px){.note-canvas{margin-top:12px}.note-canvas-tools{gap:0;padding:3px}.note-canvas-tools button{width:26px;height:30px}.note-canvas-divider{margin:0 2px}.note-canvas-item>button{width:26px;height:26px}.note-canvas-options{gap:7px}.note-canvas-viewport{max-height:60dvh}}
+@media(prefers-reduced-motion:no-preference){.note-canvas-tools button{transition:background .12s,color .12s}}

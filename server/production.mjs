@@ -5,12 +5,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pipeline } from 'node:stream/promises';
 import { createVisualHandler } from './handler.mjs';
-import { createCloudAuth, readCloudConfig } from './cloudAuth.mjs';
+import { createCloudAuth, readCloudConfig, isPublishablePasswordKey } from './cloudAuth.mjs';
 import { createCloudRepository } from './cloudRepository.mjs';
 import { createVaultRepository, VAULT_LIMIT } from './vaultRepository.mjs';
+import { createPasswordAccessRepository } from './passwordAccessRepository.mjs';
 import { createAIProxy } from './cloudAI.mjs';
 import { CloudError, sendJson, sendError, readJson } from './cloudUtils.mjs';
 import { DOCUMENT_LIMIT, IMPORT_LIMIT } from './cloudValidation.mjs';
+import { createLiveInkRelay } from './live-ink.mjs';
 
 const PUBLIC_TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.wasm': 'application/wasm' };
 const notFound = () => new CloudError(404, 'not_found', 'The requested resource was not found.');
@@ -30,13 +32,16 @@ export function productionConfig(env = process.env) {
   return { ...readCloudConfig(env), vaultEnabled: env.CLOUD_VAULT_ENABLED === '1', providers: { openrouter: env.OPENROUTER_API_KEY || env.OPENROUTER || '', openai: env.OPENAI_API_KEY || '', anthropic: env.ANTHROPIC_API_KEY || '' }, typesafeKey: env.TYPESAFE_API_KEY || env.TYPESAFE || '' };
 }
 
-export function createProductionHandler({ config = productionConfig(), dist = path.resolve('dist'), auth, repository, vaultRepository, fetchImpl = fetch, publicFetch, referenceRegistry } = {}) {
+export function createProductionHandler({ config = productionConfig(), dist = path.resolve('dist'), auth, repository, vaultRepository, passwordAccessRepository, fetchImpl = fetch, publicFetch, referenceRegistry } = {}) {
   auth ??= createCloudAuth({ config, fetchImpl }); repository ??= createCloudRepository({ config, fetchImpl });
   vaultRepository ??= createVaultRepository({ config, fetchImpl });
+  passwordAccessRepository ??= createPasswordAccessRepository({ config, fetchImpl });
   const authorized = new WeakMap();
   const visuals = createVisualHandler({ local: false, typesafeKey: config.typesafeKey, authorize: req => authorized.get(req)?.user.id ?? null, fetchImpl, publicFetch, referenceRegistry });
   const ai = createAIProxy({ keys: config.providers, fetchImpl });
+  const liveInk = createLiveInkRelay({ authorize: req => auth.authorize(req) });
   const providers = () => ({ openrouter: config.enabled && Boolean(config.providers?.openrouter), openai: config.enabled && Boolean(config.providers?.openai), anthropic: config.enabled && Boolean(config.providers?.anthropic) });
+  const passwordProvider = config.enabled && config.supabaseUrl === 'https://wxfootrnfiqpzhmjwgck.supabase.co' && isPublishablePasswordKey(config.publishableKey) ? { url: config.supabaseUrl, publishableKey: config.publishableKey } : null;
   const pending = new Map(); let globalPending = 0;
   const activatingVaults = new Set();
   let canonicalDist;
@@ -51,9 +56,9 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
     try { resolved = await realpath(filename); info = await stat(resolved); } catch { throw notFound(); }
     const relative = path.relative(canonicalDist, resolved);
     if (relative.startsWith('..') || path.isAbsolute(relative) || !info.isFile()) throw notFound();
-    res.setHeader('cache-control', ext === '.html' || route === '/sw.js' || ext === '.webmanifest' ? 'no-cache' : route.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'public, max-age=3600');
+    res.setHeader('cache-control', ext === '.html' || route === '/service-worker.js' || route === '/sw.js' || ext === '.webmanifest' ? 'no-cache' : route.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'public, max-age=3600');
     res.setHeader('content-type', PUBLIC_TYPES[ext]); res.setHeader('content-length', info.size);
-    if (ext === '.html') res.setHeader('content-security-policy', "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
+    if (ext === '.html') res.setHeader('content-security-policy', `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'${passwordProvider ? ` ${passwordProvider.url}` : ''}; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`);
     if (req.method === 'HEAD') { res.end(); return; }
     await pipeline(createReadStream(resolved), res);
   };
@@ -75,7 +80,7 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
       if (route === '/api/cloud/config' && req.method === 'GET') {
         if (config.enabled && !auth.sameOrigin(req)) throw new CloudError(403, 'origin_forbidden', 'This request origin is not permitted.');
         const session = config.enabled ? await auth.authorize(req) : null;
-        sendJson(res, 200, { enabled: config.enabled, authenticated: Boolean(session), ...(config.enabled ? { authMethod: 'email_link', passwordAuth: true, ...(config.vaultEnabled ? { vaultAvailable: true } : {}) } : {}), ...(session ? { user: session.user, passwordSetup: session.passwordSetup === true } : {}), providers: providers() }); return;
+        sendJson(res, 200, { enabled: config.enabled, authenticated: Boolean(session), ...(config.enabled ? { authMethod: 'email_link', passwordAuth: true, ...(passwordProvider ? { passwordProvider } : {}), ...(config.vaultEnabled ? { vaultAvailable: true, liveInkAvailable: true } : {}) } : {}), ...(session ? { user: session.user, passwordSetup: session.passwordSetup === true } : {}), providers: providers() }); return;
       }
       if (!config.enabled) throw new CloudError(503, 'cloud_not_configured', 'Cloud access is not configured.');
       if (route === '/api/auth/callback' && req.method === 'GET') {
@@ -88,15 +93,19 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
       if (!auth.sameOrigin(req)) throw new CloudError(403, 'origin_forbidden', 'This request origin is not permitted.');
       if (route === '/api/auth/request-code' && req.method === 'POST') { const body = await readJson(req); await auth.requestCode(body.email, req, res); sendJson(res, 200, { sent: true }); return; }
       if (route === '/api/auth/verify-code' && req.method === 'POST') { const body = await readJson(req); const user = await auth.verifyCode(body.email, body.token, req, res); sendJson(res, 200, { authenticated: true, user }); return; }
-      if (route === '/api/auth/password/sign-in' && req.method === 'POST') { const body = await readJson(req, 4096); const user = await auth.signInPassword(body.email, body.password, req, res); sendJson(res, 200, { authenticated: true, user }); return; }
+      if (route === '/api/auth/password/session' && req.method === 'POST') { const user = await auth.acceptPasswordSession(await readJson(req, 65536), req, res); sendJson(res, 200, { authenticated: true, user }); return; }
+      if (route === '/api/auth/password/setup-session' && req.method === 'GET') { sendJson(res, 200, await auth.passwordSetupSession(req)); return; }
+      if (route === '/api/auth/password/sign-in' && req.method === 'POST') { if (config.vaultEnabled) throw new CloudError(426, 'password_client_upgrade_required', 'Atualize a página para entrar com segurança.'); const body = await readJson(req, 4096); const user = await auth.signInPassword(body.email, body.password, req, res); sendJson(res, 200, { authenticated: true, user }); return; }
       if (route === '/api/auth/password/setup-link' && req.method === 'POST') { const body = await readJson(req, 4096); await auth.requestPasswordSetup(body.email, req, res); sendJson(res, 200, { sent: true }); return; }
       if (route === '/api/auth/logout' && req.method === 'POST') { await auth.logout(req, res); sendJson(res, 200, { authenticated: false }); return; }
       const session = await auth.authorize(req); if (!session) throw new CloudError(401, 'authentication_required', 'Sign in to continue.');
       if (req.aborted || res.destroyed) return;
-      if (route === '/api/auth/password' && req.method === 'POST') { const body = await readJson(req, 4096); await auth.setPassword(body.password, session); sendJson(res, 200, { saved: true }); return; }
+      if (route === '/api/live/ink') { if (!config.vaultEnabled) throw new CloudError(503, 'vault_required', 'Unlock encrypted storage to share drawing updates.'); await liveInk.handle(req, res, session); return; }
+      if (route === '/api/auth/password' && req.method === 'POST') { if (config.vaultEnabled) throw new CloudError(426, 'password_client_upgrade_required', 'Atualize a página para redefinir sua senha com segurança.'); const body = await readJson(req, 4096); await auth.setPassword(body.password, session); sendJson(res, 200, { saved: true }); return; }
       if (route.startsWith('/api/visuals/')) { authorized.set(req, session); await visuals(req, res); return; }
       if (route.startsWith('/api/ai/')) { await ai(req, res, session); return; }
       if (config.vaultEnabled && route === '/api/cloud/vault' && req.method === 'GET') { sendJson(res, 200, await vaultRepository.get(session)); return; }
+      if (config.vaultEnabled && route === '/api/cloud/vault/password-access' && req.method === 'GET') { sendJson(res, 200, await passwordAccessRepository.get(session)); return; }
       if (config.vaultEnabled && route === '/api/cloud/vault/activate') {
         if ((pending.get(session.user.id) ?? 0) > 0 || activatingVaults.has(session.user.id)) throw new CloudError(429, 'vault_busy', 'Finish active cloud operations before activating the vault.');
         activationOwner = session.user.id; activatingVaults.add(activationOwner);
@@ -122,6 +131,7 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
       }
       if (config.vaultEnabled && route === '/api/cloud/vault/activate' && req.method === 'POST') { sendJson(res, 200, await vaultRepository.activate(session, await readJson(req, VAULT_LIMIT))); return; }
       if (config.vaultEnabled && route === '/api/cloud/vault' && req.method === 'PUT') { sendJson(res, 200, await vaultRepository.write(session, await readJson(req, VAULT_LIMIT))); return; }
+      if (config.vaultEnabled && route === '/api/cloud/vault/password-access' && req.method === 'PUT') { sendJson(res, 200, await passwordAccessRepository.write(session, await readJson(req, 4096))); return; }
       if (config.vaultEnabled && route === '/api/cloud/vault/blobs' && req.method === 'POST') { sendJson(res, 200, await vaultRepository.writeBlob(session, await readJson(req, 21 * 1024 * 1024))); return; }
       if (config.vaultEnabled && route.startsWith('/api/cloud/vault/blobs/') && req.method === 'GET') {
         const bytes = await vaultRepository.readBlob(session, route.slice('/api/cloud/vault/blobs/'.length));
@@ -145,7 +155,7 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
     } catch (error) { sendError(res, error); }
     finally { release?.(); if (activationOwner) activatingVaults.delete(activationOwner); }
   };
-  handler.close = () => { auth.close?.(); ai.close(); };
+  handler.close = () => { liveInk.close(); auth.close?.(); ai.close(); };
   return handler;
 }
 

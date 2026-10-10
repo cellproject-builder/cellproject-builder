@@ -139,6 +139,35 @@ it('loads the local app only after an explicit disabled config and fails closed 
   await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={vi.fn(async () => { throw new Error('network'); })}/>));
   expect(load).not.toHaveBeenCalled(); expect(host.querySelector('[role="alert"]')).not.toBeNull();
 });
+it('shows a recoverable notebook hydration error without rendering the app or rewriting data', async () => {
+  const { get, set } = await import('idb-keyval');
+  const { useWorkspaceStore: store, flushWorkspacePersistence, ensureWorkspaceHydrated } = await import('@/workspace/store');
+  const { workspaceRepository } = await import('@/data/workspaceRepository');
+  await flushWorkspacePersistence();
+  await ensureWorkspaceHydrated();
+  const baseline = store.getState();
+  const good = JSON.stringify({ version: 2, state: { projects: {}, tasks: {}, comments: {}, sprints: {}, folders: {}, legacyImported: false, notes: { legacy: { id: 'legacy', title: 'Preservada', blocks: [], projectId: null, taskId: null, folderId: null, pinned: false, deletedAt: null, createdAt: 0, updatedAt: 0 } } } });
+  const bad = JSON.stringify({ version: 2, state: { notes: { bad: { canvas: { version: 9 } } } } });
+  await set('cellproject-workspace', bad);
+  await store.persist.rehydrate();
+  const read = vi.spyOn(workspaceRepository, 'getItem'), write = vi.spyOn(workspaceRepository, 'setItem');
+  const load = vi.fn(async () => { await ensureWorkspaceHydrated(); return { default: () => <div>Caderno pronto</div> }; });
+  await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={vi.fn(async () => Response.json({ enabled: false, authenticated: false }))}/>));
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain('caderno inválido');
+  expect(host.textContent).not.toContain('Caderno pronto');
+  expect(store.getState()).toBe(baseline);
+  expect(read).not.toHaveBeenCalled();
+  expect(write).not.toHaveBeenCalled();
+  expect(await get('cellproject-workspace')).toBe(bad);
+  await set('cellproject-workspace', good);
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Tentar novamente')!.click());
+  expect(host.querySelector('[role="alert"]')).toBeNull();
+  expect(host.textContent).toContain('Caderno pronto');
+  expect(store.getState().notes.legacy.title).toBe('Preservada');
+  expect(read).toHaveBeenCalledOnce();
+  expect(write).not.toHaveBeenCalled();
+  expect(await get('cellproject-workspace')).toBe(good);
+});
 it('requires a valid authenticated snapshot and never falls back to local data on a server failure', async () => {
   const load = vi.fn(async () => ({ default: () => <div>Workspace</div> }));
   const fetcher = vi.fn(async (path: RequestInfo | URL) => String(path).endsWith('/config') ? Response.json({ enabled: true, authenticated: true, user: { id: 'allowed', email: 'wylgnerbossman@gmail.com' } }) : Response.json({}, { status: 503 }));

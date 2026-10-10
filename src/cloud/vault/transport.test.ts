@@ -98,6 +98,36 @@ it('rejects an expired oversized import replay before another encryption or comm
   await expect(f.transport.fetch('/api/cloud/import', { method: 'POST', body })).rejects.toThrow('conflito');
   expect(f.bodies).toHaveLength(writes); expect(seal).not.toHaveBeenCalled();
 });
+
+it('refreshes the encrypted head before subsequent writes and never serves the cached manifest as a remote refresh', async () => {
+  const f = await fixture();
+  const next = { documents: [{ ...snapshot.documents[0], value: '{"version":1,"state":{"private":"tablet ink"}}', revision: 2 }], media: [] };
+  const manifest = await f.vault.session.seal(JSON.stringify({ snapshot: next, files: {} }), 'manifest:2');
+  f.fetcher.mockResolvedValueOnce(Response.json({ header: f.vault.header, revision: 2, manifest }));
+  expect(await f.transport.refreshSnapshot()).toEqual(next);
+  expect(f.fetcher.mock.calls.at(-1)?.[0]).toBe('/api/cloud/vault');
+  expect(f.transport.snapshot()).toEqual(next);
+  // Re-opening an older head cannot roll back the manifest or its optimistic revision.
+  f.fetcher.mockResolvedValueOnce(Response.json({ header: f.vault.header, revision: 1, manifest }));
+  await expect(f.transport.refreshSnapshot()).rejects.toThrow('Revisão'); expect(f.transport.snapshot()).toEqual(next);
+});
+
+it('refuses refresh during an ambiguous commit and validates ciphertext before replacing the private snapshot', async () => {
+  const f = await fixture(); f.loseNext();
+  await expect(f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body: JSON.stringify({ value: 'dark', baseRevision: 0, operationId: 'pending-before-refresh' }) })).rejects.toThrow();
+  const requests = f.fetcher.mock.calls.length;
+  await expect(f.transport.refreshSnapshot()).rejects.toThrow('pendente'); expect(f.fetcher).toHaveBeenCalledTimes(requests);
+  expect(f.transport.snapshot()).toEqual(snapshot);
+  const clean = await fixture(); clean.fetcher.mockResolvedValueOnce(Response.json({ header: clean.vault.header, revision: 2, manifest: { version: 1, iv: 'invalid', ciphertext: 'invalid' } }));
+  await expect(clean.transport.refreshSnapshot()).rejects.toThrow(); expect(clean.transport.snapshot()).toEqual(snapshot);
+});
+
+it('does not decrypt and parse an unchanged canonical manifest on every polling tick', async () => {
+  const f = await fixture(), open = vi.spyOn(f.vault.session, 'openText');
+  expect(await f.transport.refreshSnapshot()).toEqual(snapshot); expect(open).not.toHaveBeenCalled();
+  expect(await f.transport.refreshSnapshot()).toEqual(snapshot); expect(open).not.toHaveBeenCalled();
+  expect(f.fetcher).toHaveBeenCalledTimes(2);
+});
 it('binds an operation fingerprint to method, route and body', async () => {
   const f = await fixture(), body = JSON.stringify({ value: 'dark', baseRevision: 0, operationId: 'bound-operation' });
   await f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body });

@@ -60,3 +60,13 @@ label.visual-decomposition-part-label { cursor: pointer; }
 .visual-decomposition-empty, .visual-decomposition-image > p { font-size: 10px; color: rgb(var(--text-muted)); }
 .visual-decomposition-image > button { margin-top: 7px; }
 @media (prefers-reduced-motion: reduce) { .visual-decomposition * { scroll-behavior: auto; } }
+@media (max-width:639px) {
+  .visual-popup .visual-decomposition { font-size:14px; gap:14px; }
+  .visual-popup .visual-decomposition :is(p,details,summary,a,small,.visual-decomposition-identity,.visual-decomposition-confirm,.visual-decomposition-stale,.visual-decomposition-quantity,.visual-decomposition-context,.visual-decomposition-separation,.visual-decomposition-footnote,.visual-decomposition-detail > strong) { font-size:13px; line-height:1.55; }
+  .visual-popup .visual-decomposition :is(h4,.visual-decomposition-part-heading strong,.visual-decomposition-origin,.visual-decomposition-pending > strong) { font-size:14px; }
+  .visual-popup .visual-decomposition-heading h3 { font-size:16px; }
+  .visual-popup .visual-decomposition summary { min-height:44px; align-content:center; }
+  .visual-popup .visual-decomposition input[type="checkbox"] { width:18px; height:18px; }
+  .visual-popup .visual-decomposition-part-label { min-height:44px; align-items:center; }
+  .visual-popup .visual-decomposition-separation input { height:36px; }
+}

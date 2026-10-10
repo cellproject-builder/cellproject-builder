@@ -1,5 +1,7 @@
 # Persistência local e futura migração para Supabase
 
+> Documento histórico da proposta inicial. A aplicação evoluiu desde esta revisão: a organização atual está em [architecture.md](architecture.md) e a configuração remota em [cloud-production.md](cloud-production.md). O SQL abaixo continua sendo um desenho relacional, não uma descrição do banco ativo.
+
 A aplicação continua local. Não há cliente Supabase, autenticação remota, conexão de banco, sincronização, implantação ou nova dependência neste trabalho. O arquivo [database/workspace-schema.sql](database/workspace-schema.sql) é um desenho SQL para revisão futura; não foi aplicado e não é uma migration.
 
 ## Limite de persistência

@@ -1,6 +1,8 @@
 import { decryptExport, encryptedExport, getVaultSession, vaultIsProtected } from './vault/privacy';
 import { get, entries, createStore } from 'idb-keyval';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
+import { validatePersistedNoteCanvases } from '@/workspace/noteCanvasPersistence';
+import { validatePersistedBoards } from '@/boards/model';
 import { CLOUD_DOCUMENT_KEYS, CloudConflictError, CloudRuntime, cloudJson, decodeBytes, encodeBytes, mutationHeaders, sanitizeCloudDocument, sha256, type CloudSnapshot } from './runtime';
 
 interface LegacyMedia { id: string; mime: string; name: string; projectId?: string; createdAt?: number; bytes: ArrayBuffer }
@@ -43,6 +45,11 @@ export async function validateBackup(value: unknown): Promise<MigrationBackup> {
     if (doc.key.startsWith('cellproject-') || doc.key === 'dynamic_diary-chat') {
       const envelope = JSON.parse(doc.value) as { state?: unknown; version?: unknown };
       if (!envelope || !envelope.state || typeof envelope.state !== 'object' || !Number.isInteger(envelope.version)) throw new Error('Envelope de persistência inválido.');
+      if (doc.key === 'cellproject-workspace') {
+        const workspace = envelope.state as { notes?: unknown; boards?: unknown };
+        validatePersistedNoteCanvases(workspace.notes);
+        validatePersistedBoards(workspace.boards, workspace.notes);
+      }
     }
     if (sanitizeCloudDocument(doc.key, doc.value) !== doc.value) throw new Error('Backup contém configuração de credencial.');
   }

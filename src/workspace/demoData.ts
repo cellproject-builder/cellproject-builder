@@ -1,4 +1,5 @@
-import { computeTreeLayout, EMPTY_OBJECTIVE_DRAFT } from '@/store';
+import { EMPTY_OBJECTIVE_DRAFT } from '@/store';
+import { computeTreeLayout } from '@/graph/treeLayout';
 import type { ConceptNodeData, Project } from '@/types';
 import { flushWorkspacePersistence, useWorkspaceStore } from './store';
 import type { NoteBlock, PlannerSnapshot, TaskInput } from './types';

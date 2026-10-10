@@ -10,14 +10,15 @@ import { generateVisualDiagram } from './diagram/generation';
 import { applyVisualProposal, currentVisualScope, findMentionTarget, getVisualWorkspace, saveVisualDraft, updateVisualArtifact, watchVisualScope } from './domain';
 import { addReferenceImage } from './media';
 import { useVisualPopupStore } from './ui/uiStore';
-import type { ImageReference, VisualPromptInput, VisualSearchReview } from './types';
+import type { ImageReference, VisualPromptInput, VisualProposal, VisualSearchReview } from './types';
 import type { ImageSearchIntent } from './searchIntent';
 import { chatImageSearchRevision } from './projectSearchContext';
 
 export interface VisualSearchResult { id: string; projectId: string; input: VisualPromptInput; results: ImageReference[]; intent?: ImageSearchIntent; review?: VisualSearchReview }
 export interface VisualSearchDetails { intent?: ImageSearchIntent; review?: VisualSearchReview; targetMatches: Record<string, number[]> }
 export const useVisualSearchStore = create<{ search: VisualSearchResult | null }>(() => ({ search: null }));
-let searchSequence = 0;
+export interface VisualGenerationResult { id: string; proposal: VisualProposal }
+export const useVisualGenerationStore = create<{ generation: VisualGenerationResult | null }>(() => ({ generation: null }));
 let placementResolver: (() => { x: number; y: number }) | null = null;
 export function setVisualPlacementResolver(resolve: (() => { x: number; y: number }) | null) { placementResolver = resolve; }
 export function visualPlacement() {
@@ -26,7 +27,7 @@ export function visualPlacement() {
   return { x: (root?.position.x ?? 0) + 360, y: (root?.position.y ?? 0) + 80 };
 }
 export async function runVisualSearch(input: VisualPromptInput, options: { signal: AbortSignal; beforeRequest?: () => Promise<void>; openPopup?: boolean; projectBackground?: string; onDetails?: (details: VisualSearchDetails) => void }): Promise<ImageReference[]> {
-  const guard = watchVisualScope(), sequence = ++searchSequence;
+  const guard = watchVisualScope();
   let intent: ImageSearchIntent | undefined;
   let review: VisualSearchReview | undefined;
   let targetMatches: Record<string, number[]> = {};
@@ -40,7 +41,7 @@ export async function runVisualSearch(input: VisualPromptInput, options: { signa
     }, onTargets: matches => { targetMatches = matches; } });
     options.signal.throwIfAborted(); guard.assert();
     options.onDetails?.({ intent, review, targetMatches });
-    if (sequence === searchSequence && options.openPopup !== false) {
+    if (options.openPopup !== false) {
       useVisualSearchStore.setState({ search: { id: nanoid(), projectId: guard.scope.projectId, input, results, intent, review } });
       const tools = useVisualPopupStore.getState();
       if (!tools.searchMinimized) tools.open('search');
@@ -73,7 +74,7 @@ export async function addChatImageReference(reference: ImageReference, projectId
       if (!target) throw new Error('visualSourceMissing');
       const draft = getVisualWorkspace(useGraphStore.getState().project).drafts.model;
       if (!draft.mentions.some(item => item.kind === 'image' && item.id === target.id)) saveVisualDraft('model', { ...draft, mentions: [...draft.mentions, target] });
-      useVisualPopupStore.getState().open('model');
+      useVisualPopupStore.getState().useAsBase(target);
     }
     return artifact;
   } finally { guard.dispose(); }
@@ -84,7 +85,7 @@ export function applyModelAtViewport(id: string) {
   if (!wasApplied) { const point = visualPlacement(); updateVisualArtifact(artifact.id, { x: point.x - artifact.width / 2, y: point.y - artifact.height / 2 }); }
   return artifact;
 }
-export async function runVisualGeneration(input: VisualPromptInput, options: { signal: AbortSignal; beforeRequest?: () => Promise<void>; onProgress?: (message: string) => void }) {
+export async function runVisualGeneration(input: VisualPromptInput, options: { signal: AbortSignal; beforeRequest?: () => Promise<void>; onProgress?: (message: string) => void; openPopup?: boolean }) {
   const scope = currentVisualScope(), finish = registerAIAction();
   try {
     const proposal = input.artifactKind === 'diagram' ? await generateVisualDiagram(input, options) : await generateVisualModel(input, options);
@@ -93,7 +94,10 @@ export async function runVisualGeneration(input: VisualPromptInput, options: { s
       if (artifact) { const point = visualPlacement(); updateVisualArtifact(artifact.id, { x: point.x - artifact.width / 2, y: point.y - artifact.height / 2 }); }
     }
     const tools = useVisualPopupStore.getState();
-    if (!tools.modelMinimized) tools.open('model');
+    if (options.openPopup !== false) {
+      useVisualGenerationStore.setState({ generation: { id: nanoid(), proposal } });
+      if (!tools.modelMinimized) tools.open('model');
+    }
     return proposal;
   } finally { finish(); }
 }

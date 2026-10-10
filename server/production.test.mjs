@@ -13,12 +13,13 @@ async function setup(fn, options = {}) {
   await writeFile(path.join(dist, 'index.html'), '<!doctype html><div>APP SHELL</div>');
   await mkdir(path.join(dist, 'assets')); await writeFile(path.join(dist, 'assets', 'app-abcd.js'), 'console.log("app")');
   await writeFile(path.join(dist, 'assets', 'pdf.worker-abcd.mjs'), 'export const worker = true;');
+  await writeFile(path.join(dist, 'service-worker.js'), 'self.addEventListener("fetch", () => {});');
   await writeFile(path.join(dist, '.env'), 'SENTINEL_SECRET'); await writeFile(path.join(dist, 'app.js.map'), 'SENTINEL_SECRET');
   let handler; const server = createServer((req, res) => handler(req, res));
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const auth = { sameOrigin: req => (!req.headers.origin || req.headers.origin === origin) && (!req.headers['sec-fetch-site'] || ['same-origin', 'none'].includes(req.headers['sec-fetch-site'])) && (['GET', 'HEAD'].includes(req.method) || req.headers.origin === origin && req.headers['x-cellproject-request'] === '1'), authorize: async req => req.headers.cookie === 'test=valid' ? { id: 'session-1', user: { id: 'user-1', email: 'wylgnerbossman@gmail.com' }, accessToken: 'SERVER_SECRET' } : null, requestCode: async () => {}, verifyCode: async (_email, _token, _req, res) => { res.setHeader('set-cookie', 'opaque=handle'); return { id: 'user-1', email: 'wylgnerbossman@gmail.com' }; }, logout: async () => {}, close: () => {} };
-  handler = createProductionHandler({ config: { enabled: true, origin, providers: { openrouter: 'PROVIDER_SECRET' } }, dist, auth, ...options });
+  handler = createProductionHandler({ config: { enabled: true, origin, supabaseUrl: 'https://wxfootrnfiqpzhmjwgck.supabase.co', publishableKey: 'sb_publishable_test', providers: { openrouter: 'PROVIDER_SECRET' } }, dist, auth, ...options });
   const mutationHeaders = { cookie: 'test=valid', origin, 'content-type': 'application/json', 'x-cellproject-request': '1' };
   const raw = urlPath => new Promise((resolve, reject) => { const req = request(`${origin}${urlPath}`, res => { const chunks = []; res.on('data', chunk => chunks.push(chunk)); res.on('end', () => resolve({ status: res.statusCode, text: Buffer.concat(chunks).toString('utf8') })); }); req.on('error', reject); req.end(); });
   try { await fn({ origin, mutationHeaders, auth, raw }); }
@@ -51,6 +52,15 @@ test('vault activation quiesces legacy requests and rejects a legacy request alr
   }, { config: { enabled: true, vaultEnabled: true, origin: 'https://test.invalid' }, repository, vaultRepository });
 });
 
+test('production revalidates the registered service worker instead of caching a release for an hour', async () => {
+  await setup(async ({ origin }) => {
+    const response = await fetch(`${origin}/service-worker.js`);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /javascript/);
+    assert.equal(response.headers.get('cache-control'), 'no-cache');
+  });
+});
+
 test('production serves shell/assets and health, never source/private paths or an SPA response for API failures', async () => {
   await setup(async ({ origin, raw }) => {
     const health = await fetch(`${origin}/healthz`); assert.equal(health.status, 200); assert.deepEqual(await health.json(), { status: 'ok' });
@@ -79,13 +89,77 @@ test('only an explicitly allowed alternate host redirects public GET/HEAD, while
 test('public config never contains provider keys or tokens and private cloud/gateway/AI routes require a session', async () => {
   await setup(async ({ origin }) => {
     const response = await fetch(`${origin}/api/cloud/config`); const config = await response.json();
-    assert.deepEqual(config, { enabled: true, authenticated: false, authMethod: 'email_link', passwordAuth: true, providers: { openrouter: true, openai: false, anthropic: false } });
+    assert.deepEqual(config, { enabled: true, authenticated: false, authMethod: 'email_link', passwordAuth: true, passwordProvider: { url: 'https://wxfootrnfiqpzhmjwgck.supabase.co', publishableKey: 'sb_publishable_test' }, providers: { openrouter: true, openai: false, anthropic: false } });
     for (const route of ['/api/cloud/snapshot', '/api/cloud/media/m1', '/api/visuals/capabilities', '/api/ai/openrouter/chat/completions']) {
       const result = await fetch(`${origin}${route}`, route.includes('/ai/') ? { method: 'POST', headers: { origin, 'x-cellproject-request': '1', 'content-type': 'application/json' }, body: '{}' } : {});
       assert.equal(result.status, 401, route); assert.doesNotMatch(await result.text(), /SECRET|APP SHELL/);
     }
     const authed = await fetch(`${origin}/api/cloud/config`, { headers: { cookie: 'test=valid' } }); assert.equal((await authed.json()).authenticated, true);
   });
+});
+
+test('direct provider password routes preserve CSRF, expose setup only to a verified session and disable raw passwords for vault clients', async () => {
+  let exchanges = 0, setups = 0, rawCalls = 0;
+  await setup(async ({ origin, mutationHeaders, auth }) => {
+    auth.acceptPasswordSession = async (body, _req, res) => { exchanges++; assert.deepEqual(body, { accessToken: 'ACCESS_SECRET', refreshToken: 'REFRESH_SECRET' }); res.setHeader('set-cookie', 'opaque=handle'); return { id: 'user-1', email: 'wylgnerbossman@gmail.com' }; };
+    auth.passwordSetupSession = async req => { setups++; if (req.headers.cookie !== 'test=valid') throw new CloudError(401, 'authentication_required', 'Sign in to continue.'); return { accessToken: 'SETUP_SECRET' }; };
+    auth.signInPassword = auth.setPassword = async () => { rawCalls++; };
+    const rejected = await fetch(`${origin}/api/auth/password/session`, { method: 'POST', headers: { ...mutationHeaders, origin: 'https://evil.test' }, body: '{}' });
+    assert.equal(rejected.status, 403); assert.equal(exchanges, 0);
+    const exchange = await fetch(`${origin}/api/auth/password/session`, { method: 'POST', headers: { ...mutationHeaders, cookie: '' }, body: JSON.stringify({ accessToken: 'ACCESS_SECRET', refreshToken: 'REFRESH_SECRET' }) });
+    assert.equal(exchange.status, 200); assert.deepEqual(await exchange.json(), { authenticated: true, user: { id: 'user-1', email: 'wylgnerbossman@gmail.com' } });
+    assert.equal((await fetch(`${origin}/api/auth/password/setup-session`)).status, 401);
+    const setupSession = await fetch(`${origin}/api/auth/password/setup-session`, { headers: { cookie: 'test=valid' } });
+    assert.equal(setupSession.status, 200); assert.deepEqual(await setupSession.json(), { accessToken: 'SETUP_SECRET' }); assert.equal(setupSession.headers.get('cache-control'), 'no-store');
+    for (const route of ['/api/auth/password/sign-in', '/api/auth/password']) assert.equal((await fetch(`${origin}${route}`, { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ password: 'PRIVATE_PASSWORD' }) })).status, 426);
+    assert.equal(rawCalls, 0); assert.equal(setups, 2);
+  }, { config: { enabled: true, vaultEnabled: true, origin: 'https://test.invalid', supabaseUrl: 'https://wxfootrnfiqpzhmjwgck.supabase.co', publishableKey: 'sb_publishable_test' } });
+});
+
+test('CSP allows only the configured fixed Supabase project for direct password requests', async () => {
+  await setup(async ({ origin }) => {
+    const shell = await fetch(origin); const policy = shell.headers.get('content-security-policy');
+    assert.match(policy, /connect-src 'self' https:\/\/wxfootrnfiqpzhmjwgck\.supabase\.co;/);
+    assert.doesNotMatch(policy, /connect-src[^;]*(\*|https:;)/);
+  });
+});
+
+test('public config never serializes a secret or malformed publishable credential', async () => {
+  for (const publishableKey of ['sb_secret_PRIVATE', 'invalid', `header.${Buffer.from(JSON.stringify({ role: 'service_role' })).toString('base64url')}.signature`]) {
+    await setup(async ({ origin }) => {
+      const body = await (await fetch(`${origin}/api/cloud/config`)).json();
+      assert.equal(body.passwordProvider, undefined);
+      assert.ok(!JSON.stringify(body).includes(publishableKey));
+    }, { config: { enabled: true, origin: 'https://test.invalid', supabaseUrl: 'https://wxfootrnfiqpzhmjwgck.supabase.co', publishableKey } });
+  }
+});
+
+test('password-access GET and PUT enforce authentication, CSRF, bounded JSON and safe upstream errors', async () => {
+  let reads = 0, writes = 0, fail = false;
+  const payload = { access: { format: 'dynamic-diary-password-access', cipher: { v: 1, iv: 'synthetic-iv', data: 'synthetic-ciphertext' } }, baseRevision: 0, operationId: 'synthetic-operation', expectedOwnerId: 'user-1' };
+  const passwordAccessRepository = {
+    async get(session) { reads++; assert.equal(session.user.id, 'user-1'); if (fail) throw new Error('PRIVATE_PROVIDER_TOKEN PRIVATE_VAULT_KEY'); return { access: null }; },
+    async write(session, body) { writes++; assert.equal(session.user.id, 'user-1'); assert.deepEqual(body, payload); if (fail) throw new Error('PRIVATE_PROVIDER_TOKEN PRIVATE_VAULT_KEY'); return { revision: 1 }; },
+  };
+  await setup(async ({ origin, mutationHeaders }) => {
+    const route = `${origin}/api/cloud/vault/password-access`;
+    assert.equal((await fetch(route)).status, 401);
+    assert.equal((await fetch(route, { method: 'PUT', headers: { ...mutationHeaders, cookie: '' }, body: JSON.stringify(payload) })).status, 401);
+    assert.equal((await fetch(route, { headers: { cookie: 'test=valid', origin: 'https://evil.test' } })).status, 403);
+    for (const headers of [{ origin: 'https://evil.test' }, { 'x-cellproject-request': '' }, { 'sec-fetch-site': 'cross-site' }]) assert.equal((await fetch(route, { method: 'PUT', headers: { ...mutationHeaders, ...headers }, body: JSON.stringify(payload) })).status, 403);
+    assert.deepEqual([reads, writes], [0, 0]);
+    const read = await fetch(route, { headers: { cookie: 'test=valid' } }); assert.equal(read.status, 200); assert.equal(read.headers.get('cache-control'), 'no-store'); assert.deepEqual(await read.json(), { access: null });
+    const write = await fetch(route, { method: 'PUT', headers: mutationHeaders, body: JSON.stringify(payload) }); assert.equal(write.status, 200); assert.deepEqual(await write.json(), { revision: 1 });
+    assert.equal((await fetch(route, { method: 'PUT', headers: mutationHeaders, body: JSON.stringify({ cipher: 'X'.repeat(4096) }) })).status, 413);
+    assert.equal((await fetch(route, { method: 'PUT', headers: mutationHeaders, body: '{"invalid":' })).status, 400);
+    assert.equal((await fetch(route, { method: 'PUT', headers: { ...mutationHeaders, 'content-type': 'text/plain' }, body: JSON.stringify(payload) })).status, 400);
+    assert.deepEqual([reads, writes], [1, 1]);
+    fail = true;
+    for (const init of [{ headers: { cookie: 'test=valid' } }, { method: 'PUT', headers: mutationHeaders, body: JSON.stringify(payload) }]) {
+      const failure = await fetch(route, init); assert.equal(failure.status, 502);
+      const body = await failure.text(); assert.doesNotMatch(body, /PRIVATE_|synthetic-ciphertext|APP SHELL/); assert.equal(JSON.parse(body).error.code, 'upstream_unavailable');
+    }
+  }, { config: { enabled: true, vaultEnabled: true, origin: 'https://test.invalid' }, passwordAccessRepository });
 });
 
 test('password endpoints retain CSRF/session guards and serialize no credentials or provider tokens', async () => {

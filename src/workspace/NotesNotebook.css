@@ -1,0 +1,30 @@
+.ws-note-insert-tools {display:flex;align-items:center;gap:2px;flex:none;}
+.ws-note-insert-tools .ws-icon-button svg {width:16px;height:16px;}
+.ws-note-format[hidden], .ws-note-notebook[hidden], .ws-note-ink-tools-host[hidden] {display:none;}
+.ws-note-notebook {margin-top:24px;position:relative;min-width:0;}
+.ws-note-image-progress {font-size:11px;color:rgb(var(--text-muted));display:block;margin:0 0 8px;}
+.ws-note-document {position:relative;min-width:0;isolation:isolate;}
+.note-ink-overlay {position:absolute;inset:0;z-index:8;outline:none;}
+.note-ink-overlay.mode-draw {cursor:crosshair;}
+.note-ink-overlay.mode-erase {cursor:cell;}
+.note-ink-overlay.mode-select {cursor:crosshair;}
+.note-ink-overlay:focus-visible {outline:1px solid #b69be580;outline-offset:4px;}
+.note-ink-overlay>svg {width:100%;height:100%;overflow:visible;display:block;}
+.note-ink-overlay .is-selected {filter:drop-shadow(0 0 2px #b69be5);}
+.ws-note-ink-tools-host {flex:none;position:relative;z-index:9;padding:6px 12px;border-bottom:1px solid rgb(var(--border-base)/.45);}
+.note-ink-tools {display:flex;flex-wrap:wrap;align-items:center;gap:7px;min-width:0;}
+.note-ink-tools>.ink-toolbar{border-left:1px solid rgb(var(--border-base)/.5);padding-left:7px;}
+.note-ink-actions {display:flex;align-items:center;gap:2px;}
+.note-ink-actions button {width:30px;height:30px;display:grid;place-items:center;border:0;border-radius:8px;background:transparent;color:rgb(var(--text-secondary));cursor:pointer;font-size:19px;}
+.note-ink-actions button:hover {background:rgb(var(--text-primary)/.06);}
+.note-ink-actions button[aria-pressed=true] {background:#b69be51c;color:#c8b2ec;}
+.note-ink-actions button:disabled {opacity:.3;cursor:default;}
+.note-ink-actions button:focus-visible {outline:2px solid #b69be580;outline-offset:2px;}
+.note-ink-error {flex-basis:100%;text-align:center;font-size:11px;color:#e7a89e;}
+@media(max-width:700px) {
+  .ws-note-toolbar {gap:1px;padding-inline:6px;}
+  .ws-note-format select {max-width:68px;}
+  .ws-note-toolbar .ws-icon-button {min-width:27px;width:27px;padding-inline:4px;}
+  .ws-note-notebook {margin-inline:-8px;}
+  .ws-note-ink-tools-host {padding:5px 6px;}
+}

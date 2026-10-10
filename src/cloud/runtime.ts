@@ -4,9 +4,15 @@ export type CloudProvider = 'openrouter' | 'openai' | 'anthropic';
 export interface CloudDocument { key: string; value: string; revision: number }
 export interface CloudMedia { id: string; mime: string; name: string; projectId?: string; createdAt?: number; sha256: string; size: number }
 export interface CloudSnapshot { documents: CloudDocument[]; media: CloudMedia[] }
-export interface CloudConfig { enabled: boolean; authenticated: boolean; authMethod?: 'email_link' | 'code'; passwordAuth?: boolean; passwordSetup?: boolean; vaultAvailable?: boolean; user?: { id: string; email: string }; providers?: Partial<Record<CloudProvider, boolean>> }
+export interface CloudConfig { enabled: boolean; authenticated: boolean; authMethod?: 'email_link' | 'code'; passwordAuth?: boolean; passwordProvider?: { url: string; publishableKey: string }; passwordSetup?: boolean; vaultAvailable?: boolean; liveInkAvailable?: boolean; user?: { id: string; email: string }; providers?: Partial<Record<CloudProvider, boolean>> }
 export interface CloudIssue { kind: 'conflict' | 'network' | 'session'; key: string; message: string }
 export interface CloudStatus { pending: number; issue: CloudIssue | null; saving: boolean }
+export interface RemoteRefreshOptions {
+  keys?: readonly string[];
+  isIdle?: () => boolean;
+  /** Must apply synchronously: no input events can interleave with this transaction. */
+  apply?: (documents: readonly CloudDocument[]) => void;
+}
 type Operation = { key: string; value: string; operationId: string; baseRevision?: number };
 export class CloudConflictError extends Error { constructor() { super('Há um conflito remoto. Seu rascunho foi preservado.'); } }
 export class CloudHttpError extends Error { constructor(public status: number, message: string) { super(message); } }
@@ -32,10 +38,15 @@ export class CloudRuntime {
   private active: Promise<void> | null = null;
   private disposed = false;
   private listeners = new Set<() => void>();
+  private remoteListeners = new Set<(documents: readonly CloudDocument[]) => void>();
+  private refreshing: Promise<CloudDocument[]> | null = null;
+  private mutationEpoch = 0;
+  private remoteApplyDepth = 0;
+  private pendingMediaWrites = 0;
   private status: CloudStatus = { pending: 0, issue: null, saving: false };
   private mediaMetadata = new Map<string, CloudMedia>();
   private mediaBytes = new Map<string, ArrayBuffer>();
-  constructor(snapshot: CloudSnapshot, private fetcher: typeof fetch = fetch, private vaultDisposer?: () => void) {
+  constructor(snapshot: CloudSnapshot, private fetcher: typeof fetch = fetch, private vaultDisposer?: () => void, private snapshotLoader?: () => Promise<CloudSnapshot>) {
     if (!snapshot || !Array.isArray(snapshot.documents) || !Array.isArray(snapshot.media)) throw new Error('Snapshot remoto inválido.');
     for (const doc of snapshot.documents) {
       if (!CLOUD_DOCUMENT_KEYS.includes(doc.key as typeof CLOUD_DOCUMENT_KEYS[number]) || typeof doc.value !== 'string' || !Number.isSafeInteger(doc.revision) || doc.revision < 1 || this.confirmed.has(doc.key)) throw new Error('Snapshot remoto inválido.');
@@ -51,15 +62,65 @@ export class CloudRuntime {
     }
   }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
+  subscribeRemote = (listener: (documents: readonly CloudDocument[]) => void) => { this.remoteListeners.add(listener); return () => { this.remoteListeners.delete(listener); }; };
   getSnapshot = () => this.status;
   notifySessionExpired(key: string) { if (!this.disposed && this.status.issue?.kind !== 'conflict') this.publish({ issue: { kind: 'session', key, message: 'Sessão expirada ou acesso recusado. Preserve uma cópia antes de entrar novamente.' } }); }
   private publish(patch: Partial<CloudStatus> = {}) { this.status = { ...this.status, ...patch, pending: this.queue.length }; for (const listener of this.listeners) listener(); }
   get(key: string): string | null { return this.drafts.get(key) ?? this.confirmed.get(key)?.value ?? null; }
   documents(): CloudDocument[] { return [...new Set([...this.confirmed.keys(), ...this.drafts.keys()])].map(key => ({ key, value: this.get(key)!, revision: this.confirmed.get(key)?.revision ?? 0 })); }
+  private hasTransientReadIssue(): boolean { return this.status.issue?.key === 'remote-sync' && this.status.issue.kind === 'network'; }
+  isIdle(): boolean { return !this.disposed && !this.queue.length && !this.active && !this.pendingMediaWrites && !this.drafts.size && (!this.status.issue || this.hasTransientReadIssue()); }
+  /** Suppress persistence echoes only inside a synchronous remote domain application. */
+  withRemoteApply<T>(apply: () => T): T {
+    this.remoteApplyDepth++;
+    try { return apply(); } finally { this.remoteApplyDepth--; }
+  }
+  /** Reads a real remote snapshot and adopts revisions only when local drafts stayed idle. */
+  refreshRemote(options: RemoteRefreshOptions = {}): Promise<CloudDocument[]> {
+    if (this.refreshing) return this.refreshing;
+    if (!this.isIdle() || options.isIdle?.() === false) return Promise.resolve([]);
+    const epoch = this.mutationEpoch;
+    const task = (async () => {
+      const snapshot = this.snapshotLoader ? await this.snapshotLoader() : await cloudJson<CloudSnapshot>('/api/cloud/snapshot', {}, this.fetcher);
+      if (!this.isIdle() || epoch !== this.mutationEpoch || options.isIdle?.() === false) return [];
+      // Validate the entire envelope and media catalog before touching the current state.
+      const checked = new CloudRuntime(snapshot), remote = checked.documents(); checked.dispose();
+      const keys = new Set(options.keys ?? CLOUD_DOCUMENT_KEYS), changes: CloudDocument[] = [];
+      for (const old of this.confirmed.values()) {
+        if (keys.has(old.key) && !remote.some(doc => doc.key === old.key)) throw new Error('Snapshot remoto incompleto.');
+      }
+      for (const doc of remote) {
+        if (!keys.has(doc.key)) continue;
+        const old = this.confirmed.get(doc.key);
+        if (old && doc.revision < old.revision) throw new Error('Revisão remota desatualizada.');
+        if (old && doc.revision === old.revision && doc.value !== old.value) throw new CloudConflictError();
+        if (!old || doc.revision > old.revision) changes.push(doc);
+      }
+      const before = new Map(this.confirmed);
+      for (const doc of changes) this.confirmed.set(doc.key, doc);
+      try { if (changes.length && options.apply) this.withRemoteApply(() => options.apply!(changes)); }
+      catch (reason) { this.confirmed = before; throw reason; }
+      const metadata = new Map(snapshot.media.map(item => [item.id, item]));
+      for (const [id, old] of this.mediaMetadata) if (metadata.get(id)?.sha256 !== old.sha256) this.mediaBytes.delete(id);
+      this.mediaMetadata = metadata;
+      if (this.hasTransientReadIssue()) this.publish({ issue: null });
+      if (changes.length) for (const listener of this.remoteListeners) listener(changes);
+      return changes;
+    })().catch((reason: unknown) => {
+      if (!this.disposed && epoch === this.mutationEpoch) {
+        const status = reason instanceof CloudHttpError ? reason.status : 0;
+        this.publish({ issue: { key: 'remote-sync', kind: reason instanceof CloudConflictError || status === 409 ? 'conflict' : status === 401 || status === 403 ? 'session' : 'network', message: reason instanceof Error ? reason.message : 'Não foi possível atualizar o desenho remoto.' } });
+      }
+      throw reason;
+    }).finally(() => { if (this.refreshing === task) this.refreshing = null; });
+    this.refreshing = task; return task;
+  }
   write(key: string, raw: string): Promise<void> {
-    if (this.disposed) return Promise.resolve();
+    if (this.disposed || this.remoteApplyDepth > 0) return Promise.resolve();
     const value = sanitizeCloudDocument(key, raw);
     if (this.get(key) === value) return Promise.resolve();
+    if (this.hasTransientReadIssue()) this.publish({ issue: null });
+    this.mutationEpoch++;
     this.drafts.set(key, value);
     // A request that may have reached the server keeps its original body and id.
     // Adjacent drafts that have never been sent can share one latest snapshot.
@@ -108,7 +169,7 @@ export class CloudRuntime {
     this.publish({ issue: null }); await this.drain();
   }
   requestFetch(): typeof fetch { return this.fetcher; }
-  dispose() { if (this.disposed) return; this.disposed = true; this.vaultDisposer?.(); if (this.vaultDisposer) configureVault(null); this.mediaBytes.clear(); this.mediaMetadata.clear(); this.confirmed.clear(); this.drafts.clear(); this.queue = []; this.publish({ issue: null }); }
+  dispose() { if (this.disposed) return; this.disposed = true; this.vaultDisposer?.(); if (this.vaultDisposer) configureVault(null); this.mediaBytes.clear(); this.mediaMetadata.clear(); this.confirmed.clear(); this.drafts.clear(); this.queue = []; this.remoteListeners.clear(); this.publish({ issue: null }); }
   media(): CloudMedia[] { return [...this.mediaMetadata.values()]; }
   cachedMedia(id: string): ArrayBuffer | null { return this.mediaBytes.get(id)?.slice(0) ?? null; }
   async readMedia(id: string): Promise<ArrayBuffer | null> {
@@ -121,6 +182,9 @@ export class CloudRuntime {
   }
   async writeMedia(record: { id: string; mime: string; name: string; projectId?: string; createdAt?: number; bytes: ArrayBuffer }) {
     if (this.disposed) throw new Error('Sessão encerrada.');
+    this.mutationEpoch++;
+    this.pendingMediaWrites++;
+    try {
     const hash = await sha256(record.bytes), existing = this.mediaMetadata.get(record.id);
     if (existing && (existing.sha256 !== hash || existing.mime !== record.mime || existing.size !== record.bytes.byteLength)) throw new CloudConflictError();
     if (!existing) {
@@ -131,6 +195,7 @@ export class CloudRuntime {
       this.mediaMetadata.set(record.id, { ...metadata, sha256: hash, size: bytes.byteLength });
     }
     this.mediaBytes.set(record.id, record.bytes.slice(0));
+    } finally { this.pendingMediaWrites--; }
   }
 }
 

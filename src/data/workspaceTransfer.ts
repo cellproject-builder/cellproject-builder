@@ -1,10 +1,13 @@
 import type { ModelMessage } from 'ai';
+import { validatePersistedNoteCanvases } from '@/workspace/noteCanvasPersistence';
+import { validatePersistedBoards, type BoardRecord } from '@/boards/model';
 import type { ManagedProject, Task, Sprint, Note, Folder, PlannerSnapshot, NoteBlock, TaskComment } from '@/workspace/types';
 
 export type WorkspaceComment = TaskComment;
 
 /** Persisted domain data only; actions, credentials and transient UI state stay out. */
 export interface WorkspaceData {
+  boards?: Record<string, BoardRecord>;
   projects: Record<string, ManagedProject>;
   tasks: Record<string, Task>;
   sprints: Record<string, Sprint>;
@@ -25,9 +28,11 @@ interface OwnedRow { owner_id: string; id: string }
 interface TimestampedRow extends OwnedRow { created_at: string; updated_at: string }
 
 export interface WorkspaceDatabaseRows {
+  boards: (TimestampedRow & { title: string; archived: boolean; document: BoardRecord['document'] })[];
   workspace_settings: { owner_id: string; legacy_imported: boolean }[];
   projects: (TimestampedRow & {
     name: string; objective: string; archived: boolean; planner_snapshot: PlannerSnapshot | null;
+    appearance: NonNullable<ManagedProject['appearance']> | null;
   })[];
   sprints: (OwnedRow & {
     project_id: string; name: string; goal: string; start_date: string; end_date: string;
@@ -40,7 +45,8 @@ export interface WorkspaceDatabaseRows {
   folders: (OwnedRow & { name: string })[];
   notes: (TimestampedRow & {
     title: string; blocks: NoteBlock[]; project_id: string | null; task_id: string | null;
-    folder_id: string | null; pinned: boolean; deleted_at: string | null;
+    folder_id: string | null; pinned: boolean; deleted_at: string | null; canvas: NonNullable<Note['canvas']> | null;
+    ink: NonNullable<Note['ink']> | null;
   })[];
   task_comments: (TimestampedRow & {
     project_id: string; task_id: string; body: string; author: WorkspaceComment['author'];
@@ -108,6 +114,7 @@ function copyData(workspace: WorkspaceData): WorkspaceData {
   return structuredClone({
     projects: workspace.projects, tasks: workspace.tasks, sprints: workspace.sprints,
     notes: workspace.notes, folders: workspace.folders, comments: workspace.comments ?? {},
+    ...(workspace.boards === undefined ? {} : { boards: workspace.boards }),
     legacyImported: workspace.legacyImported,
   });
 }
@@ -124,7 +131,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Checks the backup envelope; domain validation is still required before applying an imported file. */
+/** Checks the envelope and new notebook content; other domain validation remains the caller's responsibility. */
 export function restoreWorkspaceBackup(backup: unknown): WorkspaceData {
   if (!isRecord(backup) || backup.format !== 'cellproject-workspace-backup' || backup.version !== 1) {
     throw new Error('Unsupported workspace backup');
@@ -135,6 +142,8 @@ export function restoreWorkspaceBackup(backup: unknown): WorkspaceData {
     (data.comments !== undefined && !isRecord(data.comments)) || typeof data.legacyImported !== 'boolean') {
     throw new Error('Invalid workspace backup');
   }
+  validatePersistedNoteCanvases(data.notes);
+  validatePersistedBoards(data.boards, data.notes);
   return copyData(data as unknown as WorkspaceData);
 }
 
@@ -152,10 +161,13 @@ export function workspaceToDatabaseRows(workspace: WorkspaceData, ownerId: strin
   return {
     format: 'cellproject-workspace-rows', version: 1, exportedAt: isoTimestamp(exportedAt), ownerId,
     rows: {
+      boards: Object.values(data.boards ?? {}).map(board => ({
+        ...owned(board.id), ...timestamps(board), title: board.title, archived: board.archived, document: board.document,
+      })),
       workspace_settings: [{ owner_id: ownerId, legacy_imported: data.legacyImported }],
       projects: Object.values(data.projects).map((project) => ({
         ...owned(project.id), ...timestamps(project), name: project.name, objective: project.objective,
-        archived: project.archived, planner_snapshot: project.planner ?? null,
+        archived: project.archived, planner_snapshot: project.planner ?? null, appearance: project.appearance ?? null,
       })),
       sprints: Object.values(data.sprints).map((sprint) => ({
         ...owned(sprint.id), project_id: sprint.projectId, name: sprint.name, goal: sprint.goal,
@@ -172,6 +184,8 @@ export function workspaceToDatabaseRows(workspace: WorkspaceData, ownerId: strin
       folders: Object.values(data.folders).map((folder) => ({ ...owned(folder.id), name: folder.name })),
       notes: Object.values(data.notes).map((note) => ({
         ...owned(note.id), ...timestamps(note), title: note.title, blocks: note.blocks,
+        canvas: note.canvas ?? null,
+        ink: note.ink ?? null,
         project_id: note.projectId, task_id: note.taskId, folder_id: note.folderId, pinned: note.pinned,
         deleted_at: note.deletedAt === null ? null : isoTimestamp(note.deletedAt),
       })),

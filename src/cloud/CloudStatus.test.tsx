@@ -103,7 +103,7 @@ it('logs out before closing a protected session and retains its remembered brows
   try {
     await act(async () => root.render(<CloudStatus runtime={cloud} userId={vault.session.ownerId} email="wylgnerbossman@gmail.com" onLogout={logout}/>));
     await act(async () => host.querySelector('button')!.click());
-    expect(host.textContent).toContain('Baixar chave de recuperação'); expect(host.textContent).not.toContain('Bloquear cofre');
+    expect(host.textContent).not.toContain('Baixar chave de recuperação'); expect(host.textContent).toContain('Use sua senha para entrar'); expect(host.textContent).not.toContain('Bloquear cofre');
     expect(fetcher).not.toHaveBeenCalled();
     await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Sair e bloquear')!.click());
     await settle(() => expect(logout).toHaveBeenCalledOnce());

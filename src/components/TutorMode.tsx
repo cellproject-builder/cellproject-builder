@@ -7,7 +7,6 @@ import {
   breadcrumbFor,
   buildStagedNodes,
   canConcludeNode,
-  childrenByParent,
   effectiveLeavesUnder,
   firstBlockerOf,
   isActionableKind,
@@ -18,6 +17,7 @@ import {
   relatedPartsFor,
   planOverviewFor,
 } from '@/store';
+import { childrenByParent } from '@/graph/treeIndex';
 import { explainNode, decomposeNode } from '@/ai/service';
 import { useKBStore } from '@/kb/store';
 import { requireAI } from '@/ai/availability';

@@ -1,4 +1,4 @@
-import { CalendarIcon, ChatBubbleIcon, Link2Icon } from '@radix-ui/react-icons';
+import { CalendarIcon, ChatBubbleIcon, Link2Icon } from '@/components/ui/SoftIcons';
 import { useT } from '@/i18n';
 import type { Task } from './types';
 import { PriorityMark, TaskStatusControl, taskReference } from './TaskPresentation';

@@ -11,7 +11,8 @@ void registerPwa(import.meta.env.PROD);
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <CloudBootstrap loadApplication={async () => {
-      const [{ default: App }, { seedDevKey }, { initializeTheme }] = await Promise.all([import('./App'), import('./config/store'), import('./theme')]);
+      const [{ default: App }, { seedDevKey }, { initializeTheme }, { ensureWorkspaceHydrated }] = await Promise.all([import('./App'), import('./config/store'), import('./theme'), import('./workspace/store')]);
+      await ensureWorkspaceHydrated();
       seedDevKey(); initializeTheme(); return { default: App };
     }} />
   </StrictMode>,

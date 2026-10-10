@@ -71,6 +71,7 @@ vi.mock('./ConceptNode', () => ({ ConceptNode: () => null, SIDE_HANDLE: { source
 vi.mock('@/hooks/useMediaQuery', () => ({ useIsMobile: () => flow.mobile }));
 vi.mock('./suggestionActions', () => ({ discardSuggestionsWithUndo: vi.fn(), acceptSuggestionsWithUndo: vi.fn() }));
 vi.mock('@/visuals/VisualWorkspaceBridge', () => ({ VisualWorkspaceBridge: () => null }));
+vi.mock('@/ink/PlannerInkLayer', () => ({ PlannerInkLayer: () => null }));
 vi.mock('@/visuals/rendering/VisualArtifactNode', () => ({ VisualArtifactNode: () => null }));
 
 function fixture(): Project {

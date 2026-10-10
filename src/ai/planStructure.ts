@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
-import { useGraphStore, computeTreeLayout } from '@/store';
+import { useGraphStore } from '@/store';
+import { computeTreeLayout } from '@/graph/treeLayout';
 import type { ConceptNodeData, Project } from '@/types';
 import { readPlanner, capturePlanner, plannerBusy } from '@/workspace/planner';
 import { useWorkspaceStore } from '@/workspace/store';

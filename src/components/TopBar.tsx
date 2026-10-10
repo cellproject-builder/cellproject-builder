@@ -18,6 +18,7 @@ import { ApiKeyGate } from './ApiKeyGate';
 import { ProgressRing } from '@/components/ui/ProgressRing';
 import { hasActiveAIActions } from '@/ai/actions';
 import { exportVisualPlan, prepareVisualPlanImport, watchVisualImportContext } from '@/visuals/portable';
+import './planner-mobile.css';
 
 // Nome curto do modelo ativo: rótulo conhecido, senão o id sem o prefixo do
 // provider ("openai/gpt-6.1-sol" → "gpt-6.1-sol").
@@ -235,8 +236,8 @@ export function TopBar() {
   const progressLabel = tr.topBar.progressLabel(progress.done, progress.total, evidence.withEvidence, evidence.assumedKnown);
 
   return (
-    <div className="glass-host border-b relative z-20 shrink-0 min-h-[calc(52px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] flex items-center px-3 sm:px-4 gap-1.5 sm:gap-3 text-control">
-      <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+    <div className="planner-topbar glass-host border-b relative z-20 shrink-0 min-h-[calc(52px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] flex items-center px-3 sm:px-4 gap-1.5 sm:gap-3 text-control">
+      <div className="planner-project-summary flex items-center gap-2 min-w-0 overflow-hidden">
         <span className="text-text-primary font-semibold truncate hidden sm:inline">{project?.name}</span>
         {/* Mobile: sem o prefixo "Demo ·" — o nome do projeto é o que cabe. */}
         <span className="text-text-primary font-semibold truncate sm:hidden" title={project?.name}>
@@ -296,9 +297,9 @@ export function TopBar() {
         )}
       </div>
 
-      <div className="flex-1" />
+      <div className="planner-topbar-spacer flex-1" />
 
-      <div className="segmented shrink-0">
+      <div className="planner-view-switch segmented shrink-0">
         {VIEWS.map((v) => (
           <button
             key={v.value}

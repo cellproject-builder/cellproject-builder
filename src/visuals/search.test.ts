@@ -161,14 +161,29 @@ describe('searchVisualImages', () => {
     });
     await expect(searchVisualImages(input, { signal: new AbortController().signal })).rejects.toMatchObject({ name: 'AbortError' });
   });
-  it('newer search cancels earlier request and external image URLs are rejected', async () => {
+  it('allows independent searches to finish out of order without cancelling either request', async () => {
     let release!: (response: Response) => void;
     fetchMock.mockImplementationOnce(() => new Promise<Response>(resolve => { release = resolve; }));
     const old = searchVisualImages(input, { signal: new AbortController().signal });
     const caught = old.catch(error => error);
-    await searchVisualImages(input, { signal: new AbortController().signal });
+    await expect(searchVisualImages({ ...input, text: 'Arduino Uno' }, { signal: new AbortController().signal })).resolves.toEqual([reference]);
     release(new Response(JSON.stringify({ references: true })));
-    expect(await caught).toMatchObject({ name: 'AbortError' });
+    expect(await caught).toEqual([reference]);
+  });
+  it('cancels only the request whose caller aborts it', async () => {
+    const pending: Array<(response: Response) => void> = [];
+    fetchMock.mockImplementationOnce(() => new Promise<Response>(resolve => { pending.push(resolve); }))
+      .mockImplementationOnce(() => new Promise<Response>(resolve => { pending.push(resolve); }));
+    const first = new AbortController(), second = new AbortController();
+    const cancelled = searchVisualImages(input, { signal: first.signal }).catch(error => error);
+    const surviving = searchVisualImages({ ...input, text: 'Arduino Uno' }, { signal: second.signal }).catch(error => error);
+    first.abort();
+    pending[0](new Response(JSON.stringify({ references: true })));
+    pending[1](new Response(JSON.stringify({ references: true })));
+    expect(await cancelled).toMatchObject({ name: 'AbortError' });
+    expect(await surviving).toEqual([reference]);
+  });
+  it('rejects arbitrary external image URLs in gateway responses', async () => {
     fetchMock.mockImplementation(async (url: string) => new Response(JSON.stringify(url.includes('capabilities') ? { references: true } : { sessionId: 'session', candidates: [{ ...reference, imageUrl: 'https://untrusted.example/image.png' }] })));
     await expect(searchVisualImages(input, { signal: new AbortController().signal })).rejects.toThrow(/invalid|inválid/i);
   });

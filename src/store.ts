@@ -25,6 +25,11 @@ import { t } from '@/i18n';
 import { buildDemoProject, DEMO_PROJECT_ID } from '@/data/demoProject';
 import { clearMissingVisualNodeLinks, normalizeVisualWorkspace } from '@/visuals/normalize';
 import { normalizeStoredProjectVisuals } from '@/visuals/projectBoundary';
+import { childrenByParent } from '@/graph/treeIndex';
+import { computeTreeLayout, LAYOUT_X_GAP, LAYOUT_Y_GAP } from '@/graph/treeLayout';
+// Compatibility exports for callers using the original graph-store surface.
+export { childrenByParent } from '@/graph/treeIndex';
+export { computeTreeLayout, isLeafGridParent, LAYOUT_X_GAP, LAYOUT_Y_GAP, LEAF_GRID_ROW } from '@/graph/treeLayout';
 
 type Lens = 'structure' | 'flow' | 'risk' | 'state' | 'connections';
 type ViewMode = 'graph' | 'tutor';
@@ -2201,20 +2206,6 @@ const ACTIONABLE_KINDS: ReadonlySet<NodeKind> = new Set([
 
 export const isActionableKind = (kind: NodeKind): boolean => ACTIONABLE_KINDS.has(kind);
 
-export const childrenByParent = (project: Project): Map<string, ConceptNodeData[]> => {
-  const map = new Map<string, ConceptNodeData[]>();
-  for (const n of Object.values(project.nodes)) {
-    if (!n.parentId) continue;
-    const arr = map.get(n.parentId);
-    if (arr) arr.push(n);
-    else map.set(n.parentId, [n]);
-  }
-  for (const arr of map.values()) {
-    arr.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
-  }
-  return map;
-};
-
 /**
  * The decomposition frontier under `startId`: nodes with no children (the
  * current atoms) plus takenAsKnown nodes (floors — whatever lies below a floor
@@ -2310,75 +2301,6 @@ export const reviewingParentIds = (
 
 export const effectiveLeaves = (project: Project, pending?: PendingRef): ConceptNodeData[] =>
   effectiveLeavesUnder(project, project.rootId, undefined, pending);
-
-// ---------------------------------------------------------------------------
-// Auto-layout — tidy tree over the decomposition. Children spread under their
-// parent in sibling order, each subtree gets a horizontal slot proportional to
-// its leaf count, parents sit centered over their slot, depth maps to y.
-// World units sized for the widest node card (300px) plus breathing room.
-// ---------------------------------------------------------------------------
-
-export const LAYOUT_X_GAP = 340;
-export const LAYOUT_Y_GAP = 300;
-
-// Pai cujos filhos são todos folhas e passam de LEAF_GRID_MIN: os filhos vão
-// em duas colunas sob ele (barramento no vão do meio), não numa fileira só
-// que estica a árvore por milhares de px.
-const LEAF_GRID_MIN = 4;
-// Meio vão entre as duas colunas da grade, medido do x do pai (o x é o canto
-// esquerdo do card): coluna esquerda em x-190, direita em x+190 → vão de 80px
-// para as arestas descerem sem atravessar cards.
-const LEAF_GRID_HALF = 190;
-export const LEAF_GRID_ROW = 280;
-
-export const isLeafGridParent = (byParent: Map<string, ConceptNodeData[]>, id: string): boolean => {
-  const kids = byParent.get(id) ?? [];
-  return kids.length >= LEAF_GRID_MIN && kids.every((k) => (byParent.get(k.id) ?? []).length === 0);
-};
-
-export function computeTreeLayout(project: Project): Record<string, { x: number; y: number }> {
-  const byParent = childrenByParent(project);
-  const widths = new Map<string, number>(); // subtree width in leaf slots
-  const widthOf = (id: string): number => {
-    const cached = widths.get(id);
-    if (cached !== undefined) return cached;
-    const kids = byParent.get(id) ?? [];
-    const w =
-      kids.length === 0
-        ? 1
-        : isLeafGridParent(byParent, id)
-        ? 2
-        : kids.reduce((acc, k) => acc + widthOf(k.id), 0);
-    widths.set(id, w);
-    return w;
-  };
-
-  const positions: Record<string, { x: number; y: number }> = {};
-  const place = (id: string, depth: number, left: number) => {
-    positions[id] = { x: (left + widthOf(id) / 2) * LAYOUT_X_GAP, y: depth * LAYOUT_Y_GAP };
-    if (isLeafGridParent(byParent, id)) {
-      const px = positions[id].x;
-      (byParent.get(id) ?? []).forEach((kid, i) => {
-        positions[kid.id] = {
-          x: px + (i % 2 === 0 ? -LEAF_GRID_HALF : LEAF_GRID_HALF),
-          y: (depth + 1) * LAYOUT_Y_GAP + Math.floor(i / 2) * LEAF_GRID_ROW,
-        };
-      });
-      return;
-    }
-    let cursor = left;
-    for (const kid of byParent.get(id) ?? []) {
-      place(kid.id, depth + 1, cursor);
-      cursor += widthOf(kid.id);
-    }
-  };
-  place(project.rootId, 0, 0);
-
-  // Keep the root at x=0 so the layout is stable regardless of tree size.
-  const shift = positions[project.rootId]?.x ?? 0;
-  for (const pos of Object.values(positions)) pos.x -= shift;
-  return positions;
-}
 
 /**
  * A node is resolved when reality (or the user) closed it: a leaf via

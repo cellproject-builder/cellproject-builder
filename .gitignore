@@ -5,10 +5,10 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# local env (chaves de API vão no IndexedDB, não em arquivos)
-.env
-.env.local
-.env.*.local
+# Configuração privada local/servidor; somente exemplos sem segredos são fontes.
+.env*
+!.env.example
+!.env.*.example
 
 # editor / OS
 .vscode/*

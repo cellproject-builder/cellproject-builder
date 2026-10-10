@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { createCloudAuth, CloudError, readCloudConfig } from './cloudAuth.mjs';
+import { createCloudAuth, CloudError, readCloudConfig, isPublishablePasswordKey } from './cloudAuth.mjs';
 
 const email = 'wylgnerbossman@gmail.com';
 const id = '11111111-1111-4111-8111-111111111111';
@@ -20,9 +20,110 @@ const linkReq = (cookie, code = 'auth-code-from-email', extra = {}) => ({ ...req
 
 test('production configuration is fail closed and scoped to the P&D project with one account', () => {
   assert.equal(readCloudConfig({}).enabled, false);
-  const env = { CELLPROJECT_CLOUD_ENABLED: 'true', APP_ORIGIN: origin, SUPABASE_URL: url, SUPABASE_PUBLISHABLE_KEY: 'public' };
+  const env = { CELLPROJECT_CLOUD_ENABLED: 'true', APP_ORIGIN: origin, SUPABASE_URL: url, SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_synthetic' };
   assert.equal(readCloudConfig(env).allowedEmail, email);
   for (const override of [{ APP_ORIGIN: 'http://evil.test' }, { APP_ORIGIN: `${origin}/path` }, { SUPABASE_URL: 'https://other.supabase.co' }, { SUPABASE_PUBLISHABLE_KEY: '' }, { SUPABASE_ALLOWED_EMAIL: 'attacker@example.com' }]) assert.throws(() => readCloudConfig({ ...env, ...override }), /configuration/i);
+  for (const key of ['sb_secret_NEVER_PUBLIC', 'public-but-invalid', 'sb_publishable_', `header.${Buffer.from(JSON.stringify({ role: 'service_role' })).toString('base64url')}.signature`]) assert.throws(() => readCloudConfig({ ...env, SUPABASE_PUBLISHABLE_KEY: key }), /configuration/i);
+  const legacy = `${Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')}.${Buffer.from(JSON.stringify({ role: 'anon', iss: 'supabase', ref: 'wxfootrnfiqpzhmjwgck' })).toString('base64url')}.synthetic-signature`;
+  assert.equal(isPublishablePasswordKey(legacy), true);
+  assert.equal(readCloudConfig({ ...env, SUPABASE_PUBLISHABLE_KEY: legacy }).publishableKey, legacy);
+});
+
+const providerSession = '33333333-3333-4333-8333-333333333333';
+const passwordJwt = (expiry, sessionId = providerSession, sub = id) => `header.${Buffer.from(JSON.stringify({ iss: `${url}/auth/v1`, aud: 'authenticated', role: 'authenticated', sub, exp: expiry, session_id: sessionId, amr: [{ method: 'password', timestamp: expiry - 3600 }] })).toString('base64url')}.signature`;
+
+test('direct password exchange validates the allowed account and matching refresh session without receiving a password', async () => {
+  const now = 1_800_000_000_000, calls = [];
+  const accessToken = passwordJwt(now / 1000 + 3600);
+  const auth = createCloudAuth({ config: { ...config, vaultEnabled: true }, now: () => now, fetchImpl: async (target, init) => {
+    calls.push({ target, init });
+    if (target.endsWith('grant_type=refresh_token')) return response({ access_token: accessToken, refresh_token: 'ROTATED_REFRESH', user });
+    if (target.endsWith('/user')) return response(user);
+    if (target.endsWith('/cellproject_authorized')) return response(true);
+    throw new Error('Unexpected destination');
+  } });
+  const result = headersResponse();
+  assert.deepEqual(await auth.acceptPasswordSession({ accessToken, refreshToken: 'CLIENT_REFRESH' }, req(), result), { id, email });
+  assert.deepEqual(JSON.parse(calls.find(call => call.target.endsWith('grant_type=refresh_token')).init.body), { refresh_token: 'CLIENT_REFRESH' });
+  assert.ok(calls.every(call => !call.init.body || !Object.hasOwn(JSON.parse(call.init.body), 'password')));
+  const cookie = result.cookies().find(value => value.startsWith('__Host-cellproject_session='));
+  assert.match(cookie, /HttpOnly; Secure; SameSite=Strict/);
+  assert.doesNotMatch(cookie, /CLIENT_REFRESH|ROTATED_REFRESH|signature/);
+  assert.equal((await auth.authorize(req(cookie.split(';')[0]))).passwordSetup, false);
+});
+
+test('direct password exchange rejects foreign identities, mismatched refresh sessions and non-password tokens', async () => {
+  const now = 1_800_000_000_000, accessToken = passwordJwt(now / 1000 + 3600);
+  for (const kind of ['owner', 'refresh-session', 'method', 'extra-password']) {
+    const auth = createCloudAuth({ config, now: () => now, fetchImpl: async target => {
+      if (target.endsWith('grant_type=refresh_token')) return response({ access_token: passwordJwt(now / 1000 + 3600, kind === 'refresh-session' ? '44444444-4444-4444-8444-444444444444' : providerSession), refresh_token: 'ROTATED_REFRESH', user });
+      if (target.endsWith('/user')) return response(kind === 'owner' ? { ...user, email: 'attacker@example.com' } : user);
+      if (target.endsWith('/cellproject_authorized')) return response(true);
+      return response({});
+    } });
+    const result = headersResponse();
+    await assert.rejects(auth.acceptPasswordSession({ accessToken: kind === 'method' ? jwt(now / 1000 + 3600) : accessToken, refreshToken: 'CLIENT_REFRESH', ...(kind === 'extra-password' ? { password: 'PRIVATE_PASSWORD' } : {}) }, req(), result));
+    assert.ok(!result.cookies().some(value => /^__Host-cellproject_session=[A-Za-z0-9_-]{43};/.test(value)), kind);
+  }
+});
+
+test('password setup exposes only a short-lived access token to the verified initiating session', async () => {
+  const fixture = passwordFixture();
+  await assert.rejects(fixture.auth.passwordSetupSession(req()), error => error.status === 401);
+  const { cookie } = await fixture.setup();
+  const value = await fixture.auth.passwordSetupSession(req(cookie));
+  assert.deepEqual(Object.keys(value), ['accessToken']);
+  assert.equal(typeof value.accessToken, 'string');
+  fixture.advance(900_001);
+  await assert.rejects(fixture.auth.passwordSetupSession(req(cookie)), error => error.status === 403);
+});
+
+test('direct password exchanges cannot resurrect a logged-out, disconnected or closed session while provider checks are pending', async () => {
+  const now = 1_800_000_000_000;
+  for (const action of ['logout', 'disconnect', 'close']) {
+    let waiting, release, blocked = false;
+    const started = new Promise(resolve => { waiting = resolve; });
+    const accessToken = passwordJwt(now / 1000 + 3600);
+    const auth = createCloudAuth({ config, now: () => now, fetchImpl: async target => {
+      if (target.includes('/verify')) return response({ access_token: accessToken, refresh_token: 'OLD_REFRESH', user });
+      if (target.endsWith('grant_type=refresh_token')) { if (blocked) await new Promise(resolve => { release = resolve; waiting(); }); return response({ access_token: accessToken, refresh_token: 'ROTATED_REFRESH', user }); }
+      if (target.endsWith('/user')) return response(user);
+      if (target.endsWith('/cellproject_authorized')) return response(true);
+      return response({});
+    } });
+    const old = headersResponse(); await auth.verifyCode(email, '123456', req(), old);
+    const cookie = old.cookies().find(value => value.startsWith('__Host-cellproject_session=')).split(';')[0];
+    const input = req(cookie), result = headersResponse(); blocked = true;
+    const pending = auth.acceptPasswordSession({ accessToken, refreshToken: 'CLIENT_REFRESH' }, input, result);
+    await started;
+    if (action === 'logout') await auth.logout(req(cookie), headersResponse());
+    else if (action === 'disconnect') input.aborted = true;
+    else auth.close();
+    release(); await assert.rejects(pending, error => error.status === 401);
+    assert.ok(!result.cookies().some(value => /^__Host-cellproject_session=[A-Za-z0-9_-]{43};/.test(value)), action);
+  }
+});
+
+test('direct password exchanges throttle invalid tokens and refuse malformed or oversized token credentials', async () => {
+  let calls = 0;
+  const auth = createCloudAuth({ config, fetchImpl: async () => { calls++; return new Response('PRIVATE_PROVIDER_MESSAGE', { status: 401 }); } });
+  for (const input of [null, {}, { accessToken: 'x', refreshToken: 'x', password: 'PRIVATE_PASSWORD' }, { accessToken: 'x'.repeat(32769), refreshToken: 'x' }, { accessToken: 'x', refreshToken: 'x'.repeat(16385) }]) await assert.rejects(auth.acceptPasswordSession(input, req(), headersResponse()), error => error.status === 401);
+  assert.equal(calls, 0);
+  for (let index = 0; index < 5; index++) await assert.rejects(auth.acceptPasswordSession({ accessToken: 'x', refreshToken: 'x' }, req(), headersResponse()), error => error.status === 401 && !/PRIVATE_/.test(String(error)));
+  await assert.rejects(auth.acceptPasswordSession({ accessToken: 'x', refreshToken: 'x' }, req(), headersResponse()), error => error.status === 429);
+  assert.equal(calls, 5);
+});
+
+test('an ordinary login cannot obtain the setup bearer token and vault servers reject legacy raw-password methods', async () => {
+  const fixture = passwordFixture(); const result = headersResponse();
+  await fixture.auth.signInPassword(email, 'existing password', req(), result);
+  const cookie = result.cookies().find(value => value.startsWith('__Host-cellproject_session=')).split(';')[0];
+  await assert.rejects(fixture.auth.passwordSetupSession(req(cookie)), error => error.status === 403);
+  let calls = 0;
+  const auth = createCloudAuth({ config: { ...config, vaultEnabled: true }, fetchImpl: async () => { calls++; return response({}); } });
+  await assert.rejects(auth.signInPassword(email, 'PRIVATE_PASSWORD', req(), headersResponse()), error => error.status === 426);
+  await assert.rejects(auth.setPassword('PRIVATE_PASSWORD', null), error => error.status === 426);
+  assert.equal(calls, 0);
 });
 
 test('email OTP is allowlisted before network and a verified session exposes only an opaque strict cookie', async () => {

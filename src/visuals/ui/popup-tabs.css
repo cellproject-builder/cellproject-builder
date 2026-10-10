@@ -1,0 +1,46 @@
+.visual-popup.has-tabs .visual-popup-header { padding:9px 12px 8px; border-bottom:0; gap:8px; }
+.visual-popup.has-tabs .visual-popup-header p { display:none; }
+.visual-popup.has-tabs .visual-popup-header h2 { font-size:11px; font-weight:550; }
+.visual-popup.has-tabs .visual-popup-emblem { width:24px; height:24px; border-radius:7px; }
+.visual-popup.has-tabs .visual-popup-emblem svg { width:15px; height:15px; }
+.visual-popup.has-tabs .visual-popup-body { background:rgb(var(--bg-secondary)/.92); }
+.visual-popup-tabs { position:relative; display:flex; align-items:flex-end; flex-shrink:0; gap:3px; padding:2px 7px 0; min-height:35px; isolation:isolate; }
+.visual-popup-tabs::after { position:absolute; content:''; bottom:0; left:0; right:0; border-bottom:1px solid rgb(var(--hairline)/.24); z-index:-1; }
+.visual-popup-tabstrip { display:flex; align-items:flex-end; gap:3px; overflow:auto hidden; min-width:0; flex:1; scrollbar-width:thin; }
+.visual-popup-tab { display:flex; align-items:center; min-width:70px; max-width:225px; flex:1 0 110px; margin-top:3px; border:1px solid rgb(var(--hairline)/.15); border-bottom:1px solid rgb(var(--hairline)/.24); border-radius:9px 9px 0 0; background:rgb(var(--bg-elevated)/.32); color:rgb(var(--text-muted)); opacity:.74; transition:opacity .14s,background .14s; }
+.visual-popup-tab:hover { opacity:1; }
+.visual-popup-tab.is-active { margin-top:0; padding-top:3px; opacity:1; color:rgb(var(--text-primary)); background:rgb(var(--bg-secondary)/.92); border-color:rgb(var(--hairline)/.24); border-bottom-color:transparent; z-index:1; }
+.visual-popup-tab.is-dragging { opacity:.4; }
+.visual-popup-tab>[role="tab"] { display:flex; align-items:center; flex:1; min-width:0; gap:6px; height:30px; padding:0 7px; border:0; border-radius:8px 0 0 0; color:inherit; background:transparent; touch-action:none; user-select:none; cursor:grab; }
+.visual-popup-tab>[role="tab"]:active { cursor:grabbing; }
+.visual-tab-label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:10px; }
+.visual-tab-status { display:grid; place-items:center; width:13px; height:13px; flex:none; color:rgb(var(--text-muted)); font-size:12px; }
+.visual-tab-status.is-running,.visual-tab-status.is-ready { color:rgb(var(--ai-accent)); }
+.visual-tab-status.is-error { color:rgb(var(--conf-mid)); }
+.visual-tab-status.is-running>i { width:11px; height:11px; border:1.5px solid currentColor; border-right-color:transparent; border-radius:50%; animation:visual-tab-spin .8s linear infinite; }
+.visual-tab-control,.visual-tab-new { display:grid; place-items:center; width:24px; height:26px; flex:none; border:0; border-radius:5px; background:transparent; color:rgb(var(--text-muted)); }
+.visual-tab-control { width:22px; height:24px; }
+.visual-tab-control:hover,.visual-tab-new:hover { color:rgb(var(--text-primary)); background:rgb(var(--ai-accent)/.1); }
+.visual-tab-close { font-size:16px!important; margin-right:2px; }
+.visual-tab-detach { opacity:.55; }
+.visual-popup-tab:hover .visual-tab-detach,.visual-tab-detach:focus-visible { opacity:1; }
+.visual-tab-new { align-self:center; margin-bottom:3px; font-size:20px!important; }
+.visual-tab-drag-preview { position:fixed; display:flex; align-items:center; gap:7px; z-index:10000; max-width:220px; padding:9px 11px; border:1px solid rgb(var(--ai-accent)/.3); border-radius:8px; box-shadow:var(--shadow-mac-sm); background:rgb(var(--bg-secondary)/.95); color:rgb(var(--text-primary)); pointer-events:none; font-size:11px; }
+.visual-tab-drag-preview>span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+@keyframes visual-tab-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion:reduce) { .visual-tab-status.is-running>i { animation:none; border-style:dotted; } }
+@media (pointer:coarse) { .visual-tab-control { width:28px; height:30px; } .visual-popup-tab>[role="tab"] { height:36px; } .visual-tab-detach { opacity:1; } }
+@media (max-width:639px) {
+  .visual-popup.has-tabs .visual-popup-header { min-height:56px; padding:6px 10px; }
+  .visual-popup.has-tabs .visual-popup-header h2 { font-size:15px; }
+  .visual-popup.has-tabs .visual-popup-emblem { width:28px; height:28px; border-radius:8px; }
+  .visual-popup-tabs { min-height:48px; gap:4px; padding-inline:5px; }
+  .visual-popup-tab { flex-basis:184px; min-width:170px; max-width:250px; }
+  .visual-popup-tab > [role="tab"] { min-height:44px; height:44px; padding-inline:8px; gap:5px; }
+  .visual-tab-label { font-size:13px; }
+  .visual-tab-status { width:15px; height:15px; }
+  .visual-tab-control, .visual-tab-new { width:44px; height:44px; }
+  .visual-tab-close { margin-right:0; font-size:22px!important; }
+  .visual-tab-detach { opacity:1; }
+  .visual-tab-new { margin-bottom:0; }
+}

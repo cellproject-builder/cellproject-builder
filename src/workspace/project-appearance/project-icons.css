@@ -1,0 +1,39 @@
+.ws-project-glyph { display:inline-flex; flex:none; align-items:center; justify-content:center; vertical-align:middle; }
+.ws-project-glyph.is-decorated { width:40px; height:40px; border-radius:var(--ws-radius-row); }
+.ws-project-appearance { min-width:0; margin-top:2px; }
+.ws-project-appearance-row { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.ws-project-icon-trigger { display:flex; align-items:center; gap:10px; min-width:0; padding:4px 8px 4px 0; border-radius:var(--ws-radius-control); text-align:left; }
+.ws-project-icon-trigger:hover { background:var(--ws-surface-hover); }
+.ws-project-icon-trigger>span:nth-child(2) { display:flex; flex-direction:column; gap:3px; }
+.ws-project-icon-trigger strong { color:rgb(var(--text-secondary)); font-size:12px; font-weight:550; }
+.ws-project-icon-trigger small { color:rgb(var(--text-muted)); font-size:11px; }
+.ws-project-icon-trigger>svg { margin-left:5px; color:rgb(var(--text-muted)); }
+.ws-project-color-options { display:flex; align-items:center; flex-wrap:wrap; gap:5px; min-width:0; }
+.ws-project-color { width:21px; height:21px; border-radius:50%; border:3px solid rgb(var(--bg-secondary)); box-shadow:0 0 0 1px transparent; }
+.ws-project-color[aria-pressed=true] { box-shadow:0 0 0 1px rgb(var(--text-primary)/.65); }
+.ws-project-color:hover { transform:scale(1.12); }
+.ws-project-custom-color { position:relative; display:grid!important; place-items:center; flex:none; width:23px; height:23px; margin:0 0 0 3px; border:2px solid rgb(var(--hairline)/.5); border-radius:50%; overflow:hidden; }
+.ws-project-custom-color input { position:absolute; inset:0; padding:0!important; width:100%; height:100%; opacity:0; cursor:pointer; }
+.ws-project-custom-color>svg { pointer-events:none; color:#101014; }
+.ws-project-custom-color:focus-within { outline:2px solid var(--ws-focus); outline-offset:2px; }
+.ws-project-icon-library { margin-top:12px; border:1px solid rgb(var(--hairline)/.5); border-radius:var(--ws-radius-row); overflow:hidden; background:rgb(var(--bg-secondary)/.4); }
+.ws-project-icon-search { display:flex; align-items:center; gap:8px; padding:7px 10px; color:rgb(var(--text-muted)); border-bottom:1px solid rgb(var(--hairline)/.35); }
+.ws-project-icon-search input { flex:1; width:0; min-width:0; padding:4px 0!important; border:0!important; box-shadow:none!important; outline:none; background:transparent!important; font-size:12px; }
+.ws-project-icon-search small { flex:none; font-size:10px; font-variant-numeric:tabular-nums; }
+.ws-project-icon-search .ws-icon-button { width:24px; height:24px; }
+.ws-project-icon-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(38px,1fr)); gap:3px; padding:8px; max-height:224px; overflow-y:auto; scrollbar-width:thin; overscroll-behavior:contain; }
+.ws-project-icon-grid>button { display:grid; place-items:center; height:38px; min-width:0; border:1px solid transparent; border-radius:7px; }
+.ws-project-icon-grid>button:hover { background:var(--ws-surface-hover); }
+.ws-project-icon-grid>button[aria-pressed=true] { border-color:rgb(var(--text-muted)/.4); background:rgb(var(--bg-elevated)/.6); }
+.ws-project-icon-grid>button:focus-visible,.ws-project-icon-trigger:focus-visible,.ws-project-color:focus-visible { outline:2px solid var(--ws-focus); outline-offset:1px; }
+.ws-project-icons-empty { padding:12px; font-size:12px; color:rgb(var(--text-muted)); }
+.ws-project-nav-title .ws-project-glyph { flex:none; }
+.ws-project-nav-title>span:nth-child(2) { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ws-project-identity { display:inline-flex; align-items:center; gap:7px; min-width:0; }
+.ws-page-header h1:has(.ws-project-glyph) { display:flex; align-items:center; gap:8px; }
+.ws-project-card-shell { position:relative; min-width:0; }
+.ws-project-card-shell>.ws-project-card { width:100%; height:100%; }
+.ws-project-customize.ws-icon-button { position:absolute; top:27px; right:47px; width:28px; height:28px; opacity:0; }
+.ws-project-card-shell:hover .ws-project-customize,.ws-project-card-shell:focus-within .ws-project-customize { opacity:1; }
+@media (hover:none) { .ws-project-customize.ws-icon-button { opacity:.65; } }
+@media (max-width:420px) { .ws-project-appearance-row { gap:9px; } .ws-project-color { width:24px; height:24px; } .ws-project-color-options { gap:7px; } }

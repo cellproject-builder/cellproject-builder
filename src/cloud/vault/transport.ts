@@ -3,7 +3,7 @@ import { type CipherEnvelope, type VaultHeader, type VaultSession, validateHeade
 export interface VaultHead { header: VaultHeader; revision: number; manifest: CipherEnvelope }
 interface PrivateFile { blobId: string; sha256: string; size: number }
 interface Manifest { snapshot: CloudSnapshot; files: Record<string, PrivateFile> }
-interface Pending { body: string; next: Manifest; operationId: string; reply: unknown }
+interface Pending { body: string; next: Manifest; manifest: CipherEnvelope; operationId: string; reply: unknown }
 interface Receipt { response: string | null; bytes: number; pinned: boolean }
 const RESPONSE_COUNT_LIMIT = 128, RESPONSE_BYTE_LIMIT = 512 * 1024;
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -26,13 +26,36 @@ export class VaultTransport {
   private responseBytes = 0;
   private disposed = false;
   private uploads = new Map<string, { blobId: string; cipherBytes: ArrayBuffer; cipherHash: string }>();
-  private constructor(readonly session: VaultSession, private state: Manifest, private revision: number, private remote: typeof fetch) {}
+  private constructor(readonly session: VaultSession, private state: Manifest, private revision: number, private remote: typeof fetch, private knownManifest: CipherEnvelope) {}
   static async open(session: VaultSession, head: VaultHead, remote: typeof fetch = fetch) {
     if (!head || !Number.isSafeInteger(head.revision) || head.revision < 1 || JSON.stringify(validateHeader(head.header)) !== JSON.stringify(session.header)) throw new Error('Cofre remoto inválido.');
-    const state = validateManifest(JSON.parse(await session.openText(validateCipher(head.manifest), `manifest:${head.revision}`)));
-    return new VaultTransport(session, state, head.revision, remote);
+    const manifest = validateCipher(head.manifest), state = validateManifest(JSON.parse(await session.openText(manifest, `manifest:${head.revision}`)));
+    return new VaultTransport(session, state, head.revision, remote, manifest);
   }
   snapshot(): CloudSnapshot { this.available(); return clone(this.state.snapshot); }
+  /** Read/decrypt the canonical head, serialized with writes; never settle an ambiguous write here. */
+  refreshSnapshot(): Promise<CloudSnapshot> {
+    const task = this.chain.catch(() => {}).then(async () => {
+      this.available(); if (this.pending) throw new Error('Existe uma gravação privada pendente. Preserve o rascunho e tente novamente.');
+      const head = await cloudJson<VaultHead>('/api/cloud/vault', {}, this.remote); this.available();
+      if (!head || !Number.isSafeInteger(head.revision) || head.revision < this.revision || JSON.stringify(validateHeader(head.header)) !== JSON.stringify(this.session.header)) throw new Error('Revisão do cofre inválida.');
+      const manifest = validateCipher(head.manifest);
+      if (head.revision === this.revision) {
+        // This exact ciphertext was already authenticated when opened/committed.
+        // Comparing it avoids parsing/decrypting a potentially large manifest every tick.
+        if (manifest.iv !== this.knownManifest.iv || manifest.data !== this.knownManifest.data) throw new CloudConflictError();
+      } else {
+        const next = validateManifest(JSON.parse(await this.session.openText(manifest, `manifest:${head.revision}`))); this.available();
+        for (const old of this.state.snapshot.documents) {
+          const document = next.snapshot.documents.find(item => item.key === old.key);
+          if (!document || document.revision < old.revision || document.revision === old.revision && document.value !== old.value) throw new CloudConflictError();
+        }
+        this.state = next; this.revision = head.revision; this.knownManifest = manifest;
+      }
+      return this.snapshot();
+    });
+    this.chain = task; return task;
+  }
   private available() { if (this.disposed) throw new Error('Cofre bloqueado.'); }
   private cacheResponse(operationId: string, receipt: Receipt) {
     this.responses.set(operationId, receipt.bytes); this.responseBytes += receipt.bytes;
@@ -61,13 +84,13 @@ export class VaultTransport {
     const op = this.pending;
     const reply = await cloudJson<{ revision: number }>('/api/cloud/vault', { method: 'PUT', headers: mutationHeaders, body: op.body }, this.remote);
     this.available(); if (reply.revision !== this.revision + 1) throw new Error('Revisão do cofre inválida.');
-    this.state = op.next; this.revision = reply.revision; this.rememberReply(op.operationId, op.reply, op.operationId !== deliverTo); this.pending = null;
+    this.state = op.next; this.revision = reply.revision; this.knownManifest = op.manifest; this.rememberReply(op.operationId, op.reply, op.operationId !== deliverTo); this.pending = null;
     for (const [key, upload] of this.uploads) if (Object.values(this.state.files).some(file => file.blobId === upload.blobId)) this.uploads.delete(key);
   }
   private async commit(next: Manifest, operationId: string, reply: unknown) {
     validateManifest(next);
     const manifest = await this.session.seal(JSON.stringify(next), `manifest:${this.revision + 1}`); this.available();
-    this.pending = { body: JSON.stringify({ manifest, baseRevision: this.revision, operationId }), next, operationId, reply };
+    this.pending = { body: JSON.stringify({ manifest, baseRevision: this.revision, operationId }), next, manifest, operationId, reply };
     await this.settle(operationId); return Response.json(reply);
   }
   fetch: typeof fetch = (async (input: RequestInfo | URL, init: RequestInit = {}) => {
@@ -140,7 +163,7 @@ export class VaultTransport {
     this.chain = task; return task;
   }) as typeof fetch;
   async flush() { await this.chain.catch(() => {}); await this.settle(); }
-  dispose() { this.disposed = true; this.session.dispose(); this.state = { snapshot: { documents: [], media: [] }, files: {} }; this.pending = null; this.completed.clear(); this.requests.clear(); this.responses.clear(); this.responseBytes = 0; this.uploads.clear(); }
+  dispose() { this.disposed = true; this.session.dispose(); this.state = { snapshot: { documents: [], media: [] }, files: {} }; this.knownManifest = { v: 1, iv: '', data: '' }; this.pending = null; this.completed.clear(); this.requests.clear(); this.responses.clear(); this.responseBytes = 0; this.uploads.clear(); }
 }
 export interface PreparedVaultActivation { body: string; head: VaultHead; snapshotFingerprint: string }
 const activations = new WeakMap<VaultSession, PreparedVaultActivation>();

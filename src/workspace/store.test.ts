@@ -1,10 +1,56 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
-import { useWorkspaceStore as store, flushWorkspacePersistence } from './store';
+import { useWorkspaceStore as store, flushWorkspacePersistence, ensureWorkspaceHydrated } from './store';
+import { CloudRuntime, configureCloud } from '@/cloud/runtime';
+import { workspaceRepository } from '@/data/workspaceRepository';
+import { createNoteCanvas } from './noteCanvasModel';
 
 beforeEach(async () => {
   await store.persist.rehydrate();
   store.setState({ projects: {}, tasks: {}, comments: {}, sprints: {}, notes: {}, folders: {}, activeProjectId: null, surface: 'projects', legacyImported: false });
+});
+
+describe('notebook hydration boundary', () => {
+  it('rejects invalid remote canvas before replacing state and never writes a partial workspace', async () => {
+    await flushWorkspacePersistence();
+    const before = store.getState();
+    const raw = JSON.stringify({ version: 2, state: { notes: { bad: { id: 'bad', canvas: { version: 9 } } } } });
+    const fetcher = vi.fn<typeof fetch>();
+    const cloud = new CloudRuntime({ documents: [{ key: 'cellproject-workspace', value: raw, revision: 1 }], media: [] }, fetcher);
+    configureCloud(cloud);
+    try {
+      await expect(ensureWorkspaceHydrated()).rejects.toThrow('caderno inválido');
+      expect(store.getState()).toBe(before);
+      expect(store.persist.hasHydrated()).toBe(false);
+      expect(cloud.get('cellproject-workspace')).toBe(raw);
+      expect(fetcher).not.toHaveBeenCalled();
+      expect(cloud.getSnapshot().pending).toBe(0);
+    } finally { configureCloud(null); }
+  });
+
+  it('waits on an existing hydration once and preserves valid and legacy notes', async () => {
+    const legacy = store.getState().createNote({ title: 'Legado' });
+    const visual = store.getState().createNote({ title: 'Visual' });
+    const canvas = createNoteCanvas();
+    store.getState().updateNote(visual, { canvas });
+    await flushWorkspacePersistence();
+    const saved = await idbGet<string>('cellproject-workspace');
+    store.setState({ notes: {} });
+    await flushWorkspacePersistence();
+    let release!: (raw: string) => void;
+    const read = vi.spyOn(workspaceRepository, 'getItem').mockImplementationOnce(() => new Promise<string>(resolve => { release = resolve; }));
+    try {
+      const hydration = store.persist.rehydrate();
+      const first = ensureWorkspaceHydrated(), second = ensureWorkspaceHydrated();
+      expect(read).toHaveBeenCalledOnce();
+      release(saved!);
+      await Promise.all([hydration, first, second]);
+      expect(read).toHaveBeenCalledOnce();
+      expect(store.getState().notes[visual].canvas).toEqual(canvas);
+      expect(store.getState().notes[legacy].canvas).toBeUndefined();
+      expect(store.getState().notes[legacy].title).toBe('Legado');
+    } finally { read.mockRestore(); }
+  });
 });
 
 describe('task comments', () => {
@@ -114,6 +160,35 @@ describe('task comments', () => {
 });
 
 describe('project workspace', () => {
+  it('persists independent project appearances and preserves legacy projects without one', async () => {
+    const legacy = store.getState().createProject('Legado');
+    const appearance = { icon: 'FutureRobotIcon', color: '#A1b2C3' };
+    const first = store.getState().createProject('Robótica', 'Construir', appearance);
+    const second = store.getState().createProject('Pesquisa', '', { icon: 'RocketIcon', color: '#a78bfa' });
+    appearance.color = '#000000';
+    expect(store.getState().projects[first].appearance?.color).toBe('#A1b2C3');
+    store.getState().updateProject(first, { name: 'Robótica revisada' });
+    await flushWorkspacePersistence();
+    const saved = await idbGet('cellproject-workspace');
+    store.setState({ projects: {} });
+    await flushWorkspacePersistence();
+    await idbSet('cellproject-workspace', saved);
+    await store.persist.rehydrate();
+    expect(store.getState().projects[first]).toMatchObject({ name: 'Robótica revisada', appearance: { icon: 'FutureRobotIcon', color: '#A1b2C3' } });
+    expect(store.getState().projects[second].appearance).toEqual({ icon: 'RocketIcon', color: '#a78bfa' });
+    expect(store.getState().projects[legacy].appearance).toBeUndefined();
+  });
+
+  it('rejects invalid project appearance before creating or partially updating a project', () => {
+    const id = store.getState().createProject('Original', 'Preservar', { icon: 'GearIcon', color: '#60a5fa' });
+    const before = store.getState();
+    expect(() => store.getState().createProject('Inválido', '', { icon: '🚀', color: '#60a5fa' })).toThrow();
+    expect(store.getState()).toBe(before);
+    expect(() => store.getState().updateProject(id, { name: 'Não aplicar', appearance: { icon: 'GearIcon', color: 'red' } })).toThrow();
+    expect(store.getState()).toBe(before);
+    expect(store.getState().projects[id].name).toBe('Original');
+  });
+
   it('reports failed persistence and recovers on a successful retry', async () => {
     await flushWorkspacePersistence();
     const write = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementationOnce(() => { throw new DOMException('Storage full', 'QuotaExceededError'); });
