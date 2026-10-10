@@ -19,6 +19,7 @@ Entrada mantida em 10/10/2026. As fichas descrevem o código desta revisão e ap
 - [Laboratórios e protocolos](research/README.md#experimentos-e-artefatos-existentes): comparações 3D, geometria, diagramas e desconstrução.
 - [Qualidade de planos](design/plan-quality/README.md): primeiras respostas reais, condições de referência, rubrica humana e limites; [rodada de qualidade e desempenho](reports/planning-quality-performance-2026-10-10.md).
 - [PDF no navegador real](design/pdf-worker-validation/README.md): extração, cancelamento e encerramento do worker com CSP de produção, sem chamadas de IA.
+- [Gestos do Board](design/ink-gesture-validation/README.md): pan/pinça, opção de dedo e paleta em canvas estreito/baixo, com limites de hardware explícitos.
 - [Template do resumo expandido](Template_ResumoExpandido2026.6bced2c68d504ba99fc5.md) e [referência do congresso](III_Congresso_UniSENAI_SP_2026.md): materiais de redação; verificar as exigências do evento ao submeter.
 
 ## Configuração e contratos específicos

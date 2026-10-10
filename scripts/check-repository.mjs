@@ -29,6 +29,7 @@ const docs = [
   'docs/reports/planning-quality-performance-2026-10-10.md',
   'docs/reports/audio-offline-ink-release-2026-10-10.md',
   'docs/design/pdf-worker-validation/README.md',
+  'docs/design/ink-gesture-validation/README.md',
   'docs/design/plan-quality/README.md', 'docs/design/plan-quality/RESULTS.md',
   'docs/design/plan-quality/rubric.md', 'docs/design/plan-quality/performance/README.md',
 ].map(file => resolve(root, file));

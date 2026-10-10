@@ -30,12 +30,18 @@ Executada no worktree de integração em Windows/Node, depois de terminar o dese
 | `npm run test:gateway` | **223 aprovados, um ignorado**, zero falhas. |
 | `npm run build` | TypeScript e Vite aprovados; aviso de chunks maiores que 500 kB permanece. |
 | `npm run check:bundle -- --output …` | A closure inicial não incluiu os módulos pesados protegidos pelo checker: BoardCanvas/compositor/preview, VisualCanvasLayer, extrator PDF e biblioteca completa Radix. Closure total: 2.249.568 bytes, soma gzip de 690.548 bytes; isso não mede transferência HTTP nem instalação PWA. |
-| `npm run check:repo` | 33 documentos mantidos, 794 links locais e sete fronteiras transitivas; sem alvos quebrados ou dependências proibidas. |
+| `npm run check:repo` | 34 documentos mantidos, 800 links locais e sete fronteiras transitivas na documentação final; sem alvos quebrados ou dependências proibidas. |
 | `npm run check:gateway` | Sintaxe dos módulos do servidor aprovada. |
 | Revisão independente da nota | 32 testes focados; em Chrome real, zoom 1→2× preservou largura lógica, centro focal e âncora. Não substitui ensaio com caneta física. |
-| Board no navegador | Em 390×220, dedo fez pan e pinça mudou o zoom sem criar objetos. Evidência por DOM/eventos do navegador; não é teste físico de S Pen. |
+| [Board no navegador](../design/ink-gesture-validation/README.md) | Em 390×220, dedo fez pan e pinça mudou o zoom sem criar objetos; dedo opt-in salvou/desfez um traço e o segundo dedo cancelou a prévia. Paleta com hover, fixação e rolagem interna. Não é teste físico de S Pen. |
 
-O merge e a publicação serão registrados após a confirmação do deployment, sem confundir upload/build com serviço saudável.
+## Merge e publicação
+
+`main` recebeu as mudanças por fast-forward no commit `9b7bad28539759f2789b50e5203ec53edd2680b3`, idêntico à revisão testada. Na árvore da `main`, TypeScript, check do repositório e 24 regressões de ciclo de vida/ponteiros/overlay passaram. O PDF versionado conservou seus 902 bytes; `.gitattributes` impede conversão de fim de linha que alteraria seus offsets.
+
+O push acionou o deployment Railway `5e013aef-8c55-417e-9150-f16fde5c8449`, do projeto **externo**, serviço **cellproject-builder**, ambiente **production**, confirmado como **SUCCESS**. Às **23:44:46 UTC**, o [site](https://builder.cellprojectdiary.com/) e `/healthz` responderam 200. O JavaScript `App-BevNDwM5.js`, 666.036 bytes, teve SHA-256 idêntico ao build local verificado. O manifesto manteve Dynamic Diary/standalone; a política permitiu microfone apenas na própria origem e reprodução da prévia blob. [Registro HTTP](production-verification-9b7bad2.json).
+
+Essa verificação não entrou na conta do usuário, não modificou dados e não chamou provedores pagos. Não é um ensaio remoto de gravação ou sincronização offline no tablet. O localhost principal permaneceu na porta 5190; previews auxiliares foram encerrados ao terminar.
 
 ## Limites e próxima validação
 

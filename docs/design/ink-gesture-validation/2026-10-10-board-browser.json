@@ -1,0 +1,32 @@
+{
+  "surface": "BoardCanvas / InkPalette",
+  "date": "2026-10-10",
+  "environment": {
+    "origin": "http://127.0.0.1:5196/",
+    "browser": "Chrome 155, local extension tab created for audit",
+    "viewportCss": { "width": 390, "height": 220 },
+    "touchInput": "Native CDP Input.dispatchTouchEvent, maximum 5 points",
+    "mouseInput": "Native CDP Input.dispatchMouseEvent",
+    "build": "Production dist loaded before final NoteInkOverlay rebuild; Board source frozen",
+    "externalFetches": "Rejected by isolated preview helper; cloud disabled; no provider credentials",
+    "verification": "Visible DOM geometry, transform, provisional SVG shape count, committed node count and object count; no application stores read"
+  },
+  "checks": [
+    { "name": "Collapsed palette", "result": "pass", "triggerCss": { "width": 44, "height": 44 }, "expanded": false },
+    { "name": "Default finger pans without ink", "result": "pass", "transformBefore": "translate(0px, 0px) scale(1)", "transformAfter": "translate(50px, 30px) scale(1)", "committedNodes": 0, "objects": 0 },
+    { "name": "Default two-finger pinch without ink", "result": "pass", "transformAfter": "translate(-17.5385px, 24.3077px) scale(1.46154)", "committedNodes": 0, "objects": 0, "paletteExpanded": false },
+    { "name": "Click pins palette open", "result": "pass", "detail": "Palette remained expanded after mouse left its area" },
+    { "name": "Short-height controls remain reachable", "result": "pass", "detail": "Panel remained within 220px viewport; internal wheel scroll exposed Draw with finger checkbox; canvas transform unchanged" },
+    { "name": "Opted-in finger ink cancels on second touch", "result": "pass", "provisionalShapesBeforeSecondTouch": 1, "provisionalShapesAfterSecondTouch": 0, "objectsAfterNavigation": 0, "transformAfter": "translate(-135.577px, 9.79927px) scale(2.15619)" },
+    { "name": "Unpinned mouse hover opens and leaving collapses", "result": "pass", "expandedOnEnter": true, "expandedOnLeave": false },
+    { "name": "Positive single-finger drawing and undo", "result": "pass", "objectsAfterOneFingerStroke": 1, "objectsAfterCtrlZ": 0 },
+    { "name": "Console warnings/errors during gesture checks", "result": "pass", "entries": [] }
+  ],
+  "screenshots": ["board-collapsed-390x220.jpg", "board-expanded-390x220.jpg"],
+  "limits": [
+    "Synthetic native browser touch gestures; no physical Samsung S9/S Pen pressure, palm or latency measurement",
+    "Board gestures verified on pre-overlay loaded bundle, prior to final NoteInkOverlay build",
+    "No live cloud synchronization or paid provider requests",
+    "Disposable local-origin Board retained; positive stroke undone, no user or production data altered"
+  ]
+}

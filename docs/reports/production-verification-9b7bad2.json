@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-10T23:44:46.550Z",
+  "base": "https://builder.cellprojectdiary.com",
+  "commit": "9b7bad28539759f2789b50e5203ec53edd2680b3",
+  "health": 200,
+  "html": 200,
+  "application": "/assets/App-BevNDwM5.js",
+  "applicationBytes": 666036,
+  "applicationSha256": "13333fea2e736c44200bf8740dbc0a8db22c685ac165f5d6adfe14a95cca1cd3",
+  "matchesVerifiedLocalBuild": true,
+  "pwa": {
+    "name": "Dynamic Diary — planos e evidências",
+    "display": "standalone"
+  },
+  "microphoneSelf": true,
+  "mediaBlob": true,
+  "workerCache": "CACHE_PREFIX + '8c566f85062ddcec'",
+  "limits": "Static HTTP and policy verification; no user login, mutations or paid provider requests."
+}
