@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
-import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
+import { selectedStorage } from '@/cloud/storage';
+const idbGet = selectedStorage.getItem, idbSet = selectedStorage.setItem, idbDel = selectedStorage.removeItem;
 import { nanoid } from 'nanoid';
 import type {
   Project,
@@ -287,6 +288,7 @@ export interface GraphState {
 const WRITE_DEBOUNCE_MS = 500;
 const pendingWrites = new Map<string, string>();
 let writeTimer: ReturnType<typeof setTimeout> | null = null;
+export const hasPendingGraphPersistence = () => pendingWrites.size > 0;
 
 export async function flushGraphPersistence(): Promise<void> {
   if (writeTimer) {

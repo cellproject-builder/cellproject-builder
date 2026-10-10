@@ -9,6 +9,7 @@ import type { MentionTarget, VisualArtifact } from '../types';
 import { VisualArtifactNode } from './VisualArtifactNode';
 import { useVisualPopupStore } from '../ui/uiStore';
 import { useVisualViewStore } from './viewStore';
+import { torqueDiagram } from '../diagram/fixture';
 
 vi.mock('@xyflow/react', () => ({
   NodeResizer: (props: unknown) => { mocks.resizer(props); return null; },
@@ -53,6 +54,19 @@ async function openLinkControls() {
 }
 
 describe('optional visual reference links', () => {
+  it('renders a diagram in the same free artifact shell with node selection, a contextual pencil and no 3D controls', async () => {
+    const project = useGraphStore.getState().project!;
+    const diagram: VisualArtifact = { ...artifact, kind: 'diagram', diagram: torqueDiagram(project.rootId, project.rootId), diagramValues: {}, width: 460, height: 296 };
+    await render(diagram);
+    expect(host.querySelector(`svg[aria-label="${diagram.diagram!.title}"]`)).not.toBeNull();
+    const linkedElement = host.querySelector<SVGElement>('[data-element-id="joint"]')!;
+    await act(async () => linkedElement.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(useGraphStore.getState().selectedNodeId).toBe(project.rootId);
+    expect(host.querySelector('[aria-label="Rotate 3D"]')).toBeNull(); expect(host.textContent).not.toContain('Decompose');
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Edit diagram"]')!.click());
+    expect(host.querySelector('[aria-label="Model adjustment"]')).not.toBeNull();
+    expect(mocks.resizer.mock.calls.at(-1)![0]).toMatchObject({ minWidth: 240, minHeight: 160, keepAspectRatio: false });
+  });
   it('offers a compact edit action only for a selected 3D model and keeps rotation icon-only', async () => {
     const model: VisualArtifact = { ...artifact, kind: 'model', scene: { version: 1, label: 'Motor', objects: [] } };
     mocks.zoom = 1; await render(model);

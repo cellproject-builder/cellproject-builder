@@ -1,6 +1,7 @@
 import { generateObject, NoObjectGeneratedError } from 'ai';
 import { z } from 'zod';
 import { groundedText } from '@/ai/research';
+import { sessionAwareFetch } from '@/cloud/runtime';
 import { kbModel, currentModelIds, callOpts } from '@/ai/client';
 import { currentLocaleAIName } from '@/i18n';
 import type { DecompositionPart, DecompositionSource } from './decompositionTypes';
@@ -57,9 +58,9 @@ async function check(options: DecompositionResearchOptions) {
 }
 async function gateway(path: string, options: DecompositionResearchOptions, body?: unknown): Promise<unknown> {
   await check(options);
-  const response = await fetch(`/api/visuals/${path}`, {
+  const response = await sessionAwareFetch(`/api/visuals/${path}`, {
     method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', signal: options.signal,
-    ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
+    ...(body === undefined ? {} : { headers: { 'content-type': 'application/json', 'X-Cellproject-Request': '1' }, body: JSON.stringify(body) }),
   });
   await check(options);
   if (!response.ok) throw new Error(response.status === 422 ? 'decompositionResearchNoSources' : 'decompositionResearchUnavailable');

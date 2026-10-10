@@ -3,6 +3,7 @@ import type { VisualArtifact, VisualPromptInput, VisualWorkspace } from './types
 import { createDecompositionSchema } from './decompositionSchema';
 import { modelAssemblySchema, modelAssemblyMatchesScene } from './modelAssembly';
 import { customGeometrySchema, generationGeometrySchema, withinGeometryBudget } from './geometrySchema';
+import { diagramSchema, type DiagramV1 } from './diagram/model';
 
 const coordinate = z.number().finite().min(-10_000).max(10_000);
 const triple = z.tuple([coordinate, coordinate, coordinate]);
@@ -20,7 +21,7 @@ export const generationSceneSchema = z.object({ version: z.literal(1), label: z.
 }).strict()) }).strict();
 
 const mediaIdSchema = z.string().regex(/^[\w-]{1,100}$/);
-const promptSchema = z.object({ text: z.string().max(12_000), analyzeImages: z.boolean().optional(), generationMode: z.enum(['standard', 'advanced']).optional(), mentions: z.array(z.object({ id: z.string().max(100), kind: z.enum(['note', 'node', 'image']), label: z.string().max(1000), detail: z.string().max(1000), fingerprint: z.string().max(200) }).strict()).max(20), attachments: z.array(z.object({ id: z.string().max(100), name: z.string().max(1000), mime: z.enum(['application/pdf', 'text/plain', 'text/markdown', 'image/png', 'image/jpeg', 'image/webp']), byteLength: z.number().int().nonnegative().max(10 * 1024 * 1024), mediaId: mediaIdSchema.nullable(), text: z.string().max(24_000).nullable() }).strict()).max(8) }).strict();
+const promptSchema = z.object({ text: z.string().max(12_000), analyzeImages: z.boolean().optional(), generationMode: z.enum(['standard', 'advanced']).optional(), artifactKind: z.enum(['model', 'diagram']).optional(), mentions: z.array(z.object({ id: z.string().max(100), kind: z.enum(['note', 'node', 'image']), label: z.string().max(1000), detail: z.string().max(1000), fingerprint: z.string().max(200) }).strict()).max(20), attachments: z.array(z.object({ id: z.string().max(100), name: z.string().max(1000), mime: z.enum(['application/pdf', 'text/plain', 'text/markdown', 'image/png', 'image/jpeg', 'image/webp']), byteLength: z.number().int().nonnegative().max(10 * 1024 * 1024), mediaId: mediaIdSchema.nullable(), text: z.string().max(24_000).nullable() }).strict()).max(8) }).strict();
 const safeUrl = z.string().max(4000).refine(value => { try { return ['https:', 'http:'].includes(new URL(value, 'https://local.invalid').protocol); } catch { return false; } }, 'visualUrlInvalid');
 const probability = z.number().finite().min(0).max(1);
 const distribution = z.object({ '0': probability, '1': probability, '2': probability, '3': probability }).strict().refine(p => Math.abs(p['0'] + p['1'] + p['2'] + p['3'] - 1) <= .001, 'visualAssessmentDistributionInvalid');
@@ -33,10 +34,21 @@ export const visualAssessmentSchema = z.union([legacyAssessment, legacyAssessmen
 const referenceSchema = z.object({ id: z.string().max(200), title: z.string().max(1000), description: z.string().max(8000), imageUrl: safeUrl, sourcePageUrl: safeUrl, credit: z.string().max(2000).nullable(), license: z.string().max(2000).nullable(), width: z.number().finite().positive().nullable(), height: z.number().finite().positive().nullable(), assessment: visualAssessmentSchema.nullable().optional(), sessionId: z.string().max(200).optional() }).strict();
 const layoutCoordinate = z.number().finite().min(-100_000).max(100_000);
 export const decompositionSchema = createDecompositionSchema(sceneSchema);
-const revisionSchema = z.object({ scene: sceneSchema.nullable(), mediaId: mediaIdSchema.nullable(), createdAt: z.number().finite().nonnegative(), label: z.string().max(1000).optional(), assembly: modelAssemblySchema.nullable().optional(), decomposition: decompositionSchema.nullable().optional(), input: promptSchema.optional(), contextFingerprint: z.string().max(200).optional(), referencedMediaIds: z.array(mediaIdSchema).max(20).optional() }).strict().refine(r => !r.assembly || !!r.scene && modelAssemblyMatchesScene(r.assembly, r.scene), 'visualAssemblyInvalid');
+const diagramValuesSchema = z.record(z.string().max(48), z.number().finite());
+export function validDiagramValues(diagram: DiagramV1, values: Record<string, number> = {}) {
+  return Object.entries(values).every(([id, value]) => { const p = diagram.parameters.find(p => p.id === id); return !!p && Number.isFinite(value) && value >= p.min && value <= p.max; });
+}
+const revisionSchema = z.object({ scene: sceneSchema.nullable(), mediaId: mediaIdSchema.nullable(), createdAt: z.number().finite().nonnegative(), label: z.string().max(1000).optional(), assembly: modelAssemblySchema.nullable().optional(), decomposition: decompositionSchema.nullable().optional(), input: promptSchema.optional(), contextFingerprint: z.string().max(200).optional(), referencedMediaIds: z.array(mediaIdSchema).max(20).optional(), diagram: diagramSchema.nullable().optional(), diagramValues: diagramValuesSchema.optional() }).strict().refine(r => !r.assembly || !!r.scene && modelAssemblyMatchesScene(r.assembly, r.scene), 'visualAssemblyInvalid').refine(r => !r.diagram || r.scene === null && r.mediaId === null && validDiagramValues(r.diagram, r.diagramValues), 'diagramInvalid');
 const originSchema = z.object({ proposalId: z.string().min(1).max(100), imageIds: z.array(z.string().min(1).max(200)).max(20), imageMediaIds: z.array(mediaIdSchema).max(20), instruction: z.string().max(12000) }).strict();
-export const artifactSchema = z.object({ id: z.string().min(1).max(200), label: z.string().max(1000), kind: z.enum(['image', 'model']), linkedNodeId: z.string().min(1).max(200).nullable().optional(), sourceArtifactId: z.string().min(1).max(200).optional(), x: layoutCoordinate, y: layoutCoordinate, width: z.number().finite().positive().max(100_000), height: z.number().finite().positive().max(100_000), mediaId: mediaIdSchema.nullable(), scene: sceneSchema.nullable(), source: referenceSchema.nullable(), revisions: z.array(revisionSchema).min(1).max(100), revisionIndex: z.number().int().nonnegative(), origin: originSchema.optional(), decomposition: decompositionSchema.optional(), assembly: modelAssemblySchema.optional() }).strict().refine(a => a.revisionIndex < a.revisions.length && (a.kind === 'image' ? a.mediaId !== null && a.scene === null && !a.assembly : a.scene !== null && a.mediaId === null), 'visualArtifactInvalid');
-const workspaceSchema = z.object({ version: z.literal(1), mode: z.enum(['approval', 'automatic']), artifacts: z.array(artifactSchema).max(512), proposals: z.array(z.object({ id: z.string().min(1).max(100), projectId: z.string().min(1).max(100), label: z.string().max(1000), scene: sceneSchema, input: promptSchema, contextFingerprint: z.string().max(200), contextSnapshot: z.string().max(48_000).optional(), referencedMediaIds: z.array(mediaIdSchema).max(20).optional(), createdAt: z.number().finite().nonnegative(), status: z.enum(['ready', 'applied', 'stale', 'rejected']), assembly: modelAssemblySchema.optional() }).strict().refine(p => !p.assembly || modelAssemblyMatchesScene(p.assembly, p.scene), 'visualAssemblyInvalid')).max(40), drafts: z.object({ search: promptSchema, model: promptSchema }).strict() }).strict().refine(w => new Set(w.artifacts.map(a => a.id)).size === w.artifacts.length && new Set(w.proposals.map(p => p.id)).size === w.proposals.length, 'visualDuplicateId').refine(w => !hasArtifactSourceCycle(w.artifacts), 'visualSourceCycle');
+export const artifactSchema = z.object({ id: z.string().min(1).max(200), label: z.string().max(1000), kind: z.enum(['image', 'model', 'diagram']), linkedNodeId: z.string().min(1).max(200).nullable().optional(), sourceArtifactId: z.string().min(1).max(200).optional(), x: layoutCoordinate, y: layoutCoordinate, width: z.number().finite().positive().max(100_000), height: z.number().finite().positive().max(100_000), mediaId: mediaIdSchema.nullable(), scene: sceneSchema.nullable(), source: referenceSchema.nullable(), revisions: z.array(revisionSchema).min(1).max(100), revisionIndex: z.number().int().nonnegative(), origin: originSchema.optional(), decomposition: decompositionSchema.optional(), assembly: modelAssemblySchema.optional(), diagram: diagramSchema.optional(), diagramValues: diagramValuesSchema.optional() }).strict().refine(a => a.revisionIndex < a.revisions.length && (a.kind === 'diagram'
+  ? !!a.diagram && a.scene === null && a.mediaId === null && !a.assembly && !a.decomposition && validDiagramValues(a.diagram, a.diagramValues) && a.revisions.every(r => !!r.diagram && r.scene === null && r.mediaId === null && !r.assembly && !r.decomposition)
+  : !a.diagram && !a.diagramValues && a.revisions.every(r => !r.diagram && !r.diagramValues) && (a.kind === 'image' ? a.mediaId !== null && a.scene === null && !a.assembly : a.scene !== null && a.mediaId === null)), 'visualArtifactInvalid');
+const proposalBase = z.object({ id: z.string().min(1).max(100), projectId: z.string().min(1).max(100), label: z.string().max(1000), input: promptSchema, contextFingerprint: z.string().max(200), contextSnapshot: z.string().max(48_000).optional(), referencedMediaIds: z.array(mediaIdSchema).max(20).optional(), createdAt: z.number().finite().nonnegative(), status: z.enum(['ready', 'applied', 'stale', 'rejected']) });
+const proposalSchema = z.union([
+  proposalBase.extend({ kind: z.literal('model').optional(), scene: sceneSchema, assembly: modelAssemblySchema.optional() }).strict().refine(p => !p.assembly || modelAssemblyMatchesScene(p.assembly, p.scene), 'visualAssemblyInvalid'),
+  proposalBase.extend({ kind: z.literal('diagram'), scene: z.null(), diagram: diagramSchema }).strict(),
+]);
+const workspaceSchema = z.object({ version: z.literal(1), mode: z.enum(['approval', 'automatic']), artifacts: z.array(artifactSchema).max(512), proposals: z.array(proposalSchema).max(40), drafts: z.object({ search: promptSchema, model: promptSchema }).strict() }).strict().refine(w => new Set(w.artifacts.map(a => a.id)).size === w.artifacts.length && new Set(w.proposals.map(p => p.id)).size === w.proposals.length, 'visualDuplicateId').refine(w => !hasArtifactSourceCycle(w.artifacts), 'visualSourceCycle');
 
 const emptyInput = (): VisualPromptInput => ({ text: '', mentions: [], attachments: [] });
 export const EMPTY_VISUAL_WORKSPACE: VisualWorkspace = { version: 1, mode: 'approval', artifacts: [], proposals: [], drafts: { search: emptyInput(), model: emptyInput() } };
@@ -115,8 +127,16 @@ export function normalizeVisualWorkspace(raw: unknown): VisualWorkspace {
 
 /** A missing concept releases the visual; its media and canvas position survive. */
 export function clearMissingVisualNodeLinks(workspace: VisualWorkspace, nodes: Record<string, unknown>): VisualWorkspace {
-  if (!workspace.artifacts.some(a => a.linkedNodeId && !Object.hasOwn(nodes, a.linkedNodeId))) return workspace;
-  return { ...workspace, artifacts: workspace.artifacts.map(a =>
-    a.linkedNodeId && !Object.hasOwn(nodes, a.linkedNodeId) ? { ...a, linkedNodeId: null } : a,
-  ) };
+  const missing = (id: string | null | undefined) => !!id && !Object.hasOwn(nodes, id);
+  const releaseDiagram = (diagram: DiagramV1 | null | undefined) => !diagram || !diagram.elements.some(e => missing(e.nodeId)) ? diagram
+    : { ...diagram, elements: diagram.elements.map(e => missing(e.nodeId) ? { ...e, nodeId: null } : e) };
+  let changed = false;
+  const artifacts = workspace.artifacts.map(a => {
+    const diagram = releaseDiagram(a.diagram);
+    const revisions = a.revisions.map(r => { const doc = releaseDiagram(r.diagram); return doc === r.diagram ? r : { ...r, diagram: doc }; });
+    if (!missing(a.linkedNodeId) && diagram === a.diagram && revisions.every((r, i) => r === a.revisions[i])) return a;
+    changed = true;
+    return { ...a, ...(missing(a.linkedNodeId) ? { linkedNodeId: null } : {}), ...(diagram ? { diagram } : {}), revisions };
+  });
+  return changed ? { ...workspace, artifacts } : workspace;
 }

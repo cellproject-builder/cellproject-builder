@@ -233,7 +233,7 @@ export function decompositionTxt(id: string): string {
   const workspace = getVisualWorkspace(useGraphStore.getState().project);
   const original = artifact.sourceArtifactId ? workspace.artifacts.find(a => a.id === artifact.sourceArtifactId) : artifact;
   const children = workspace.artifacts.filter(a => a.sourceArtifactId === original?.id && a.decomposition?.id === dossier.id);
-  const lines = ['DECOMPOSIÇÃO DOCUMENTADA — CELLPROJECT', `Objeto: ${dossier.identity}`, `Artefato: ${id}`, `Plano: ${useGraphStore.getState().project!.id}`,
+  const lines = ['DECOMPOSIÇÃO DOCUMENTADA — DYNAMIC DIARY', `Objeto: ${dossier.identity}`, `Artefato: ${id}`, `Plano: ${useGraphStore.getState().project!.id}`,
     `Artefato original: ${artifact.sourceArtifactId ?? artifact.id}`, `Artefato decomposto: ${artifact.sourceArtifactId ? artifact.id : dossier.assemblyArtifactId ?? children.at(-1)?.id ?? 'não aplicado'}`,
     `Dossiê: ${dossier.id}`, `Pesquisa: ${new Date(dossier.researchedAt).toISOString()}`, `Estado: ${decompositionIsCurrent(artifact) ? 'atual' : 'desatualizado'}`,
     `Imagens de origem: ${dossier.sourceImageIds.join(', ') || 'não registradas'}`, '',

@@ -56,3 +56,30 @@ A solicitação posterior de portabilidade/PWA foi implementada nesta rodada, co
 Ctrl+scroll para aproximar o modelo sem selecionar foi incluído pela frente 3D e coberto nos 110 testes dirigidos citados acima. Isto acrescenta comportamento ao Ctrl+arrastar já existente; não é redimensionamento da geometria do artefato.
 
 O usuário também encomendou, **após revisão e integração**, persistência Supabase P&D e backend próprio no Railway. Esse pedido posterior está desenhado em `docs/supabase-migration-plan.md`; a classificação anterior de implantação como fora do recorte não se aplica a esse novo escopo autorizado. Nenhuma migração/deploy foi executada por esta auditoria.
+
+## Checkpoint de execução posterior — 10/10/2026
+
+Esta atualização distingue o trabalho posterior do retrato histórico acima:
+
+- A primeira consolidação foi integrada à `main` local no commit `cfc24f2`. Verificação final dessa consolidação: 934 testes frontend passaram, 8 de API real foram pulados, 81 testes do gateway passaram e o build passou.
+- QA no navegador: 390×844 e 768×1024, Ctrl+scroll sem seleção ou zoom do grafo, lápis contextual e controles SVG. Instalação em aparelho físico continua pendente.
+- O spike de montagem foi exercitado no navegador: três cenas salvas (59 + 7 + 3 objetos), seleção do elo exibindo sua relação com o servo, separação 100% e retorno a 0%. Uma correção de leitura CRLF garante abertura das cenas TXT no Windows. Isso ainda não é um montador integrado ao workspace.
+- A arquitetura de dados validados + React/SVG foi aprovada pelo usuário. Sua integração no canvas e chat está em finalização, com testes dirigidos; código React arbitrário permanece fora do renderer de produção.
+- Duas migrações foram aplicadas ao projeto P&D `wxfootrnfiqpzhmjwgck`: documentos versionados, ledger idempotente, mídia privada e allowlist vinculada a usuários/sessões reais. Testes SQL transacionais com rollback passaram; advisors de segurança retornaram lista vazia. Nenhum dado do usuário foi importado ainda.
+- Backup global exportado pela interface local: 7 documentos, 11 arquivos, 7.580.352 bytes. Manifesto e hashes de todos os arquivos conferidos; sem chaves de API. O ZIP permanece em Downloads, fora do Git.
+- Backend próprio e adaptadores cloud implementados, em revisão final. Variáveis privadas foram configuradas no serviço existente do Railway `externo` sem disparar deploy. Login por link PKCE está sendo acrescentado porque o template gratuito do Supabase contém um link e o usuário preferiu configurar o template depois. Callback específico permitido; nenhum wildcard foi adicionado.
+- Nome público confirmado pelo usuário: **Dynamic Diary**. Prefixos antigos de persistência são mantidos por compatibilidade.
+
+Continuam abertos: verificação final da segunda rodada, integração/merge dessa rodada, deploy, primeiro login real e importação conferida dos dados, avaliação mais intensa de fidelidade 3D e instalação real em tablet/celular. A integração de múltiplos modelos preexistentes continua no estágio de spike. Testes sintéticos e confiança do TypeSafe não comprovam fidelidade física ou aprendizagem.
+
+## Verificação da segunda rodada — 10/10/2026
+
+- Integração SVG concluída no canvas e no Estúdio existentes, também acionável pelo chat. QA no navegador confirmou cálculo reativo, seleção dos nós vinculados, arrasto independente, cópia com parâmetros independentes, lápis contextual e persistência após reload. Projeto sintético separado; nenhuma evidência física adicionada. Captura: `screenshots/diagram-production.png`.
+- Em 390 × 844, o novo Estúdio ocupa 374 px dentro da tela, sem overflow horizontal da página. A tela normal foi restaurada após o ensaio. Captura: `screenshots/mobile-diagram-studio.png`.
+- Revisão cruzada corrigiu callback de login concluindo após logout, backup bloqueado por mídia não cacheada, transição de dados durante chat/anexos e autenticação expirada percebida somente pela persistência. Novo login em outra aba permite retomar a fila original, conferindo o mesmo UID; conflitos continuam explícitos. Há resgate parcial identificado para contingência.
+- Verificação final de código: **1.004 testes frontend passaram**, 8 de API real pulados; **115 testes backend passaram**. Inferência e login reais não fazem parte dessa contagem.
+- Os arquivos locais de migração foram alinhados às versões efetivamente registradas no Supabase: `20261010043955` e `20261010044015`. Advisors de segurança continuam sem apontamentos.
+- Novo backup exportado pela interface: 7 documentos e 10 mídias, 6.224.621 bytes; manifesto, arquivos e ausência de chaves conferidos. O backup anterior permanece intacto e contém também uma imagem sem referências em qualquer documento, removida do catálogo local entre as capturas. Nenhum documento referenciado ficou sem mídia por essa diferença.
+- [Estado de fidelidade 3D](THREE_FIDELITY_STATUS.md) e [estado do motor de planos](PLAN_ENGINE_STATUS.md) distinguem implementação, respostas reais salvas, simulações e próximos ensaios. Cobertura semântica automática de um plano completo e validação física ainda não foram demonstradas.
+
+O servidor de desenvolvimento permanece disponível em `http://127.0.0.1:5190/`. Publicação, primeiro login real e importação remota são registrados separadamente quando verificados.

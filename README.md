@@ -1,4 +1,4 @@
-# dynamic_diary
+# Dynamic Diary
 
 > Aprender, compreender e construir com IA, tornando explícitas as premissas de um plano e revisando-as a partir do que acontece no mundo real.
 
@@ -6,12 +6,12 @@ O objetivo principal do artigo do SENAI é desenvolver e avaliar um método de d
 
 O [objetivo aprovado do artigo](docs/OBJETIVO_DO_ARTIGO.md) é a referência canônica de propósito, contribuição candidata, direção da avaliação e limites. Gestão de projetos, tarefas e diário dão suporte a esse processo.
 
-**Local-first · BYOK · open-source · MIT**
+**Evidence-grounded planning · local development and private cloud · open-source · MIT**
 
-> ⚠ **Beta.** dynamic_diary is under active development. Data stays in this browser and is not synchronized to an account.
+> ⚠ **Beta.** Dynamic Diary is under active development. Local development keeps data in the browser. Configured cloud deployments use private Supabase persistence and a server session; see [production setup](docs/cloud-production.md).
 
 - **Projects first.** Open on your projects, with an overview of tasks, execution progress, notes and the scope builder.
-- **Sketches inside the starting panel.** Five animated ASCII scenes connect engineering, plans, blueprints, ideas and mathematics to the existing starter choices. Pause the animation or use your system's reduced-motion preference; smaller screens scroll the strip within the panel.
+- **A quiet workshop inside the starting panel.** A small pixel engineer moves between a desk, board, robot workbench and telescope. The restrained scene blends into the panel, supports pause and respects reduced motion.
 - **Shared execution.** Kanban and Scrum use the same tasks. Scrum shows sprints on a timeline with start/end markers and today's position; closing a sprint returns unfinished work to the backlog.
 - **Consistent workspace UI.** Compact page headers, shared controls and theme-aware design tokens follow the local Linear reference. See [the design system](docs/design/system.md) for component ownership and extension rules.
 - **Personal diary.** Notes support folders, search, pinning, text blocks, headings, lists, checklists, bold/italic, autosave, trash and restoration. Project and task links are optional.
@@ -22,13 +22,13 @@ O [objetivo aprovado do artigo](docs/OBJETIVO_DO_ARTIGO.md) é a referência can
 - **An assistant that acts.** Open the floating chat to create and update projects, tasks, sprints, notes, folders and task comments, or work on a scoped plan. Actions use the same domain validation as the interface. Conversations and an action audit persist locally; stopping a request keeps completed changes.
 - **Explicit shared references.** Type `@` in workspace or planner chat to select notes, plan parts or canvas photos. Photos and the 3D studio can bring selected references to the same chat while preserving its draft; this action never sends a message or generates a model.
 - **Contextual component research.** Ask the chat for a component list with images, compare grouped alternatives and choose references for the canvas. Retrieved product specifications are compared with current project requirements, with citations, conflicts and missing information. TypeSafe textual relevance and documentary checks do not certify physical compatibility. See [the flow and validation limits](docs/chat-component-research.md).
-- **Prepared for a future database.** Replaceable local repository, versioned exports and owner-scoped SQL design for Supabase. See [data architecture](docs/data-architecture.md). No remote database is connected yet.
+- **Private cloud persistence.** Exact versioned documents and immutable media use Supabase RLS, checked revisions and idempotent writes. A global ZIP backup moves local data between browser origins without including AI credentials. See [production setup](docs/cloud-production.md).
 
 - 🌳 **Planning as a typed tree.** Nodes are `recurso` (resource), `passo` (step), `decisao` (decision), `categoria` (category) — not a flat list.
 - 📚 **Plan = teaching material.** Every node ships *what it is*, *why it's needed*, *how to confirm*. Tutor mode walks execution one step at a time.
 - 🔒 **Real ground truth.** Four orthogonal mechanisms break the closed AI→AI loop: locked user-written criterion, adversarial critique, replan from real failure, verifiable real-world anchors.
-- 🧠 **Multi-provider BYOK.** Bring your own key (OpenRouter, OpenAI, Anthropic). It lives only in your browser.
-- 💾 **Local persistence.** Projects and original visual files live in your browser's IndexedDB. Visual reference search uses a gateway available in local Vite development.
+- 🧠 **Multiple providers.** Local development supports BYOK (OpenRouter, OpenAI, Anthropic); private cloud deployments keep provider keys on the server.
+- 💾 **Portable persistence.** Local development uses IndexedDB. The private cloud stores versioned documents and immutable media in Supabase, with global ZIP export/import.
 - 🌍 **Bilingual UI.** English and Brazilian Portuguese, selectable from the API key gate or via the language selector. Defaults to your browser locale.
 
 ---
@@ -48,8 +48,8 @@ O [objetivo aprovado do artigo](docs/OBJETIVO_DO_ARTIGO.md) é a referência can
 | Personal/project notes and folders | ✅ working |
 | Floating AI chat with workspace and scoped planner actions | ✅ working |
 | Internal task/issue comments with human and assistant authors | ✅ working |
-| Supabase data contracts, exports and SQL design | ✅ prepared; deployment remains future |
-| Mobile polish (drawer, sheet, safe areas) | 🚧 partial |
+| Supabase private persistence, login and global migration | Implemented; production login/data migration require end-to-end verification |
+| Responsive mobile/tablet and installable PWA | Implemented and viewport-tested; real-device installation not yet verified |
 | Onboarding tour | ⏳ planned |
 | Public deploy templates beyond Railway | ⏳ planned |
 | Real-time collaboration / multi-user | ❌ explicitly out of scope for v0 |
@@ -76,11 +76,13 @@ Open a plan in the graph view and use **Buscar imagens / Find images** or **Gera
 
 Use **Maximizar canvas / Maximize canvas** beside the graph controls to dedicate the workspace to the canvas. Restore with the same button or Escape; an open visual pop-up closes first. Navigation, detail panels and chat return with their previous state and draft. The canvas and its visual tools remain mounted.
 
-In the 3D studio, **Refinar pedido com IA / Refine request with AI** optionally helps define an existing object or an original concept before generation. The selected main model presents its interpretation, essential questions and an editable modeling request. Answer or correct it for another round, find references in the existing gallery, and inspect selected local images. Confirm the intended object and references, then use the refined request; this updates only the text and keeps `@` sources and attachments. Generating remains a separate action in both application modes. Changes to the draft or sources invalidate earlier refinements.
+In the 3D studio, **Refinar pedido com IA / Refine request with AI** optionally helps define an existing object or an original concept before generation. Review its interpretation, answer essential questions and adjust the modeling request in the same flow. Confirm the intended object and references, then explicitly generate from that interpretation. Selected `@` sources and attachments remain available. Changes to the draft, sources or generation mode invalidate earlier refinements.
 
-Select a 3D object and choose **Girar 3D / Rotate 3D** to drag or swipe its view horizontally and vertically inside the canvas. **Mover / Move** returns to moving the object; **Restaurar vista / Reset view** or Home restores the initial view. Arrow keys rotate and Escape exits rotation first. Inspection changes neither canvas coordinates nor model revisions.
+Select a 3D object and use the rotation icon to drag or swipe its view inside the canvas. The move icon returns to moving the object; **Restaurar vista / Reset view** or Home restores the initial view. Arrow keys rotate and Escape exits rotation first. The pencil opens a compact contextual editor with `@` references and attachments; submitting an adjustment creates a revision of the artifact.
 
 Hold **Ctrl and drag** a 3D object for temporary rotation without selecting it or opening editing controls. While Ctrl is held, selection outlines, resize handles and the object toolbar are hidden; releasing Ctrl restores the previous interaction mode. Images retain their existing behavior.
+
+Hold **Ctrl and scroll** over a 3D object to zoom its view without enlarging its canvas frame or zooming the plan. Use the same studio's **Diagrama / Diagram** selector for interactive transparent SVG artifacts, including parameters and links to existing plan nodes. See [the production contract and portable example](docs/design/interactive-artifacts/PRODUCTION.md).
 
 Choose **Decompor modelo / Decompose model** on an existing 3D object to inspect its documented composition in the same studio. Confirm the real product and variant, research specifications, inspect source excerpts and download a related TXT containing the original geometry, components and citations. Select up to eight documented parts for individual research and grouped generation, then apply the result according to the existing application mode. Applying creates a **separate linked artifact beside the original**, which remains visible. Existing source meshes are reused with their original geometry and transforms; parts absent from the source may receive newly generated illustrative geometry. **Montado / Assembled** and **Explodido / Exploded** animate the component artifact reversibly; selecting a part in the list highlights it in the canvas. A subset is labeled as a partial view. Geometry and spacing are illustrative; this does not validate manufacturing dimensions, electrical connections or physical disassembly. See the [decomposition contract](docs/design/object-decomposition.md).
 
@@ -88,7 +90,7 @@ Image search resolves the requested objects from selected references before sear
 
 **Approval** keeps a generated scene as a proposal until you apply it. **Automatic** applies an eligible result only while the project and selected sources remain current. Generation uses your configured BYOK provider. Images provide textual metadata by default; enable **Analisar pixels das imagens com IA / Analyze image pixels with AI** to send selected local images to a compatible model during refinement or generation. This accepts up to eight images and 20 MiB total, without inferring calibrated dimensions or physical correctness. Unsupported image input produces an explicit error instead of a silent text-only fallback. The existing export/import menu preserves visuals and originals in portable JSON.
 
-Generation now receives a versioned modeling guide adapted from the pinned CloudAI-X Three.js fundamentals, geometry and materials skills. It teaches the model our renderer's actual primitive sizes, transforms and composition rules, with optional recipes for the requested object. The output remains bounded SceneV1 JSON: five primitive types, up to 128 objects and base color only. See [guide provenance, integration and limits](docs/visual-modeling-skills.md) and the [real with/without comparison](http://127.0.0.1:5190/docs/design/three-skills-comparison/) while the local development server runs. The comparison displays saved responses without making new AI calls.
+Generation receives a versioned modeling guide adapted from the pinned CloudAI-X Three.js fundamentals, geometry and materials skills. The bounded SceneV1 JSON supports primitives, extrude, lathe, tube and custom BufferGeometry. Advanced mode plans modules with shared dimensions/interfaces and separate prompts, then composes their outputs. The renderer executes validated geometry, not arbitrary generated JavaScript. See [guide provenance and limits](docs/visual-modeling-skills.md) and the [saved with/without comparison](http://127.0.0.1:5190/docs/design/three-skills-comparison/) while the local server runs. The comparison makes no new AI calls.
 
 The [reference experiment](http://127.0.0.1:5190/docs/design/three-skills-comparison/matrix/) expands this to 32 planned first attempts: ESP32 and MG90S, no reference / image / specifications / both, with and without the adapted guide, repeated twice. Its explicit local CLI sends audited image pixels independently of the studio's optional visual analysis. See the [protocol and recorded results](docs/design/three-skills-comparison/matrix/README.md). Browsing the experiment never triggers inference.
 
@@ -96,7 +98,7 @@ Use **Conversar sobre / Discuss** on a canvas photo or **Levar referências ao c
 
 Ask the chat to revise existing plan parts and find component images in the same message. Image results appear in a carousel with arrows, keyboard, scroll and swipe navigation. **Escolher / Choose** adds the selected image to the canvas and a real `@` reference to the chat draft; **Base 3D / 3D base** also prepares the studio while preserving its draft. Search alone inserts nothing. Images link only to a node referenced in that search; otherwise they remain free. Results from another project or a replaced plan cannot insert into the current canvas. Expired search sessions require a new search; images already chosen remain stored locally.
 
-Run `npm run dev` locally for real image search and its media gateway. Static deployment and `npm run preview` do not provide those endpoints. See [delivery, validated flows and limits](docs/visual-canvas-validation.md) and [media limits and JSON portability](docs/design/visual-media-portability.md).
+Run `npm run dev` locally for image search and its media gateway. For cloud deployment, `npm start` runs the authenticated Node backend and serves `dist`; a static-only host or `npm run preview` does not provide those endpoints. See [delivery, validated flows and limits](docs/visual-canvas-validation.md) and [media limits and JSON portability](docs/design/visual-media-portability.md).
 
 ---
 
@@ -127,7 +129,7 @@ For local development, you can also copy `.env.example` to `.env` and set `OPENR
 
 ## Privacy
 
-dynamic_diary is **local-first**:
+In **local development**:
 
 - ✅ Your API key sits in `IndexedDB` (`cellproject-config`) — only in this browser.
 - ✅ Projects, tasks, sprints, notes and folders live in `IndexedDB` (`cellproject-workspace`). The legacy graph snapshot remains in `cellproject-graph`; migration preserves existing plans and drafts.
@@ -135,7 +137,7 @@ dynamic_diary is **local-first**:
 - ✅ BYOK model requests go **directly** from your browser to the provider you configured. Visual reference search and downloads pass through the local development gateway; optional TypeSafe review sends selected textual context and reference metadata, without image pixels, using a server-side key.
 - ⚠️ Because this is an SPA, any XSS on the domain hosting it can read the key. Host on a trusted domain and keep dependencies fresh.
 
-Storage keys retain the `cellproject-` prefix for compatibility with existing data. No account or cloud sync is implemented.
+Storage keys retain the `cellproject-` prefix for compatibility with existing data. In cloud mode, the backend stores provider credentials, the browser uses an opaque HttpOnly session cookie, and Supabase stores private documents/media. The service worker caches only the public application shell, never private API responses. Unsaved/conflicting changes remain visible and can be exported. See [security and deployment limits](docs/cloud-production.md).
 
 ---
 
@@ -152,9 +154,9 @@ Storage keys retain the `cellproject-` prefix for compatibility with existing da
 Ready-to-go configuration:
 
 - [`railway.json`](railway.json) — builder + start command
-- [`nixpacks.toml`](nixpacks.toml) — Node 22 + serve static with SPA fallback
+- [`nixpacks.toml`](nixpacks.toml) — Node 22 + authenticated Node server and static SPA fallback
 
-The build runs `npm ci && npm run build` and serves `dist/` via `serve -s` (single-page-app mode with fallback to `index.html`).
+The build runs `npm ci && npm run build`. `npm start` serves `dist/` and the authenticated Node APIs. Configure the canonical origin, Supabase and provider environment variables as described in [production setup](docs/cloud-production.md).
 
 ### Other static hosts (Cloudflare Pages, Netlify, Vercel)
 

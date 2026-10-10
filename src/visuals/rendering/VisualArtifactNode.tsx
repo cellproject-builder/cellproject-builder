@@ -4,7 +4,7 @@ import { useLocaleStore } from '@/i18n';
 import { useGraphStore } from '@/store';
 import { requestChatReferences } from '@/references/chatHandoff';
 import { getPlannerOwnerId } from '@/workspace/planner';
-import { listMentionTargets, removeVisualArtifact, revertVisualArtifact, setVisualArtifactLink, updateVisualArtifact } from '../domain';
+import { listMentionTargets, removeVisualArtifact, revertVisualArtifact, setVisualArtifactLink, updateVisualArtifact, setDiagramParameter } from '../domain';
 import { readVisualMedia } from '../media';
 import { decompositionAssemblyCurrent } from '../decomposition';
 import { modelAssemblyCurrent } from '../modelAssembly';
@@ -13,6 +13,7 @@ import { useVisualPopupStore } from '../ui/uiStore';
 import { useVisualViewStore } from './viewStore';
 import { containedImageRect } from './geometry';
 import { ModelArtifactEditor } from '../ui/ModelArtifactEditor';
+import { DiagramView } from '../diagram/DiagramView';
 import './visual-canvas.css';
 
 export const VisualArtifactNode = memo(function VisualArtifactNode({ data, selected, dragging, width, height }: NodeProps) {
@@ -171,7 +172,7 @@ export const VisualArtifactNode = memo(function VisualArtifactNode({ data, selec
   return <div className={`visual-artifact ${artifact.kind === 'image' ? 'is-image' : ''} ${selected ? 'is-selected' : ''} ${dragging ? 'is-dragging' : ''} ${orbitActive ? 'is-orbiting' : ''} ${quickOrbit ? 'is-quick-orbit' : ''}`} style={{ width: width ?? artifact.width, height: height ?? artifact.height }}>
     <Handle type="target" id="visual-link" position={Position.Left} isConnectable={false} className="visual-link-handle" />
     <Handle type="source" id="visual-origin" position={Position.Right} isConnectable={false} className="visual-link-handle" />
-    <NodeResizer isVisible={selected && !quickOrbit} minWidth={artifact.kind === 'image' ? Math.min(40, 40 * imageAspect) : 100} minHeight={artifact.kind === 'image' ? Math.min(40, 40 / imageAspect) : 80} keepAspectRatio={artifact.kind === 'image'}
+    <NodeResizer isVisible={selected && !quickOrbit} minWidth={artifact.kind === 'image' ? Math.min(40, 40 * imageAspect) : artifact.kind === 'diagram' ? 240 : 100} minHeight={artifact.kind === 'image' ? Math.min(40, 40 / imageAspect) : artifact.kind === 'diagram' ? 160 : 80} keepAspectRatio={artifact.kind === 'image'}
       onResizeStart={() => setResizing(true)}
       onResizeEnd={(_event, params) => { updateVisualArtifact(artifact.id, { x: params.x, y: params.y, width: params.width, height: params.height }); setResizing(false); }} />
     <div ref={surfaceRef} className={`visual-drag-surface ${orbitActive || quickOrbit ? 'nodrag nopan nowheel' : ''}`} role="group"
@@ -201,6 +202,8 @@ export const VisualArtifactNode = memo(function VisualArtifactNode({ data, selec
         }} />}
       {missing && <span className="visual-missing">{en ? 'Image file unavailable' : 'Arquivo da imagem indisponível'}</span>}
       {artifact.kind === 'model' && <span className="visual-model-fallback">{en ? '3D preview needs WebGL 2' : 'Prévia 3D precisa de WebGL 2'}</span>}
+      {artifact.kind === 'diagram' && artifact.diagram && <DiagramView diagram={artifact.diagram} values={artifact.diagramValues} english={en} nodeNames={Object.fromEntries(Object.values(conceptNodes ?? {}).map(n => [n.id, n.name]))}
+        onParameter={(id, value) => setDiagramParameter(artifact.id, id, value)} onSelectNode={id => { if (Object.hasOwn(useGraphStore.getState().project?.nodes ?? {}, id)) useGraphStore.getState().selectNode(id); }} />}
     </div>
     <NodeToolbar isVisible={selected && !quickOrbit && !dragging && !resizing} position={Position.Bottom} offset={6} style={{ zIndex: 10 }}>
     <div className={`visual-artifact-controls nodrag nopan nowheel ${zoom < .7 ? 'is-compact' : ''}`} role="group" aria-label={artifact.label}
@@ -216,12 +219,12 @@ export const VisualArtifactNode = memo(function VisualArtifactNode({ data, selec
         aria-label={orbitActive ? (en ? 'Move object' : 'Mover objeto') : (en ? 'Rotate 3D' : 'Girar 3D')}>
         <span aria-hidden="true">{orbitActive ? '↔' : '↻'}</span>
       </button>}
-      {artifact.kind === 'model' && <button className="nodrag" aria-label={en ? 'Edit 3D model' : 'Editar modelo 3D'} title={en ? 'Edit 3D model' : 'Editar modelo 3D'} aria-expanded={editOpen} onClick={() => { setRotating(false); setEditOpen(value => !value); }}><svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="m12.5 3.5 4 4M3 13l10-10a2.8 2.8 0 0 1 4 4L7 17l-4 1z"/></svg></button>}
+      {(artifact.kind === 'model' || artifact.kind === 'diagram') && <button className="nodrag" aria-label={artifact.kind === 'diagram' ? (en ? 'Edit diagram' : 'Editar diagrama') : (en ? 'Edit 3D model' : 'Editar modelo 3D')} title={artifact.kind === 'diagram' ? (en ? 'Edit diagram' : 'Editar diagrama') : (en ? 'Edit 3D model' : 'Editar modelo 3D')} aria-expanded={editOpen} onClick={() => { setRotating(false); setEditOpen(value => !value); }}><svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="m12.5 3.5 4 4M3 13l10-10a2.8 2.8 0 0 1 4 4L7 17l-4 1z"/></svg></button>}
       {orbitActive && <button className="nodrag" onClick={() => useVisualViewStore.getState().reset(artifact.id)} title={en ? 'Reset view' : 'Restaurar vista'} aria-label={en ? 'Reset view' : 'Restaurar vista'}>⌂</button>}
-      <button className="nodrag visual-orbit-toggle" onClick={() => useVisualPopupStore.getState().inspectArtifact(linkedChild?.id ?? artifact.id)}
+      {artifact.kind !== 'diagram' && <button className="nodrag visual-orbit-toggle" onClick={() => useVisualPopupStore.getState().inspectArtifact(linkedChild?.id ?? artifact.id)}
         title={decompositionLabel} aria-label={decompositionLabel}>
         <span aria-hidden="true">◈</span> {zoom >= .7 && (isChild || linkedChild || advancedAssembly ? (en ? 'Components' : 'Componentes') : (en ? 'Decompose' : 'Decompor'))}
-      </button>
+      </button>}
       {hasAssembly && <button className="nodrag visual-orbit-toggle" onClick={() => useVisualViewStore.getState().setExplosion(artifact.id, exploded ? 0 : 1)}
         aria-pressed={exploded} title={en ? 'Separate parts or return them to their assembly positions' : 'Separar peças ou retorná-las às posições de montagem'}
         aria-label={exploded ? (en ? 'Assemble model' : 'Montar modelo') : (en ? 'Show exploded view' : 'Ver visão explodida')}>
@@ -247,7 +250,7 @@ export const VisualArtifactNode = memo(function VisualArtifactNode({ data, selec
         {linkedNode && <button className="nodrag visual-unlink" onClick={() => { setVisualArtifactLink(artifact.id, null); setLinkOpen(false); linkToggleRef.current?.focus(); }} title={en ? 'Unlink from node' : 'Desvincular do node'} aria-label={en ? 'Unlink from node' : 'Desvincular do node'}>×</button>}
       </div>}
     </div>
-    {selected && editOpen && artifact.kind === 'model' && <ModelArtifactEditor key={`${projectId}:${artifact.id}`} artifact={artifact} onClose={() => setEditOpen(false)}/>}
+    {selected && editOpen && (artifact.kind === 'model' || artifact.kind === 'diagram') && <ModelArtifactEditor key={`${projectId}:${artifact.id}`} artifact={artifact} onClose={() => setEditOpen(false)}/>}
     </NodeToolbar>
   </div>;
 });

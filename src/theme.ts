@@ -1,11 +1,12 @@
 import { create } from 'zustand';
+import { readPreference, writePreference } from '@/cloud/storage';
 
 export type Theme = 'oled' | 'dark' | 'light';
 const STORAGE_KEY = 'dynamic_diary-theme';
 
 function savedTheme(): Theme {
   try {
-    const value = localStorage.getItem(STORAGE_KEY);
+    const value = readPreference(STORAGE_KEY);
     if (value === 'oled' || value === 'dark' || value === 'light') return value;
   } catch { /* A blocked storage must not prevent the app from opening. */ }
   return 'oled';
@@ -24,7 +25,7 @@ export const useThemeStore = create<{ theme: Theme; setTheme: (theme: Theme) => 
   setTheme: (theme) => {
     set({ theme });
     applyTheme(theme);
-    try { localStorage.setItem(STORAGE_KEY, theme); } catch { /* Session preference still works. */ }
+    writePreference(STORAGE_KEY, theme);
   },
 }));
 

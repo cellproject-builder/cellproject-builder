@@ -8,7 +8,7 @@ import { assembleSavedParts } from './assembly';
 try {
   const response=await fetch('../samples/mg90s-advanced-2026-10-10.txt');
   if(!response.ok)throw new Error('Missing sample');
-  const text=await response.text();
+  const text=(await response.text()).replace(/\r\n?/g,'\n');
   const contract=modelAssemblySchema.parse(JSON.parse(text.split('CONTRATO E REFERÊNCIAS\n\n')[1].split('\n\nCENA COMPLETA MONTADA')[0]));
   const original=sceneSchema.parse(JSON.parse(text.split('CENA COMPLETA MONTADA\n\n')[1]));
   const offsets=layoutDecompositionGroups(original,contract.groups);

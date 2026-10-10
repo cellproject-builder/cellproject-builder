@@ -7,7 +7,7 @@ import { applyVisualProposal, copyVisualInput, generationSceneSchema, getVisualW
 import { readVisualMedia } from './media';
 import { buildVisualModelSystem } from './modelingGuide';
 import { loadVisualVisionImages, normalizeVisualVisionError, visualVisionPrompt } from './vision';
-import type { VisualPromptInput, VisualProposal, VisualModelAssembly, SceneV1 } from './types';
+import type { VisualPromptInput, VisualModelProposal, VisualModelAssembly, SceneV1 } from './types';
 
 export interface VisualSceneGeneration { scene: SceneV1; assembly?: VisualModelAssembly; input: VisualPromptInput; contextFingerprint: string; contextSnapshot: string; referencedMediaIds: string[]; current: boolean }
 export interface VisualSceneOptions { signal: AbortSignal; beforeRequest?: () => Promise<void>; onProgress?: (message: string) => void; sourceModel?: { label: string; scene: SceneV1; assembly?: VisualModelAssembly } }
@@ -62,12 +62,12 @@ export async function generateVisualScene(input: VisualPromptInput, options: Vis
 }
 
 /** Generates only bounded declarative geometry. No code execution or model tools. */
-export async function generateVisualModel(input: VisualPromptInput, options: VisualSceneOptions): Promise<VisualProposal> {
+export async function generateVisualModel(input: VisualPromptInput, options: VisualSceneOptions): Promise<VisualModelProposal> {
   const guard = watchVisualScope();
   try {
     const result = await generateVisualScene(input, options); options.signal.throwIfAborted(); guard.assert();
     const current = result.current && resolveVisualContext(result.input).fingerprint === result.contextFingerprint;
-    const proposal: VisualProposal = { id: nanoid(), projectId: guard.scope.projectId, label: result.scene.label, scene: result.scene, input: result.input, contextFingerprint: result.contextFingerprint, contextSnapshot: result.contextSnapshot.slice(0, 48_000), referencedMediaIds: result.referencedMediaIds, ...(result.assembly ? { assembly: result.assembly } : {}), createdAt: Date.now(), status: current ? 'ready' : 'stale' };
+    const proposal: VisualModelProposal = { id: nanoid(), projectId: guard.scope.projectId, label: result.scene.label, scene: result.scene, input: result.input, contextFingerprint: result.contextFingerprint, contextSnapshot: result.contextSnapshot.slice(0, 48_000), referencedMediaIds: result.referencedMediaIds, ...(result.assembly ? { assembly: result.assembly } : {}), createdAt: Date.now(), status: current ? 'ready' : 'stale' };
     storeVisualProposal(proposal, guard.scope);
     if (current && getVisualWorkspace(useGraphStore.getState().project).mode === 'automatic') { applyVisualProposal(proposal.id); proposal.status = 'applied'; }
     return proposal;

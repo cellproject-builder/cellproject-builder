@@ -9,6 +9,8 @@ import { useUIRequests } from './uiRequests';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { ApiKeyGate } from '@/components/ApiKeyGate';
 import { InstallApp } from '@/pwa/InstallApp';
+import { CloudDataControls } from '@/cloud/CloudStatus';
+import { isCloudEnabled } from '@/cloud/runtime';
 import { toast } from '@/components/ui/Toast';
 import { projectEvidenceProgress, projectProgress, useGraphStore } from '@/store';
 import { ProgressRing } from '@/components/ui/ProgressRing';
@@ -120,7 +122,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
         <button className={`ws-nav-item ${surface === 'notes' && !noteScope ? 'selected' : ''}`} aria-label={tr.diary} aria-current={surface === 'notes' && !noteScope ? 'page' : undefined} title={tr.diary} onClick={() => { setNoteScope(null); setNoteId(null); navigate('notes'); setSideOpen(false); }}><Icon name="notes" /><span>{tr.diary}</span></button>
       </nav>
       {project && <><p className="ws-nav-label ws-project-nav-title" title={project.name}><span>{project.name}</span>{project.archived && <span className="ws-badge">{tr.archived}</span>}</p><nav>{(['planner', 'overview', 'kanban', 'scrum', 'notes'] as const).map(navItem)}</nav></>}
-      <div className="ws-sidebar-bottom"><button className="ws-nav-item" aria-label={tr.preferences} title={tr.preferences} aria-haspopup="dialog" aria-expanded={settings} onClick={() => setSettings(true)}><GearIcon width={18} height={18} aria-hidden="true" /><span>{tr.preferences}</span></button><div className="ws-sidebar-tools"><LanguageToggle /><span><i />{tr.localData}</span></div></div>
+      <div className="ws-sidebar-bottom"><button className="ws-nav-item" aria-label={tr.preferences} title={tr.preferences} aria-haspopup="dialog" aria-expanded={settings} onClick={() => setSettings(true)}><GearIcon width={18} height={18} aria-hidden="true" /><span>{tr.preferences}</span></button><div className="ws-sidebar-tools"><LanguageToggle /><span><i />{isCloudEnabled() ? 'Workspace na nuvem' : tr.localData}</span></div></div>
     </aside>
     <div className="ws-main">{surface === 'planner' && project && <header className="ws-header">
       {mobileMenu}
@@ -146,6 +148,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
           </select>
         </label>
         <InstallApp />
+        <CloudDataControls />
         <div className="border-t border-border-base/70 pt-4"><h3 className="text-control font-semibold text-text-primary">{tr.settings}</h3></div>
       </div>
     } />}

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { sessionAwareFetch } from '@/cloud/runtime';
 import type { PlanFile } from '@/attachments/files';
 import { readPlanner } from '@/workspace/planner';
 import { useWorkspaceStore } from '@/workspace/store';
@@ -21,9 +22,9 @@ export async function classifyPlanRequest(request: string, projectId: string, fi
     let budget = 6_000;
     const selectedFiles = files.slice(0, 12).map(file => { const text = bounded(file.text, Math.max(0, Math.min(3000, budget))); budget -= new TextEncoder().encode(JSON.stringify(text)).length; return { id: file.id, name: bounded(file.name, 240), text }; });
     const body = { request: bounded(request, 4000), objective: bounded(project?.objective ?? managed.objective, 2000), nodes: Object.values(project?.nodes ?? {}).slice(0, 20).map(({ id, name, kind, parentId }) => ({ id, name: bounded(name, 120), kind, parentId })), files: selectedFiles };
-    const cap = await fetch('/api/visuals/capabilities', { credentials: 'same-origin', signal }); if (!cap.ok) throw new Error('gateway');
+    const cap = await sessionAwareFetch('/api/visuals/capabilities', { credentials: 'same-origin', signal }); if (!cap.ok) throw new Error('gateway');
     const capabilities = await cap.json(); if (capabilities.textualReview !== true) return { status: 'not-configured' };
-    const response = await fetch('/api/visuals/plan-intake', { method: 'POST', credentials: 'same-origin', signal, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const response = await sessionAwareFetch('/api/visuals/plan-intake', { method: 'POST', credentials: 'same-origin', signal, headers: { 'content-type': 'application/json', 'X-Cellproject-Request': '1' }, body: JSON.stringify(body) });
     if (!response.ok) throw new Error('gateway');
     const result = await response.json();
     if (result.status === 'not-configured') return { status: 'not-configured' };

@@ -6,6 +6,7 @@ import { requestWorkspaceUI } from '@/workspace/uiRequests';
 import { registerAIAction } from '@/ai/actions';
 import { searchVisualImages } from './search';
 import { generateVisualModel } from './generation';
+import { generateVisualDiagram } from './diagram/generation';
 import { applyVisualProposal, currentVisualScope, findMentionTarget, getVisualWorkspace, saveVisualDraft, updateVisualArtifact, watchVisualScope } from './domain';
 import { addReferenceImage } from './media';
 import { useVisualPopupStore } from './ui/uiStore';
@@ -86,7 +87,7 @@ export function applyModelAtViewport(id: string) {
 export async function runVisualGeneration(input: VisualPromptInput, options: { signal: AbortSignal; beforeRequest?: () => Promise<void>; onProgress?: (message: string) => void }) {
   const scope = currentVisualScope(), finish = registerAIAction();
   try {
-    const proposal = await generateVisualModel(input, options);
+    const proposal = input.artifactKind === 'diagram' ? await generateVisualDiagram(input, options) : await generateVisualModel(input, options);
     if (proposal.status === 'applied' && useGraphStore.getState().project?.id === scope.projectId) {
       const artifact = useGraphStore.getState().project!.visuals!.artifacts.find(a => a.id === `model-${proposal.id}`);
       if (artifact) { const point = visualPlacement(); updateVisualArtifact(artifact.id, { x: point.x - artifact.width / 2, y: point.y - artifact.height / 2 }); }

@@ -9,6 +9,8 @@ import {
   AIMissingKeyError,
 } from '@/config/store';
 import { callOpts, openrouterSettings } from './client';
+import { providerTransport } from './transport';
+import { providerToolForCurrentSDK, researchModelForCurrentSDK } from './sdkCompatibility';
 import { currentLocaleAIName } from '@/i18n';
 import type { WebResearchDigest, WebSourceRef } from '@/types';
 
@@ -56,39 +58,35 @@ function buildResearchCall(tier: ResearchTier): ResearchCall {
   const modelId = tier === 'research' ? researchModelId(config) : config.mainModel;
 
   if (provider === 'openai') {
-    const client = createOpenAI({ apiKey: config.apiKey });
+    const client = createOpenAI(providerTransport(provider, config.apiKey));
     return {
       // Web search só existe na Responses API — o chat() usado no resto do app
       // não suporta a tool.
-      model: client.responses(modelId),
+      model: researchModelForCurrentSDK(client.responses(modelId)),
       modelId,
-      // Cast: @ai-sdk/openai v2 exporta Tool da spec v2 e o pacote `ai` v6 tipa
-      // ToolSet contra a v3. Em runtime a tool é provider-executed (só vai
-      // serializada na request) — o conflito é puramente de tipos.
       tools: {
-        web_search: client.tools.webSearch({ searchContextSize: 'medium' }),
-      } as unknown as ToolSet,
+        web_search: providerToolForCurrentSDK(client.tools.webSearch({ searchContextSize: 'medium' })),
+      },
     };
   }
   if (provider === 'anthropic') {
     const client = createAnthropic({
-      apiKey: config.apiKey,
+      ...providerTransport(provider, config.apiKey),
       headers: { 'anthropic-dangerous-direct-browser-access': 'true' },
     });
     return {
-      model: client(modelId),
+      model: researchModelForCurrentSDK(client(modelId)),
       modelId,
-      // Mesmo cast da OpenAI acima — skew de spec v2/v3, runtime ok.
       tools: {
-        web_search: client.tools.webSearch_20250305({ maxUses: 4 }),
-      } as unknown as ToolSet,
+        web_search: providerToolForCurrentSDK(client.tools.webSearch_20250305({ maxUses: 4 })),
+      },
     };
   }
   // openrouter — engine 'exa' de propósito: o grounding nativo (Gemini) devolve
   // URLs de redirect inúteis como âncora; a Exa devolve URL direta + título.
   const client = createOpenRouter({
-    apiKey: config.apiKey,
-    appName: 'dynamic_diary',
+    ...providerTransport(provider, config.apiKey),
+    appName: 'Dynamic Diary',
     appUrl: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173',
   });
   return {
@@ -110,7 +108,7 @@ function shouldFallbackToMain(err: unknown): boolean {
 
 function researchSystem(): string {
   const lang = currentLocaleAIName();
-  return `You are the research arm of dynamic_diary, a planning assistant grounded in reality.
+  return `You are the research arm of Dynamic Diary, a planning assistant grounded in reality.
 Use web search to gather CONCRETE, CURRENT facts about the topic: official documentation, real prices, real part/model numbers, specs with units, known tutorials, version numbers.
 
 RULES
@@ -184,7 +182,7 @@ export async function groundedText(opts: {
     result = await run('research');
   } catch (err) {
     if (sameModel || opts.signal?.aborted || !shouldFallbackToMain(err)) throw err;
-    console.warn('[dynamic_diary] research model failed — retrying with the main model', err);
+    console.warn('[Dynamic Diary] research model failed — retrying with the main model', err);
     result = await run('main');
   }
   return { text: result.text.trim(), sources: normalizeSources(result.sources) };

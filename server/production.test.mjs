@@ -1,0 +1,139 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createServer, request } from 'node:http';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
+import { createProductionHandler } from './production.mjs';
+import { CloudError } from './cloudAuth.mjs';
+
+async function setup(fn, options = {}) {
+  const dist = await mkdtemp(path.join(tmpdir(), 'cellproject-server-'));
+  await writeFile(path.join(dist, 'index.html'), '<!doctype html><div>APP SHELL</div>');
+  await mkdir(path.join(dist, 'assets')); await writeFile(path.join(dist, 'assets', 'app-abcd.js'), 'console.log("app")');
+  await writeFile(path.join(dist, 'assets', 'pdf.worker-abcd.mjs'), 'export const worker = true;');
+  await writeFile(path.join(dist, '.env'), 'SENTINEL_SECRET'); await writeFile(path.join(dist, 'app.js.map'), 'SENTINEL_SECRET');
+  let handler; const server = createServer((req, res) => handler(req, res));
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const auth = { sameOrigin: req => (!req.headers.origin || req.headers.origin === origin) && (!req.headers['sec-fetch-site'] || ['same-origin', 'none'].includes(req.headers['sec-fetch-site'])) && (['GET', 'HEAD'].includes(req.method) || req.headers.origin === origin && req.headers['x-cellproject-request'] === '1'), authorize: async req => req.headers.cookie === 'test=valid' ? { id: 'session-1', user: { id: 'user-1', email: 'wylgnerbossman@gmail.com' }, accessToken: 'SERVER_SECRET' } : null, requestCode: async () => {}, verifyCode: async (_email, _token, _req, res) => { res.setHeader('set-cookie', 'opaque=handle'); return { id: 'user-1', email: 'wylgnerbossman@gmail.com' }; }, logout: async () => {}, close: () => {} };
+  handler = createProductionHandler({ config: { enabled: true, origin, providers: { openrouter: 'PROVIDER_SECRET' } }, dist, auth, ...options });
+  const mutationHeaders = { cookie: 'test=valid', origin, 'content-type': 'application/json', 'x-cellproject-request': '1' };
+  const raw = urlPath => new Promise((resolve, reject) => { const req = request(`${origin}${urlPath}`, res => { const chunks = []; res.on('data', chunk => chunks.push(chunk)); res.on('end', () => resolve({ status: res.statusCode, text: Buffer.concat(chunks).toString('utf8') })); }); req.on('error', reject); req.end(); });
+  try { await fn({ origin, mutationHeaders, auth, raw }); }
+  finally { await new Promise(resolve => server.close(resolve)); await rm(dist, { recursive: true, force: true }); }
+}
+
+test('production serves shell/assets and health, never source/private paths or an SPA response for API failures', async () => {
+  await setup(async ({ origin, raw }) => {
+    const health = await fetch(`${origin}/healthz`); assert.equal(health.status, 200); assert.deepEqual(await health.json(), { status: 'ok' });
+    const shell = await fetch(`${origin}/projects`, { headers: { accept: 'text/html' } }); assert.equal(shell.status, 200); assert.match(await shell.text(), /APP SHELL/); assert.match(shell.headers.get('cache-control'), /no-cache/); assert.equal(shell.headers.get('x-content-type-options'), 'nosniff');
+    const js = await fetch(`${origin}/assets/app-abcd.js`); assert.equal(js.status, 200); assert.match(js.headers.get('cache-control'), /immutable/);
+    const worker = await fetch(`${origin}/assets/pdf.worker-abcd.mjs`); assert.equal(worker.status, 200); assert.match(worker.headers.get('content-type'), /javascript/);
+    for (const route of ['/.env', '/.git/config', '/app.js.map', '/src/store.ts', '/api/unknown', '/api/cloud/unknown', '/missing.js', '/assets/%2e%2e/%2eenv', '/assets/%2e%2e%5c.env']) { const result = await raw(route); assert.notEqual(result.status, 200, route); assert.doesNotMatch(result.text, /SENTINEL_SECRET|APP SHELL/); }
+  });
+});
+
+test('only an explicitly allowed alternate host redirects public GET/HEAD, while API and health never redirect', async () => {
+  const canonical = 'https://builder.cellprojectdiary.com'; const alternate = 'cellproject-builder-production.up.railway.app';
+  await setup(async ({ origin }) => {
+    const get = (urlPath, host, method = 'GET') => new Promise((resolve, reject) => {
+      const req = request(`${origin}${urlPath}`, { method, headers: { host } }, res => { res.resume(); res.on('end', () => resolve({ status: res.statusCode, location: res.headers.location })); }); req.on('error', reject); req.end();
+    });
+    assert.deepEqual(await get('/projects?view=all', alternate), { status: 308, location: `${canonical}/projects?view=all` });
+    assert.equal((await get('/projects', alternate, 'HEAD')).status, 308);
+    assert.equal((await get('/api/cloud/config', alternate)).location, undefined);
+    assert.equal((await get('/api/cloud/snapshot', alternate)).location, undefined);
+    assert.equal((await get('/projects', 'untrusted.example')).status, 421);
+    assert.equal((await get('/healthz', 'healthcheck.railway.app')).status, 200);
+  }, { config: { enabled: true, origin: canonical, alternateOrigins: [`https://${alternate}`] }, auth: { sameOrigin: () => false, authorize: async () => null } });
+});
+
+test('public config never contains provider keys or tokens and private cloud/gateway/AI routes require a session', async () => {
+  await setup(async ({ origin }) => {
+    const response = await fetch(`${origin}/api/cloud/config`); const config = await response.json();
+    assert.deepEqual(config, { enabled: true, authenticated: false, authMethod: 'email_link', providers: { openrouter: true, openai: false, anthropic: false } });
+    for (const route of ['/api/cloud/snapshot', '/api/cloud/media/m1', '/api/visuals/capabilities', '/api/ai/openrouter/chat/completions']) {
+      const result = await fetch(`${origin}${route}`, route.includes('/ai/') ? { method: 'POST', headers: { origin, 'x-cellproject-request': '1', 'content-type': 'application/json' }, body: '{}' } : {});
+      assert.equal(result.status, 401, route); assert.doesNotMatch(await result.text(), /SECRET|APP SHELL/);
+    }
+    const authed = await fetch(`${origin}/api/cloud/config`, { headers: { cookie: 'test=valid' } }); assert.equal((await authed.json()).authenticated, true);
+  });
+});
+
+test('CSRF and cross-origin requests fail before authentication or repository writes', async () => {
+  let writes = 0;
+  await setup(async ({ origin, mutationHeaders }) => {
+    const payload = JSON.stringify({ value: '{"state":{},"version":2}', baseRevision: 0, operationId: 'write-1' });
+    for (const change of [{ origin: 'https://evil.test' }, { 'sec-fetch-site': 'cross-site' }, { 'x-cellproject-request': '' }, { origin: '' }]) {
+      const response = await fetch(`${origin}/api/cloud/documents/cellproject-workspace`, { method: 'PUT', headers: { ...mutationHeaders, ...change }, body: payload }); assert.equal(response.status, 403);
+    }
+    const response = await fetch(`${origin}/api/cloud/documents/cellproject-workspace`, { method: 'PUT', headers: mutationHeaders, body: payload }); assert.equal(response.status, 200); assert.deepEqual(await response.json(), { revision: 1 });
+  }, { repository: { async writeDocument() { writes++; return { revision: 1 }; } } });
+  assert.equal(writes, 1);
+});
+
+test('raw preference keys with a colon are valid API paths and preserve the original localStorage value', async () => {
+  await setup(async ({ origin, mutationHeaders }) => {
+    const response = await fetch(`${origin}/api/cloud/documents/dynamic_diary%3Atask-view`, { method: 'PUT', headers: mutationHeaders, body: JSON.stringify({ value: 'board', baseRevision: 0, operationId: 'pref-1' }) });
+    assert.equal(response.status, 200); assert.deepEqual(await response.json(), { revision: 1 });
+  }, { repository: { async writeDocument(_session, key, input) { assert.equal(key, 'dynamic_diary:task-view'); assert.equal(input.value, 'board'); return { revision: 1 }; } } });
+});
+
+test('conflicts remain explicit and upstream errors do not expose sensitive text', async () => {
+  await setup(async ({ origin, mutationHeaders }) => {
+    const write = await fetch(`${origin}/api/cloud/documents/cellproject-graph`, { method: 'PUT', headers: mutationHeaders, body: '{}' }); assert.equal(write.status, 409); assert.equal((await write.json()).error.code, 'revision_conflict');
+    const snapshot = await fetch(`${origin}/api/cloud/snapshot`, { headers: { cookie: 'test=valid' } }); assert.equal(snapshot.status, 502); assert.doesNotMatch(await snapshot.text(), /SENTINEL_SECRET/);
+  }, { repository: { async writeDocument() { throw new CloudError(409, 'revision_conflict', 'Remote data changed.'); }, async snapshot() { throw new Error('SENTINEL_SECRET'); } } });
+});
+
+test('production composes the existing visual gateway with the authorized cloud owner', async () => {
+  await setup(async ({ origin }) => {
+    const response = await fetch(`${origin}/api/visuals/capabilities`, { headers: { cookie: 'test=valid' } }); assert.equal(response.status, 200); assert.equal((await response.json()).references, true);
+  });
+});
+
+test('a client disconnected while authorization was pending never starts a paid AI request', async () => {
+  let authorizeDone; let started; let upstreamCalls = 0;
+  const waiting = new Promise(resolve => { started = resolve; });
+  const auth = { sameOrigin: () => true, authorize: async () => { started(); return new Promise(resolve => { authorizeDone = resolve; }); } };
+  await setup(async ({ origin, mutationHeaders }) => {
+    const controller = new AbortController();
+    const result = fetch(`${origin}/api/ai/openrouter/chat/completions`, { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ model: 'test', messages: [{ role: 'user', content: 'test' }] }), signal: controller.signal }).catch(error => error);
+    await waiting; controller.abort(); assert.ok(await result instanceof Error); await delay(20);
+    authorizeDone({ user: { id: 'owner-1' }, accessToken: 'test' }); await delay(20);
+    assert.equal(upstreamCalls, 0);
+  }, { auth, fetchImpl: async () => { upstreamCalls++; return new Response('{"ok":true}', { headers: { 'content-type': 'application/json' } }); } });
+});
+
+test('cloud disabled supports public shell but refuses private endpoints and never initializes sessions', async () => {
+  await setup(async ({ origin }) => {
+    assert.deepEqual(await (await fetch(`${origin}/api/cloud/config`)).json(), { enabled: false, authenticated: false, providers: { openrouter: false, openai: false, anthropic: false } });
+    assert.equal((await fetch(`${origin}/api/cloud/snapshot`)).status, 503);
+  }, { config: { enabled: false } });
+});
+
+test('email callback is a no-store navigation exception, uses the backend response cookie and removes code from success and failure URLs', async () => {
+  let completions = 0; let sentResponse = false;
+  const auth = { sameOrigin: () => false, authorize: async () => null, async callback(req, res) {
+    completions++; assert.equal(new URL(req.url, 'https://example.test').searchParams.get('code'), 'PRIVATE_EMAIL_CODE');
+    res.setHeader('set-cookie', ['__Host-cellproject_auth_flow=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0', '__Host-cellproject_session=opaque; Path=/; Secure; HttpOnly; SameSite=Strict']);
+    if (completions === 2) throw new Error('PRIVATE_EMAIL_CODE PRIVATE_PROVIDER_TOKEN');
+  }, async requestCode(_email, _req, res) { sentResponse = Boolean(res?.setHeader); } };
+  await setup(async ({ origin }) => {
+    for (const [attempt, location] of [[1, '/'], [2, '/?auth_error=link_invalid']]) {
+      const response = await fetch(`${origin}/api/auth/callback?code=PRIVATE_EMAIL_CODE`, { redirect: 'manual', headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' } });
+      assert.equal(response.status, 303, String(attempt)); assert.equal(response.headers.get('location'), location);
+      assert.equal(response.headers.get('cache-control'), 'no-store'); assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
+      assert.doesNotMatch(await response.text(), /PRIVATE_EMAIL_CODE|PRIVATE_PROVIDER_TOKEN/);
+      assert.ok(response.headers.getSetCookie().some(value => value.includes('__Host-cellproject_auth_flow=')));
+    }
+    assert.equal((await fetch(`${origin}/api/auth/callback?code=PRIVATE_EMAIL_CODE`, { method: 'POST', redirect: 'manual' })).status, 403);
+    auth.sameOrigin = () => true;
+    const send = await fetch(`${origin}/api/auth/request-code`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'wylgnerbossman@gmail.com' }) });
+    assert.equal(send.status, 200); assert.equal(sentResponse, true);
+    assert.deepEqual(await send.json(), { sent: true });
+  }, { auth });
+  assert.equal(completions, 2);
+});

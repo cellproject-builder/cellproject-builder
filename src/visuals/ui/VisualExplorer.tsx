@@ -63,6 +63,8 @@ export function VisualExplorer(props: VisualExplorerProps) {
   const [refineOpen, setRefineOpen] = useState(false);
   const [refinedReady, setRefinedReady] = useState(false);
   const [removedHistory, setRemovedHistory] = useState<string[]>([]);
+  const isDiagram = drafts.model.artifactKind === 'diagram';
+  const generatingLabel = isDiagram ? s.diagramGenerating : s.generating;
   const externalId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -192,8 +194,8 @@ export function VisualExplorer(props: VisualExplorerProps) {
   const proposals = [...props.workspace.proposals];
   if (generated && !proposals.some((item) => item.id === generated.id)) proposals.push(generated);
   const currentProposals = proposals.filter((item) => item.projectId === props.projectId && item.status !== 'rejected' && !removedHistory.includes(item.id)).slice(-6).reverse();
-  const composer = (kind: VisualPopupKind) => <PromptComposer key={`${props.projectId}:${kind}`} kind={kind} value={drafts[kind]} onChange={(input) => updateDraft(kind, input)} listMentions={props.listMentions} onAttach={props.onAttach} busy={busy[kind]} onSubmit={() => void submit(kind)} onCancel={() => cancel(kind)} />;
-  const status = (kind: VisualPopupKind) => <>{removedImages[kind].length > 0 && <p className="visual-local-hint" role="status">{s.removedImageReferences} {removedImages[kind].map(image => image.label).join(', ')}.</p>}{busy[kind] && <div className="visual-progress" role="status"><span className="visual-spinner" aria-hidden="true" />{kind === 'search' ? s.searching : generationProgress || s.generating}</div>}{errors[kind] && <p className="visual-error" role="alert">{errors[kind]}</p>}</>;
+  const composer = (kind: VisualPopupKind) => <PromptComposer key={`${props.projectId}:${kind}`} kind={kind} value={drafts[kind]} onChange={(input) => updateDraft(kind, input)} listMentions={props.listMentions} onAttach={props.onAttach} busy={busy[kind]} onSubmit={() => void submit(kind)} onCancel={() => cancel(kind)} {...(kind === 'model' && isDiagram ? { inputLabel: s.diagramTitle, placeholder: s.diagramPlaceholder, submitLabel: s.diagramGenerate } : {})} />;
+  const status = (kind: VisualPopupKind) => <>{removedImages[kind].length > 0 && <p className="visual-local-hint" role="status">{s.removedImageReferences} {removedImages[kind].map(image => image.label).join(', ')}.</p>}{busy[kind] && <div className="visual-progress" role="status"><span className="visual-spinner" aria-hidden="true" />{kind === 'search' ? s.searching : generationProgress || generatingLabel}</div>}{errors[kind] && <p className="visual-error" role="alert">{errors[kind]}</p>}</>;
   return <>
     {searchOpen && <FloatingPopup kind="search" onClose={() => hide('search')} onMinimize={() => minimize('search')} minimized={searchMinimized}>
       {composer('search')}{status('search')}
@@ -208,35 +210,40 @@ export function VisualExplorer(props: VisualExplorerProps) {
       </p>}
       {results?.length ? <ImageGallery key={props.projectId} references={results} projectId={props.projectId} onAdd={add} onBase={useBase} onCopyImage={props.onCopyImage} onAssess={props.onAssess ? (reference, signal) => props.onAssess!(reference, resultsInput, signal) : undefined} /> : !busy.search && <EmptyState kind="search" title={results ? s.noResults : s.emptyTitle} text={results ? '' : s.emptyText} />}
     </FloatingPopup>}
-    {modelOpen && <FloatingPopup kind="model" onClose={() => hide('model')} onMinimize={() => minimize('model')} minimized={modelMinimized}>
+    {modelOpen && <FloatingPopup kind="model" title={isDiagram ? s.diagramTitle : undefined} subtitle={isDiagram ? s.diagramSubtitle : undefined} onClose={() => hide('model')} onMinimize={() => minimize('model')} minimized={modelMinimized}>
       <div className="visual-mode"><label htmlFor="visual-apply-mode">{s.mode}</label><select id="visual-apply-mode" value={props.workspace.mode} onChange={(e) => props.onMode(e.target.value as 'approval' | 'automatic')}><option value="approval">{s.review}</option><option value="automatic">{s.automatic}</option></select><p>{props.workspace.mode === 'approval' ? s.approvalHint : s.automaticHint}</p></div>
       {inspectedArtifactId ? <DecompositionPanel key={`${props.projectId}:${inspectedArtifactId}`} artifactId={inspectedArtifactId} onActivity={setModelActivity} /> : <>
-      <div className="visual-construction-mode"><span>{s.generationMode}</span><div className="visual-segmented" role="group" aria-label={s.generationMode}>{(['standard', 'advanced'] as const).map(mode => <button key={mode} type="button" disabled={busy.model || modelActivity.state === 'running'} aria-pressed={(drafts.model.generationMode ?? 'standard') === mode} onClick={() => {
+      <div className="visual-construction-mode"><span>{s.artifactType}</span><div className="visual-segmented" role="group" aria-label={s.artifactType}>{(['model', 'diagram'] as const).map(kind => <button key={kind} type="button" disabled={busy.model || modelActivity.state === 'running'} aria-pressed={(drafts.model.artifactKind ?? 'model') === kind} onClick={() => {
+        const input = draftRef.current.model;
+        const mentions = kind === 'diagram' && props.selectedNode && !input.mentions.some(item => item.kind === 'node' && item.id === props.selectedNode!.id) && input.mentions.length < 20 ? [...input.mentions, props.selectedNode] : input.mentions;
+        updateDraft('model', { ...input, artifactKind: kind, generationMode: 'standard', mentions }); setRefineOpen(false);
+      }}>{kind === 'model' ? '3D' : s.diagramMode}</button>)}</div></div>
+      {!isDiagram && <div className="visual-construction-mode"><span>{s.generationMode}</span><div className="visual-segmented" role="group" aria-label={s.generationMode}>{(['standard', 'advanced'] as const).map(mode => <button key={mode} type="button" disabled={busy.model || modelActivity.state === 'running'} aria-pressed={(drafts.model.generationMode ?? 'standard') === mode} onClick={() => {
         const input = draftRef.current.model;
         const mentions = mode === 'advanced' && props.selectedNode && !input.mentions.some(item => item.kind === 'node' || item.kind === 'image') && input.mentions.length < 20 ? [...input.mentions, props.selectedNode] : input.mentions;
         updateDraft('model', { ...input, generationMode: mode, mentions });
-      }}>{mode === 'standard' ? s.standardMode : s.advancedMode}</button>)}</div>{drafts.model.generationMode === 'advanced' && <p>{s.advancedHint}</p>}</div>
+      }}>{mode === 'standard' ? s.standardMode : s.advancedMode}</button>)}</div>{drafts.model.generationMode === 'advanced' && <p>{s.advancedHint}</p>}</div>}
       {refineOpen && props.onRefine ? <ModelPromptRefiner key={props.projectId} input={drafts.model} workspace={props.workspace} listMentions={props.listMentions} onAttach={props.onAttach} onMedia={props.onMedia} onActivity={setModelActivity}
         onChange={input => updateDraft('model', input)} onRefine={props.onRefine} isCurrent={props.isRefinementCurrent}
         onUse={input => { updateDraft('model', input); setRefineOpen(false); setRefinedReady(false); void submit('model'); }}
         onFindReferences={input => { updateDraft('search', input); useVisualPopupStore.getState().open('search'); }}
         onClose={() => setRefineOpen(false)} /> : <>
         {composer('model')}
-        {props.onRefine && <button type="button" className="visual-refinement-trigger" aria-label={s.refineWithAI} disabled={busy.model} onClick={() => { setRefineOpen(true); setRefinedReady(false); }}><span aria-hidden="true">✧</span>{s.refineWithAI}<span aria-hidden="true">↗</span></button>}
+        {!isDiagram && props.onRefine && <button type="button" className="visual-refinement-trigger" aria-label={s.refineWithAI} disabled={busy.model} onClick={() => { setRefineOpen(true); setRefinedReady(false); }}><span aria-hidden="true">✧</span>{s.refineWithAI}<span aria-hidden="true">↗</span></button>}
         {refinedReady && <p className="visual-refinement-ready" role="status">{s.refinedReady}</p>}
       </>}{status('model')}
       {props.onDiscuss && <div className="visual-chat-handoff"><button type="button" className="visual-button" disabled={!drafts.model.mentions.length || busy.model} onClick={discuss}>{s.discussReferences}</button><p>{s.discussReferencesHint}</p></div>}
       {proposalNotice && <p className="visual-local-hint" role="status">{proposalNotice}</p>}
       {currentProposals.length > 0 ? <div className="visual-proposals"><h3>{s.proposals}</h3>{currentProposals.map((proposal) => <article className="visual-proposal" key={proposal.id}>
         <div className="visual-proposal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10"/></svg></div>
-        <div className="visual-proposal-text"><strong>{proposal.label}</strong><small>{proposal.scene.objects.length} {s.objects}{proposal.assembly ? ` · ${proposal.assembly.groups.length} ${s.modules}` : ''}</small>{proposal.assembly && <><span className="visual-modular-ready">{s.modularReady}</span><AssemblyPlanSummary assembly={proposal.assembly} /></>}{proposal.status === 'stale' && <span className="visual-stale">{s.stale}</span>}</div>
+        <div className="visual-proposal-text"><strong>{proposal.label}</strong><small>{proposal.kind === 'diagram' ? `${proposal.diagram.elements.length} ${s.diagramElements}` : `${proposal.scene.objects.length} ${s.objects}`}{proposal.assembly ? ` · ${proposal.assembly.groups.length} ${s.modules}` : ''}</small>{proposal.assembly && <><span className="visual-modular-ready">{s.modularReady}</span><AssemblyPlanSummary assembly={proposal.assembly} /></>}{proposal.status === 'stale' && <span className="visual-stale">{s.stale}</span>}</div>
         <div className="visual-proposal-actions">
           {proposal.status === 'ready' && <button type="button" className="visual-button visual-apply" onClick={() => apply(proposal.id)}>{s.apply}</button>}
           {proposal.status === 'ready' || proposal.status === 'stale' ? <button type="button" className="visual-button visual-reject" aria-label={`${s.rejectProposal}: ${proposal.label}`} onClick={() => reject(proposal.id)}>{s.reject}</button> : proposal.status === 'applied' ? <span className="visual-applied">✓ {s.applied}</span> : null}
           {proposal.status === 'applied' && props.onRemoveHistory && <button type="button" className="visual-button visual-proposal-history-remove" onClick={() => removeHistory(proposal.id)} aria-label={`${s.generate === 'Generate model' ? 'Remove from history' : 'Remover do histórico'}: ${proposal.label}`}>{s.generate === 'Generate model' ? 'Remove from history' : 'Remover do histórico'}</button>}
         </div>
-      </article>)}</div> : !busy.model && <EmptyState kind="model" title={s.modelEmptyTitle} text={s.modelEmptyText} />}
-      <p className="visual-model-note">{drafts.model.analyzeImages ? s.modelVisionHint : s.modelReferenceHint}</p>
+      </article>)}</div> : !busy.model && <EmptyState kind="model" title={isDiagram ? s.diagramEmpty : s.modelEmptyTitle} text={isDiagram ? s.diagramEmptyHint : s.modelEmptyText} />}
+      <p className="visual-model-note">{isDiagram ? s.diagramNote : drafts.model.analyzeImages ? s.modelVisionHint : s.modelReferenceHint}</p>
       </>}
     </FloatingPopup>}
     {(searchOpen && searchMinimized || modelOpen && modelMinimized) && <div className="visual-minimized-tools nodrag nopan nowheel" data-visual-minimized role="group" aria-label={s.backgroundTools}>
@@ -244,11 +251,11 @@ export function VisualExplorer(props: VisualExplorerProps) {
         const running = busy[kind] || kind === 'model' && modelActivity.state === 'running';
         const error = !!errors[kind] || kind === 'model' && modelActivity.state === 'error';
         const ready = completed[kind] || kind === 'model' && modelActivity.state === 'ready';
-        const progress = kind === 'model' && modelActivity.state === 'running' ? modelActivity.label : kind === 'search' ? s.searching : generationProgress || s.generating;
+        const progress = kind === 'model' && modelActivity.state === 'running' ? modelActivity.label : kind === 'search' ? s.searching : generationProgress || generatingLabel;
         return <button key={kind} type="button" className="visual-minimized-tool liquid-glass" onClick={() => restore(kind)}
         aria-label={kind === 'search' ? s.restoreSearch : s.restoreModel}>
         <span className={`visual-minimized-indicator${running ? ' visual-spinner' : error ? ' is-error' : ready ? ' is-ready' : ''}`} aria-hidden="true">{running ? '' : error ? '!' : ready ? '✓' : kind === 'search' ? '▧' : '◇'}</span>
-        <span><strong>{kind === 'search' ? s.imageTitle : s.modelTitle}</strong><small role="status">{running ? progress : error ? s.backgroundError : ready ? s.backgroundReady : s.backgroundResume}</small></span>
+        <span><strong>{kind === 'search' ? s.imageTitle : isDiagram ? s.diagramTitle : s.modelTitle}</strong><small role="status">{running ? progress : error ? s.backgroundError : ready ? s.backgroundReady : s.backgroundResume}</small></span>
         <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true"><path d="M4 10V4h6M4 4l8 8" /></svg>
       </button>; })}
     </div>}

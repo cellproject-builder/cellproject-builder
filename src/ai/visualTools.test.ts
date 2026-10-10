@@ -19,6 +19,14 @@ beforeEach(() => {
 });
 
 describe('assistant visual actions', () => {
+  it('routes diagrams and 3D through the shared generation policy without inheriting the previous artifact type', async () => {
+    await executeVisualAction({ action: 'generate_diagram', projectId: 'project', text: 'Torque versus reach', references: [] }, new AbortController().signal);
+    expect(services.generate).toHaveBeenLastCalledWith(expect.objectContaining({ artifactKind: 'diagram', generationMode: 'standard' }), expect.anything());
+    expect(useGraphStore.getState().project!.visuals!.drafts.model.artifactKind).toBe('diagram');
+    await executeVisualAction({ action: 'generate_model', projectId: 'project', text: 'Servo', references: [] }, new AbortController().signal);
+    expect(services.generate).toHaveBeenLastCalledWith(expect.objectContaining({ artifactKind: 'model' }), expect.anything());
+    expect(useGraphStore.getState().project!.visuals!.mode).toBe('approval');
+  });
   it('preserves requested groups, reports missing images and passes the project context to documentary review', async () => {
     services.search.mockImplementationOnce(async (_input, options) => {
       options.onDetails({ targetMatches: { 'image-1': [0] }, intent: { query: 'ESP32 USB cable', label: 'Placa e cabo', targets: [{ aliases: ['ESP32'], identifiers: ['ESP32'] }, { aliases: ['Cabo USB'], identifiers: [] }] } });

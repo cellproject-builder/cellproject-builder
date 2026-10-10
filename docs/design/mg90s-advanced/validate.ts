@@ -6,7 +6,7 @@ import { modelAssemblySchema, modelAssemblyMatchesScene } from '../../../src/vis
 import { layoutDecompositionGroups } from '../../../src/visuals/decompositionLayout';
 import { modelItem } from '../../../src/visuals/rendering/VisualCanvasLayer';
 
-const text=readFileSync('docs/design/samples/mg90s-advanced-2026-10-10.txt','utf8');
+const text=readFileSync('docs/design/samples/mg90s-advanced-2026-10-10.txt','utf8').replace(/\r\n?/g,'\n');
 const assembly=modelAssemblySchema.parse(JSON.parse(text.split('CONTRATO E REFERÊNCIAS\n\n')[1].split('\n\nCENA COMPLETA MONTADA')[0]));
 const scene=sceneSchema.parse(JSON.parse(text.split('CENA COMPLETA MONTADA\n\n')[1]));
 assert(modelAssemblyMatchesScene(assembly,scene));

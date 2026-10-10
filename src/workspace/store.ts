@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import { workspaceRepository } from '@/data/workspaceRepository';
+import { getCloudRuntime } from '@/cloud/runtime';
 import { nanoid } from 'nanoid';
 import { TASK_STATUSES, type ManagedProject, type Task, type TaskInput, type TaskComment, type Sprint, type SprintInput, type Note, type Folder, type PlannerSnapshot, type Surface } from './types';
 
@@ -9,6 +10,9 @@ let lastWriteError: unknown = null;
 const storage: StateStorage = {
   getItem: (key) => workspaceRepository.getItem(key),
   setItem: (key, value) => {
+    // CloudRuntime already serializes and coalesces drafts; do not retain a
+    // second queue of complete envelopes while a remote request is pending.
+    const cloud = getCloudRuntime(); if (cloud) return cloud.write(key, value);
     const next = writes.then(() => workspaceRepository.setItem(key, value));
     writes = next.then(() => { lastWriteError = null; }, (error: unknown) => { lastWriteError = error; });
     return next;
@@ -18,6 +22,7 @@ const storage: StateStorage = {
 export const flushWorkspacePersistence = async () => {
   await writes;
   if (lastWriteError) throw lastWriteError;
+  await getCloudRuntime()?.flush();
 };
 const required = (text: string) => {
   if (!text.trim()) throw new Error('required');

@@ -1,6 +1,6 @@
 export interface MentionTarget { id: string; kind: 'note' | 'node' | 'image'; label: string; detail: string; fingerprint: string }
 export interface VisualAttachment { id: string; name: string; mime: string; byteLength: number; mediaId: string | null; text: string | null }
-export interface VisualPromptInput { text: string; mentions: MentionTarget[]; attachments: VisualAttachment[]; analyzeImages?: boolean; generationMode?: 'standard' | 'advanced' }
+export interface VisualPromptInput { text: string; mentions: MentionTarget[]; attachments: VisualAttachment[]; analyzeImages?: boolean; generationMode?: 'standard' | 'advanced'; artifactKind?: 'model' | 'diagram' }
 export interface TextualVisualAssessment {
   kind: 'textual'; model: string; rubricVersion: string; score: number; confidence: number;
   probabilities: Record<'0' | '1' | '2' | '3', number>;
@@ -23,26 +23,31 @@ export interface SceneV1 {
   objects: Array<{ id: string; type: 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'custom'; position: [number, number, number]; rotation: [number, number, number]; scale: [number, number, number]; color: string; geometry?: CustomVisualGeometry | null }>;
 }
 export interface VisualArtifact {
-  id: string; label: string; kind: 'image' | 'model'; x: number; y: number; width: number; height: number;
+  id: string; label: string; kind: 'image' | 'model' | 'diagram'; x: number; y: number; width: number; height: number;
+  diagram?: import('./diagram/model').DiagramV1;
+  diagramValues?: Record<string, number>;
   /** Optional semantic association; canvas coordinates are always independent. */
   linkedNodeId?: string | null;
   /** Derived view of another canvas artifact; never a physical/electrical connection. */
   sourceArtifactId?: string;
   mediaId: string | null; scene: SceneV1 | null; source: ImageReference | null;
-  revisions: Array<{ scene: SceneV1 | null; mediaId: string | null; createdAt: number; label?: string; assembly?: VisualModelAssembly | null; decomposition?: ObjectDecomposition | null; input?: VisualPromptInput; contextFingerprint?: string; referencedMediaIds?: string[] }>;
+  revisions: Array<{ scene: SceneV1 | null; mediaId: string | null; createdAt: number; label?: string; assembly?: VisualModelAssembly | null; decomposition?: ObjectDecomposition | null; input?: VisualPromptInput; contextFingerprint?: string; referencedMediaIds?: string[]; diagram?: import('./diagram/model').DiagramV1 | null; diagramValues?: Record<string, number> }>;
   revisionIndex: number;
   origin?: VisualModelOrigin;
   decomposition?: ObjectDecomposition;
   /** Modular construction contract, not a verified documentary decomposition. */
   assembly?: VisualModelAssembly;
 }
-export interface VisualProposal {
-  id: string; projectId: string; label: string; scene: SceneV1; input: VisualPromptInput;
+interface VisualProposalBase {
+  id: string; projectId: string; label: string; input: VisualPromptInput;
   contextFingerprint: string; createdAt: number; status: 'ready' | 'applied' | 'stale' | 'rejected';
   contextSnapshot?: string;
   referencedMediaIds?: string[];
   assembly?: VisualModelAssembly;
 }
+export interface VisualModelProposal extends VisualProposalBase { kind?: 'model'; scene: SceneV1; diagram?: never }
+export interface VisualDiagramProposal extends VisualProposalBase { kind: 'diagram'; scene: null; diagram: import('./diagram/model').DiagramV1; assembly?: never }
+export type VisualProposal = VisualModelProposal | VisualDiagramProposal;
 export interface VisualAssemblyPlan {
   units: 'illustrative' | 'mm'; sharedConstraints: string[]; unknowns: string[];
   modules: Array<{ id: string; name: string; prompt: string; nodeIds: string[]; sourceIds: string[];

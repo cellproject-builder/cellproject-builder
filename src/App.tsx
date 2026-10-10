@@ -17,6 +17,7 @@ import { Workspace } from '@/workspace/Workspace';
 import { useWorkspaceStore } from '@/workspace/store';
 import { PlannerChatDock } from '@/chat/AssistantChatDock';
 import { useChatStore } from '@/chat/store';
+import { useKBStore } from '@/kb/store';
 import { useChatReferenceHandoff } from '@/references/chatHandoff';
 // Route-split: the marketing page is only shown on /landing, so app users
 // never download it and /landing visitors don't pull the whole app.
@@ -26,7 +27,7 @@ const LandingPage = lazy(() =>
 
 // Os stores persistidos hidratam do IndexedDB de forma assíncrona. Antes disso
 // `providers` está vazio e o app piscaria o ApiKeyGate para quem já tem chave.
-const persistedStores = [useGraphStore, useConfigStore, useLocaleStore, useWorkspaceStore] as const;
+const persistedStores = [useGraphStore, useConfigStore, useLocaleStore, useWorkspaceStore, useChatStore, useKBStore] as const;
 
 function useStoresHydrated(): boolean {
   const [hydrated, setHydrated] = useState(() =>

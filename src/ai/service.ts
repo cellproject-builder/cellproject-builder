@@ -476,7 +476,7 @@ export interface ReplanContext extends PlanningIntent {
 
 function baseSystem(): string {
   const lang = currentLocaleAIName();
-  return `You are the brain of a visual planning assistant called dynamic_diary.
+  return `You are the brain of a visual planning assistant called Dynamic Diary.
 The user describes a concrete goal (build something, assemble something, learn something) and you break the problem into a tree of nodes that can be validated one by one.
 
 STANCE — REUSE FIRST
@@ -543,7 +543,7 @@ ${linkLine}
 
 function criticSystem(): string {
   const lang = currentLocaleAIName();
-  return `You are a skeptical reviewer hired to BREAK a dynamic_diary plan node.
+  return `You are a skeptical reviewer hired to BREAK a Dynamic Diary plan node.
 Your job is to doubt. Assume the original planner was optimistic, shallow, or made unstated assumptions.
 
 RULES
@@ -755,7 +755,7 @@ async function maybeResearch(
     return await raceAbort(runResearch(topic, focus, opts), signal);
   } catch (err) {
     if (signal?.aborted || readRateLimit(err)) throw err;
-    console.warn('[dynamic_diary] web research failed — continuing without it', err);
+    console.warn('[Dynamic Diary] web research failed — continuing without it', err);
     return null;
   }
 }

@@ -8,9 +8,10 @@ import { runVisualGeneration, runVisualSearch, type VisualSearchDetails } from '
 import { collectProjectSearchContext, chatImageSearchRevision } from '@/visuals/projectSearchContext';
 import { assessImageProjectFit } from '@/visuals/componentFit';
 import { useVisualPopupStore } from '@/visuals/ui/uiStore';
+import type { VisualPromptInput } from '@/visuals/types';
 
 export const visualActionSchema = z.object({
-  action: z.enum(['list_references', 'search_images', 'generate_model']),
+  action: z.enum(['list_references', 'search_images', 'generate_model', 'generate_diagram']),
   projectId: z.string().min(1).max(100), text: z.string().max(12_000),
   references: z.array(z.object({ kind: z.enum(['note', 'node', 'image']), id: z.string().min(1).max(200) }).strict()).max(20),
 }).strict();
@@ -57,12 +58,13 @@ export async function executeVisualAction(raw: unknown, signal: AbortSignal, bef
       references: results.map(item => ({ id: item.id, title: item.title, sourcePageUrl: item.sourcePageUrl })) };
   }
   const humanDraft = getVisualWorkspace(useGraphStore.getState().project).drafts.model;
-  const modelPrompt = { ...prompt, ...(humanDraft.analyzeImages && mentions.some(target => target.kind === 'image') ? { analyzeImages: true } : {}) };
-  saveVisualDraft('model', { ...prompt, ...(humanDraft.analyzeImages !== undefined ? { analyzeImages: humanDraft.analyzeImages } : {}) }); useVisualPopupStore.getState().open('model');
+  const artifactKind = input.action === 'generate_diagram' ? 'diagram' : 'model';
+  const modelPrompt: VisualPromptInput = { ...prompt, artifactKind, generationMode: 'standard', ...(humanDraft.analyzeImages && mentions.some(target => target.kind === 'image') ? { analyzeImages: true } : {}) };
+  saveVisualDraft('model', { ...modelPrompt, ...(humanDraft.analyzeImages !== undefined ? { analyzeImages: humanDraft.analyzeImages } : {}) }); useVisualPopupStore.getState().open('model');
   const proposal = await runVisualGeneration(modelPrompt, { signal, beforeRequest });
   const applied = proposal.status === 'applied';
   return { applied, projectId: input.projectId, requiresApproval: proposal.status === 'ready', proposalId: proposal.id, status: proposal.status, imageAnalysis: modelPrompt.analyzeImages ? 'pixels' : 'metadata',
-    message: applied ? 'Illustrative model applied to the canvas.' : proposal.status === 'ready' ? 'Model prepared. The user must apply it in Generate 3D.' : 'References changed; the model was not applied.' };
+    message: applied ? `${artifactKind === 'diagram' ? 'Exploratory diagram' : 'Illustrative model'} applied to the canvas.` : proposal.status === 'ready' ? 'Artifact prepared. The user must apply the proposal in the visual studio.' : 'References changed; the artifact was not applied.' };
 }
 
 function compactVisualToolOutput(value: unknown): unknown {
@@ -74,7 +76,7 @@ function compactVisualToolOutput(value: unknown): unknown {
 }
 
 export function createVisualTools(signal: AbortSignal, execute: (name: string, fn: (input: unknown) => unknown | Promise<unknown>) => (input: unknown) => Promise<unknown>, beforeRequest?: () => Promise<void>, humanRequest = '') {
-  return { visual_action: tool({ description: 'Find real images grouped by the requested items in this chat and compare retrieved specifications with current project requirements, or generate illustrative Three.js models/list reference IDs. Preserve the whole requested list in text, including lists from previous assistant replies. Search up to 8 distinct items per call; split longer lists explicitly across calls without omitting items. Only use selected references relevant to the request. Project records are included automatically; no need to attach every node. Fit checks can be supported/conflict/unknown, with quotes and missing specifications; relevance is not technical compatibility. list_references returns labels, not bodies. Searching never inserts images or opens a popup: the human chooses. Generation follows human approval/automatic mode; ready proposals need Apply. Never claim physical validation or change policy. references required, [] without selected sources.', inputSchema: visualActionSchema, execute: execute('visual_action', input => executeVisualAction(input, signal, beforeRequest, humanRequest)),
+  return { visual_action: tool({ description: 'Find real images grouped by the requested items in this chat and compare retrieved specifications with current project requirements, or generate illustrative Three.js models (generate_model), bounded interactive SVG diagrams (generate_diagram), or list reference IDs. Diagrams illustrate a relationship with optional exploratory parameters and links to existing nodes, never execute code or prove physical correctness. Preserve the whole requested list in text, including lists from previous assistant replies. Search up to 8 distinct items per call; split longer lists explicitly across calls without omitting items. Only use selected references relevant to the request. Project records are included automatically; no need to attach every node. Fit checks can be supported/conflict/unknown, with quotes and missing specifications; relevance is not technical compatibility. list_references returns labels, not bodies. Searching never inserts images or opens a popup: the human chooses. Generation follows human approval/automatic mode; ready proposals need Apply. Never claim physical validation or change policy. references required, [] without selected sources.', inputSchema: visualActionSchema, execute: execute('visual_action', input => executeVisualAction(input, signal, beforeRequest, humanRequest)),
     toModelOutput: ({ output }) => {
       // Candidate URLs are UI state, not material for the model to repeat or cache.
       return { type: 'text', value: JSON.stringify(compactVisualToolOutput(output)) };

@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid';
+import { registerDataIngestion } from '@/cloud/activity';
 import type { KBContextEntry } from '@/kb/types';
 import { z } from 'zod';
 
@@ -24,6 +25,8 @@ async function bytesOf(file: File): Promise<ArrayBuffer> {
 }
 /** Extract locally; files are never executed. Store source text, not an archive of binary originals. */
 export async function extractPlanFile(file: File, signal?: AbortSignal): Promise<PlanFile> {
+  const finish = registerDataIngestion();
+  try {
   signal?.throwIfAborted();
   const ext = /\.[^.]+$/.exec(file.name.toLowerCase())?.[0] ?? '';
   if (!textExtensions.has(ext) && ext !== '.pdf' && ext !== '.docx') throw new Error('attachmentUnsupported');
@@ -50,6 +53,7 @@ export async function extractPlanFile(file: File, signal?: AbortSignal): Promise
   signal?.throwIfAborted();
   if (!text.trim()) throw new Error('attachmentNoText');
   return planFileSchema.parse({ id: nanoid(12), name: file.name.slice(0, 240), kind: ext === '.pdf' ? 'pdf' : ext === '.docx' ? 'document' : 'text', size: file.size, fingerprint: sourceFingerprint(text), text: text.slice(0, 24_000), truncated: truncated || text.length > 24_000, addedAt: Date.now(), ...(pages ? { pages } : {}) });
+  } finally { finish(); }
 }
 export function mergePlanFiles(existing: PlanFile[], added: PlanFile[]): PlanFile[] {
   const merged = [...existing];

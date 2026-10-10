@@ -1,0 +1,575 @@
+{
+  "format": "cellproject-visual-plan",
+  "version": 1,
+  "project": {
+    "id": "qa-diagram-torque-20261010",
+    "name": "QA · Diagrama de torque (sintético)",
+    "objective": "Verificar a interação do diagrama no canvas do Dynamic Diary com valores sintéticos.",
+    "createdAt": 1791633600000,
+    "updatedAt": 1791633600000,
+    "rootId": "9_Root-QA",
+    "archetype": "entender",
+    "manualLayout": true,
+    "rules": [
+      "Sem modelo de servo definido, sem alegação de capacidade nominal e sem observação física."
+    ],
+    "nodes": {
+      "9_Root-QA": {
+        "id": "9_Root-QA",
+        "parentId": null,
+        "kind": "root",
+        "name": "Torque · exemplo sintético",
+        "oQue": "Explorar uma relação idealizada sem concluir compatibilidade.",
+        "porQue": "Amostra sintética para verificar a interface; não há evidência física.",
+        "comoConfirmar": "",
+        "fx": "",
+        "problem": "",
+        "confidence": 0,
+        "pros": [],
+        "cons": [],
+        "confirmado": false,
+        "state": "concept",
+        "order": 0,
+        "notes": "",
+        "history": [],
+        "aiSuggested": false,
+        "position": {
+          "x": 0,
+          "y": 120
+        }
+      },
+      "S_ervo-QA": {
+        "id": "S_ervo-QA",
+        "parentId": "9_Root-QA",
+        "kind": "recurso",
+        "name": "Eixo · servo não especificado",
+        "oQue": "Nenhuma capacidade nominal foi fornecida.",
+        "porQue": "Amostra sintética para verificar a interface; não há evidência física.",
+        "comoConfirmar": "",
+        "fx": "",
+        "problem": "",
+        "confidence": 0,
+        "pros": [],
+        "cons": [],
+        "confirmado": false,
+        "state": "concept",
+        "order": 0,
+        "notes": "",
+        "history": [],
+        "aiSuggested": false,
+        "position": {
+          "x": 320,
+          "y": 20
+        }
+      },
+      "-Test-QA": {
+        "id": "-Test-QA",
+        "parentId": "9_Root-QA",
+        "kind": "passo",
+        "name": "Ensaio a planejar",
+        "oQue": "Definir critério próprio antes de medir um conjunto real.",
+        "porQue": "Amostra sintética para verificar a interface; não há evidência física.",
+        "comoConfirmar": "",
+        "fx": "",
+        "problem": "",
+        "confidence": 0,
+        "pros": [],
+        "cons": [],
+        "confirmado": false,
+        "state": "concept",
+        "order": 1,
+        "notes": "",
+        "history": [],
+        "aiSuggested": false,
+        "position": {
+          "x": 320,
+          "y": 230
+        }
+      }
+    },
+    "edges": {
+      "qa-relation": {
+        "id": "qa-relation",
+        "source": "S_ervo-QA",
+        "target": "-Test-QA",
+        "kind": "independent",
+        "note": "Relação conceitual da amostra."
+      }
+    },
+    "visuals": {
+      "version": 1,
+      "mode": "approval",
+      "artifacts": [
+        {
+          "id": "diagram-torque-example",
+          "kind": "diagram",
+          "label": "Carga e distância ao eixo",
+          "diagram": {
+            "version": 1,
+            "title": "Carga e distância ao eixo",
+            "explanation": "Torque estático idealizado: τ = m × g × r. Valores sintéticos; não estima a capacidade de um servo.",
+            "assumptions": [
+              "Carga pontual e braço horizontal; valores sintéticos.",
+              "Sem massa do braço, aceleração, perdas ou atrito.",
+              "Explorar parâmetros não comprova compatibilidade nem substitui um ensaio."
+            ],
+            "viewBox": [
+              0,
+              0,
+              460,
+              220
+            ],
+            "parameters": [
+              {
+                "id": "mass",
+                "label": "Carga",
+                "min": 0.05,
+                "max": 1,
+                "step": 0.05,
+                "value": 0.2,
+                "unit": "kg"
+              },
+              {
+                "id": "reach",
+                "label": "Distância ao eixo",
+                "min": 0.05,
+                "max": 0.3,
+                "step": 0.01,
+                "value": 0.1,
+                "unit": "m"
+              }
+            ],
+            "constants": {
+              "gravity": 9.81
+            },
+            "calculations": [
+              {
+                "id": "torque",
+                "op": "product",
+                "inputs": [
+                  "mass",
+                  "gravity",
+                  "reach"
+                ]
+              }
+            ],
+            "elements": [
+              {
+                "id": "joint",
+                "type": "circle",
+                "cx": 70,
+                "cy": 100,
+                "r": 20,
+                "fill": "#25232c",
+                "stroke": "#bba2ed",
+                "strokeWidth": 2,
+                "nodeId": "S_ervo-QA"
+              },
+              {
+                "id": "arm",
+                "type": "line",
+                "x1": 70,
+                "y1": 100,
+                "x2": 170,
+                "y2": 100,
+                "stroke": "#bba2ed",
+                "strokeWidth": 7
+              },
+              {
+                "id": "load",
+                "type": "rect",
+                "x": 155,
+                "y": 76,
+                "width": 30,
+                "height": 48,
+                "rx": 4,
+                "fill": "#73658c",
+                "nodeId": "-Test-QA"
+              },
+              {
+                "id": "force",
+                "type": "line",
+                "x1": 170,
+                "y1": 132,
+                "x2": 170,
+                "y2": 170,
+                "stroke": "#8ecfc2",
+                "strokeWidth": 2
+              },
+              {
+                "id": "arrow-left",
+                "type": "line",
+                "x1": 162,
+                "y1": 162,
+                "x2": 170,
+                "y2": 170,
+                "stroke": "#8ecfc2",
+                "strokeWidth": 2
+              },
+              {
+                "id": "arrow-right",
+                "type": "line",
+                "x1": 178,
+                "y1": 162,
+                "x2": 170,
+                "y2": 170,
+                "stroke": "#8ecfc2",
+                "strokeWidth": 2
+              },
+              {
+                "id": "result",
+                "type": "text",
+                "x": 60,
+                "y": 205,
+                "fontSize": 18,
+                "fill": "#e8e1f0",
+                "text": "0.196 N·m"
+              },
+              {
+                "id": "axis-label",
+                "type": "text",
+                "x": 42,
+                "y": 54,
+                "fontSize": 13,
+                "fill": "#b5aabc",
+                "text": "eixo"
+              }
+            ],
+            "bindings": [
+              {
+                "elementId": "arm",
+                "attribute": "x2",
+                "valueId": "reach",
+                "multiplier": 1000,
+                "offset": 70,
+                "decimals": 0,
+                "suffix": ""
+              },
+              {
+                "elementId": "load",
+                "attribute": "x",
+                "valueId": "reach",
+                "multiplier": 1000,
+                "offset": 55,
+                "decimals": 0,
+                "suffix": ""
+              },
+              {
+                "elementId": "force",
+                "attribute": "x1",
+                "valueId": "reach",
+                "multiplier": 1000,
+                "offset": 70,
+                "decimals": 0,
+                "suffix": ""
+              },
+              {
+                "elementId": "force",
+                "attribute": "x2",
+                "valueId": "reach",
+                "multiplier": 1000,
+                "offset": 70,
+                "decimals": 0,
+                "suffix": ""
+              },
+              {
+                "elementId": "arrow-left",
+                "attribute": "x1",
+                "valueId": "reach",
+                "multiplier": 1000,
+                "offset": 62,
+                "decimals": 0,
+                "suffix": ""
+              },
+              {
+                "elementId": "arrow-left",
+                "attribute": "x2",
+                "valueId": "reach",
+                "multiplier": 1000,
+                "offset": 70,
+                "decimals": 0,
+                "suffix": ""
+              },
+              {
+                "elementId": "arrow-right",
+                "attribute": "x1",
+                "valueId": "reach",
+                "multiplier": 1000,
+                "offset": 78,
+                "decimals": 0,
+                "suffix": ""
+              },
+              {
+                "elementId": "arrow-right",
+                "attribute": "x2",
+                "valueId": "reach",
+                "multiplier": 1000,
+                "offset": 70,
+                "decimals": 0,
+                "suffix": ""
+              },
+              {
+                "elementId": "result",
+                "attribute": "text",
+                "valueId": "torque",
+                "multiplier": 1,
+                "offset": 0,
+                "decimals": 3,
+                "suffix": " N·m"
+              }
+            ]
+          },
+          "diagramValues": {},
+          "linkedNodeId": "S_ervo-QA",
+          "x": 650,
+          "y": 0,
+          "width": 600,
+          "height": 365,
+          "scene": null,
+          "mediaId": null,
+          "source": null,
+          "revisions": [
+            {
+              "scene": null,
+              "mediaId": null,
+              "diagram": {
+                "version": 1,
+                "title": "Carga e distância ao eixo",
+                "explanation": "Torque estático idealizado: τ = m × g × r. Valores sintéticos; não estima a capacidade de um servo.",
+                "assumptions": [
+                  "Carga pontual e braço horizontal; valores sintéticos.",
+                  "Sem massa do braço, aceleração, perdas ou atrito.",
+                  "Explorar parâmetros não comprova compatibilidade nem substitui um ensaio."
+                ],
+                "viewBox": [
+                  0,
+                  0,
+                  460,
+                  220
+                ],
+                "parameters": [
+                  {
+                    "id": "mass",
+                    "label": "Carga",
+                    "min": 0.05,
+                    "max": 1,
+                    "step": 0.05,
+                    "value": 0.2,
+                    "unit": "kg"
+                  },
+                  {
+                    "id": "reach",
+                    "label": "Distância ao eixo",
+                    "min": 0.05,
+                    "max": 0.3,
+                    "step": 0.01,
+                    "value": 0.1,
+                    "unit": "m"
+                  }
+                ],
+                "constants": {
+                  "gravity": 9.81
+                },
+                "calculations": [
+                  {
+                    "id": "torque",
+                    "op": "product",
+                    "inputs": [
+                      "mass",
+                      "gravity",
+                      "reach"
+                    ]
+                  }
+                ],
+                "elements": [
+                  {
+                    "id": "joint",
+                    "type": "circle",
+                    "cx": 70,
+                    "cy": 100,
+                    "r": 20,
+                    "fill": "#25232c",
+                    "stroke": "#bba2ed",
+                    "strokeWidth": 2,
+                    "nodeId": "S_ervo-QA"
+                  },
+                  {
+                    "id": "arm",
+                    "type": "line",
+                    "x1": 70,
+                    "y1": 100,
+                    "x2": 170,
+                    "y2": 100,
+                    "stroke": "#bba2ed",
+                    "strokeWidth": 7
+                  },
+                  {
+                    "id": "load",
+                    "type": "rect",
+                    "x": 155,
+                    "y": 76,
+                    "width": 30,
+                    "height": 48,
+                    "rx": 4,
+                    "fill": "#73658c",
+                    "nodeId": "-Test-QA"
+                  },
+                  {
+                    "id": "force",
+                    "type": "line",
+                    "x1": 170,
+                    "y1": 132,
+                    "x2": 170,
+                    "y2": 170,
+                    "stroke": "#8ecfc2",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "id": "arrow-left",
+                    "type": "line",
+                    "x1": 162,
+                    "y1": 162,
+                    "x2": 170,
+                    "y2": 170,
+                    "stroke": "#8ecfc2",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "id": "arrow-right",
+                    "type": "line",
+                    "x1": 178,
+                    "y1": 162,
+                    "x2": 170,
+                    "y2": 170,
+                    "stroke": "#8ecfc2",
+                    "strokeWidth": 2
+                  },
+                  {
+                    "id": "result",
+                    "type": "text",
+                    "x": 60,
+                    "y": 205,
+                    "fontSize": 18,
+                    "fill": "#e8e1f0",
+                    "text": "0.196 N·m"
+                  },
+                  {
+                    "id": "axis-label",
+                    "type": "text",
+                    "x": 42,
+                    "y": 54,
+                    "fontSize": 13,
+                    "fill": "#b5aabc",
+                    "text": "eixo"
+                  }
+                ],
+                "bindings": [
+                  {
+                    "elementId": "arm",
+                    "attribute": "x2",
+                    "valueId": "reach",
+                    "multiplier": 1000,
+                    "offset": 70,
+                    "decimals": 0,
+                    "suffix": ""
+                  },
+                  {
+                    "elementId": "load",
+                    "attribute": "x",
+                    "valueId": "reach",
+                    "multiplier": 1000,
+                    "offset": 55,
+                    "decimals": 0,
+                    "suffix": ""
+                  },
+                  {
+                    "elementId": "force",
+                    "attribute": "x1",
+                    "valueId": "reach",
+                    "multiplier": 1000,
+                    "offset": 70,
+                    "decimals": 0,
+                    "suffix": ""
+                  },
+                  {
+                    "elementId": "force",
+                    "attribute": "x2",
+                    "valueId": "reach",
+                    "multiplier": 1000,
+                    "offset": 70,
+                    "decimals": 0,
+                    "suffix": ""
+                  },
+                  {
+                    "elementId": "arrow-left",
+                    "attribute": "x1",
+                    "valueId": "reach",
+                    "multiplier": 1000,
+                    "offset": 62,
+                    "decimals": 0,
+                    "suffix": ""
+                  },
+                  {
+                    "elementId": "arrow-left",
+                    "attribute": "x2",
+                    "valueId": "reach",
+                    "multiplier": 1000,
+                    "offset": 70,
+                    "decimals": 0,
+                    "suffix": ""
+                  },
+                  {
+                    "elementId": "arrow-right",
+                    "attribute": "x1",
+                    "valueId": "reach",
+                    "multiplier": 1000,
+                    "offset": 78,
+                    "decimals": 0,
+                    "suffix": ""
+                  },
+                  {
+                    "elementId": "arrow-right",
+                    "attribute": "x2",
+                    "valueId": "reach",
+                    "multiplier": 1000,
+                    "offset": 70,
+                    "decimals": 0,
+                    "suffix": ""
+                  },
+                  {
+                    "elementId": "result",
+                    "attribute": "text",
+                    "valueId": "torque",
+                    "multiplier": 1,
+                    "offset": 0,
+                    "decimals": 3,
+                    "suffix": " N·m"
+                  }
+                ]
+              },
+              "diagramValues": {},
+              "label": "Carga e distância ao eixo",
+              "createdAt": 1791633600000
+            }
+          ],
+          "revisionIndex": 0
+        }
+      ],
+      "proposals": [],
+      "drafts": {
+        "search": {
+          "text": "",
+          "mentions": [],
+          "attachments": []
+        },
+        "model": {
+          "text": "",
+          "mentions": [],
+          "attachments": [],
+          "artifactKind": "diagram"
+        }
+      }
+    }
+  },
+  "media": []
+}

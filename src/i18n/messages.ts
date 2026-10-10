@@ -29,10 +29,10 @@ export const en = {
     label: 'Language',
   },
   apiKey: {
-    kicker: 'dynamic_diary',
+    kicker: 'Dynamic Diary',
     title: 'Bring your own key.',
     subtitle:
-      'dynamic_diary is local-first. Your key is saved only in this browser’s IndexedDB — it never passes through any server other than the provider you choose.',
+      'Dynamic Diary is local-first. Your key is saved only in this browser’s IndexedDB — it never passes through any server other than the provider you choose.',
     statusConfigured: 'Configured',
     statusConfigure: 'Not set up',
     statusActive: 'In use',
@@ -708,7 +708,7 @@ export const en = {
   },
   beta: {
     banner:
-      '⚠ Beta — dynamic_diary is under active development. Expect rough edges and breaking changes between versions.',
+      '⚠ Beta — Dynamic Diary is under active development. Expect rough edges and breaking changes between versions.',
   },
   // Strings the graph store writes into persisted data (node fields, history
   // audit trail). Resolved through t() at write time so the project speaks the
@@ -767,7 +767,7 @@ export const en = {
     fieldLabels: { oQue: 'What it is', porQue: 'Why it is needed' },
     undone: (name: string) => `Undone: last action on "${name}"`,
     importInvalid:
-      'This file is not a dynamic_diary export (missing rootId, nodes or edges).',
+      'This file is not a Dynamic Diary export (missing rootId, nodes or edges).',
     stateLabels: {
       concept: 'concept',
       validated: 'validated',
@@ -981,10 +981,10 @@ export const ptBR: Messages = {
     label: 'Idioma',
   },
   apiKey: {
-    kicker: 'dynamic_diary',
+    kicker: 'Dynamic Diary',
     title: 'Traga sua própria chave (BYOK).',
     subtitle:
-      'dynamic_diary é local-first. Sua chave fica salva apenas no IndexedDB deste navegador — nunca passa por nenhum servidor além do provider que você escolheu.',
+      'Dynamic Diary é local-first. Sua chave fica salva apenas no IndexedDB deste navegador — nunca passa por nenhum servidor além do provider que você escolheu.',
     statusConfigured: 'Configurado',
     statusConfigure: 'Não configurado',
     statusActive: 'Em uso',
@@ -1665,7 +1665,7 @@ export const ptBR: Messages = {
   },
   beta: {
     banner:
-      '⚠ Beta — dynamic_diary está em desenvolvimento ativo. Espere arestas brutas e mudanças quebradoras entre versões.',
+      '⚠ Beta — Dynamic Diary está em desenvolvimento ativo. Espere arestas brutas e mudanças quebradoras entre versões.',
   },
   store: {
     projectFallbackName: 'Projeto',
@@ -1722,7 +1722,7 @@ export const ptBR: Messages = {
     fieldLabels: { oQue: 'O que é', porQue: 'Por que precisa' },
     undone: (name: string) => `Desfeito: última ação em "${name}"`,
     importInvalid:
-      'Este arquivo não é uma exportação do dynamic_diary (faltam rootId, nodes ou edges).',
+      'Este arquivo não é uma exportação do Dynamic Diary (faltam rootId, nodes ou edges).',
     stateLabels: {
       concept: 'conceito',
       validated: 'validado',

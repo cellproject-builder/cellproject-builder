@@ -1,4 +1,5 @@
 import { groundedText } from '@/ai/research';
+import { sessionAwareFetch } from '@/cloud/runtime';
 import { getActiveConfig } from '@/config/store';
 import { useGraphStore } from '@/store';
 import { useWorkspaceStore } from '@/workspace/store';
@@ -11,9 +12,9 @@ let activeSearch: AbortController | null = null;
 const cancelled = () => new DOMException('Visual search scope changed or request cancelled.', 'AbortError');
 
 async function gateway(path: string, signal: AbortSignal, body?: unknown): Promise<unknown> {
-  const response = await fetch(`/api/visuals/${path}`, {
+  const response = await sessionAwareFetch(`/api/visuals/${path}`, {
     method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', signal,
-    ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
+    ...(body === undefined ? {} : { headers: { 'content-type': 'application/json', 'X-Cellproject-Request': '1' }, body: JSON.stringify(body) }),
   });
   if (!response.ok) throw new Error(response.status === 403
     ? 'Image search requires the local visual gateway. Start the application with npm run dev on localhost.'

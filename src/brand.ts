@@ -1,1 +1,1 @@
-export const PRODUCT_NAME = 'dynamic_diary';
+export const PRODUCT_NAME = 'Dynamic Diary';

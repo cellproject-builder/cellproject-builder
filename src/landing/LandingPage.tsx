@@ -275,7 +275,7 @@ export function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <a href="/" className="flex items-center gap-2.5 min-w-0">
             <span className="font-semibold tracking-tight text-sm sm:text-base text-text-primary truncate">
-              dynamic_diary
+              Dynamic Diary
             </span>
           </a>
           <div className="flex items-center gap-3 sm:gap-4">
@@ -468,7 +468,7 @@ export function LandingPage() {
       <footer>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <span className="font-mono text-[11px] text-text-muted">dynamic_diary</span>
+            <span className="font-mono text-[11px] text-text-muted">Dynamic Diary</span>
           </div>
           <div className="font-mono text-[11px] text-text-muted text-center">
             {t.footer.tagline}

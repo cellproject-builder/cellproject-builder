@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
-import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
+import { selectedStorage } from '@/cloud/storage';
+import { registerDataIngestion } from '@/cloud/activity';
+const idbGet = selectedStorage.getItem, idbSet = selectedStorage.setItem, idbDel = selectedStorage.removeItem;
 import { nanoid } from 'nanoid';
 import { t } from '@/i18n';
 import { classifyAIError, type AIErrorInfo } from '@/ai/service';
@@ -227,6 +229,8 @@ export const useKBStore = create<KBState>()(
         lastContext: null,
 
         addFromPdf: async (file, onProgress, opts = {}) => {
+          const finish = registerDataIngestion();
+          try {
           const base = { filename: file.name };
           if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
             onProgress?.({ ...base, phase: 'error', errorKind: 'notPdf', error: 'not a PDF' });
@@ -307,6 +311,7 @@ export const useKBStore = create<KBState>()(
           inflight.clear();
           onProgress?.({ ...base, phase: 'done', docId: id });
           return id;
+          } finally { finish(); }
         },
 
         removeDoc: (id) => {

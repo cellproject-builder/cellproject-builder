@@ -13,6 +13,7 @@ import { useT, type Messages } from '@/i18n';
 import { useGraphStore } from '@/store';
 import { Modal } from './ui/Modal';
 import { LanguageToggle } from './LanguageToggle';
+import { isCloudEnabled, cloudProviderAvailable, getCloudRuntime } from '@/cloud/runtime';
 
 const PROVIDERS: Provider[] = ['openrouter', 'openai', 'anthropic'];
 
@@ -47,6 +48,10 @@ interface Props {
 
 export function ApiKeyGate({ onClose, initialAdvanced = false, title, preferences }: Props) {
   const tr = useT();
+  if (isCloudEnabled()) {
+    const content = <>{preferences}<p className="text-control text-text-secondary">As credenciais de IA ficam protegidas no servidor.</p><CloudModelSettings onClose={onClose}/></>;
+    return onClose ? <Modal open onClose={onClose} title={title ?? tr.apiKey.modalTitle} className="max-w-xl">{content}</Modal> : <div className="p-6">{content}</div>;
+  }
 
   // Aberto por cima de outra tela (TopBar, tela de objetivo): sheet de Ajustes.
   if (onClose) {
@@ -59,6 +64,30 @@ export function ApiKeyGate({ onClose, initialAdvanced = false, title, preference
   }
 
   return <FullScreenGate />;
+}
+
+function CloudModelSettings({ onClose }: { onClose?: () => void }) {
+  const tr = useT(), active = useConfigStore(state => state.activeProvider), providers = useConfigStore(state => state.providers);
+  const available = PROVIDERS.filter(cloudProviderAvailable);
+  const [provider, setProvider] = useState<Provider>(() => active && available.includes(active) ? active : available[0] ?? 'openrouter');
+  const [mainModel, setMainModel] = useState(providers[provider]?.mainModel ?? PROVIDER_DEFAULTS[provider].mainModel);
+  const [kbModel, setKbModel] = useState(providers[provider]?.kbModel ?? PROVIDER_DEFAULTS[provider].kbModel);
+  const [saving, setSaving] = useState(false), [error, setError] = useState('');
+  useEffect(() => { setMainModel(providers[provider]?.mainModel ?? PROVIDER_DEFAULTS[provider].mainModel); setKbModel(providers[provider]?.kbModel ?? PROVIDER_DEFAULTS[provider].kbModel); }, [provider]);
+  if (!available.length) return <p className="text-control text-text-secondary mt-3">Nenhum provedor de IA está configurado no servidor.</p>;
+  return <section className="mt-4 flex flex-col gap-4" aria-label="Modelos de IA">
+    <label className="text-control">Provedor<select className="field mt-1" value={provider} disabled={saving} onChange={event => setProvider(event.target.value as Provider)}>{available.map(value => <option key={value} value={value}>{PROVIDER_LABELS[value]}</option>)}</select></label>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <ModelPicker label={tr.apiKey.mainModelLabel} hint={tr.apiKey.mainModelHint} options={KNOWN_MODELS[provider].filter(model => model.role !== 'kb')} value={mainModel} onChange={setMainModel}/>
+      <ModelPicker label={tr.apiKey.kbModelLabel} hint={tr.apiKey.kbModelHint} options={KNOWN_MODELS[provider].filter(model => model.role !== 'main')} value={kbModel} onChange={setKbModel}/>
+    </div>
+    <button className="btn btn-primary" disabled={saving || !mainModel.trim() || !kbModel.trim()} onClick={() => {
+      setSaving(true); setError('');
+      const state = useConfigStore.getState(); state.saveProviderConfig(provider, { ...providers[provider], apiKey: '', mainModel: mainModel.trim(), kbModel: kbModel.trim() }); state.setActiveProvider(provider);
+      void getCloudRuntime()!.flush().then(() => onClose?.()).catch(reason => setError(reason instanceof Error ? reason.message : 'Falha ao salvar modelos.')).finally(() => setSaving(false));
+    }}>{saving ? 'Salvando…' : 'Salvar modelos'}</button>
+    {error && <p role="alert" className="text-control text-state-problem">{error}</p>}
+  </section>;
 }
 
 function FullScreenGate() {

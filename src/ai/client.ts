@@ -2,6 +2,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import type { JSONValue, LanguageModel } from 'ai';
+import { providerTransport } from './transport';
 import {
   getActiveConfig,
   assertAIReady,
@@ -26,7 +27,7 @@ interface ResolvedModels {
 
 function buildModels(provider: Provider, cfg: ProviderConfig): ResolvedModels {
   if (provider === 'openai') {
-    const client = createOpenAI({ apiKey: cfg.apiKey });
+    const client = createOpenAI(providerTransport(provider, cfg.apiKey));
     return {
       main: client.chat(cfg.mainModel),
       kb: client.chat(cfg.kbModel),
@@ -39,7 +40,7 @@ function buildModels(provider: Provider, cfg: ProviderConfig): ResolvedModels {
     // O Anthropic SDK valida que estamos fora do browser por padrão. Como o
     // user trouxe a própria chave e aceita o trade-off de XSS, liberamos.
     const client = createAnthropic({
-      apiKey: cfg.apiKey,
+      ...providerTransport(provider, cfg.apiKey),
       headers: { 'anthropic-dangerous-direct-browser-access': 'true' },
     });
     return {
@@ -52,8 +53,8 @@ function buildModels(provider: Provider, cfg: ProviderConfig): ResolvedModels {
   }
   // openrouter
   const client = createOpenRouter({
-    apiKey: cfg.apiKey,
-    appName: 'dynamic_diary',
+    ...providerTransport(provider, cfg.apiKey),
+    appName: 'Dynamic Diary',
     appUrl: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173',
   });
   return {

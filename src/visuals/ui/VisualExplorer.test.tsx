@@ -6,6 +6,7 @@ import { VisualExplorer, type VisualExplorerProps } from './VisualExplorer';
 import { useVisualPopupStore } from './uiStore';
 import type { ImageReference, MentionTarget, VisualProposal, VisualWorkspace } from '../types';
 import type { ModelRefinement } from '../refinement';
+import { torqueDiagram } from '../diagram/fixture';
 
 vi.mock('./DecompositionPanel', () => ({ DecompositionPanel: ({ artifactId }: { artifactId: string }) => <div data-component-inspector={artifactId}>Existing model inspector</div> }));
 
@@ -42,6 +43,21 @@ beforeEach(async () => {
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
 
 describe('visual popup interaction', () => {
+  it('reuses references and the existing proposal cycle when switching to a diagram', async () => {
+    const selectedNode = { ...target, id: '9_A-b', kind: 'node' as const, label: 'Servo' };
+    props.selectedNode = selectedNode;
+    props.workspace = { ...empty(), drafts: { ...empty().drafts, model: { text: 'Torque e alcance', mentions: [target], attachments: [] } } };
+    props.onGenerate = vi.fn(async input => ({ id: 'diagram-ready', projectId: 'p1', label: 'Torque sintético', kind: 'diagram' as const, scene: null, diagram: torqueDiagram(selectedNode.id, selectedNode.id), status: 'ready' as const, input, contextFingerprint: 'v1', createdAt: 1 }));
+    await act(async () => root.render(<VisualExplorer {...props}/>));
+    await click('Diagram');
+    expect(host.querySelector('[data-visual-popup="model"]')?.getAttribute('aria-label')).toBe('Interactive diagram');
+    expect(button('Advanced')).toBeUndefined();
+    await click('Generate diagram');
+    expect(props.onGenerate).toHaveBeenCalledWith(expect.objectContaining({ artifactKind: 'diagram', text: 'Torque e alcance', mentions: [target, selectedNode] }), expect.any(AbortSignal));
+    expect(host.querySelector('.visual-proposal-text')?.textContent).toContain('elements');
+    await click('Apply to canvas'); expect(props.onApply).toHaveBeenCalledWith('diagram-ready');
+    await click('3D'); expect(props.onDraft).toHaveBeenLastCalledWith('model', expect.objectContaining({ artifactKind: 'model', mentions: [target, selectedNode] }));
+  });
   it('removes an applied proposal from history without invoking artifact removal, rejection or generation', async () => {
     const applied: VisualProposal = { id: 'applied-history', projectId: 'p1', label: 'Applied motor', status: 'applied', scene: { version: 1, label: 'Motor', objects: [] }, input: { text: 'Motor', mentions: [], attachments: [] }, contextFingerprint: 'context-v1', createdAt: 1 };
     props.workspace = { ...empty(), proposals: [applied] }; props.onRemoveHistory = vi.fn();

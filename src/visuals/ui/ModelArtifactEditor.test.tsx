@@ -4,8 +4,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useLocaleStore } from '@/i18n';
 import { ModelArtifactEditor } from './ModelArtifactEditor';
 import { reviseVisualModel } from '../modelRevision';
+import { reviseVisualDiagram } from '../diagram/generation';
 import type { VisualArtifact } from '../types';
 vi.mock('../modelRevision', () => ({ reviseVisualModel: vi.fn() }));
+vi.mock('../diagram/generation', () => ({ reviseVisualDiagram: vi.fn() }));
 vi.mock('../domain', () => ({ findMentionTarget: (id: string, kind: string) => ({ id, kind, label: id, detail: '', fingerprint: 'v1' }), listMentionTargets: () => [{ id: 'note-extra', kind: 'note', label: 'Detailed dimensions', detail: '', fingerprint: 'v1' }] }));
 vi.mock('../media', () => ({ attachVisualFile: vi.fn(async (file: File) => ({ id: 'file', name: file.name, mime: 'text/plain', byteLength: file.size, mediaId: null, text: '42 mm flange' })) }));
 const artifact = { id: 'motor', label: 'Motor', kind: 'model', linkedNodeId: 'node-motor', origin: { imageIds: ['photo'] } } as VisualArtifact;
@@ -41,4 +43,14 @@ it('shows busy/error feedback and cancellation aborts the request', async () => 
   vi.mocked(reviseVisualModel).mockRejectedValueOnce(new Error('visualContextChanged'));
   await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="OK"]')!.click());
   expect(host.querySelector('[role="alert"]')?.textContent).toContain('context changed'); expect(close).not.toHaveBeenCalled();
+});
+it('uses the same contextual editor for diagrams and dispatches one diagram revision on OK', async () => {
+  const diagram = { ...artifact, kind: 'diagram' as const };
+  vi.mocked(reviseVisualDiagram).mockResolvedValue(diagram);
+  await act(async () => root.render(<ModelArtifactEditor key="diagram" artifact={diagram} onClose={close}/>));
+  expect(host.querySelector('[aria-label="Diagram adjustment"]')).not.toBeNull();
+  await type('Mostrar as relações com mais clareza');
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="OK"]')!.click());
+  expect(reviseVisualDiagram).toHaveBeenCalledWith(artifact.id, expect.objectContaining({ artifactKind: 'diagram', text: 'Mostrar as relações com mais clareza' }), expect.anything());
+  expect(reviseVisualModel).not.toHaveBeenCalled(); expect(close).toHaveBeenCalledOnce();
 });

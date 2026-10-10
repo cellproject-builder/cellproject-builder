@@ -29,7 +29,7 @@ export async function copyVisualReference(reference: ImageReference, projectId: 
   const url = new URL(reference.imageUrl, window.location.origin);
   if (url.origin !== window.location.origin || url.pathname !== '/api/visuals/media' || !url.searchParams.get('sessionId') || !url.searchParams.get('candidateId')) throw new Error('visualReferenceUnregistered');
   if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') throw new Error('Image clipboard unavailable. Use Add to canvas.');
-  const response = await fetch(url, { redirect: 'error', credentials: 'same-origin' });
+  const response = await sessionAwareFetch(url, { redirect: 'error', credentials: 'same-origin' });
   if (!response.ok) throw new Error('visualImageFetchFailed');
   const blob = await response.blob();
   if (!['image/png', 'image/jpeg', 'image/webp'].includes(blob.type) || blob.size > 5 * 1024 * 1024) throw new Error('visualImageInvalid');
@@ -42,3 +42,4 @@ export async function referenceFromClipboard(file: Blob, projectId: string): Pro
   if (!candidate || candidate.projectId !== projectId || file.size > 5 * 1024 * 1024) return null;
   return await digest(file) === candidate.hash ? candidate.reference : null;
 }
+import { sessionAwareFetch } from '@/cloud/runtime';

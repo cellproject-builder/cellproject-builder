@@ -20,11 +20,11 @@ function resized(frame: Frame, edge: Edge, dx: number, dy: number): Frame {
   return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
-export function FloatingPopup({ kind, children, onClose, onMinimize, minimized = false }: {
-  kind: 'search' | 'model'; children: ReactNode; onClose: () => void; onMinimize: () => void; minimized?: boolean;
+export function FloatingPopup({ kind, children, onClose, onMinimize, minimized = false, title: customTitle, subtitle }: {
+  kind: 'search' | 'model'; children: ReactNode; onClose: () => void; onMinimize: () => void; minimized?: boolean; title?: string; subtitle?: string;
 }) {
   const s = useVisualStrings();
-  const title = kind === 'search' ? s.imageTitle : s.modelTitle;
+  const title = customTitle ?? (kind === 'search' ? s.imageTitle : s.modelTitle);
   const panel = useRef<HTMLElement>(null);
   const [frame, setFrame] = useState(() => fit({ x: kind === 'search' ? 20 : window.innerWidth - 444, y: kind === 'search' ? 110 : 150, width: kind === 'search' ? 460 : 420, height: kind === 'search' ? 520 : 620 }));
   const [front, setFront] = useState(false);
@@ -56,7 +56,7 @@ export function FloatingPopup({ kind, children, onClose, onMinimize, minimized =
     onDragOver={(e) => { e.stopPropagation(); }} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); }}>
     <header className="visual-popup-header" onPointerDown={event => start(event)} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
       <span className="visual-popup-emblem" aria-hidden="true">{kind === 'search' ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.5"/><path d="m3 16 5-5 5 5 3-3 5 5"/></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10"/></svg>}</span>
-      <div className="visual-popup-heading"><h2>{title}</h2><p>{kind === 'search' ? s.imageSubtitle : s.modelSubtitle}</p></div>
+      <div className="visual-popup-heading"><h2>{title}</h2><p>{subtitle ?? (kind === 'search' ? s.imageSubtitle : s.modelSubtitle)}</p></div>
       <span className="visual-header-grip" aria-hidden="true">⠿</span>
       <button type="button" className="visual-icon-button" onClick={onMinimize} aria-label={kind === 'search' ? s.minimizeSearch : s.minimizeModel} title={kind === 'search' ? s.minimizeSearch : s.minimizeModel}><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M3 11h10" /></svg></button>
       <button type="button" className="visual-icon-button visual-close" onClick={onClose} aria-label={kind === 'search' ? s.closeSearch : s.closeModel}>×</button>

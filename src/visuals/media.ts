@@ -1,4 +1,6 @@
 import { createStore, del, entries, get, set } from 'idb-keyval';
+import { getCloudRuntime, sessionAwareFetch } from '@/cloud/runtime';
+import { registerDataIngestion } from '@/cloud/activity';
 import { nanoid } from 'nanoid';
 import { currentVisualScope, getDefaultVisualNodeId, getVisualWorkspace, mutateVisualWorkspace, watchVisualScope } from './domain';
 import { useGraphStore } from '@/store';
@@ -97,6 +99,9 @@ function releaseReferencedPending() { if (!pendingMedia.size) return; for (const
 useGraphStore.subscribe(releaseReferencedPending);
 useWorkspaceStore.subscribe(releaseReferencedPending);
 async function pruneStoredMedia(now: number) {
+  // Remote garbage collection requires server-side reference validation.
+  // Never delete remote bytes from a partial client snapshot or touch legacy.
+  if (getCloudRuntime()) return;
   const referenced = referencedIds();
   for (const [id, record] of await entries<string, MediaRecord>(db)) {
     const pending = pendingMedia.get(id);
@@ -111,6 +116,18 @@ export async function collectUnreferencedVisualMedia(now = Date.now()): Promise<
 async function persistMedia(records: MediaRecord[], projectId: string) {
   const operation = mediaWrites.then(async () => {
     releaseReferencedPending();
+    const cloud = getCloudRuntime();
+    if (cloud) {
+      const stored = cloud.media(), incoming = new Map(records.map(record => [record.id, record]));
+      const currentProject = stored.filter(record => record.projectId === projectId);
+      const ids = new Set([...currentProject.map(record => record.id), ...records.map(record => record.id)]);
+      const projectBytes = [...ids].reduce((sum, id) => sum + (incoming.get(id)?.bytes.byteLength ?? stored.find(record => record.id === id)?.size ?? 0), 0);
+      if (projectBytes > MAX_VISUAL_STORAGE_BYTES) throw new Error('visualProjectStorageFull');
+      const total = stored.reduce((sum, record) => sum + record.size, 0) + records.filter(record => !stored.some(existing => existing.id === record.id)).reduce((sum, record) => sum + record.bytes.byteLength, 0);
+      if (total > MAX_GLOBAL_MEDIA_BYTES) throw new Error('visualStorageFull');
+      for (const record of records) await cloud.writeMedia({ ...record, projectId, createdAt: record.createdAt ?? Date.now() });
+      return;
+    }
     await pruneStoredMedia(Date.now());
     const stored = await entries<string, MediaRecord>(db);
     const recordsById = new Map(stored);
@@ -151,6 +168,8 @@ async function writeMedia(file: Blob, name: string, signal?: AbortSignal): Promi
   return { ...record, imageSize };
 }
 export async function readVisualMedia(mediaId: string): Promise<Blob | null> {
+  const cloud = getCloudRuntime();
+  if (cloud) { const metadata = cloud.media().find(record => record.id === mediaId); if (!metadata) return null; const bytes = await cloud.readMedia(mediaId); return bytes ? new Blob([bytes], { type: metadata.mime }) : null; }
   const record = await get<MediaRecord>(mediaId, db);
   return record ? new Blob([record.bytes], { type: record.mime }) : null;
 }
@@ -169,6 +188,7 @@ export async function readVisualImage(mediaId: string, signal?: AbortSignal): Pr
 }
 export async function attachVisualFile(file: File, signal?: AbortSignal): Promise<VisualAttachment> {
   const guard = watchVisualScope();
+  const finish = registerDataIngestion();
   try {
     signal?.throwIfAborted(); const mime = inferredMime(file);
     if (!supported.has(mime)) throw new Error('visualFileUnsupported');
@@ -181,7 +201,7 @@ export async function attachVisualFile(file: File, signal?: AbortSignal): Promis
     }
     signal?.throwIfAborted(); guard.assert();
     return { id: nanoid(), name: file.name, mime, byteLength: file.size, mediaId: record.id, text };
-  } finally { guard.dispose(); }
+  } finally { finish(); guard.dispose(); }
 }
 function createImage(mediaId: string, label: string, source: ImageReference | null, point: { x: number; y: number }, initialNodeId: string | null, imageSize: ImageSize | null): VisualArtifact {
   if (![point.x, point.y].every(Number.isFinite) || Math.abs(point.x) > 100_000 || Math.abs(point.y) > 100_000) throw new Error('visualGeometryInvalid');
@@ -193,6 +213,7 @@ function createImage(mediaId: string, label: string, source: ImageReference | nu
 }
 export async function addLocalImage(file: File, point: { x: number; y: number }, signal?: AbortSignal): Promise<VisualArtifact> {
   const guard = watchVisualScope(), initialNodeId = getDefaultVisualNodeId();
+  const finish = registerDataIngestion();
   try {
     const mime = inferredMime(file); if (!mime.startsWith('image/')) throw new Error('visualImageRequired');
     const record = await writeMedia(new Blob([file], { type: mime }), file.name, signal);
@@ -200,17 +221,18 @@ export async function addLocalImage(file: File, point: { x: number; y: number },
     const artifact = createImage(record.id, file.name, null, point, initialNodeId, record.imageSize);
     mutateVisualWorkspace(w => ({ ...w, artifacts: [...w.artifacts, artifact] }), guard.scope);
     return artifact;
-  } finally { guard.dispose(); }
+  } finally { finish(); guard.dispose(); }
 }
 export async function addReferenceImage(reference: ImageReference, point: { x: number; y: number }, signal?: AbortSignal, options: { center?: boolean; linkedNodeId?: string | null; beforeInsert?: () => void } = {}): Promise<VisualArtifact> {
   const guard = watchVisualScope(), initialNodeId = options.linkedNodeId !== undefined ? options.linkedNodeId : getDefaultVisualNodeId();
+  const finish = registerDataIngestion();
   try {
     signal?.throwIfAborted();
     const existingReference = () => getVisualWorkspace(useGraphStore.getState().project).artifacts.find(a => a.kind === 'image' && a.source && ((a.source.id === reference.id && a.source.sessionId === reference.sessionId) || a.source.imageUrl === reference.imageUrl));
     const existing = existingReference(); if (existing) return existing;
     const url = new URL(reference.imageUrl, window.location.origin);
     if (url.origin !== window.location.origin || url.pathname !== '/api/visuals/media' || !url.searchParams.get('sessionId') || !url.searchParams.get('candidateId')) throw new Error('visualReferenceUnregistered');
-    const response = await fetch(url, { signal, redirect: 'error', credentials: 'same-origin' });
+    const response = await sessionAwareFetch(url, { signal, redirect: 'error', credentials: 'same-origin' });
     if (!response.ok) throw new Error('visualImageFetchFailed');
     const mime = response.headers.get('content-type')?.split(';')[0] ?? '';
     if (!mime.startsWith('image/') || Number(response.headers.get('content-length')) > MAX_VISUAL_FILE_BYTES) throw new Error('visualImageInvalid');
@@ -229,20 +251,24 @@ export async function addReferenceImage(reference: ImageReference, point: { x: n
     if (options.center) { artifact.x -= artifact.width / 2; artifact.y -= artifact.height / 2; }
     mutateVisualWorkspace(w => ({ ...w, artifacts: [...w.artifacts, artifact] }), guard.scope);
     return artifact;
-  } finally { guard.dispose(); }
+  } finally { finish(); guard.dispose(); }
 }
 export async function exportVisualMedia(ids: string[]): Promise<PortableVisualMedia[]> {
   const result: PortableVisualMedia[] = []; let total = 0;
   for (const id of new Set(ids)) {
-    const record = await get<MediaRecord>(id, db); if (!record) throw new Error('visualMediaMissing');
+    const cloud = getCloudRuntime(), metadata = cloud?.media().find(record => record.id === id);
+    const bytes = cloud ? await cloud.readMedia(id) : null;
+    const record = cloud ? metadata && bytes ? { ...metadata, bytes } : null : await get<MediaRecord>(id, db); if (!record) throw new Error('visualMediaMissing');
     total += record.bytes.byteLength; if (total > MAX_VISUAL_EXPORT_BYTES) throw new Error('visualExportTooLarge');
-    let binary = ''; const bytes = new Uint8Array(record.bytes);
-    for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+    let binary = ''; const data = new Uint8Array(record.bytes);
+    for (let i = 0; i < data.length; i += 8192) binary += String.fromCharCode(...data.subarray(i, i + 8192));
     result.push({ id, mime: record.mime, name: record.name, base64: btoa(binary) });
   }
   return result;
 }
 export async function importVisualMedia(records: PortableVisualMedia[], projectId = useGraphStore.getState().project?.id ?? 'import'): Promise<void> {
+  const finish = registerDataIngestion();
+  try {
   let total = 0; const decoded: MediaRecord[] = [];
   if (records.length > 512) throw new Error('visualExportTooLarge');
   const ids = new Set<string>();
@@ -254,4 +280,5 @@ export async function importVisualMedia(records: PortableVisualMedia[], projectI
   }
   // Validate the whole bundle before writes; IDs reference immutable content.
   await persistMedia(decoded, projectId);
+  } finally { finish(); }
 }

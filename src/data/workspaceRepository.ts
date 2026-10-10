@@ -1,5 +1,6 @@
 import { get, set, del } from 'idb-keyval';
 import type { StateStorage } from 'zustand/middleware';
+import { selectedStorage } from '@/cloud/storage';
 
 /** Persistence stores the exact Zustand envelope; it does not own domain actions. */
 export interface WorkspaceRepository {
@@ -32,4 +33,4 @@ export function createWorkspaceStorage(repository: WorkspaceRepository): StateSt
 }
 
 /** Uses the same idb-keyval database/store and keys as the existing local app. */
-export const workspaceRepository = createWorkspaceStorage(new IndexedDbWorkspaceRepository());
+export const workspaceRepository = selectedStorage;

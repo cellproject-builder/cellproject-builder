@@ -3,12 +3,12 @@ import type { ConceptNodeData, Project } from '@/types';
 import { flushWorkspacePersistence, useWorkspaceStore } from './store';
 import type { NoteBlock, PlannerSnapshot, TaskInput } from './types';
 
-export const DEMO_PLAN_PREFIX = 'dynamic_diary-demo-v1:';
+export const DEMO_PLAN_PREFIX = 'Dynamic Diary-demo-v1:';
 
 const examples = [
   {
     key: 'product', name: '(Demo) Lançamento do produto',
-    objective: 'Lançar uma primeira versão do dynamic_diary que conecte escopo, execução e diário em uma experiência simples e consistente.',
+    objective: 'Lançar uma primeira versão do Dynamic Diary que conecte escopo, execução e diário em uma experiência simples e consistente.',
     goal: 'Entregar o fluxo completo de projeto, tarefas e notas para a primeira rodada de uso.',
     phases: ['Descoberta e escopo', 'Construção da experiência', 'Validação e lançamento'],
     tasks: ['Mapear a jornada de planejamento', 'Definir os critérios do primeiro lançamento', 'Organizar os componentes visuais', 'Conectar o Kanban às tarefas do projeto', 'Revisar o fluxo de notas vinculadas', 'Preparar o roteiro de validação', 'Ajustar a experiência em telas pequenas', 'Revisar os estados vazios e mensagens', 'Testar exportação e restauração dos dados', 'Documentar os próximos passos de integração', 'Preparar a apresentação da versão', 'Explorar atalhos de produtividade'],

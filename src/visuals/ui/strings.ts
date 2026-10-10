@@ -1,6 +1,7 @@
 import { useLocaleStore } from '@/i18n';
 
 const en = {
+  artifactType: 'Artifact', diagramMode: 'Diagram', diagramTitle: 'Interactive diagram', diagramSubtitle: 'Explore relationships in your plan', diagramGenerate: 'Generate diagram', diagramPlaceholder: 'What relationship should we illustrate? Use @ or attach a reference…', diagramGenerating: 'Building your diagram…', diagramElements: 'elements', diagramEmpty: 'Explore a relationship', diagramEmptyHint: 'Create a diagram with optional controls and links to your existing nodes.', diagramNote: 'Exploratory calculations are not physical evidence. Check the assumptions in the canvas.',
   imageTitle: 'Image references', modelTitle: '3D studio', closeSearch: 'Close image search', closeModel: 'Close 3D studio',
   minimizeSearch: 'Minimize image search', minimizeModel: 'Minimize 3D studio', restoreSearch: 'Restore image search', restoreModel: 'Restore 3D studio',
   resizePopup: 'Resize panel', resizeHint: 'Drag to resize · arrow keys for precise adjustments', backgroundTools: 'Minimized tools', backgroundReady: 'Ready', backgroundError: 'Needs attention', backgroundResume: 'Resume',
@@ -53,6 +54,7 @@ const en = {
 };
 type Strings = typeof en;
 const pt: Strings = {
+  artifactType: 'Artefato', diagramMode: 'Diagrama', diagramTitle: 'Diagrama interativo', diagramSubtitle: 'Explore relações do seu plano', diagramGenerate: 'Gerar diagrama', diagramPlaceholder: 'Que relação vamos ilustrar? Use @ ou anexe uma referência…', diagramGenerating: 'Construindo seu diagrama…', diagramElements: 'elementos', diagramEmpty: 'Explore uma relação', diagramEmptyHint: 'Crie um diagrama com controles opcionais e conexões aos nós existentes.', diagramNote: 'Cálculos exploratórios não são evidência física. Confira as premissas no canvas.',
   imageTitle: 'Referências de imagem', modelTitle: 'Estúdio 3D', closeSearch: 'Fechar busca de imagens', closeModel: 'Fechar estúdio 3D',
   minimizeSearch: 'Minimizar busca de imagens', minimizeModel: 'Minimizar estúdio 3D', restoreSearch: 'Restaurar busca de imagens', restoreModel: 'Restaurar estúdio 3D',
   resizePopup: 'Redimensionar painel', resizeHint: 'Arraste para redimensionar · use as setas para ajustes precisos', backgroundTools: 'Ferramentas minimizadas', backgroundReady: 'Pronto', backgroundError: 'Precisa de atenção', backgroundResume: 'Retomar',
@@ -115,6 +117,7 @@ export function visualError(reason: unknown, s: Strings): string {
     visualArtifactRemoved: s.missingMedia, visualMediaMissing: s.missingMedia, visualImageFetchFailed: s.referenceUnavailable,
     visualReferenceUnregistered: s.referenceUnavailable, visualGenerationIncomplete: s.incomplete,
     visualAssemblyInvalid: s.assemblyInvalid,
+    visualDiagramInvalid: s.generate === 'Generate model' ? 'The diagram response was invalid or outside the supported limits. Refine the request and try again.' : 'O diagrama retornado é inválido ou excede os limites suportados. Ajuste o pedido e tente novamente.',
     visualSearchNeedsAI: s.searchNeedsAI, visualSearchUnclear: s.searchUnclear,
     visualRefinementStale: s.refinementOutdated, visualRefinementInvalid: s.refinementInvalid,
     visualVisionUnsupported: s.visionUnsupported, visualVisionImageRequired: s.visionImageRequired, visualVisionLimit: s.visionLimit, visualImageTooLarge: s.visionLimit,

@@ -1,0 +1,14 @@
+.visual-diagram { width:100%; height:100%; display:flex; flex-direction:column; min-height:0; color:rgb(var(--text-secondary)); background:transparent; }
+.visual-diagram>svg { display:block; width:100%; min-height:0; flex:1; overflow:hidden; background:transparent; }
+.visual-diagram-node { cursor:pointer; }
+.visual-diagram-node:focus-visible { outline:2px solid rgb(var(--ai-accent)); outline-offset:2px; }
+.visual-diagram-controls { display:flex; flex-wrap:wrap; align-items:center; flex-shrink:0; max-height:45%; overflow:auto; gap:6px 14px; padding:4px 8px; cursor:auto; touch-action:auto; font-size:11px; line-height:1.4; }
+.visual-diagram-controls>label { min-width:92px; flex:1; }
+.visual-diagram-controls label>span { display:flex; justify-content:space-between; gap:8px; }
+.visual-diagram-controls output { color:rgb(var(--text-muted)); font-variant-numeric:tabular-nums; }
+.visual-diagram-controls input { width:100%; height:18px; accent-color:rgb(var(--ai-accent)); }
+.visual-diagram-controls details { flex-basis:100%; position:relative; }
+.visual-diagram-controls summary { color:rgb(var(--text-muted)); cursor:pointer; }
+.visual-diagram-controls details[open] { max-height:100px; overflow:auto; background:rgb(var(--bg-primary)/.92); border-radius:8px; padding:6px; }
+.visual-diagram-controls p,.visual-diagram-controls li { font-size:11px; line-height:1.5; overflow-wrap:anywhere; }
+.visual-diagram-controls ul { padding-left:15px; list-style:disc; }

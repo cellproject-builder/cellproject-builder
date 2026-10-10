@@ -18,6 +18,11 @@ export default defineConfig(({ command, mode }) => {
     plugins: [react(), pwaBuildPlugin(), {
       name: 'local-visual-gateway',
       configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url !== '/api/cloud/config' || req.method !== 'GET') { next(); return; }
+          res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+          res.end(JSON.stringify({ enabled: false, authenticated: false, providers: { openrouter: false, openai: false, anthropic: false } }));
+        });
         server.middlewares.use(createVisualHandler({
           local: true,
           typesafeKey: env.TYPESAFE_API_KEY || env.TYPESAFE || '',

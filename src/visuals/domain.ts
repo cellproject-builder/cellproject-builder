@@ -8,6 +8,7 @@ import { EMPTY_VISUAL_WORKSPACE, sceneSchema } from './normalize';
 import { compactSearchContext } from './searchContext';
 import { advancedContextScope } from './advancedContext';
 import { modelAssemblyMatchesScene, modelAssemblySchema } from './modelAssembly';
+import { parseDiagram } from './diagram/model';
 export { sceneSchema, generationSceneSchema, normalizeVisualWorkspace } from './normalize';
 export function getVisualWorkspace(project: Project | null): VisualWorkspace { return project?.visuals ?? EMPTY_VISUAL_WORKSPACE; }
 
@@ -51,6 +52,14 @@ export function updateVisualArtifact(id: string, patch: Partial<Pick<VisualArtif
   for (const [key, value] of Object.entries(patch)) if (!['x', 'y', 'width', 'height'].includes(key) || !Number.isFinite(value) || Math.abs(value!) > 100_000 || (['width', 'height'].includes(key) && value! <= 0)) throw new Error('visualGeometryInvalid');
   mutateVisualWorkspace(w => ({ ...w, artifacts: w.artifacts.map(a => a.id === id ? { ...a, ...patch } : a) }));
 }
+/** Exploratory controls change only this visual document, never plan criteria or evidence. */
+export function setDiagramParameter(id: string, parameterId: string, value: number) {
+  const artifact = getVisualWorkspace(useGraphStore.getState().project).artifacts.find(a => a.id === id);
+  const parameter = artifact?.kind === 'diagram' && artifact.diagram?.parameters.find(p => p.id === parameterId);
+  if (!artifact || !parameter || !Number.isFinite(value)) throw new Error('diagramInvalidParameter');
+  const diagramValues = { ...artifact.diagramValues, [parameterId]: Math.max(parameter.min, Math.min(parameter.max, value)) };
+  mutateVisualWorkspace(w => ({ ...w, artifacts: w.artifacts.map(a => a.id === id ? { ...a, diagramValues } : a) }));
+}
 export function getDefaultVisualNodeId(): string | null {
   const { project, selectedNodeId } = useGraphStore.getState();
   return project && selectedNodeId && Object.hasOwn(project.nodes, selectedNodeId) ? selectedNodeId : null;
@@ -77,6 +86,7 @@ export function revertVisualArtifact(id: string) {
     if (a.revisionIndex <= 0) return a;
     const revisionIndex = a.revisionIndex - 1, revision = a.revisions[revisionIndex];
     return { ...a, scene: revision.scene, mediaId: revision.mediaId, revisionIndex,
+      ...(a.kind === 'diagram' ? { diagram: revision.diagram ?? undefined, diagramValues: revision.diagramValues ?? {} } : {}),
       ...(revision.label !== undefined ? { label: revision.label } : {}),
       ...(revision.assembly !== undefined ? { assembly: revision.assembly ?? undefined } : {}),
       ...(revision.decomposition !== undefined ? { decomposition: revision.decomposition ?? undefined } : {}) };
@@ -132,7 +142,8 @@ export function resolveVisualContext(input: VisualPromptInput): { text: string; 
   });
   const attachments = input.attachments.map(a => ({ id: a.id, name: a.name, mime: a.mime, byteLength: a.byteLength, mediaId: a.mediaId, text: a.text }));
   const branch = input.generationMode === 'advanced' ? advancedContextScope(project, input, available) : undefined;
-  const serialized = JSON.stringify({ selected: selected.map(s => ({ kind: s.target.kind, label: s.target.label, text: s.text.slice(0, 8_000) })), attachments: attachments.map(a => ({ ...a, text: a.text?.slice(0, 12_000), imageNote: a.mime.startsWith('image/') ? (input.analyzeImages === true ? 'Análise dos pixels solicitada; a imagem será enviada separadamente.' : 'Referência textual; pixels não analisados.') : undefined })), project: { name: project.name, objective: project.objective, rules: project.rules, planApproach: project.planApproach, referenceTarget: project.referenceTarget }, ...(branch ? { planOutline: branch.outline } : {}) });
+  const diagramNodes = input.artifactKind === 'diagram' ? Object.values(project.nodes).slice(0, 80).map(n => ({ id: n.id, parentId: n.parentId, name: n.name.slice(0, 160), kind: n.kind, oQue: n.oQue.slice(0, 300) })) : undefined;
+  const serialized = JSON.stringify({ selected: selected.map(s => ({ id: s.target.id, kind: s.target.kind, label: s.target.label, text: s.text.slice(0, 8_000) })), attachments: attachments.map(a => ({ ...a, text: a.text?.slice(0, 12_000), imageNote: a.mime.startsWith('image/') ? (input.analyzeImages === true ? 'Análise dos pixels solicitada; a imagem será enviada separadamente.' : 'Referência textual; pixels não analisados.') : undefined })), project: { name: project.name, objective: project.objective, rules: project.rules, planApproach: project.planApproach, referenceTarget: project.referenceTarget }, ...(branch ? { planOutline: branch.outline } : {}), ...(diagramNodes ? { planNodes: diagramNodes, planNodesPartial: Object.keys(project.nodes).length > diagramNodes.length } : {}) });
   let text = serialized;
   if (new TextEncoder().encode(serialized).byteLength > 48_000) {
     if (branch) {
@@ -140,7 +151,7 @@ export function resolveVisualContext(input: VisualPromptInput): { text: string; 
       text = JSON.stringify({ ...JSON.parse(compactSearchContext(serialized, 48_000 - outlineBytes - 32)), planOutline: branch.outline });
     } else text = compactSearchContext(serialized, 48_000);
   }
-  return { text, fingerprint: fingerprint([scope, project.name, project.objective, project.rules, project.planApproach, project.referenceTarget, input.text, selected.map(s => [s.target.id, s.target.kind, s.target.fingerprint]), attachments, ...(input.analyzeImages === true ? ['pixels'] : []), ...(branch ? ['advanced', branch.fingerprintData] : [])]) };
+  return { text, fingerprint: fingerprint([scope, project.name, project.objective, project.rules, project.planApproach, project.referenceTarget, input.text, selected.map(s => [s.target.id, s.target.kind, s.target.fingerprint]), attachments, ...(input.analyzeImages === true ? ['pixels'] : []), ...(branch ? ['advanced', branch.fingerprintData] : []), ...(diagramNodes ? ['diagram', diagramNodes] : [])]) };
 }
 export function storeVisualProposal(proposal: VisualProposal, scope: VisualScope) {
   mutateVisualWorkspace(w => ({ ...w, proposals: [...w.proposals, proposal].slice(-40) }), scope);
@@ -177,10 +188,11 @@ export function applyVisualProposal(id: string): VisualArtifact {
     mutateVisualWorkspace(w => ({ ...w, proposals: w.proposals.map(p => p.id === id ? { ...p, status: 'stale' } : p) }));
     throw new Error('visualProposalStale');
   }
-  const scene = sceneSchema.parse(proposal.scene);
-  const assembly = proposal.assembly ? modelAssemblySchema.parse(proposal.assembly) : undefined;
-  if (assembly && !modelAssemblyMatchesScene(assembly, scene)) throw new Error('visualAssemblyInvalid');
   const project = useGraphStore.getState().project!;
+  const diagram = proposal.kind === 'diagram' ? parseDiagram(proposal.diagram, Object.keys(project.nodes)) : undefined;
+  const scene = proposal.kind === 'diagram' ? null : sceneSchema.parse(proposal.scene);
+  const assembly = proposal.assembly ? modelAssemblySchema.parse(proposal.assembly) : undefined;
+  if (assembly && (!scene || !modelAssemblyMatchesScene(assembly, scene))) throw new Error('visualAssemblyInvalid');
   const imageIds = [...new Set([...proposal.input.mentions.filter(target => target.kind === 'image').map(target => target.id), ...(assembly?.selectedImageIds ?? [])])].slice(0, 20);
   const explicitNode = proposal.input.mentions.find(target => target.kind === 'node' && Object.hasOwn(project.nodes, target.id))?.id;
   const imageNode = imageIds.map(imageId => workspace.artifacts.find(item => item.kind === 'image' && item.id === imageId)?.linkedNodeId)
@@ -191,7 +203,7 @@ export function applyVisualProposal(id: string): VisualArtifact {
     imageMediaIds: [...new Set([...(proposal.referencedMediaIds ?? []), ...proposal.input.attachments.filter(attachment => attachment.mime.startsWith('image/') && attachment.mediaId).map(attachment => attachment.mediaId!)])].slice(0, 20),
     instruction: proposal.input.text,
   };
-  const artifact: VisualArtifact = { id: `model-${id}`, label: proposal.label, kind: 'model', linkedNodeId: explicitNode ?? imageNode ?? getDefaultVisualNodeId(), x: 0, y: 0, width: 360, height: 280, scene, mediaId: null, source: null, origin, ...(assembly ? { assembly } : {}), revisions: [{ scene, mediaId: null, createdAt: Date.now() }], revisionIndex: 0 };
+  const artifact: VisualArtifact = { id: `model-${id}`, label: proposal.label, kind: diagram ? 'diagram' : 'model', linkedNodeId: explicitNode ?? imageNode ?? getDefaultVisualNodeId(), x: 0, y: 0, width: diagram ? diagram.viewBox[2] : 360, height: diagram ? diagram.viewBox[3] + 76 : 280, scene, mediaId: null, source: null, origin, ...(assembly ? { assembly } : {}), ...(diagram ? { diagram, diagramValues: {} } : {}), revisions: [{ scene, mediaId: null, createdAt: Date.now(), ...(diagram ? { diagram, diagramValues: {} } : {}) }], revisionIndex: 0 };
   mutateVisualWorkspace(w => ({ ...w, artifacts: [...w.artifacts, artifact], proposals: w.proposals.map(p => p.id === id ? { ...p, status: 'applied' } : p) }), scope);
   return artifact;
 }

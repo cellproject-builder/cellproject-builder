@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
-import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
+import { selectedStorage } from '@/cloud/storage';
+import { isCloudEnabled, cloudProviderAvailable } from '@/cloud/runtime';
+const idbGet = selectedStorage.getItem, idbSet = selectedStorage.setItem, idbDel = selectedStorage.removeItem;
 import { t } from '@/i18n';
 
 // ---------------------------------------------------------------------------
@@ -173,6 +175,7 @@ export const useConfigStore = create<ConfigState>()(
 // Dev-only: sem provider configurado, semeia o OpenRouter com a chave do
 // .env (ver vite.config). Em produção __DEV_OPENROUTER_KEY__ é '' e isto é no-op.
 export function seedDevKey() {
+  if (isCloudEnabled()) return;
   const key = typeof __DEV_OPENROUTER_KEY__ === 'string' ? __DEV_OPENROUTER_KEY__ : '';
   if (!key) return;
   const run = () => {
@@ -187,6 +190,10 @@ export function seedDevKey() {
 
 export function getActiveConfig(): { provider: Provider; config: ProviderConfig } | null {
   const s = useConfigStore.getState();
+  if (isCloudEnabled()) {
+    const provider = s.activeProvider && cloudProviderAvailable(s.activeProvider) ? s.activeProvider : (['openrouter', 'openai', 'anthropic'] as const).find(cloudProviderAvailable);
+    return provider ? { provider, config: { ...PROVIDER_DEFAULTS[provider], ...s.providers[provider], apiKey: 'cloud-session' } } : null;
+  }
   if (!s.activeProvider) return null;
   const cfg = s.providers[s.activeProvider];
   if (!cfg || !cfg.apiKey) return null;

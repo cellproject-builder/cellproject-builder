@@ -9,11 +9,12 @@ import { TaskCard, TASK_DRAG_TYPE } from './TaskCard';
 import { TaskList } from './TaskList';
 import { StatusIcon, taskReference } from './TaskPresentation';
 import './Board.css';
+import { readPreference, writePreference } from '@/cloud/storage';
 
 type TaskView = 'board' | 'list';
 const VIEW_KEY = 'dynamic_diary:task-view';
 function initialView(): TaskView {
-  try { return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'board'; } catch { return 'board'; }
+  try { return readPreference(VIEW_KEY) === 'list' ? 'list' : 'board'; } catch { return 'board'; }
 }
 
 export function Board({ projectId, onEdit, onAdd }: { projectId: string; onEdit: (task: Task) => void; onAdd: (status?: TaskStatus) => void }) {
@@ -32,7 +33,7 @@ export function Board({ projectId, onEdit, onAdd }: { projectId: string; onEdit:
   }, {}), [comments]);
   const changeView = (next: TaskView) => {
     setView(next); setOver(null);
-    try { localStorage.setItem(VIEW_KEY, next); } catch { /* View selection still works without storage. */ }
+    writePreference(VIEW_KEY, next);
   };
   return <div className="ws-page ws-board-page">
     <PageHeader title={tr.kanban} controls={<>

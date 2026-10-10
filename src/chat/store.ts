@@ -3,6 +3,7 @@ import { persist, createJSONStorage, type StateStorage } from 'zustand/middlewar
 import { nanoid } from 'nanoid';
 import type { ModelMessage } from 'ai';
 import { workspaceRepository } from '@/data/workspaceRepository';
+import { getCloudRuntime } from '@/cloud/runtime';
 import { runAssistant } from '@/ai/assistant';
 import { classifyAIError } from '@/ai/service';
 import { currentModelIds } from '@/ai/client';
@@ -40,6 +41,7 @@ const storage: StateStorage = {
   },
   setItem: (key, value) => {
     if (!canWrite) return Promise.resolve();
+    const cloud = getCloudRuntime(); if (cloud) return cloud.write(key, value);
     const next = writes.then(() => workspaceRepository.setItem(key, value));
     writes = next.then(() => { writeError = null; }, (error: unknown) => { writeError = error; });
     void writes.then(() => {
@@ -55,6 +57,7 @@ export async function flushChatPersistence() {
   let pending: Promise<void>;
   do { pending = writes; await pending; } while (pending !== writes);
   if (writeError) throw writeError;
+  await getCloudRuntime()?.flush();
 }
 export async function retryChatPersistence() {
   if (useChatStore.getState().loadFailed) await useChatStore.persist.rehydrate();
