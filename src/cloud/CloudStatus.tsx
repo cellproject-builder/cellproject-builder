@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { ExclamationTriangleIcon } from '@radix-ui/react-icons';
 import { captureLegacyBackup, downloadBackup } from './migration';
 import { CloudRuntime, cloudJson, getCloudRuntime, mutationHeaders } from './runtime';
 import { CloudMigration } from './CloudMigration';
@@ -30,14 +31,18 @@ export async function saveCurrentBackup(cloud: CloudRuntime | null = getCloudRun
 }
 export function CloudStatus({ runtime, userId, email, onLogout }: { runtime: CloudRuntime; userId: string; email: string; onLogout: () => void }) {
   const status = useSyncExternalStore(runtime.subscribe, runtime.getSnapshot), [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [saved, setSaved] = useState(false), [error, setError] = useState('');
+  const panelId = useId(), panelVisible = open || !!status.issue;
+  const statusLabel = status.issue ? 'Alterações sem salvar' : status.pending ? `Salvando (${status.pending})` : 'Salvo na nuvem';
   const [rescued, setRescued] = useState(false), [missing, setMissing] = useState<number | null>(null);
   const pendingGraph = useRef<() => boolean>(() => false);
   useEffect(() => { setSaved(false); setRescued(false); }, [status]);
   useEffect(() => { let live = true; void import('@/store').then(graph => { if (live) pendingGraph.current = graph.hasPendingGraphPersistence; }); const unload = (event: BeforeUnloadEvent) => { if (runtime.getSnapshot().pending || pendingGraph.current()) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', unload); return () => { live = false; window.removeEventListener('beforeunload', unload); }; }, [runtime]);
   async function backup() { setBusy(true); setError(''); try { await saveCurrentBackup(runtime); setSaved(true); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha no backup.'); } finally { setBusy(false); } }
-  return <aside className={`cloud-status ${status.issue ? 'has-error' : ''}`} aria-label="Persistência na nuvem">
-    <button onClick={() => setOpen(value => !value)} aria-expanded={open}>{status.issue ? '⚠ Alterações sem salvar' : status.pending ? `↑ Salvando (${status.pending})` : '☁ Salvo na nuvem'}</button>
-    {(open || status.issue) && <div className="cloud-status-panel"><strong>{email}</strong>
+  return <aside className={`cloud-status ${status.issue ? 'has-error' : status.pending ? 'is-saving' : ''} ${panelVisible ? 'is-open' : ''}`} aria-label="Persistência na nuvem">
+    <button className="cloud-status-indicator" onClick={() => setOpen(value => !value)} aria-label={statusLabel} title={statusLabel} aria-expanded={panelVisible} aria-controls={panelId}>
+      {status.issue ? <ExclamationTriangleIcon width={12} height={12} aria-hidden="true"/> : <span className="cloud-status-dot" aria-hidden="true"/>}
+    </button>
+    {panelVisible && <div className="cloud-status-panel" id={panelId}><strong>{email}</strong>
       {status.issue && <><p role="alert">{status.issue.message} Seu trabalho atual continua nesta sessão.</p><small>{status.issue.key}</small></>}
       <p>Dados remotos são a fonte principal. Rascunhos sem confirmação ficam somente na memória desta aba.</p>
       {status.issue?.kind === 'network' && <button onClick={() => void runtime.retry()}>Tentar salvar novamente</button>}
