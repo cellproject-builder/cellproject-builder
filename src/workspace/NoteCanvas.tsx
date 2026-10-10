@@ -1,10 +1,11 @@
 import { AudioTextarea } from '@/audio/AudioField';
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type KeyboardEvent, type RefObject } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent, type KeyboardEvent, type RefObject } from 'react';
 import { nanoid } from 'nanoid';
 import { DiagramView } from '@/visuals/diagram/DiagramView';
 import { InkStroke } from '@/ink/InkStroke';
 import { InkToolbar } from '@/ink/InkToolbar';
+import { InkPalette } from '@/ink/InkPalette';
+import { calculateInkViewport, InkPointerRouter, type InkScreenPoint, type InkViewport } from '@/ink/pointerGestures';
 import { useLiveInk } from '@/ink/live';
 import { registerDataIngestion } from '@/cloud/activity';
 import { CursorArrowIcon, Pencil1Icon, EraserIcon, TextIcon, ImageIcon, MagicWandIcon, ResetIcon, RedoIcon, OptionsIcon, RulerHorizontalIcon, MoveIcon, ResizeIcon, CloseIcon, PlusIcon, MinusIcon } from '@/components/ui/SoftIcons';
@@ -16,7 +17,7 @@ export interface NoteCanvasProps { document: NoteCanvasDocument; onChange(docume
 type Tool = 'select' | 'pen' | 'eraser' | 'text';
 type Selection = { kind: 'item' | 'stroke'; id: string } | null;
 type Gesture = { pointer: number; start: NotePoint; base: NoteCanvasDocument; preview: NoteCanvasDocument } & (
-  { kind: 'pen'; stroke: NoteStroke } | { kind: 'eraser'; last: NotePoint } | { kind: 'move' | 'resize'; item: NoteCanvasItem }
+  { kind: 'pen'; stroke: NoteStroke; finish(cancelled: boolean): void } | { kind: 'eraser'; last: NotePoint } | { kind: 'move' | 'resize'; item: NoteCanvasItem }
 );
 const paths = { select: CursorArrowIcon, pen: Pencil1Icon, eraser: EraserIcon, text: TextIcon, image: ImageIcon, ai: MagicWandIcon, undo: ResetIcon, redo: RedoIcon, options: OptionsIcon, ruler: RulerHorizontalIcon, move: MoveIcon, resize: ResizeIcon, remove: CloseIcon, zoomIn: PlusIcon, zoomOut: MinusIcon };
 function Glyph({ name }: { name: keyof typeof paths }) { const Icon = paths[name]; return <Icon width={17} height={17} />; }
@@ -43,10 +44,13 @@ function EditableText({ item, scale, readOnly, onCommit, onEnd, audioScope, engl
 }
 
 /** Logical notebook coordinates stay stable as the editor resizes or enters fullscreen. */
-export function NoteCanvas({ document: doc, onChange, drawing, onDrawingChange, readOnly = false, onAddImage, onGenerate, english = false, toolsRef, toolsVisible = true, liveDocumentId }: NoteCanvasProps) {
-  const live = useLiveInk({ surface: 'notebook', documentId: liveDocumentId ?? 'unbound-notebook' }), liveRef = useRef(live); liveRef.current = live;
+export function NoteCanvas({ document: doc, onChange, drawing, onDrawingChange, readOnly = false, onAddImage, onGenerate, english = false, toolsVisible = true, liveDocumentId }: NoteCanvasProps) {
+  const live = useLiveInk({ surface: 'notebook', documentId: liveDocumentId ?? 'unbound-notebook' });
   const releaseActivity = useRef<(() => void) | null>(null);
   const stage = useRef<HTMLDivElement>(null), current = useRef(doc), gesture = useRef<Gesture | null>(null);
+  const viewport = useRef<HTMLDivElement>(null), [fingerDrawing, setFingerDrawing] = useState(false), fingerRef = useRef(false), readOnlyRef = useRef(readOnly); fingerRef.current = fingerDrawing; readOnlyRef.current = readOnly;
+  const pointers = useRef(new InkPointerRouter(() => fingerRef.current && !readOnlyRef.current)), captures = useRef(new Set<number>());
+  const navigation = useRef<{ viewport: InkViewport; points: InkScreenPoint[]; latest: InkViewport } | null>(null), pendingScroll = useRef<InkViewport | null>(null);
   const history = useRef<{ past: Array<{ before: NoteCanvasDocument; after: NoteCanvasDocument }>; future: Array<{ before: NoteCanvasDocument; after: NoteCanvasDocument }>; group: string | null }>({ past: [], future: [], group: null });
   const [historyVersion, setHistoryVersion] = useState(0), [preview, setPreview] = useState<NoteCanvasDocument | null>(null);
   const [tool, setTool] = useState<Tool>(drawing ? 'pen' : 'select'), [selected, setSelected] = useState<Selection>(null);
@@ -54,11 +58,30 @@ export function NoteCanvas({ document: doc, onChange, drawing, onDrawingChange, 
   const [ink, setInk] = useState(createInkSettings);
   const [scale, setScale] = useState(1), [error, setError] = useState('');
   const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(zoom); zoomRef.current = zoom;
   current.current = doc;
-  const cancel = () => { const action = gesture.current; if (action?.kind === 'pen' && liveDocumentId) liveRef.current.finish(action.stroke.id, true); gesture.current = null; releaseActivity.current?.(); releaseActivity.current = null; setPreview(null); };
-  useEffect(() => () => { const action = gesture.current; if (action?.kind === 'pen' && liveDocumentId) liveRef.current.finish(action.stroke.id, true); gesture.current = null; releaseActivity.current?.(); releaseActivity.current = null; }, [liveDocumentId]);
+  const cancelInk = () => {
+    const action = gesture.current; gesture.current = null; if (action?.kind === 'pen') action.finish(true);
+    releaseActivity.current?.(); releaseActivity.current = null; setPreview(null);
+    if (action && !pointers.current.hasPointer(action.pointer)) try { if (stage.current?.hasPointerCapture?.(action.pointer)) stage.current.releasePointerCapture(action.pointer); } catch { /* Already released. */ }
+  };
+  const cancel = () => {
+    pointers.current.reset(); navigation.current = null; pendingScroll.current = null; cancelInk();
+    for (const id of captures.current) try { if (stage.current?.hasPointerCapture?.(id)) stage.current.releasePointerCapture(id); } catch { /* Already released. */ }
+    captures.current.clear();
+  };
+  useEffect(() => {
+    const blur = () => cancel(); window.addEventListener('blur', blur);
+    return () => { window.removeEventListener('blur', blur); pointers.current.reset(); navigation.current = null; const action = gesture.current; gesture.current = null; if (action?.kind === 'pen') action.finish(true); releaseActivity.current?.(); releaseActivity.current = null; };
+  }, []);
+  useEffect(() => { cancel(); history.current = { past: [], future: [], group: null }; setSelected(null); }, [liveDocumentId]);
+  useLayoutEffect(() => {
+    const next = pendingScroll.current, element = viewport.current; if (!next || !element) return;
+    pendingScroll.current = null; element.scrollLeft = Math.max(0, -next.x); element.scrollTop = Math.max(0, -next.y);
+    if (navigation.current) navigation.current.latest = { x: -element.scrollLeft, y: -element.scrollTop, zoom };
+  }, [zoom]);
   const t = (pt: string, en: string) => english ? en : pt;
-  useEffect(() => { setTool(previous => drawing ? previous === 'select' ? 'pen' : previous : 'select'); }, [drawing]);
+  useEffect(() => { if (!drawing) cancel(); setTool(previous => drawing ? previous === 'select' ? 'pen' : previous : 'select'); }, [drawing]);
   useEffect(() => {
     if (!stage.current) return;
     const channels = getComputedStyle(stage.current).color.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);
@@ -103,7 +126,7 @@ export function NoteCanvas({ document: doc, onChange, drawing, onDrawingChange, 
   };
   const eraseAt = (base: NoteCanvasDocument, path: NotePoint[]) => ({ ...base, strokes: base.strokes.filter(stroke => !inkStrokeNearPath(stroke, path, 10 / Math.max(scale, .2), 'note')) });
   const begin = (event: PointerEvent<HTMLDivElement>) => {
-    if (readOnly || !toolsVisible || event.button !== 0 || event.isPrimary === false || gesture.current || (event.target as Element).closest('button,input,textarea,select,summary')) return;
+    if (readOnly || !toolsVisible || event.button !== 0 || gesture.current || (event.target as Element).closest('button,input,textarea,select,summary')) return;
     if (tool === 'select') { setSelected(null); stage.current?.focus({ preventScroll: true }); return; }
     event.preventDefault(); capture(event); setSelected(null);
     const start = point(event), base = current.current;
@@ -115,7 +138,7 @@ export function NoteCanvas({ document: doc, onChange, drawing, onDrawingChange, 
     if (tool === 'eraser') { const next = eraseAt(base, [start]); gesture.current = { kind: 'eraser', pointer: event.pointerId, start, last: start, base, preview: next }; setPreview(next); return; }
     const stroke: NoteStroke = { id: nanoid(12), ...ink, points: [start] };
     const next = { ...base, strokes: [...base.strokes, stroke] };
-    gesture.current = { kind: 'pen', pointer: event.pointerId, start, base, preview: next, stroke }; setPreview(next); if (liveDocumentId) live.preview(stroke.id, stroke);
+    gesture.current = { kind: 'pen', pointer: event.pointerId, start, base, preview: next, stroke, finish: cancelled => { if (liveDocumentId) live.finish(stroke.id, cancelled); } }; setPreview(next); if (liveDocumentId) live.preview(stroke.id, stroke);
   };
   const beginItem = (event: PointerEvent, item: NoteCanvasItem, kind: 'move' | 'resize' = 'move') => {
     if (readOnly || !toolsVisible || tool !== 'select' || event.button !== 0 || event.isPrimary === false || gesture.current || (event.target as Element).closest('textarea,input,select,summary,a,.audio-field')) return;
@@ -169,7 +192,31 @@ export function NoteCanvas({ document: doc, onChange, drawing, onDrawingChange, 
       if (item.x === action.item.x && item.y === action.item.y && item.width === action.item.width && item.height === action.item.height) return;
     }
     saved = commit(rebaseDocument(action.base, action.preview, current.current));
-    } finally { if (action.kind === 'pen' && liveDocumentId) live.finish(action.stroke.id, !saved); releaseActivity.current?.(); releaseActivity.current = null; }
+    } finally { if (action.kind === 'pen') action.finish(!saved); releaseActivity.current?.(); releaseActivity.current = null; }
+  };
+  const route = (event: PointerEvent<HTMLDivElement>, phase: 'down' | 'move' | 'up', cancelled = false) => {
+    if (phase === 'down' && ((readOnly && event.pointerType !== 'touch') || !toolsVisible || (event.target as Element).closest('button,input,textarea,select,summary,.audio-field'))) return;
+    const result = phase === 'down' ? pointers.current.down(event) : phase === 'move' ? pointers.current.move(event) : pointers.current.up(event, cancelled);
+    if (!result.handled) return;
+    event.preventDefault(); event.stopPropagation();
+    if (phase === 'down') { captures.current.add(event.pointerId); capture(event); }
+    for (const action of result.actions) {
+      if (action.kind === 'draw-start') begin(event);
+      else if (action.kind === 'draw-move') move(event);
+      else if (action.kind === 'draw-end') finish(event);
+      else if (action.kind === 'draw-cancel') cancelInk();
+      else if (action.kind === 'navigate-start' && viewport.current) {
+        const view = navigation.current?.latest ?? { x: -viewport.current.scrollLeft, y: -viewport.current.scrollTop, zoom: zoomRef.current };
+        navigation.current = { viewport: { ...view }, latest: { ...view }, points: action.points };
+      } else if (action.kind === 'navigate-move' && navigation.current && viewport.current) {
+        const nav = navigation.current, element = viewport.current;
+        const next = calculateInkViewport(nav.viewport, nav.points, action.points, element.getBoundingClientRect(), { minZoom: 1, maxZoom: 3 });
+        nav.latest = next;
+        if (next.zoom !== zoomRef.current) { pendingScroll.current = next; zoomRef.current = next.zoom; setZoom(next.zoom); }
+        else { element.scrollLeft = Math.max(0, -next.x); element.scrollTop = Math.max(0, -next.y); nav.latest = { ...next, x: -element.scrollLeft, y: -element.scrollTop }; }
+      } else if (action.kind === 'navigate-end') navigation.current = null;
+    }
+    if (phase === 'up') { captures.current.delete(event.pointerId); try { if (stage.current?.hasPointerCapture?.(event.pointerId)) stage.current.releasePointerCapture(event.pointerId); } catch { /* Already released. */ } }
   };
   const remove = () => {
     if (!selected) return;
@@ -189,10 +236,11 @@ export function NoteCanvas({ document: doc, onChange, drawing, onDrawingChange, 
   const view = preview && gesture.current ? rebaseDocument(gesture.current.base, preview, doc) : doc;
   const changeZoom = (delta: number) => { cancel(); setZoom(value => clamp(value + delta, 1, 3)); };
   const button = (icon: keyof typeof paths, label: string, onClick: () => void, active?: boolean, disabled = false) => <button type="button" aria-label={label} title={label} aria-pressed={active} disabled={disabled} onClick={onClick}><Glyph name={icon} /></button>;
-  const tools = toolsVisible && <div className="note-canvas-dock">
+  const tools = toolsVisible && <InkPalette label={t('Ferramentas do caderno', 'Notebook tools')} english={english} className="note-canvas-palette" preview={<Glyph name={tool === 'select' ? 'select' : tool === 'eraser' ? 'eraser' : tool === 'text' ? 'text' : 'pen'} />}>
     <div className="note-canvas-tools" role="toolbar" aria-label={t('Ferramentas do caderno', 'Notebook tools')}>
       {!readOnly && <>
       {button('select', t('Selecionar', 'Select'), () => selectTool('select'), tool === 'select')}
+      {button('remove', t('Sair do desenho', 'Leave drawing'), () => { selectTool('select'); onDrawingChange(false); })}
       {button('pen', t('Instrumentos de tinta', 'Ink tools'), () => selectTool('pen'), tool === 'pen')}
       {button('eraser', t('Borracha', 'Eraser'), () => selectTool('eraser'), tool === 'eraser')}
       {button('text', t('Adicionar texto', 'Add text'), () => selectTool('text'), tool === 'text')}
@@ -208,19 +256,20 @@ export function NoteCanvas({ document: doc, onChange, drawing, onDrawingChange, 
       {button('zoomIn', t('Ampliar caderno', 'Zoom in notebook'), () => changeZoom(.5), undefined, zoom >= 3)}
     </div>
     {!readOnly && tool === 'pen' && <InkToolbar value={ink} onChange={value => { setInk(value); selectTool('pen'); }} english={english} disabled={!!gesture.current} className="note-canvas-ink-tools" />}
+    {!readOnly && <label className="ink-finger-option"><input type="checkbox" aria-label={t('Desenhar com dedo', 'Draw with finger')} checked={fingerDrawing} onChange={event => { cancel(); setFingerDrawing(event.target.checked); }} />{t('Desenhar com dedo', 'Draw with finger')}</label>}
     {options && !readOnly && <div className="note-canvas-options">
       {button('ruler', t('Régua — traço reto', 'Ruler — straight line'), () => setRuler(!ruler), ruler)}
       <select aria-label={t('Fundo do caderno', 'Notebook paper')} value={doc.paper} onChange={event => commit({ ...doc, paper: event.target.value as NoteCanvasDocument['paper'] })}>
         <option value="plain">{t('Liso', 'Plain')}</option><option value="dots">{t('Pontos', 'Dots')}</option><option value="grid">{t('Quadriculado', 'Grid')}</option><option value="lines">{t('Pautado', 'Ruled')}</option>
       </select>
     </div>}
-    </div>;
+    </InkPalette>;
   return <section className={`note-canvas ${drawing ? 'is-drawing' : ''} ${readOnly ? 'is-readonly' : ''}`}>
-    {toolsRef?.current ? createPortal(tools, toolsRef.current) : tools}
+    {tools}
     {error && <span role="status" className="note-canvas-error">{error}</span>}
-    <div className="note-canvas-viewport">
+    <div ref={viewport} className="note-canvas-viewport">
     <div className={`note-canvas-stage paper-${view.paper} tool-${tool}`} data-note-canvas ref={stage} tabIndex={0} role="group" aria-label={t('Área livre da nota', 'Free notebook area')} style={{ width: `${zoom * 100}%`, aspectRatio: `${doc.width} / ${doc.height}`, '--note-grid': `${24 * scale}px` } as CSSProperties}
-      onPointerDown={begin} onPointerMove={move} onPointerUp={event => finish(event)} onPointerCancel={event => finish(event, true)} onLostPointerCapture={event => { if (gesture.current?.pointer === event.pointerId) cancel(); }} onKeyDown={keyboard}>
+      onPointerDown={event => tool === 'select' ? begin(event) : route(event, 'down')} onPointerMove={event => pointers.current.hasPointer(event.pointerId) ? route(event, 'move') : move(event)} onPointerUp={event => pointers.current.hasPointer(event.pointerId) ? route(event, 'up') : finish(event)} onPointerCancel={event => pointers.current.hasPointer(event.pointerId) ? route(event, 'up', true) : finish(event, true)} onLostPointerCapture={event => { if (pointers.current.hasPointer(event.pointerId)) route(event, 'up', true); else if (gesture.current?.pointer === event.pointerId) cancel(); }} onKeyDown={keyboard}>
       <svg className="note-canvas-ink" viewBox={`0 0 ${doc.width} ${doc.height}`} aria-hidden="true">{view.strokes.map(stroke => <InkStroke key={stroke.id} data-note-stroke={stroke.id} stroke={stroke} legacyMode="note" selected={selected?.id === stroke.id} onPointerDown={event => {
         if (readOnly || tool !== 'select') return; event.stopPropagation(); setSelected({ kind: 'stroke', id: stroke.id }); stage.current?.focus({ preventScroll: true });
       }} />)}{liveDocumentId && live.remote.filter(value => !view.strokes.some(stroke => stroke.id === (value.stroke.id ?? value.gestureId))).map(value => <InkStroke key={`${value.sender}:${value.gestureId}`} data-remote-ink={value.gestureId} stroke={value.stroke} legacyMode="note" />)}</svg>

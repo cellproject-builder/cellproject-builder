@@ -15,15 +15,16 @@ import { CloudRuntime, configureCloud } from '@/cloud/runtime';
 vi.mock('@/workspace/noteImages',async original=>({...await original<typeof import('@/workspace/noteImages')>(),importNoteImage:vi.fn()}));
 vi.mock('@/visuals/media',async original=>({...await original<typeof import('@/visuals/media')>(),readVisualMedia:vi.fn()}));
 vi.mock('@/cloud/activity',async original=>{const actual=await original<typeof import('@/cloud/activity')>();return {...actual,registerDataIngestion:vi.fn(actual.registerDataIngestion)};});
-const flow=vi.hoisted(()=>({props:null as unknown as {nodes:Node[];onNodesChange(changes:NodeChange[]):void;onNodeDragStop(event:unknown,node:Node,nodes:Node[]):void;onConnect(connection:{source:string;target:string}):void;onNodeClick(event:{target:Element;ctrlKey?:boolean}):void;onMoveEnd(event:MouseEvent|null|undefined,viewport:{x:number;y:number;zoom:number}):void},fitView:vi.fn(),viewport:{x:0,y:0,zoom:1}}));
-vi.mock('@xyflow/react',async()=>{const actual=await vi.importActual<typeof import('@xyflow/react')>('@xyflow/react');return {...actual,ReactFlowProvider:({children}:{children:ReactNode})=>children,ReactFlow:(props:typeof flow.props&{children:ReactNode})=>{flow.props=props;return <div data-flow>{props.children}</div>;},Background:()=>null,useViewport:()=>flow.viewport,useReactFlow:()=>({screenToFlowPosition:({x,y}:{x:number;y:number})=>({x:(x-flow.viewport.x)/flow.viewport.zoom,y:(y-flow.viewport.y)/flow.viewport.zoom}),getViewport:()=>flow.viewport,fitView:flow.fitView,zoomIn:vi.fn(),zoomOut:vi.fn(),setViewport:vi.fn()})};});
+const flow=vi.hoisted(()=>({props:null as unknown as {nodes:Node[];onNodesChange(changes:NodeChange[]):void;onNodeDragStop(event:unknown,node:Node,nodes:Node[]):void;onConnect(connection:{source:string;target:string}):void;onNodeClick(event:{target:Element;ctrlKey?:boolean}):void;onMoveEnd(event:MouseEvent|null|undefined,viewport:{x:number;y:number;zoom:number}):void},fitView:vi.fn(),setViewport:vi.fn(),viewport:{x:0,y:0,zoom:1}}));
+vi.mock('@xyflow/react',async()=>{const actual=await vi.importActual<typeof import('@xyflow/react')>('@xyflow/react');return {...actual,ReactFlowProvider:({children}:{children:ReactNode})=>children,ReactFlow:(props:typeof flow.props&{children:ReactNode})=>{flow.props=props;return <div data-flow>{props.children}</div>;},Background:()=>null,useViewport:()=>flow.viewport,useReactFlow:()=>({screenToFlowPosition:({x,y}:{x:number;y:number})=>({x:(x-flow.viewport.x)/flow.viewport.zoom,y:(y-flow.viewport.y)/flow.viewport.zoom}),getViewport:()=>flow.viewport,fitView:flow.fitView,zoomIn:vi.fn(),zoomOut:vi.fn(),setViewport:flow.setViewport})};});
 vi.mock('./BoardItemNode',()=>({BoardItemNode:()=>null}));
 vi.mock('./BoardComposer',()=>({BoardComposer:()=>null}));
 vi.mock('@/visuals/rendering/VisualCanvasLayer',()=>({VisualCanvasLayer:()=>null}));
 let host:HTMLDivElement,root:Root,id:string;
-beforeEach(()=>{vi.clearAllMocks();flow.viewport={x:0,y:0,zoom:1};(globalThis as {IS_REACT_ACT_ENVIRONMENT?:boolean}).IS_REACT_ACT_ENVIRONMENT=true;useWorkspaceStore.setState({boards:{},activeBoardId:null,projects:{},notes:{},surface:'boards'});id=useWorkspaceStore.getState().createBoard('Sketch');host=document.createElement('div');document.body.append(host);root=createRoot(host);act(()=>root.render(<BoardCanvas boardId={id} onBack={vi.fn()}/>));});
+beforeEach(()=>{vi.clearAllMocks();flow.viewport={x:0,y:0,zoom:1};flow.setViewport.mockImplementation(async next=>{flow.viewport=next;return true;});(globalThis as {IS_REACT_ACT_ENVIRONMENT?:boolean}).IS_REACT_ACT_ENVIRONMENT=true;useWorkspaceStore.setState({boards:{},activeBoardId:null,projects:{},notes:{},surface:'boards'});id=useWorkspaceStore.getState().createBoard('Sketch');host=document.createElement('div');document.body.append(host);root=createRoot(host);act(()=>root.render(<BoardCanvas boardId={id} onBack={vi.fn()}/>));});
 afterEach(()=>{act(()=>root.unmount());configureLiveInk(null);configureCloud(null);host.remove();});
-const click=(label:string)=>act(()=>Simulate.click(host.querySelector(`[aria-label="${label}"]`)!));
+const openPalette=()=>{const trigger=host.querySelector<HTMLButtonElement>('[data-ink-palette-trigger]');if(trigger?.getAttribute('aria-expanded')==='false')act(()=>trigger.click());};
+const click=(label:string)=>{if(!host.querySelector(`[aria-label="${label}"]`))openPalette();act(()=>Simulate.click(host.querySelector(`[aria-label="${label}"]`)!));};
 const key=(key:string,options:Record<string,unknown>={})=>act(()=>Simulate.keyDown(host.querySelector('[data-board-canvas]')!,{key,...options}));
 const items=()=>useWorkspaceStore.getState().boards[id].document.items;
 const pointer=(type:'pointerDown'|'pointerMove'|'pointerUp'|'pointerCancel'|'lostPointerCapture',x:number,y:number,extra:Record<string,unknown>={})=>{const values={pointerId:1,button:0,isPrimary:true,clientX:x,clientY:y,pointerType:'mouse',...extra};act(()=>Simulate[type](host.querySelector('.db-drawing-layer')!,values));};
@@ -80,6 +81,72 @@ it('saves an explicitly requested fit after its passive viewport callback withou
 });
 it('offers drawing, stroke erasing, and lasso selection modes',()=>{
   for(const label of ['Desenhar','Borracha de traços','Selecionar com laço']) expect(host.querySelector(`[aria-label="${label}"]`)).not.toBeNull();
+});
+it('docks one compact palette while drawing and collapsing it keeps drawing active',()=>{
+  click('Desenhar');expect(host.querySelector('[data-ink-palette-trigger]')).not.toBeNull();
+  expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();expect(host.querySelector('.db-tools')).toBeNull();
+  openPalette();expect(host.querySelectorAll('.db-tools')).toHaveLength(1);expect(host.querySelectorAll('.ink-toolbar')).toHaveLength(1);
+  click('Recolher ferramentas de desenho');expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();
+  pointer('pointerDown',10,20,{pointerType:'pen'});pointer('pointerUp',30,40,{pointerType:'pen'});expect(items()).toHaveLength(1);
+});
+it('touch pans in drawing mode without ink or a durable write until release, and without adding undo history',()=>{
+  click('Adicionar cartão');const card=items()[0];click('Desenhar');const before=useWorkspaceStore.getState().boards[id];
+  pointer('pointerDown',10,20,{pointerType:'touch'});expect(hasActiveDataIngestions()).toBe(true);
+  pointer('pointerMove',40,50,{pointerType:'touch'});expect(items()).toEqual([card]);expect(flow.viewport).toEqual({x:30,y:30,zoom:1});
+  expect(useWorkspaceStore.getState().boards[id]).toBe(before);
+  pointer('pointerUp',40,50,{pointerType:'touch'});expect(hasActiveDataIngestions()).toBe(false);
+  expect(useWorkspaceStore.getState().boards[id].document.viewport).toEqual({x:30,y:30,zoom:1});
+  key('z',{ctrlKey:true});expect(items()).toHaveLength(0);expect(useWorkspaceStore.getState().boards[id].document.viewport).toEqual({x:30,y:30,zoom:1});
+});
+it('pinches with two non-primary touch contacts and preserves the focal world point',()=>{
+  click('Desenhar');pointer('pointerDown',10,20,{pointerId:2,pointerType:'touch',isPrimary:false});
+  pointer('pointerDown',30,20,{pointerId:3,pointerType:'touch',isPrimary:false});
+  pointer('pointerMove',50,20,{pointerId:3,pointerType:'touch',isPrimary:false});
+  expect(flow.viewport).toEqual({x:-10,y:-20,zoom:2});expect(items()).toHaveLength(0);
+  pointer('pointerUp',50,20,{pointerId:3,pointerType:'touch',isPrimary:false});pointer('pointerUp',10,20,{pointerId:2,pointerType:'touch',isPrimary:false});
+  expect(useWorkspaceStore.getState().boards[id].document.viewport).toEqual(flow.viewport);expect(hasActiveDataIngestions()).toBe(false);
+});
+it('cancels provisional finger ink for pinch, never saves it, and allows a new finger stroke only after all lift',()=>{
+  const channel=new LiveInkChannel({session:{} as VaultSession}),preview=vi.spyOn(channel,'preview').mockImplementation(()=>{}),finish=vi.spyOn(channel,'finish').mockImplementation(()=>{});
+  act(()=>configureLiveInk(channel));click('Desenhar');openPalette();
+  const finger=host.querySelector<HTMLInputElement>('[aria-label="Desenhar com dedo"]')!;
+  expect(finger).not.toBeNull();act(()=>{finger.checked=true;Simulate.change(finger);});
+  pointer('pointerDown',10,20,{pointerType:'touch'});pointer('pointerMove',20,20,{pointerType:'touch'});expect(preview).toHaveBeenCalled();
+  pointer('pointerDown',40,20,{pointerId:2,pointerType:'touch',isPrimary:false});expect(finish).toHaveBeenCalledWith({surface:'board',documentId:id},expect.any(String),true);
+  pointer('pointerMove',60,20,{pointerId:2,pointerType:'touch',isPrimary:false});pointer('pointerUp',60,20,{pointerId:2,pointerType:'touch',isPrimary:false});
+  pointer('pointerMove',20,40,{pointerType:'touch'});pointer('pointerUp',20,40,{pointerType:'touch'});expect(items()).toHaveLength(0);
+  pointer('pointerDown',10,20,{pointerType:'touch'});pointer('pointerUp',30,40,{pointerType:'touch'});expect(items()).toHaveLength(1);
+});
+it('ignores a held palm after pen release and keeps coalesced pressure samples on the owned pen',()=>{
+  click('Desenhar');pointer('pointerDown',10,20,{pointerType:'pen',pressure:.2});
+  pointer('pointerDown',100,100,{pointerId:2,pointerType:'touch',isPrimary:false});
+  pointer('pointerMove',40,50,{pointerType:'pen',pressure:.8,nativeEvent:{getCoalescedEvents:()=>[{clientX:20,clientY:30,pointerType:'pen',pressure:.4},{clientX:30,clientY:40,pointerType:'pen',pressure:.6}]}});
+  pointer('pointerUp',50,60,{pointerType:'pen',pressure:.9});pointer('pointerMove',200,200,{pointerId:2,pointerType:'touch',isPrimary:false});
+  pointer('pointerUp',200,200,{pointerId:2,pointerType:'touch',isPrimary:false});
+  expect(flow.setViewport).not.toHaveBeenCalled();expect(items()).toHaveLength(1);
+  const stroke=items()[0];if(stroke.kind!=='drawing')throw new Error('missing ink');expect(stroke.points.map(point=>point.pressure)).toEqual([.2,.4,.6,.8,.9]);
+});
+it('preserves the first touch capture when finger ink becomes pinch and rebases when the second finger lifts',()=>{
+  click('Desenhar');openPalette();const finger=host.querySelector<HTMLInputElement>('[aria-label="Desenhar com dedo"]')!;
+  act(()=>{finger.checked=true;Simulate.change(finger);});
+  const layer=host.querySelector<HTMLDivElement>('.db-drawing-layer')!,captured=new Set<number>();
+  layer.setPointerCapture=vi.fn(pointerId=>{captured.add(pointerId);});layer.hasPointerCapture=pointerId=>captured.has(pointerId);
+  layer.releasePointerCapture=vi.fn(pointerId=>{captured.delete(pointerId);Simulate.lostPointerCapture(layer,{pointerId,pointerType:'touch',clientX:100,clientY:100} as never);});
+  pointer('pointerDown',0,100,{pointerType:'touch'});pointer('pointerMove',100,100,{pointerType:'touch'});
+  pointer('pointerDown',200,100,{pointerId:2,pointerType:'touch',isPrimary:false});
+  expect(layer.releasePointerCapture).not.toHaveBeenCalled();expect(captured).toEqual(new Set([1,2]));
+  pointer('pointerMove',101,100,{pointerType:'touch'});expect(flow.viewport.x).toBeCloseTo(2);expect(flow.viewport.zoom).toBeCloseTo(.99);
+  pointer('pointerUp',200,100,{pointerId:2,pointerType:'touch',isPrimary:false});
+  const previous={...flow.viewport};pointer('pointerMove',111,110,{pointerType:'touch'});
+  expect(flow.viewport).toEqual({x:previous.x+10,y:previous.y+10,zoom:previous.zoom});
+  pointer('pointerUp',111,110,{pointerType:'touch'});expect(captured.size).toBe(0);expect(items()).toHaveLength(0);expect(hasActiveDataIngestions()).toBe(false);
+});
+it('releases navigation on blur and ignores its late pointerup after a board context change',()=>{
+  click('Desenhar');pointer('pointerDown',10,20,{pointerType:'touch'});pointer('pointerMove',30,40,{pointerType:'touch'});
+  act(()=>window.dispatchEvent(new Event('blur')));expect(hasActiveDataIngestions()).toBe(false);
+  pointer('pointerUp',30,40,{pointerType:'touch'});expect(useWorkspaceStore.getState().boards[id].document.viewport).toEqual({x:0,y:0,zoom:1});
+  pointer('pointerDown',10,20,{pointerType:'touch'});act(()=>{useWorkspaceStore.setState({activeBoardId:null});});
+  expect(hasActiveDataIngestions()).toBe(false);pointer('pointerUp',30,40,{pointerType:'touch'});expect(items()).toHaveLength(0);
 });
 it('holds remote refresh during drawing and erasing even without an online channel',()=>{
   click('Desenhar');pointer('pointerDown',10,20);expect(hasActiveDataIngestions()).toBe(true);

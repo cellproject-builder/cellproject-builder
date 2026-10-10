@@ -109,8 +109,8 @@ O service worker faz precache do shell público com credenciais omitidas. Interc
 
 Consequências práticas:
 
-- Em uma sessão local já aberta, as ações que dependem apenas dos stores/IndexedDB podem continuar sem rede; IA e pesquisa dependem de conexão. Abrir/recarregar offline é diferente: o shell cacheado ainda executa `CloudBootstrap`, que consulta `/api/cloud/config`. Como essa API não é cacheada e não há fallback de configuração, essa abertura pode parar na tela de erro mesmo com documentos locais presentes. O release não entrega inicialização offline completa, nem garante retenção de caches/dados pelo navegador.
-- Em modo cloud, carregar o shell não abre uma sessão nem snapshot: `CloudBootstrap` exige rede e não recua para dados locais. O aplicativo informa que é preciso estar conectado. Não há modo cloud offline completo ou sincronização em background.
+- Em uma sessão local já aberta, ações dos stores/IndexedDB podem continuar sem rede. Reabrir o legado local ainda depende da seleção explícita desse backend; não é o fallback de uma conta cloud.
+- No modo cloud com cofre, `CloudBootstrap` pode reabrir a cópia cifrada previamente preparada no mesmo aparelho. Notas, planos e desenhos podem ser editados e enviados ao reconectar a mesma conta/cofre. Primeiro acesso exige internet, Web Locks e espaço no navegador; novos uploads e IA exigem rede. Apenas mídia já consultada está disponível offline. Não há sincronização com o aplicativo fechado nem merge automático de conflitos. Ver [edição offline](../offline-editing.md).
 - O worker novo espera. A UI oferece **Atualizar e reiniciar**; somente o clique envia `ACTIVATE_UPDATE` e recarrega após `controllerchange`. Não há reload automático durante edição. O clique não implementa, por si só, uma transação adicional de flush: o usuário deve terminar o trabalho conforme a interface informa.
 - Instalação PWA não transforma o site em aplicativo nativo, não isola o perfil contra extensões e não muda os limites de privacidade do cliente aberto.
 

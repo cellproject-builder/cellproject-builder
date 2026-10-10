@@ -8,6 +8,8 @@ import type { Project } from '@/types';
 import { getVisualWorkspace, mutateVisualWorkspace, watchVisualScope } from '@/visuals/domain';
 import { InkStroke } from './InkStroke';
 import { InkToolbar } from './InkToolbar';
+import { InkPalette } from './InkPalette';
+import { calculateInkViewport, InkPointerRouter, type InkScreenPoint, type InkViewport } from './pointerGestures';
 import { createInkSettings, type InkPoint } from './model';
 import { inkStrokeNearPath } from './geometry';
 import { canvasInkSchema, positionedInk, rebaseInk, type CanvasInkStroke } from './canvasModel';
@@ -24,6 +26,9 @@ export function PlannerInkLayer({ project, containerRef, english = false }: { pr
   const api = useReactFlow(), viewport = useViewport();
   const liveInk = useLiveInk({ surface: 'planner', documentId: project.id });
   const [active, setActive] = useState(false), [eraser, setEraser] = useState(false), [ruler, setRuler] = useState(false);
+  const [fingerDrawing, setFingerDrawing] = useState(false), fingerRef = useRef(false); fingerRef.current = fingerDrawing;
+  const pointers = useRef(new InkPointerRouter(() => fingerRef.current)), captures = useRef(new Set<number>());
+  const navigation = useRef<{ viewport: InkViewport; points: InkScreenPoint[]; latest: InkViewport } | null>(null);
   const [settings, setSettings] = useState(createInkSettings), [preview, setPreview] = useState<CanvasInkStroke | null>(null), [erased, setErased] = useState(new Set<string>()), [error, setError] = useState('');
   const [, refresh] = useState(0), stage = useRef<HTMLDivElement>(null), gesture = useRef<Gesture | null>(null);
   const history = useRef<{ past: Operation[]; future: Operation[] }>({ past: [], future: [] });
@@ -31,14 +36,20 @@ export function PlannerInkLayer({ project, containerRef, english = false }: { pr
   const saved = getVisualWorkspace(project).ink?.strokes ?? [];
   const cancel = (cancelled = true) => {
     const action = gesture.current; gesture.current = null; action?.guard.dispose(); action?.finish(cancelled); action?.release();
-    if (action && stage.current?.hasPointerCapture?.(action.pointer)) stage.current.releasePointerCapture(action.pointer);
+    if (action && !pointers.current.hasPointer(action.pointer) && stage.current?.hasPointerCapture?.(action.pointer)) stage.current.releasePointerCapture(action.pointer);
     setPreview(null); setErased(new Set());
   };
-  useEffect(() => { cancel(); history.current = { past: [], future: [] }; setActive(false); }, [project.id]);
+  const reset = () => {
+    pointers.current.reset(); navigation.current = null; cancel();
+    for (const id of captures.current) try { if (stage.current?.hasPointerCapture?.(id)) stage.current.releasePointerCapture(id); } catch { /* Already released. */ }
+    captures.current.clear();
+  };
+  useEffect(() => { reset(); history.current = { past: [], future: [] }; setActive(false); }, [project.id]);
   useEffect(() => {
-    const check = () => { const action = gesture.current; if (action) try { action.guard.assert(); } catch { cancel(); } };
+    const check = () => { const action = gesture.current; if (action) try { action.guard.assert(); } catch { reset(); } };
     const offGraph = useGraphStore.subscribe(check), offWorkspace = useWorkspaceStore.subscribe(check);
-    return () => { offGraph(); offWorkspace(); const action = gesture.current; gesture.current = null; action?.guard.dispose(); action?.finish(true); action?.release(); };
+    const blur = () => reset(); window.addEventListener('blur', blur);
+    return () => { offGraph(); offWorkspace(); window.removeEventListener('blur', blur); pointers.current.reset(); navigation.current = null; const action = gesture.current; gesture.current = null; action?.guard.dispose(); action?.finish(true); action?.release(); };
   }, []);
   const latest = () => {
     const current = useGraphStore.getState().project;
@@ -71,7 +82,7 @@ export function PlannerInkLayer({ project, containerRef, english = false }: { pr
     setErased(new Set(action.erased));
   };
   const begin = (event: PointerEvent<HTMLDivElement>) => {
-    if (!active || event.button !== 0 || event.isPrimary === false || gesture.current) return;
+    if (!active || event.button !== 0 || gesture.current) return;
     event.preventDefault(); event.stopPropagation(); event.currentTarget.focus({ preventScroll: true });
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Synthetic events have no active pointer. */ }
     try {
@@ -84,7 +95,7 @@ export function PlannerInkLayer({ project, containerRef, english = false }: { pr
   const move = (event: PointerEvent<HTMLDivElement>) => {
     const action = gesture.current; if (!action || action.pointer !== event.pointerId) return;
     event.preventDefault(); event.stopPropagation();
-    try { action.guard.assert(); } catch { cancel(); return; }
+    try { action.guard.assert(); } catch { reset(); return; }
     const coalesced = event.nativeEvent.getCoalescedEvents?.() ?? [];
     for (const sample of [...coalesced, event]) {
       const where = point(sample);
@@ -94,6 +105,27 @@ export function PlannerInkLayer({ project, containerRef, english = false }: { pr
       else if (action.points.length < 4096 && Math.hypot(where.x - previous.x, where.y - previous.y) >= .35) action.points.push(where);
     }
     if (!eraser) { try { const stroke = positionedInk(action.points, settings, action.id); setPreview(stroke); liveInk.preview(action.id, stroke); } catch { cancel(); setError(t('O traço atingiu o limite de tamanho.', 'The stroke reached the size limit.')); } }
+  };
+  const route = (event: PointerEvent<HTMLDivElement>, phase: 'down' | 'move' | 'up', cancelled = false) => {
+    if (!active) return;
+    const result = phase === 'down' ? pointers.current.down(event) : phase === 'move' ? pointers.current.move(event) : pointers.current.up(event, cancelled);
+    if (!result.handled) return;
+    event.preventDefault(); event.stopPropagation();
+    if (phase === 'down') { captures.current.add(event.pointerId); try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Synthetic pointer. */ } }
+    for (const action of result.actions) {
+      if (action.kind === 'draw-start') begin(event);
+      else if (action.kind === 'draw-move') move(event);
+      else if (action.kind === 'draw-end') finish(event);
+      else if (action.kind === 'draw-cancel') cancel();
+      else if (action.kind === 'navigate-start') {
+        const view = navigation.current?.latest ?? api.getViewport(); navigation.current = { viewport: { ...view }, latest: { ...view }, points: action.points };
+      } else if (action.kind === 'navigate-move' && navigation.current) {
+        const nav = navigation.current, bounds = containerRef.current?.getBoundingClientRect() ?? { left: 0, top: 0 };
+        nav.latest = calculateInkViewport(nav.viewport, nav.points, action.points, bounds, { minZoom: .05, maxZoom: 2 });
+        void api.setViewport(nav.latest, { duration: 0 });
+      } else if (action.kind === 'navigate-end') navigation.current = null;
+    }
+    if (phase === 'up') { captures.current.delete(event.pointerId); try { if (stage.current?.hasPointerCapture?.(event.pointerId)) stage.current.releasePointerCapture(event.pointerId); } catch { /* Already released. */ } }
   };
   const finish = (event: PointerEvent<HTMLDivElement>) => {
     const action = gesture.current; if (!action || action.pointer !== event.pointerId) return;
@@ -114,22 +146,21 @@ export function PlannerInkLayer({ project, containerRef, english = false }: { pr
       {liveInk.remote.filter(value => !saved.some(stroke => stroke.id === (value.stroke.id ?? value.gestureId))).map(value => <g key={`${value.sender}:${value.gestureId}`} transform={`translate(${value.stroke.x ?? 0} ${value.stroke.y ?? 0})`}><InkStroke stroke={value.stroke} data-planner-remote-stroke={value.gestureId} /></g>)}
       {preview && <g transform={`translate(${preview.x} ${preview.y})`}><InkStroke stroke={preview} /></g>}
     </g></svg>
-    <div ref={stage} data-planner-ink className="planner-ink-input" style={{ pointerEvents: active ? 'auto' : 'none' }} tabIndex={active ? 0 : -1} role="group" aria-label={t('Desenho livre no plano', 'Free drawing on plan')} onPointerDown={begin} onPointerMove={move} onPointerUp={finish} onPointerCancel={event => { if (gesture.current?.pointer === event.pointerId) cancel(); }} onLostPointerCapture={event => { if (gesture.current?.pointer === event.pointerId) cancel(); }} onKeyDown={event => {
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel(); setActive(false); }
+    <div ref={stage} data-planner-ink className="planner-ink-input" style={{ pointerEvents: active ? 'auto' : 'none' }} tabIndex={active ? 0 : -1} role="group" aria-label={t('Desenho livre no plano', 'Free drawing on plan')} onPointerDown={event => route(event, 'down')} onPointerMove={event => route(event, 'move')} onPointerUp={event => route(event, 'up')} onPointerCancel={event => route(event, 'up', true)} onLostPointerCapture={event => { if (pointers.current.hasPointer(event.pointerId)) route(event, 'up', true); }} onKeyDown={event => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); reset(); setActive(false); }
       else if ((event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase())) { event.preventDefault(); event.stopPropagation(); travel(event.key === 'y' || event.shiftKey ? 'future' : 'past'); }
     }} />
-    <div className={`planner-ink-tools ${active ? 'is-open' : ''}`}>
-      {!active ? button('pen', t('Desenhar no plano', 'Draw on plan'), () => { setActive(true); setEraser(false); containerRef.current?.querySelector<HTMLElement>('[data-planner-ink]')?.focus({ preventScroll: true }); }) : <>
-        <InkToolbar value={settings} onChange={value => { cancel(); setSettings(value); setEraser(false); }} english={english} />
+    {!active ? <div className="planner-ink-tools">{button('pen', t('Desenhar no plano', 'Draw on plan'), () => { setActive(true); setEraser(false); containerRef.current?.querySelector<HTMLElement>('[data-planner-ink]')?.focus({ preventScroll: true }); })}</div> : <InkPalette label={t('Ferramentas do plano', 'Plan drawing tools')} english={english} className="planner-ink-palette">
+        <InkToolbar value={settings} onChange={value => { reset(); setSettings(value); setEraser(false); }} english={english} />
         <div className="planner-ink-actions" role="toolbar" aria-label={t('Ações do desenho', 'Drawing actions')}>
-          {button('eraser', t('Borracha', 'Eraser'), () => { cancel(); setEraser(!eraser); }, eraser)}
-          {button('ruler', t('Régua — traço reto', 'Ruler — straight line'), () => { cancel(); setRuler(!ruler); }, ruler)}
+          {button('eraser', t('Borracha', 'Eraser'), () => { reset(); setEraser(!eraser); }, eraser)}
+          {button('ruler', t('Régua — traço reto', 'Ruler — straight line'), () => { reset(); setRuler(!ruler); }, ruler)}
           {button('undo', t('Desfazer tinta', 'Undo ink'), () => travel('past'), undefined, !history.current.past.length)}
           {button('redo', t('Refazer tinta', 'Redo ink'), () => travel('future'), undefined, !history.current.future.length)}
-          {button('close', t('Voltar ao mapa', 'Back to map'), () => { cancel(); setActive(false); })}
+          {button('close', t('Voltar ao mapa', 'Back to map'), () => { reset(); setActive(false); })}
         </div>
-      </>}
+        <label className="ink-finger-option"><input type="checkbox" aria-label={t('Desenhar com dedo', 'Draw with finger')} checked={fingerDrawing} onChange={event => { reset(); setFingerDrawing(event.target.checked); }} />{t('Desenhar com dedo', 'Draw with finger')}</label>
       {error && <span role="status">{error}</span>}
-    </div>
+    </InkPalette>}
   </>;
 }

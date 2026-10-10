@@ -22,11 +22,13 @@ async function files(directory, filter) {
 const docs = [
   'README.md', 'docs/README.md', 'docs/architecture.md', 'docs/repository-map.md', 'scripts/README.md',
   'docs/archive/README.md', 'docs/archive/early-concepts/README.md', 'docs/reports/README.md',
-  'docs/pwa.md', 'docs/project-appearance.md',
+  'docs/pwa.md', 'docs/offline-editing.md', 'docs/project-appearance.md',
   ...await files(resolve(root, 'docs/modules'), file => file.endsWith('.md')),
   ...await files(resolve(root, 'docs/research'), file => file.endsWith('.md')),
   'docs/reports/repository-review-2026-10-10.md',
   'docs/reports/planning-quality-performance-2026-10-10.md',
+  'docs/reports/audio-offline-ink-release-2026-10-10.md',
+  'docs/design/pdf-worker-validation/README.md',
   'docs/design/plan-quality/README.md', 'docs/design/plan-quality/RESULTS.md',
   'docs/design/plan-quality/rubric.md', 'docs/design/plan-quality/performance/README.md',
 ].map(file => resolve(root, file));

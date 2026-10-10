@@ -18,7 +18,7 @@ Em uma sessão remota já aberta, **Baixar cópia atual e importar backup** prim
 
 ## Gravação e recuperação
 
-A nuvem é canônica. O navegador mantém snapshot, rascunhos e bytes lidos somente em memória nessa modalidade. Cada gravação usa revisão confirmada e operationId. Alterações consecutivas ainda não enviadas da mesma chave são agrupadas; uma operação já enviada mantém corpo e identidade intactos para retry após uma resposta perdida. As stores de workspace e chat enviam os rascunhos diretamente a essa fila, evitando uma segunda fila de envelopes.
+A nuvem é canônica. Sem cofre/offline preparado, snapshot, rascunhos e bytes lidos ficam em memória. Com cofre e aparelho autorizado, checkpoints e operações ficam cifrados no repositório offline, separados do legado local. Cada gravação usa revisão confirmada e operationId. Alterações consecutivas ainda não enviadas da mesma chave são agrupadas; uma operação já enviada mantém corpo e identidade intactos para retry após uma resposta perdida. As stores de workspace e chat enviam os rascunhos diretamente a essa fila. O checkpoint conserva essa fila existente, sem criar outro autosave de envelopes.
 
 Conflito, sessão expirada e falha de conexão são visíveis no status global. Rascunhos permanecem na aba. Em falha de conexão há retry; em conflito a interface exige uma cópia completa da sessão antes de permitir reabrir os dados remotos. O backup usa os rascunhos atuais, além de todos os arquivos remotos verificáveis. Fechar a aba com gravações ou debounce pendentes aciona o aviso do navegador.
 
@@ -32,4 +32,4 @@ O caminho principal de recuperação da sessão mantém esta aba aberta: **Entra
 
 Os testes dirigidos cobrem login antes da hidratação, modo local, nove documentos e bytes originais, integridade de ZIP/manifesto, preflight, readback incompleto, conflito, retry com corpo idêntico, seleção de modelos sem chave e 100 edições reais agrupadas em dois uploads. O build, login real, migração dos dados do usuário, restauração e deployment são verificados separadamente pelo coordenador.
 
-O pacote de backup é preparado em memória; o limite agregado de arquivos é 500 MiB. Não há promessa de IA offline, sincronização offline persistente ou merge automático de conflitos. A importação dos documentos é transacional no servidor, mas os arquivos são enviados antes e operações interrompidas podem deixar objetos órfãos, sem apagar os originais.
+O pacote de backup é preparado em memória; o limite agregado de arquivos é 500 MiB. Não há IA offline ou merge automático de conflitos. A [fila offline cifrada](offline-editing.md) permite editar e reenviar ao reconectar, com acesso anterior no mesmo aparelho; não é restauração de desastre nem sincronização com o aplicativo fechado. A importação dos documentos é transacional no servidor, mas os arquivos são enviados antes e operações interrompidas podem deixar objetos órfãos, sem apagar os originais.

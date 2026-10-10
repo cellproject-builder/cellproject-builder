@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { nanoid } from 'nanoid';
-import { Pencil1Icon, EraserIcon, LassoSelectIcon, RulerHorizontalIcon, ResetIcon, RedoIcon, TrashIcon } from '@/components/ui/SoftIcons';
+import { Pencil1Icon, EraserIcon, LassoSelectIcon, RulerHorizontalIcon, ResetIcon, RedoIcon, TrashIcon, CloseIcon, PlusIcon, MinusIcon } from '@/components/ui/SoftIcons';
 import { InkToolbar } from '@/ink/InkToolbar';
+import { InkPalette } from '@/ink/InkPalette';
+import { calculateInkViewport, InkPointerRouter, type InkScreenPoint, type InkViewport } from '@/ink/pointerGestures';
 import { useLiveInk } from '@/ink/live';
 import { registerDataIngestion } from '@/cloud/activity';
 import { InkStroke } from '@/ink/InkStroke';
@@ -20,7 +22,7 @@ type Mode = 'draw' | 'erase' | 'select';
 type Layout = { height: number; scale: number; anchors: Map<string, NoteInkAnchor> };
 type Operation = { before: NoteInkDocument; after: NoteInkDocument };
 type Gesture = { pointer: number; base: NoteInkDocument; preview: NoteInkDocument; start: InkPoint; layout: Layout } & (
-  { kind: 'draw'; stroke: NoteInkStroke } | { kind: 'erase'; last: InkPoint } |
+  { kind: 'draw'; stroke: NoteInkStroke; finish(cancelled: boolean): void } | { kind: 'erase'; last: InkPoint } |
   { kind: 'lasso'; points: InkPoint[] } | { kind: 'move'; strokes: Array<{ stroke: NoteInkStroke; factor: number }>; bounds: { minX: number; minY: number; maxX: number; maxY: number; minDx: number; minDy: number; maxDx: number; maxDy: number } }
 );
 const clamp = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value));
@@ -49,8 +51,8 @@ function AnchoredStroke({ stroke, layout, selected, selectable, onPointerDown }:
 }
 
 /** A transparent, document-anchored ink layer. The editor below remains mounted and editable. */
-export function NoteInkOverlay({ note, bodyRef, toolsRef, drawing, onDrawingChange, english = false }: Props) {
-  const live = useLiveInk({ surface: 'note', documentId: note.id }), liveRef = useRef(live); liveRef.current = live;
+export function NoteInkOverlay({ note, bodyRef, drawing, onDrawingChange, english = false }: Props) {
+  const live = useLiveInk({ surface: 'note', documentId: note.id });
   const releaseActivity = useRef<(() => void) | null>(null);
   const blank = useRef(createNoteInk()), stage = useRef<HTMLDivElement>(null), mounted = useRef(false);
   const current = useRef(note); current.current = note;
@@ -58,11 +60,17 @@ export function NoteInkOverlay({ note, bodyRef, toolsRef, drawing, onDrawingChan
   const gesture = useRef<Gesture | null>(null), history = useRef<{ past: Operation[]; future: Operation[] }>({ past: [], future: [] });
   const [preview, setPreview] = useState<NoteInkDocument | null>(null), [, setHistoryVersion] = useState(0);
   const [settings, setSettings] = useState(createInkSettings), [mode, setMode] = useState<Mode>('draw'), [ruler, setRuler] = useState(false);
+  const [fingerDrawing, setFingerDrawing] = useState(false), fingerRef = useRef(false); fingerRef.current = fingerDrawing;
+  const pointers = useRef(new InkPointerRouter(() => fingerRef.current)), captures = useRef(new Set<number>());
+  const navigation = useRef<{ viewport: InkViewport; points: InkScreenPoint[]; latest: InkViewport; origin: { x: number; y: number } } | null>(null);
+  const [zoom, setZoom] = useState(1), zoomRef = useRef(1);
+  const [paletteHost, setPaletteHost] = useState<HTMLElement | null>(null), [paletteBounds, setPaletteBounds] = useState({ top: 0, left: 0, width: 0, height: 0 });
   const [selection, setSelection] = useState<Set<string>>(new Set()), [lasso, setLasso] = useState<InkPoint[]>([]), [error, setError] = useState('');
   const [layout, setLayout] = useState<Layout>({ height: doc.height, scale: 1, anchors: new Map() });
   const t = (pt: string, en: string) => english ? en : pt;
+  const documentBody = () => bodyRef.current ?? stage.current?.closest<HTMLDivElement>('.ws-note-document') ?? null;
   const measure = (): Layout => {
-    const body = bodyRef.current, bounds = body?.getBoundingClientRect();
+    const body = documentBody(), bounds = body?.getBoundingClientRect();
     const scale = bounds?.width ? doc.width / bounds.width : 1;
     const anchors = new Map<string, NoteInkAnchor>();
     if (body && bounds) for (const element of body.querySelectorAll<HTMLElement>('[data-ink-anchor]')) {
@@ -73,12 +81,29 @@ export function NoteInkOverlay({ note, bodyRef, toolsRef, drawing, onDrawingChan
     const measured = Math.max((bounds?.height ?? 0) * scale, (body?.scrollHeight ?? 0) * scale, doc.height);
     return { height: clamp(measured, 300, 10000), scale, anchors };
   };
-  useLayoutEffect(() => { mounted.current = true; return () => { mounted.current = false; const action = gesture.current; if (action?.kind === 'draw') liveRef.current.finish(action.stroke.id, true); gesture.current = null; releaseActivity.current?.(); releaseActivity.current = null; }; }, []);
+  useLayoutEffect(() => { mounted.current = true; return () => { mounted.current = false; pointers.current.reset(); navigation.current = null; const action = gesture.current; if (action?.kind === 'draw') action.finish(true); gesture.current = null; releaseActivity.current?.(); releaseActivity.current = null; }; }, []);
   useLayoutEffect(() => {
-    const body = bodyRef.current; if (!body) return;
+    const body = documentBody(), paper = body?.closest<HTMLElement>('.ws-note-paper'), editor = body?.closest<HTMLElement>('.ws-note-editor');
+    if (!body || !paper || !editor) return;
+    const previous = { width: body.style.width, zoom: body.style.zoom };
+    setPaletteHost(editor);
+    const update = () => {
+      const computed = getComputedStyle(paper), width = paper.clientWidth - (parseFloat(computed.paddingLeft) || 0) - (parseFloat(computed.paddingRight) || 0);
+      // Keep the pre-zoom line wrapping. Text and its ink scale as one document.
+      if (width > 0) body.style.width = `${width}px`;
+      body.style.zoom = String(zoomRef.current);
+      const paperRect = paper.getBoundingClientRect(), editorRect = editor.getBoundingClientRect();
+      setPaletteBounds({ top: paperRect.top - editorRect.top, left: paperRect.left - editorRect.left, width: paperRect.width, height: paperRect.height });
+    };
+    update(); window.addEventListener('resize', update);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update); observer?.observe(paper);
+    return () => { window.removeEventListener('resize', update); observer?.disconnect(); body.style.width = previous.width; body.style.zoom = previous.zoom; };
+  }, [bodyRef, note.id]);
+  useLayoutEffect(() => {
+    const body = documentBody(); if (!body) return;
     const update = () => {
       const next = measure();
-      const minHeight = note.ink || drawing ? `${doc.height / next.scale}px` : '';
+      const minHeight = note.ink || drawing ? `${doc.height / (next.scale * zoom)}px` : '';
       if (body.style.minHeight !== minHeight) body.style.minHeight = minHeight;
       setLayout(previous => previous.height === next.height && previous.scale === next.scale && JSON.stringify([...previous.anchors]) === JSON.stringify([...next.anchors]) ? previous : next);
     };
@@ -87,8 +112,22 @@ export function NoteInkOverlay({ note, bodyRef, toolsRef, drawing, onDrawingChan
     const observer = new ResizeObserver(update); observer.observe(body);
     for (const anchor of body.querySelectorAll('[data-ink-anchor]')) observer.observe(anchor);
     return () => observer.disconnect();
-  }, [bodyRef, doc.width, doc.height, note.title, note.blocks, !!note.ink, drawing]);
-  const cancel = () => { const action = gesture.current; if (action?.kind === 'draw') live.finish(action.stroke.id, true); gesture.current = null; releaseActivity.current?.(); releaseActivity.current = null; setPreview(null); setLasso([]); };
+  }, [bodyRef, doc.width, doc.height, note.title, note.blocks, !!note.ink, drawing, zoom]);
+  const cancelInk = () => {
+    const action = gesture.current; gesture.current = null; if (action?.kind === 'draw') action.finish(true);
+    releaseActivity.current?.(); releaseActivity.current = null; setPreview(null); setLasso([]);
+    if (action && !pointers.current.hasPointer(action.pointer)) try { if (stage.current?.hasPointerCapture?.(action.pointer)) stage.current.releasePointerCapture(action.pointer); } catch { /* Already released. */ }
+  };
+  const cancel = () => {
+    pointers.current.reset(); navigation.current = null; cancelInk();
+    for (const id of captures.current) try { if (stage.current?.hasPointerCapture?.(id)) stage.current.releasePointerCapture(id); } catch { /* Already released. */ }
+    captures.current.clear();
+  };
+  useEffect(() => { const blur = () => cancel(); window.addEventListener('blur', blur); return () => window.removeEventListener('blur', blur); }, []);
+  useEffect(() => {
+    cancel(); zoomRef.current = 1; setZoom(1); history.current = { past: [], future: [] }; setSelection(new Set());
+    const body = documentBody(), paper = body?.closest<HTMLElement>('.ws-note-paper'); if (body) body.style.zoom = '1'; if (paper) { paper.scrollLeft = 0; paper.scrollTop = 0; }
+  }, [note.id]);
   useEffect(() => { if (!drawing || readOnly) { cancel(); setSelection(new Set()); } }, [drawing, readOnly]);
   const latestDocument = () => {
     const latest = useWorkspaceStore.getState().notes[note.id];
@@ -116,7 +155,7 @@ export function NoteInkOverlay({ note, bodyRef, toolsRef, drawing, onDrawingChan
   const capture = (event: PointerEvent) => { stage.current?.focus({ preventScroll: true }); try { stage.current?.setPointerCapture(event.pointerId); } catch { /* Synthetic events have no active pointer. */ } };
   const erase = (base: NoteInkDocument, path: InkPoint[], measured: Layout) => ({ ...base, strokes: base.strokes.filter(stroke => !inkStrokeNearPath(liveStroke(stroke, measured), path, 10 * measured.scale, 'note')) });
   const begin = (event: PointerEvent<HTMLDivElement>) => {
-    if (!drawing || readOnly || event.button !== 0 || event.isPrimary === false || gesture.current || !latestDocument()) return;
+    if (!drawing || readOnly || event.button !== 0 || gesture.current || !latestDocument()) return;
     event.preventDefault(); capture(event);
     const measured = measure(), start = point(event, measured), base = latestDocument()!;
     setLayout(measured); setError('');
@@ -127,10 +166,10 @@ export function NoteInkOverlay({ note, bodyRef, toolsRef, drawing, onDrawingChan
     const anchor = [...measured.anchors.values()].find(value => { const element = bodyRef.current?.querySelector<HTMLElement>(`[data-ink-anchor="${value.id}"]`); const bounds = element?.getBoundingClientRect(); return bounds && event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom; });
     const stroke: NoteInkStroke = { id: nanoid(12), ...settings, points: [start], ...(anchor ? { anchor } : {}) };
     const next = { ...base, height: measured.height, strokes: [...base.strokes, stroke] };
-    releaseActivity.current = registerDataIngestion(); gesture.current = { kind: 'draw', pointer: event.pointerId, start, base, preview: next, stroke, layout: measured }; setPreview(next); live.preview(stroke.id, stroke);
+    releaseActivity.current = registerDataIngestion(); gesture.current = { kind: 'draw', pointer: event.pointerId, start, base, preview: next, stroke, layout: measured, finish: cancelled => live.finish(stroke.id, cancelled) }; setPreview(next); live.preview(stroke.id, stroke);
   };
   const beginMove = (event: PointerEvent<SVGPathElement>, stroke: NoteInkStroke) => {
-    if (!drawing || readOnly || mode !== 'select' || event.button !== 0 || event.isPrimary === false || gesture.current) return;
+    if (!drawing || readOnly || mode !== 'select' || event.button !== 0 || gesture.current) return;
     event.preventDefault(); event.stopPropagation(); capture(event);
     const base = latestDocument(); if (!base) return;
     const measured = measure(), ids = selection.has(stroke.id) ? selection : new Set([stroke.id]);
@@ -189,7 +228,38 @@ export function NoteInkOverlay({ note, bodyRef, toolsRef, drawing, onDrawingChan
       if (action.kind === 'erase' && action.preview.strokes.length === action.base.strokes.length) return;
       if (action.kind === 'move' && action.preview === action.base) return;
       saved = save(action.base, action.preview);
-    } finally { if (action.kind === 'draw') live.finish(action.stroke.id, !saved); releaseActivity.current?.(); releaseActivity.current = null; }
+    } finally { if (action.kind === 'draw') action.finish(!saved); releaseActivity.current?.(); releaseActivity.current = null; }
+  };
+  const route = (event: PointerEvent<HTMLDivElement | SVGPathElement>, phase: 'down' | 'move' | 'up', cancelled = false, stroke?: NoteInkStroke) => {
+    if (!drawing || readOnly) return;
+    const result = phase === 'down' ? pointers.current.down(event) : phase === 'move' ? pointers.current.move(event) : pointers.current.up(event, cancelled);
+    if (!result.handled) return;
+    event.preventDefault(); event.stopPropagation();
+    if (phase === 'down') { captures.current.add(event.pointerId); capture(event); }
+    for (const action of result.actions) {
+      if (action.kind === 'draw-start') { if (stroke && mode === 'select') beginMove(event as PointerEvent<SVGPathElement>, stroke); else begin(event as PointerEvent<HTMLDivElement>); }
+      else if (action.kind === 'draw-move') move(event as PointerEvent<HTMLDivElement>);
+      else if (action.kind === 'draw-end') finish(event as PointerEvent<HTMLDivElement>);
+      else if (action.kind === 'draw-cancel') cancelInk();
+      else if (action.kind === 'navigate-start') {
+        const body = bodyRef.current, paper = body?.closest<HTMLElement>('.ws-note-paper');
+        if (!body || !paper) continue;
+        const bounds = body.getBoundingClientRect(), frame = paper.getBoundingClientRect();
+        const origin = { x: bounds.left - frame.left + paper.scrollLeft, y: bounds.top - frame.top + paper.scrollTop };
+        const view = navigation.current?.latest ?? { x: bounds.left - frame.left, y: bounds.top - frame.top, zoom: zoomRef.current };
+        navigation.current = { viewport: { ...view }, latest: { ...view }, points: action.points, origin };
+      } else if (action.kind === 'navigate-move' && navigation.current) {
+        const body = bodyRef.current, paper = body?.closest<HTMLElement>('.ws-note-paper'); if (!body || !paper) continue;
+        const nav = navigation.current, next = calculateInkViewport(nav.viewport, nav.points, action.points, paper.getBoundingClientRect(), { minZoom: 1, maxZoom: 3 });
+        body.style.zoom = String(next.zoom); zoomRef.current = next.zoom; setZoom(next.zoom);
+        paper.scrollLeft = Math.max(0, nav.origin.x - next.x); paper.scrollTop = Math.max(0, nav.origin.y - next.y);
+        nav.latest = { x: nav.origin.x - paper.scrollLeft, y: nav.origin.y - paper.scrollTop, zoom: next.zoom };
+      } else if (action.kind === 'navigate-end') navigation.current = null;
+    }
+    if (phase === 'up') { captures.current.delete(event.pointerId); try { if (stage.current?.hasPointerCapture?.(event.pointerId)) stage.current.releasePointerCapture(event.pointerId); } catch { /* Already released. */ } }
+  };
+  const changeZoom = (delta: number) => {
+    cancel(); const next = clamp(zoomRef.current + delta, 1, 3); zoomRef.current = next; if (bodyRef.current) bodyRef.current.style.zoom = String(next); setZoom(next);
   };
   const remove = () => { const base = latestDocument(); if (base && selection.size && save(base, { ...base, strokes: base.strokes.filter(stroke => !selection.has(stroke.id)) })) setSelection(new Set()); };
   const keyboard = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -201,7 +271,7 @@ export function NoteInkOverlay({ note, bodyRef, toolsRef, drawing, onDrawingChan
   const changeMode = (next: Mode) => { cancel(); setMode(next); setSelection(new Set()); };
   const view = preview && gesture.current ? rebaseInk(gesture.current.base, preview, doc) : doc;
   const lassoPath = useMemo(() => lasso.map((at, index) => `${index ? 'L' : 'M'}${at.x},${at.y}`).join(' ') + (lasso.length > 2 ? 'Z' : ''), [lasso]);
-  const tools = drawing && !readOnly && <div className="note-ink-tools" role="toolbar" aria-label={t('Ferramentas de tinta da nota', 'Note ink tools')}>
+  const tools = drawing && !readOnly && <InkPalette label={t('Ferramentas de tinta da nota', 'Note ink tools')} english={english} className="note-ink-palette" preview={mode === 'erase' ? <EraserIcon /> : mode === 'select' ? <LassoSelectIcon /> : <Pencil1Icon />}>
     <div className="note-ink-actions">
       <button type="button" aria-label={t('Desenhar livremente na nota', 'Draw freely in note')} aria-pressed={mode === 'draw'} onClick={() => changeMode('draw')}><Pencil1Icon /></button>
       <button type="button" aria-label={t('Borracha na nota', 'Note eraser')} aria-pressed={mode === 'erase'} onClick={() => changeMode('erase')}><EraserIcon /></button>
@@ -210,15 +280,19 @@ export function NoteInkOverlay({ note, bodyRef, toolsRef, drawing, onDrawingChan
       <button type="button" aria-label={t('Desfazer tinta', 'Undo ink')} disabled={!history.current.past.length} onClick={() => navigate('past')}><ResetIcon /></button>
       <button type="button" aria-label={t('Refazer tinta', 'Redo ink')} disabled={!history.current.future.length} onClick={() => navigate('future')}><RedoIcon /></button>
       <button type="button" aria-label={t('Apagar tinta selecionada', 'Delete selected ink')} disabled={!selection.size} onClick={remove}><TrashIcon /></button>
+      <button type="button" aria-label={t('Voltar ao texto', 'Back to text')} onClick={() => { cancel(); onDrawingChange(false); }}><CloseIcon /></button>
+      <button type="button" aria-label={t('Reduzir nota', 'Zoom out note')} disabled={zoom <= 1} onClick={() => changeZoom(-.5)}><MinusIcon /></button>
+      <button type="button" aria-label={t('Ampliar nota', 'Zoom in note')} disabled={zoom >= 3} onClick={() => changeZoom(.5)}><PlusIcon /></button>
     </div>
     <InkToolbar value={settings} onChange={value => { cancel(); setSettings(value); setMode('draw'); }} english={english} disabled={!!gesture.current} />
+    <label className="ink-finger-option"><input type="checkbox" aria-label={t('Desenhar com dedo', 'Draw with finger')} checked={fingerDrawing} onChange={event => { cancel(); setFingerDrawing(event.target.checked); }} />{t('Desenhar com dedo', 'Draw with finger')}</label>
     {error && <span className="note-ink-error" role="status">{error}</span>}
-  </div>;
+  </InkPalette>;
   return <>
-    {toolsRef.current && createPortal(tools, toolsRef.current)}
-    <div ref={stage} data-note-ink className={`note-ink-overlay mode-${mode}`} tabIndex={drawing && !readOnly ? 0 : -1} role="group" aria-label={t('Desenho sobre a nota inteira', 'Draw over the entire note')} style={{ height: `${Math.max(view.height, layout.height) / layout.scale}px`, bottom: 'auto', pointerEvents: drawing && !readOnly ? 'auto' : 'none', touchAction: drawing && !readOnly ? 'none' : 'auto' }} onPointerDown={begin} onPointerMove={move} onPointerUp={event => finish(event)} onPointerCancel={event => finish(event, true)} onLostPointerCapture={event => { if (gesture.current?.pointer === event.pointerId) cancel(); }} onKeyDown={keyboard}>
+    {paletteHost && createPortal(<div className="note-ink-palette-viewport" style={paletteBounds}>{tools}</div>, paletteHost)}
+    <div ref={stage} data-note-ink className={`note-ink-overlay mode-${mode}`} tabIndex={drawing && !readOnly ? 0 : -1} role="group" aria-label={t('Desenho sobre a nota inteira', 'Draw over the entire note')} style={{ height: `${Math.max(view.height, layout.height) / (layout.scale * zoom)}px`, bottom: 'auto', pointerEvents: drawing && !readOnly ? 'auto' : 'none', touchAction: drawing && !readOnly ? 'none' : 'auto' }} onPointerDown={event => route(event, 'down')} onPointerMove={event => route(event, 'move')} onPointerUp={event => route(event, 'up')} onPointerCancel={event => route(event, 'up', true)} onLostPointerCapture={event => { if (pointers.current.hasPointer(event.pointerId)) route(event, 'up', true); }} onKeyDown={keyboard}>
       <svg viewBox={`0 0 ${doc.width} ${Math.max(view.height, layout.height)}`} preserveAspectRatio="none" aria-hidden="true">
-        {view.strokes.map(stroke => <AnchoredStroke key={stroke.id} stroke={stroke} layout={gesture.current?.layout ?? layout} selected={selection.has(stroke.id)} selectable={drawing && !readOnly && mode === 'select'} onPointerDown={event => beginMove(event, stroke)} />)}
+        {view.strokes.map(stroke => <AnchoredStroke key={stroke.id} stroke={stroke} layout={gesture.current?.layout ?? layout} selected={selection.has(stroke.id)} selectable={drawing && !readOnly && mode === 'select'} onPointerDown={event => route(event, 'down', false, stroke)} />)}
         {live.remote.filter(value => !view.strokes.some(stroke => stroke.id === (value.stroke.id ?? value.gestureId))).map(value => <g key={`${value.sender}:${value.gestureId}`} data-remote-ink style={{ pointerEvents: 'none' }}><AnchoredStroke stroke={{ ...value.stroke, id: value.stroke.id ?? value.gestureId }} layout={layout} selected={false} selectable={false} onPointerDown={() => {}} /></g>)}
         {lassoPath && <path d={lassoPath} fill="#b69be51a" stroke="#b69be5" strokeWidth={layout.scale} strokeDasharray={`${4 * layout.scale} ${4 * layout.scale}`} />}
       </svg>

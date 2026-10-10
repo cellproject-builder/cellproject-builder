@@ -1,5 +1,8 @@
 .note-canvas{position:relative;min-width:0;margin:18px 0 6px;color:rgb(var(--text-primary,228 226 232))}
 .note-canvas-dock{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0;}
+.note-canvas-palette .note-canvas-tools{width:100%;padding:0}
+.note-canvas-palette .note-canvas-options{border:0;padding:0;width:100%;min-height:44px}
+.note-canvas-palette .note-canvas-ink-tools{border:0;padding:0}
 .note-canvas-tools{position:relative;z-index:5;display:flex;align-items:center;flex-wrap:wrap;gap:2px;width:max-content;max-width:100%;padding:2px;margin:0;border:0;border-radius:11px;background:transparent}
 .note-canvas-tools button,.note-canvas-options button{display:grid;place-items:center;width:30px;height:30px;padding:0;flex:0 0 auto;border:0;border-radius:8px;background:transparent;color:rgb(var(--text-secondary,170 167 177));cursor:pointer}
 .note-canvas-tools button:hover,.note-canvas-options button:hover{background:rgb(var(--text-primary,255 255 255)/.05);color:rgb(var(--text-primary,238 238 238))}

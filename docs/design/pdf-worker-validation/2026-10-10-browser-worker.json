@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-10",
+  "origin": "http://127.0.0.1:5196/",
+  "browser": "Chrome 155.0.0.0 on Windows",
+  "sourceHead": "812b9a9",
+  "preview": "Existing production build served through createProductionHandler with cloud disabled, empty provider keys and all external fetches rejected",
+  "fixture": {
+    "path": ".codex-audit-pdf/worker-audit-two-pages.pdf",
+    "bytes": 902,
+    "pages": 2,
+    "text": "PDF WORKER AUDIT PAGE ONE: Arduino 42.\n\nPDF WORKER AUDIT PAGE TWO: Servo 84."
+  },
+  "applicationPath": {
+    "surface": "Studio 3D / VisualPrompt / PromptComposer",
+    "fileInput": "File created from the same synthetic PDF bytes and dispatched through input change using permitted CDP; native chooser extension permission unavailable",
+    "attachedChipShown": true,
+    "persistedDraftTextExact": true,
+    "workerUrl": "/assets/pdf.worker.min-FHbmGBN0.mjs",
+    "actualWorkerMessages": 16,
+    "workerErrors": [],
+    "generateClicked": false,
+    "attachmentRemovedAfterTest": true
+  },
+  "realCompiledExtractor": {
+    "module": "/assets/extract-YT_b910L.js",
+    "pageCount": 2,
+    "textExact": true,
+    "progress": [{ "done": 1, "total": 2 }, { "done": 2, "total": 2 }],
+    "cancelledAfterFirstPage": {
+      "progress": [{ "done": 1, "total": 2 }],
+      "rejected": true,
+      "name": "AbortError"
+    },
+    "successfulExtractionAfterCancellation": true,
+    "workerTerminatedAfterSuccess": true,
+    "workerTerminatedAfterCancellation": true
+  },
+  "consoleWarningsOrErrors": [],
+  "paidRequests": 0,
+  "limitations": [
+    "Native OS file chooser not verified by this agent because extension file URL access was disabled; no browser permissions changed",
+    "Cancellation was exercised directly through the actual compiled extractor callback and AbortSignal, not a UI cancel button",
+    "One small synthetic text PDF, not scanned/encrypted/malformed PDFs or device S9 performance",
+    "No PDF visual reader or OCR was tested",
+    "No application source files or shared documentation changed"
+  ]
+}

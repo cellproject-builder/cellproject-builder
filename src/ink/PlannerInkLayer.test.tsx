@@ -8,9 +8,11 @@ import { PlannerInkLayer } from './PlannerInkLayer';
 import { configureLiveInk, LiveInkChannel } from './live';
 import type { VaultSession } from '@/cloud/vault/crypto';
 import { hasActiveDataIngestions } from '@/cloud/activity';
-vi.mock('@xyflow/react', () => ({ useViewport: () => ({ x: 0, y: 0, zoom: 1 }), useReactFlow: () => ({ screenToFlowPosition: (point: { x: number; y: number }) => point }) }));
+const flow = vi.hoisted(() => ({ viewport: { x: 0, y: 0, zoom: 1 }, setViewport: vi.fn() }));
+vi.mock('@xyflow/react', () => ({ useViewport: () => flow.viewport, useReactFlow: () => ({ screenToFlowPosition: (point: { x: number; y: number }) => ({ x: (point.x - flow.viewport.x) / flow.viewport.zoom, y: (point.y - flow.viewport.y) / flow.viewport.zoom }), getViewport: () => ({ ...flow.viewport }), setViewport: flow.setViewport }) }));
 let host: HTMLDivElement, root: Root;
 beforeEach(() => {
+  flow.viewport = { x: 0, y: 0, zoom: 1 }; flow.setViewport.mockReset(); flow.setViewport.mockImplementation(value => { flow.viewport = value; return Promise.resolve(true); });
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   useWorkspaceStore.setState({ activeProjectId: null });
   useGraphStore.getState().loadDemoProject();
@@ -19,7 +21,7 @@ beforeEach(() => {
   act(() => root.render(<Harness />));
 });
 afterEach(() => { act(() => root.unmount()); configureLiveInk(null); host.remove(); vi.restoreAllMocks(); });
-const click = (name: string) => act(() => Simulate.click(host.querySelector(`[aria-label="${name}"]`)!));
+const click = (name: string) => { if (!host.querySelector(`button[aria-label="${name}"]`) && host.querySelector('[data-ink-palette-trigger]')) act(() => Simulate.click(host.querySelector('[data-ink-palette-trigger]')!)); act(() => Simulate.click(host.querySelector(`button[aria-label="${name}"]`)!)); };
 function pointer(type: 'pointerDown' | 'pointerMove' | 'pointerUp' | 'pointerCancel' | 'lostPointerCapture', x: number, y: number, extra: Record<string, unknown> = {}) {
   act(() => Simulate[type](host.querySelector('[data-planner-ink]')!, { pointerId: 1, clientX: x, clientY: y, button: 0, pressure: .7, pointerType: 'pen', isPrimary: true, ...extra } as never));
 }
@@ -33,6 +35,53 @@ it('adds reversible free ink in plan world coordinates without moving or changin
   expect(useGraphStore.getState().project!.nodes).toBe(nodes);
   click('Desfazer tinta'); expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(0);
   click('Refazer tinta'); expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(1);
+});
+it('pans and pinches with touch in drawing mode without editing nodes or holding refresh', () => {
+  const project = useGraphStore.getState().project!;
+  click('Desenhar no plano');
+  pointer('pointerDown', 100, 100, { pointerType: 'touch' });
+  pointer('pointerMove', 130, 120, { pointerType: 'touch' });
+  expect(flow.viewport).toEqual({ x: 30, y: 20, zoom: 1 });
+  pointer('pointerDown', 230, 120, { pointerId: 2, pointerType: 'touch', isPrimary: false });
+  pointer('pointerMove', 330, 120, { pointerId: 2, pointerType: 'touch', isPrimary: false });
+  expect(flow.viewport.zoom).toBe(2);
+  pointer('pointerUp', 130, 120, { pointerType: 'touch' }); pointer('pointerUp', 330, 120, { pointerId: 2, pointerType: 'touch' });
+  expect(useGraphStore.getState().project).toBe(project); expect(hasActiveDataIngestions()).toBe(false);
+});
+it('opts into finger ink and atomically cancels it for pinch until every finger lifts', () => {
+  click('Desenhar no plano');
+  click('Ferramentas do plano');
+  const checkbox = host.querySelector<HTMLInputElement>('[aria-label="Desenhar com dedo"]'); expect(checkbox).not.toBeNull();
+  act(() => Simulate.change(checkbox!, { target: { checked: true } } as never));
+  pointer('pointerDown', 10, 10, { pointerType: 'touch' }); pointer('pointerMove', 40, 40, { pointerType: 'touch' });
+  expect(hasActiveDataIngestions()).toBe(true);
+  pointer('pointerDown', 80, 40, { pointerId: 2, pointerType: 'touch', isPrimary: false });
+  expect(hasActiveDataIngestions()).toBe(false);
+  pointer('pointerMove', 120, 40, { pointerId: 2, pointerType: 'touch' });
+  pointer('pointerUp', 120, 40, { pointerId: 2, pointerType: 'touch' }); pointer('pointerMove', 60, 40, { pointerType: 'touch' }); pointer('pointerUp', 60, 40, { pointerType: 'touch' });
+  expect(useGraphStore.getState().project!.visuals?.ink).toBeUndefined(); expect(flow.setViewport).toHaveBeenCalled();
+  pointer('pointerDown', 20, 20, { pointerType: 'touch' }); pointer('pointerUp', 40, 30, { pointerType: 'touch' });
+  expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(1);
+});
+it('preserves the first touch capture when finger ink becomes pinch, and cancels real capture loss', () => {
+  click('Desenhar no plano'); click('Ferramentas do plano');
+  act(() => Simulate.change(host.querySelector('[aria-label="Desenhar com dedo"]')!, { target: { checked: true } } as never));
+  const stage = host.querySelector<HTMLElement>('[data-planner-ink]')!, owned = new Set<number>();
+  const release = vi.fn((id: number) => { owned.delete(id); pointer('lostPointerCapture', 0, 0, { pointerId: id, pointerType: 'touch' }); });
+  Object.assign(stage, { setPointerCapture: (id: number) => owned.add(id), hasPointerCapture: (id: number) => owned.has(id), releasePointerCapture: release });
+  pointer('pointerDown', 10, 10, { pointerType: 'touch' }); pointer('pointerMove', 40, 40, { pointerType: 'touch' });
+  pointer('pointerDown', 80, 40, { pointerId: 2, pointerType: 'touch', isPrimary: false }); expect(release).not.toHaveBeenCalled();
+  pointer('pointerMove', 120, 40, { pointerId: 2, pointerType: 'touch' }); expect(flow.viewport.zoom).toBe(2);
+  pointer('lostPointerCapture', 40, 40, { pointerType: 'touch' }); const calls = flow.setViewport.mock.calls.length;
+  pointer('pointerMove', 140, 40, { pointerId: 2, pointerType: 'touch' }); expect(flow.setViewport).toHaveBeenCalledTimes(calls);
+  expect(useGraphStore.getState().project!.visuals?.ink).toBeUndefined();
+});
+it('keeps pen palm movement out of the viewport and cancels ownership on blur', () => {
+  click('Desenhar no plano'); pointer('pointerDown', 20, 20);
+  pointer('pointerDown', 100, 100, { pointerId: 2, pointerType: 'touch' }); pointer('pointerMove', 200, 200, { pointerId: 2, pointerType: 'touch' });
+  expect(flow.setViewport).not.toHaveBeenCalled();
+  act(() => window.dispatchEvent(new Event('blur'))); pointer('pointerUp', 40, 30);
+  expect(hasActiveDataIngestions()).toBe(false); expect(useGraphStore.getState().project!.visuals?.ink).toBeUndefined();
 });
 it('cancels partial strokes and restores map interaction when the palette closes', () => {
   click('Desenhar no plano');

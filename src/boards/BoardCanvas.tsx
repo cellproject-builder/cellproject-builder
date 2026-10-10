@@ -13,6 +13,8 @@ import { readVisualMedia } from '@/visuals/media';
 import { registerDataIngestion } from '@/cloud/activity';
 import type { VisualArtifact } from '@/visuals/types';
 import { InkToolbar } from '@/ink/InkToolbar';
+import { InkPalette } from '@/ink/InkPalette';
+import { calculateInkViewport, InkPointerRouter, type InkPointerResult, type InkScreenPoint, type InkViewport } from '@/ink/pointerGestures';
 import { InkStroke } from '@/ink/InkStroke';
 import { createInkSettings, type InkSettings, type InkPoint } from '@/ink/model';
 import { sampleInkPoint } from '@/ink/geometry';
@@ -47,16 +49,24 @@ function Canvas({boardId,onBack,english=false,onMaximizedChange}:Props) {
   const ownedDocument=useRef(board?.document),dragRelease=useRef<(() => void)|null>(null);
   const canvas=useRef<HTMLDivElement>(null),drawingLayer=useRef<HTMLDivElement>(null),input=useRef<HTMLInputElement>(null),alive=useRef(true),imports=useRef(new Set<AbortController>());
   const gesture=useRef<InkGesture|null>(null);
+  const [fingerDrawing,setFingerDrawing]=useState(false),fingerDrawingRef=useRef(false);fingerDrawingRef.current=fingerDrawing;
+  const pointerRouter=useRef(new InkPointerRouter(()=>fingerDrawingRef.current)),capturedPointers=useRef(new Set<number>());
+  const navigation=useRef<{boardId:string;viewport:InkViewport;points:InkScreenPoint[];release():void}|null>(null);
   const t=(pt:string,en:string)=>english?en:pt;
   const current=()=>useWorkspaceStore.getState().boards[boardId];
   const releaseDrag=useCallback(()=>{dragRelease.current?.();dragRelease.current=null;},[]);
   const holdDrag=()=>{if(!dragRelease.current)dragRelease.current=registerDataIngestion();};
-  const cancelGesture=(cancelled=true)=>{
+  const cancelGesture=(cancelled=true,releaseCapture=true)=>{
     const action=gesture.current;gesture.current=null;setInk([]);setErased([]);setEraserPoint(null);
     action?.finish(cancelled);action?.release();
-    if(action&&drawingLayer.current?.hasPointerCapture?.(action.pointer))drawingLayer.current.releasePointerCapture(action.pointer);
+    if(releaseCapture&&action&&drawingLayer.current?.hasPointerCapture?.(action.pointer))drawingLayer.current.releasePointerCapture(action.pointer);
   };
-  const selectMode=(value:InkMode)=>{cancelGesture();setMode(value);canvas.current?.focus({preventScroll:true});};
+  const cancelInteraction=()=>{
+    pointerRouter.current.reset();cancelGesture();navigation.current?.release();navigation.current=null;
+    for(const id of capturedPointers.current)if(drawingLayer.current?.hasPointerCapture?.(id))drawingLayer.current.releasePointerCapture(id);
+    capturedPointers.current.clear();
+  };
+  const selectMode=(value:InkMode)=>{cancelInteraction();setMode(value);canvas.current?.focus({preventScroll:true});};
   const save=useCallback((document:BoardDocument,record=true)=>{
     const latest=useWorkspaceStore.getState().boards[boardId];
     if(!latest||latest.archived||!alive.current)throw new Error('boardContextChanged');
@@ -98,7 +108,7 @@ function Canvas({boardId,onBack,english=false,onMaximizedChange}:Props) {
   };
   const add=(kind:'card'|'text')=>safely(()=>{insert({id:nanoid(12),kind,text:'',color:'#94a3b8',fontSize:kind==='text'?24:16,x:0,y:0,width:kind==='card'?280:340,height:kind==='card'?190:140});canvas.current?.focus();});
   const travel=(direction:'past'|'future')=>safely(()=>{
-    cancelGesture();
+    cancelInteraction();
     const next=history.current[direction].at(-1);if(!next)return;
     const latest=current();if(!latest)return;
     save({...next,viewport:latest.document.viewport},false);
@@ -107,7 +117,7 @@ function Canvas({boardId,onBack,english=false,onMaximizedChange}:Props) {
   const maximize=(value:boolean)=>{setMaximized(value);onMaximizedChange?.(value);};
   const rename=()=>{const value=title.trim(),latest=current();if(!value||value===latest?.title){setTitle(latest?.title??'');return;}safely(()=>{useWorkspaceStore.getState().updateBoard(boardId,{title:value});ownedDocument.current=current()?.document;});};
   useEffect(()=>{
-    const cancel=()=>{releaseDrag();setLive({});};
+    const cancel=()=>{releaseDrag();cancelInteraction();setLive({});};
     // React Flow uses d3 mouse/touch end events. Capture also covers a no-op
     // release whose d3 handler may stop propagation without calling our stop.
     window.addEventListener('mouseup',releaseDrag,true);window.addEventListener('touchend',releaseDrag,true);window.addEventListener('pointercancel',cancel);window.addEventListener('touchcancel',cancel,true);window.addEventListener('blur',cancel);
@@ -115,9 +125,9 @@ function Canvas({boardId,onBack,english=false,onMaximizedChange}:Props) {
   },[boardId,releaseDrag]);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;for(const controller of imports.current)controller.abort();onMaximizedChange?.(false);};},[onMaximizedChange]);
   useEffect(()=>{
-    cancelGesture();history.current={past:[],future:[]};setSelected([]);
-    const off=useWorkspaceStore.subscribe(state=>{const action=gesture.current;if(action&&(!state.boards[action.boardId]||state.boards[action.boardId].archived||state.activeBoardId!==action.boardId))cancelGesture();});
-    return()=>{off();const action=gesture.current;gesture.current=null;action?.finish(true);action?.release();};
+    cancelInteraction();history.current={past:[],future:[]};setSelected([]);
+    const off=useWorkspaceStore.subscribe(state=>{if(!state.boards[boardId]||state.boards[boardId].archived||state.activeBoardId!==boardId)cancelInteraction();});
+    return()=>{off();pointerRouter.current.reset();const action=gesture.current;gesture.current=null;action?.finish(true);action?.release();navigation.current?.release();navigation.current=null;capturedPointers.current.clear();};
   },[boardId]);
   useEffect(()=>{
     // Whole-document undo snapshots cannot safely cross a remote replacement.
@@ -213,7 +223,7 @@ function Canvas({boardId,onBack,english=false,onMaximizedChange}:Props) {
   };
   const drawStart=(event:PointerEvent<HTMLDivElement>)=>{
     const latest=current();
-    if(event.button!==0||event.isPrimary===false||gesture.current||mode==='select'||!latest||latest.archived||useWorkspaceStore.getState().activeBoardId!==boardId)return;event.preventDefault();event.stopPropagation();canvas.current?.focus({preventScroll:true});
+    if(event.button!==0||gesture.current||mode==='select'||!latest||latest.archived||useWorkspaceStore.getState().activeBoardId!==boardId)return;canvas.current?.focus({preventScroll:true});
     const point=eventPoint(event),id=nanoid(12),action:InkGesture={pointer:event.pointerId,boardId,id,mode,points:[point],settings:{...settings},straight,erased:new Set(),release:registerDataIngestion(),finish:cancelled=>{if(mode==='draw')liveInk.finish(id,cancelled);}};
     gesture.current=action;setInk([point]);try{event.currentTarget.setPointerCapture?.(event.pointerId);}catch{/* A synthetic event may have no active pointer. */}
     if(mode==='eraser'){setEraserPoint(point);eraseAt(action,[point]);}
@@ -252,7 +262,40 @@ function Canvas({boardId,onBack,english=false,onMaximizedChange}:Props) {
     }catch{setError(t('Não foi possível aplicar. Confira o tamanho ou conteúdo do quadro.','Could not apply. Check the size or content of this board.'));}
     finally{cancelGesture(!committed);}
   };
+  const routePointer=(event:PointerEvent<HTMLDivElement>,phase:'down'|'move'|'up'|'cancel')=>{
+    const latest=current();if(!latest||latest.archived||mode==='select'||useWorkspaceStore.getState().activeBoardId!==boardId)return;
+    const sample={pointerId:event.pointerId,pointerType:event.pointerType||'mouse',clientX:event.clientX,clientY:event.clientY,button:event.button};
+    const result:InkPointerResult=phase==='down'?pointerRouter.current.down(sample):phase==='move'?pointerRouter.current.move(sample):pointerRouter.current.up(sample,phase==='cancel');
+    if(!result.handled)return;event.preventDefault();event.stopPropagation();
+    if(phase==='down'){try{event.currentTarget.setPointerCapture?.(event.pointerId);capturedPointers.current.add(event.pointerId);}catch{/* Pointer may already be cancelled. */}}
+    for(const action of result.actions){
+      if(action.kind==='draw-start')drawStart(event);
+      else if(action.kind==='draw-move')drawMove(event);
+      else if(action.kind==='draw-end')drawEnd(event);
+      else if(action.kind==='draw-cancel')cancelGesture(true,false);
+      else if(action.kind==='navigate-start'){
+        navigation.current={boardId,viewport:{...api.getViewport()},points:action.points,release:navigation.current?.release??registerDataIngestion()};
+      }else if(action.kind==='navigate-move'){
+        const start=navigation.current,bounds=canvas.current?.getBoundingClientRect();
+        if(start&&bounds&&start.boardId===boardId){const next=calculateInkViewport(start.viewport,start.points,action.points,bounds,{minZoom:.05,maxZoom:4});void api.setViewport(next).catch(()=>{if(navigation.current===start)cancelInteraction();});}
+      }else if(action.kind==='navigate-end'){
+        const start=navigation.current;navigation.current=null;
+        try{if(start&&!action.cancelled&&start.boardId===boardId)saveViewport(api.getViewport());}finally{start?.release();}
+      }
+    }
+    if(phase==='up'||phase==='cancel'){capturedPointers.current.delete(event.pointerId);if(event.currentTarget.hasPointerCapture?.(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);}
+  };
   const tool=(Icon:typeof Pencil1Icon,label:string,action:()=>void,pressed?:boolean,disabled=false)=><button type="button" aria-label={label} title={label} aria-pressed={pressed} disabled={disabled} onClick={action}><Icon width={17} height={17}/></button>;
+  const inkControls=<>
+      <div className="db-tools" role="toolbar" aria-label={t('Ferramentas do quadro','Board tools')}>
+        {tool(CursorArrowIcon,t('Selecionar e mover','Select and move'),()=>selectMode('select'),mode==='select')}{tool(Pencil1Icon,t('Desenhar','Draw'),()=>selectMode(mode==='draw'?'select':'draw'),mode==='draw')}{tool(EraserIcon,t('Borracha de traços','Stroke eraser'),()=>selectMode(mode==='eraser'?'select':'eraser'),mode==='eraser')}{tool(LoopIcon,t('Selecionar com laço','Lasso select'),()=>selectMode(mode==='lasso'?'select':'lasso'),mode==='lasso')}<i/>
+        {tool(CardStackIcon,t('Adicionar cartão','Add card'),()=>add('card'))}{tool(TextIcon,t('Adicionar texto','Add text'),()=>add('text'))}{tool(UploadIcon,t('Adicionar imagem','Add image'),()=>input.current?.click())}<i/>
+        {tool(Share2Icon,t('Gerar diagrama','Generate diagram'),()=>setComposer({kind:'diagram'}))}{tool(CubeIcon,t('Gerar 3D','Generate 3D'),()=>setComposer({kind:'model'}))}{tool(ImageIcon,t('Buscar imagens','Search images'),()=>setComposer({kind:'image'}))}<i/>
+        {tool(ResetIcon,t('Desfazer','Undo'),()=>travel('past'),undefined,!history.current.past.length)}{tool(ArrowRightIcon,t('Refazer','Redo'),()=>travel('future'),undefined,!history.current.future.length)}
+      </div>
+      {mode==='draw'&&<div className="db-pen-options"><InkToolbar value={settings} onChange={setSettings} english={english} disabled={!!gesture.current}/><button type="button" className="db-ruler-toggle" aria-label={t('Régua (linha reta)','Ruler (straight line)')} title={t('Régua (linha reta)','Ruler (straight line)')} aria-pressed={straight} disabled={!!gesture.current} onClick={()=>setStraight(value=>!value)}><RulerHorizontalIcon/></button></div>}
+      {(mode==='eraser'||mode==='lasso'||mode==='draw'&&straight)&&<div className="db-ink-hint" role="status">{mode==='eraser'?t('Arraste para apagar traços inteiros','Drag to erase whole strokes'):mode==='lasso'?t('Contorne objetos para selecionar','Draw around objects to select'):t('Régua · arraste para traçar uma linha reta','Ruler · drag to draw a straight line')}</div>}
+  </>;
   if(!board)return null;
   return <section className={`db-canvas-shell ${maximized?'is-maximized':''}`}>
     <ExpandedChrome expanded={maximized} label={board.title} english={english} onRestore={()=>maximize(false)}>
@@ -267,15 +310,8 @@ function Canvas({boardId,onBack,english=false,onMaximizedChange}:Props) {
       <svg data-board-live-ink className="db-live-ink" aria-hidden="true"><g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.zoom})`}>
         {liveInk.remote.filter(value=>!board.document.items.some(item=>item.id===(value.stroke.id??value.gestureId))).map(value=><g key={`${value.sender}:${value.gestureId}`} transform={`translate(${value.stroke.x??0} ${value.stroke.y??0})`}><InkStroke stroke={value.stroke} data-board-remote-stroke={value.gestureId}/></g>)}
       </g></svg>
-      <div className="db-tools" role="toolbar" aria-label={t('Ferramentas do quadro','Board tools')}>
-        {tool(CursorArrowIcon,t('Selecionar e mover','Select and move'),()=>selectMode('select'),mode==='select')}{tool(Pencil1Icon,t('Desenhar','Draw'),()=>selectMode(mode==='draw'?'select':'draw'),mode==='draw')}{tool(EraserIcon,t('Borracha de traços','Stroke eraser'),()=>selectMode(mode==='eraser'?'select':'eraser'),mode==='eraser')}{tool(LoopIcon,t('Selecionar com laço','Lasso select'),()=>selectMode(mode==='lasso'?'select':'lasso'),mode==='lasso')}<i/>
-        {tool(CardStackIcon,t('Adicionar cartão','Add card'),()=>add('card'))}{tool(TextIcon,t('Adicionar texto','Add text'),()=>add('text'))}{tool(UploadIcon,t('Adicionar imagem','Add image'),()=>input.current?.click())}<i/>
-        {tool(Share2Icon,t('Gerar diagrama','Generate diagram'),()=>setComposer({kind:'diagram'}))}{tool(CubeIcon,t('Gerar 3D','Generate 3D'),()=>setComposer({kind:'model'}))}{tool(ImageIcon,t('Buscar imagens','Search images'),()=>setComposer({kind:'image'}))}<i/>
-        {tool(ResetIcon,t('Desfazer','Undo'),()=>travel('past'),undefined,!history.current.past.length)}{tool(ArrowRightIcon,t('Refazer','Redo'),()=>travel('future'),undefined,!history.current.future.length)}
-      </div>
-      {mode==='draw'&&<div className="db-pen-options"><InkToolbar value={settings} onChange={setSettings} english={english} disabled={!!gesture.current}/><button type="button" className="db-ruler-toggle" aria-label={t('Régua (linha reta)','Ruler (straight line)')} title={t('Régua (linha reta)','Ruler (straight line)')} aria-pressed={straight} disabled={!!gesture.current} onClick={()=>setStraight(value=>!value)}><RulerHorizontalIcon/></button></div>}
-      {(mode==='eraser'||mode==='lasso'||mode==='draw'&&straight)&&<div className="db-ink-hint" role="status">{mode==='eraser'?t('Arraste para apagar traços inteiros','Drag to erase whole strokes'):mode==='lasso'?t('Contorne objetos para selecionar','Draw around objects to select'):t('Régua · arraste para traçar uma linha reta','Ruler · drag to draw a straight line')}</div>}
-      {mode!=='select'&&<div ref={drawingLayer} className={`db-drawing-layer is-${mode}`} onPointerDown={drawStart} onPointerMove={drawMove} onPointerUp={event=>drawEnd(event)} onPointerCancel={event=>drawEnd(event,true)} onLostPointerCapture={event=>{if(gesture.current?.pointer===event.pointerId)cancelGesture();}} onPointerLeave={()=>{if(!gesture.current)setEraserPoint(null);}}><svg><g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.zoom})`}>
+      {mode==='select'?inkControls:<InkPalette key={boardId} label={t('Ferramentas do quadro','Board tools')} english={english} className="db-ink-palette">{inkControls}<label className="ink-finger-option"><input type="checkbox" aria-label={t('Desenhar com dedo','Draw with finger')} checked={fingerDrawing} disabled={!!gesture.current||!!navigation.current} onChange={event=>{cancelInteraction();setFingerDrawing(event.target.checked);}}/>{t('Desenhar com dedo','Draw with finger')}</label></InkPalette>}
+      {mode!=='select'&&<div ref={drawingLayer} className={`db-drawing-layer is-${mode}`} onPointerDown={event=>routePointer(event,'down')} onPointerMove={event=>routePointer(event,'move')} onPointerUp={event=>routePointer(event,'up')} onPointerCancel={event=>routePointer(event,'cancel')} onLostPointerCapture={event=>{if(pointerRouter.current.hasPointer(event.pointerId))routePointer(event,'cancel');}} onPointerLeave={()=>{if(!gesture.current)setEraserPoint(null);}}><svg><g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.zoom})`}>
         {mode==='draw'&&ink.length>0&&<InkStroke stroke={{...settings,points:ink}} legacyMode="board"/>}
         {mode==='lasso'&&ink.length>0&&<polyline className="db-lasso-path" points={ink.map(point=>`${point.x},${point.y}`).join(' ')} fill="none" stroke="currentColor" strokeWidth={1.5/viewport.zoom} strokeDasharray={`${5/viewport.zoom} ${4/viewport.zoom}`}/>}
         {mode==='eraser'&&eraserPoint&&<circle className="db-eraser-cursor" cx={eraserPoint.x} cy={eraserPoint.y} r={12/viewport.zoom} strokeWidth={1/viewport.zoom}/>}

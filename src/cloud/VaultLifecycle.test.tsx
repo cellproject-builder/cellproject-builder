@@ -10,11 +10,18 @@ const mocks = vi.hoisted(() => ({ read: vi.fn(), prepared: vi.fn(), remember: vi
 vi.mock('@/cloud/vault/deviceKeys', () => ({ readDeviceVault: mocks.read, readPreparedDeviceVault: mocks.prepared, rememberDeviceVault: mocks.remember, completeDeviceActivation: mocks.complete }));
 vi.mock('@/cloud/vault/crypto', () => ({ b64: () => 'synthetic-random-secret', createVault: mocks.create, recoverVault: mocks.recover, unlockVault: mocks.unlock, validateHeader: (value: unknown) => value, validateCipher: (value: unknown) => value }));
 vi.mock('@/cloud/vault/transport', () => ({ activateVault: mocks.activate, prepareVaultActivation: mocks.prepare, VaultTransport: { open: mocks.open } }));
+// These lifecycle fixtures stub cryptography. Checkpoint authentication is
+// exercised with real vaults in offline/session.test.ts, not these partial keys.
+vi.mock('@/cloud/offline/session', async importOriginal => ({
+  ...await importOriginal<typeof import('./offline/session')>(),
+  hasOfflineCheckpoints: async () => false,
+}));
 const deferred = <T,>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(ready => { resolve = ready; }); return { promise, resolve }; };
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>, mounted: boolean;
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  vi.clearAllMocks(); configureCloud(null); configureVault(null, false);
+  // Also drop unconsumed one-shot replies when an earlier lifecycle is cancelled.
+  vi.resetAllMocks(); configureCloud(null); configureVault(null, false);
   host = document.createElement('div'); document.body.append(host); root = createRoot(host); mounted = true;
 });
 afterEach(async () => { if (mounted) await act(async () => root.unmount()); host.remove(); configureCloud(null); configureVault(null, false); });

@@ -25,7 +25,7 @@ As nove chaves aceitas são `cellproject-workspace`, `cellproject-graph`, `dynam
 
 ## Seleção de backend e propriedade canônica
 
-[main.tsx](../../src/main.tsx) inicia `CloudBootstrap` antes de importar os stores da aplicação. [CloudBootstrap.tsx](../../src/cloud/CloudBootstrap.tsx) consulta configuração, autenticação, eventual configuração obrigatória de senha e snapshot/cofre. Somente depois seleciona o adaptador e importa a aplicação. Uma falha cloud não abre automaticamente o legado local. O modo local só é selecionado depois de uma resposta explícita `enabled: false`.
+[main.tsx](../../src/main.tsx) inicia `CloudBootstrap` antes de importar os stores da aplicação. [CloudBootstrap.tsx](../../src/cloud/CloudBootstrap.tsx) consulta configuração, autenticação, eventual configuração obrigatória de senha e snapshot/cofre. Somente depois seleciona o adaptador e importa a aplicação. Uma falha cloud não abre automaticamente o legado local. Pode abrir a cópia offline cifrada previamente autorizada do mesmo aparelho; o modo local legado só é selecionado depois de uma resposta explícita `enabled: false`.
 
 Quando a configuração fornece `passwordProvider`, [passwordAuth.ts](../../src/cloud/passwordAuth.ts) envia a senha diretamente ao Supabase Auth e entrega ao Node o par de tokens para validação, rotação e criação do cookie opaco. A senha fica temporariamente no formulário e, durante a abertura do cofre, na chamada de `PasswordVaultGate`; não é gravada nos documentos nem enviada às rotas de senha do Node. Com cofre habilitado, essas rotas legadas recusam clientes antigos com HTTP 426. A URL e a chave publicável do projeto Auth são públicas; chaves administrativas e de provedores de IA continuam fora do cliente.
 
@@ -33,9 +33,9 @@ Quando a configuração fornece `passwordProvider`, [passwordAuth.ts](../../src/
 | --- | --- | --- | --- |
 | Local | IndexedDB via `idb-keyval`; preferências simples em localStorage; mídia em store próprio | Conteúdo e chaves BYOK do perfil local | Sem isolamento criptográfico dos dados locais; limpar o site pode apagar a única cópia |
 | Cloud sem cofre | Envelopes em Postgres e bytes privados em Storage por gateway | Stores, rascunhos/fila e cache de mídia em memória | Conteúdo chega legível ao backend/persistência; não há fila cloud durável offline |
-| Cloud com cofre | Manifesto e blobs cifrados antes do envio | Conteúdo aberto em memória; `CryptoKey` não extraível, recuperação/preparação cifradas em IndexedDB | Armazenamento remoto não recebe os campos privados legíveis; cliente/dispositivo continuam pontos de confiança |
+| Cloud com cofre | Manifesto e blobs cifrados antes do envio | Conteúdo aberto em memória; `CryptoKey` não extraível, checkpoints, fila, recibos e mídias já consultadas cifrados em IndexedDB | Edição offline exige autorização anterior neste aparelho; remoto não recebe conteúdo privado legível; cliente/dispositivo continuam pontos de confiança |
 
-[selectedStorage](../../src/cloud/storage.ts) encaminha leituras e gravações conforme a seleção. O repository do workspace preserva o envelope Zustand, sem possuir as ações de domínio. No modo cloud, preferências também passam pelo runtime; o legado IndexedDB/localStorage não é apagado nem sobrescrito automaticamente. A chave de dispositivo do cofre é uma exceção explícita à política de não persistir documentos cloud no navegador.
+[selectedStorage](../../src/cloud/storage.ts) encaminha leituras e gravações conforme a seleção. O repository do workspace preserva o envelope Zustand, sem possuir as ações de domínio. No modo cloud, preferências também passam pelo runtime; o legado IndexedDB/localStorage não é apagado nem sobrescrito automaticamente. A cópia offline fica em um repositório próprio cifrado, separado desse legado.
 
 ## Pipeline de escrita, conflitos e mídia
 
@@ -53,7 +53,7 @@ flowchart LR
 
 `CloudRuntime` distingue valor confirmado, rascunho e operação em fila. A escrita é serializada por revisões confirmadas; rascunhos adjacentes ainda não enviados podem ser condensados. Uma operação que pode ter chegado ao servidor mantém corpo, revisão base e `operationId`. Retry de uma resposta perdida reusa a mesma identidade. `flush()` só termina com sucesso quando a fila está confirmada; conflito 409 preserva o rascunho e impede sobrescrita automática pelo relógio local.
 
-Uma sessão expirada suspende a fila. [resumeAfterAuthentication](../../src/cloud/runtime.ts) verifica a mesma conta antes de retomá-la e preserva conflitos. O runtime mantém rascunhos em memória: recarregar/fechar sem confirmação ou resgate pode perdê-los. A PWA não cria uma fila durável de sincronização.
+Uma sessão expirada suspende a fila. [resumeAfterAuthentication](../../src/cloud/runtime.ts) verifica a mesma conta antes de retomá-la e preserva conflitos. Com cofre e autorização offline preparados, [OfflineRepository](../../src/cloud/offline/repository.ts) conserva checkpoints e operações cifrados antes do envio. [session.ts](../../src/cloud/offline/session.ts) valida conta/cabeçalho ao reconectar, repete os mesmos bytes e só elimina recibos após a confirmação durável. Falha de quota é visível; um estado ainda não marcado como salvo neste aparelho pode se perder ao fechar. Sem esse modo, rascunhos continuam voláteis. O [contrato offline](../offline-editing.md) detalha limites, conflitos e acesso em uma aba por perfil.
 
 No contrato sem cofre, `PUT /api/cloud/documents/:key` envia `{value, baseRevision, operationId}`. `POST /api/cloud/import` publica documentos por uma RPC atômica, recusando documentos existentes divergentes. [cloudRepository.mjs](../../server/cloudRepository.mjs) usa chave publicável e JWT do usuário em chamadas Supabase; não usa chave administrativa para as operações de documentos. CAS e ledger estão no SQL versionado em [migrations](../../supabase/migrations/20261010043955_cellproject_cloud_persistence.sql).
 

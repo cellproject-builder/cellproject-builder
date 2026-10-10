@@ -8,7 +8,7 @@ import { NoteCanvas } from './NoteCanvas';
 const live = vi.hoisted(() => ({ preview: vi.fn(), finish: vi.fn(), remote: [] as unknown[] }));
 vi.mock('@/ink/live', () => ({ useLiveInk: () => live }));
 
-let root: Root, host: HTMLDivElement, last: NoteCanvasDocument, replace: (doc: NoteCanvasDocument) => void;
+let root: Root, host: HTMLDivElement, last: NoteCanvasDocument, replace: (doc: NoteCanvasDocument) => void, changeContext: (id: string) => void;
 const image = { id: 'image-1', kind: 'image' as const, x: 100, y: 100, width: 200, height: 150, src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aF1EAAAAASUVORK5CYII=', label: 'Esboço' };
 beforeEach(() => {
   live.preview.mockClear(); live.finish.mockClear(); live.remote = [];
@@ -18,20 +18,67 @@ beforeEach(() => {
 afterEach(() => { act(() => root.unmount()); host.remove(); vi.restoreAllMocks(); });
 function mount(initial = createNoteCanvas(), drawing = true, readOnly = false) {
   function Harness() {
-    const [doc, setDoc] = useState(initial), [draw, setDraw] = useState(drawing);
+    const [doc, setDoc] = useState(initial), [draw, setDraw] = useState(drawing), [context, setContext] = useState('test-note'); changeContext = setContext;
     replace = setDoc;
     last = doc;
-    return <NoteCanvas document={doc} onChange={setDoc} drawing={draw} onDrawingChange={setDraw} readOnly={readOnly} onAddImage={() => {}} onGenerate={() => {}} liveDocumentId="test-note" />;
+    return <NoteCanvas document={doc} onChange={setDoc} drawing={draw} onDrawingChange={setDraw} readOnly={readOnly} onAddImage={() => {}} onGenerate={() => {}} liveDocumentId={context} />;
   }
   act(() => root.render(<Harness />));
+  act(() => Simulate.click(host.querySelector('[data-ink-palette-trigger]')!));
   const stage = host.querySelector<HTMLElement>('[data-note-canvas]')!;
   vi.spyOn(stage, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, left: 0, top: 0, right: 600, bottom: 450, width: 600, height: 450, toJSON() {} });
   return stage;
 }
-function pointer(target: Element, type: 'pointerDown' | 'pointerMove' | 'pointerUp' | 'pointerCancel', x: number, y: number) {
-  act(() => Simulate[type](target, { pointerId: 1, clientX: x, clientY: y, button: 0, pressure: .5, pointerType: 'pen' } as never));
+function pointer(target: Element, type: 'pointerDown' | 'pointerMove' | 'pointerUp' | 'pointerCancel' | 'lostPointerCapture', x: number, y: number, extra: Record<string, unknown> = {}) {
+  act(() => Simulate[type](target, { pointerId: 1, clientX: x, clientY: y, button: 0, pressure: .5, pointerType: 'pen', ...extra } as never));
 }
 describe('free note canvas', () => {
+  it('uses touch to pan and focal pinch while keeping notebook data and live ink untouched', () => {
+    const initial = createNoteCanvas(), stage = mount(initial), viewport = host.querySelector<HTMLElement>('.note-canvas-viewport')!;
+    viewport.scrollLeft = 100; viewport.scrollTop = 100;
+    pointer(stage, 'pointerDown', 100, 100, { pointerType: 'touch' }); pointer(stage, 'pointerMove', 80, 70, { pointerType: 'touch' });
+    expect(viewport.scrollLeft).toBe(120); expect(viewport.scrollTop).toBe(130);
+    pointer(stage, 'pointerDown', 180, 70, { pointerId: 2, pointerType: 'touch', isPrimary: false });
+    pointer(stage, 'pointerMove', 280, 70, { pointerId: 2, pointerType: 'touch' });
+    expect(stage.style.width).toBe('200%');
+    pointer(stage, 'pointerUp', 80, 70, { pointerType: 'touch' }); pointer(stage, 'pointerUp', 280, 70, { pointerId: 2, pointerType: 'touch' });
+    expect(last).toBe(initial); expect(live.preview).not.toHaveBeenCalled(); expect(live.finish).not.toHaveBeenCalled();
+  });
+  it('enables finger ink explicitly and cancels the provisional stroke when pinch starts', () => {
+    const stage = mount(), checkbox = host.querySelector<HTMLInputElement>('[aria-label="Desenhar com dedo"]'); expect(checkbox).not.toBeNull();
+    act(() => Simulate.change(checkbox!, { target: { checked: true } } as never));
+    pointer(stage, 'pointerDown', 10, 10, { pointerType: 'touch' }); pointer(stage, 'pointerMove', 30, 30, { pointerType: 'touch' });
+    expect(live.preview).toHaveBeenCalled();
+    pointer(stage, 'pointerDown', 90, 30, { pointerId: 2, pointerType: 'touch', isPrimary: false });
+    expect(live.finish).toHaveBeenCalledWith(expect.any(String), true);
+    pointer(stage, 'pointerUp', 90, 30, { pointerId: 2, pointerType: 'touch' }); pointer(stage, 'pointerMove', 40, 30, { pointerType: 'touch' }); pointer(stage, 'pointerUp', 40, 30, { pointerType: 'touch' });
+    expect(last.strokes).toHaveLength(0);
+    pointer(stage, 'pointerDown', 10, 10, { pointerType: 'touch' }); pointer(stage, 'pointerUp', 30, 30, { pointerType: 'touch' }); expect(last.strokes).toHaveLength(1);
+  });
+  it('ignores palm movement during pen ink and cancels a held stroke on blur', () => {
+    const stage = mount(), viewport = host.querySelector<HTMLElement>('.note-canvas-viewport')!;
+    pointer(stage, 'pointerDown', 10, 10); pointer(stage, 'pointerDown', 50, 50, { pointerId: 2, pointerType: 'touch' }); pointer(stage, 'pointerMove', 100, 100, { pointerId: 2, pointerType: 'touch' });
+    expect(viewport.scrollTop).toBe(0); expect(viewport.scrollLeft).toBe(0);
+    act(() => window.dispatchEvent(new Event('blur'))); pointer(stage, 'pointerUp', 30, 30);
+    expect(last.strokes).toHaveLength(0); expect(live.finish).toHaveBeenCalledWith(expect.any(String), true);
+  });
+  it('retains first touch capture for pinch and stops navigation on external capture loss', () => {
+    const stage = mount(), owned = new Set<number>();
+    act(() => Simulate.change(host.querySelector('[aria-label="Desenhar com dedo"]')!, { target: { checked: true } } as never));
+    const release = vi.fn((id: number) => { owned.delete(id); pointer(stage, 'lostPointerCapture', 0, 0, { pointerId: id, pointerType: 'touch' }); });
+    Object.assign(stage, { setPointerCapture: (id: number) => owned.add(id), hasPointerCapture: (id: number) => owned.has(id), releasePointerCapture: release });
+    pointer(stage, 'pointerDown', 10, 10, { pointerType: 'touch' }); pointer(stage, 'pointerMove', 40, 40, { pointerType: 'touch' });
+    pointer(stage, 'pointerDown', 80, 40, { pointerId: 2, pointerType: 'touch', isPrimary: false }); expect(release).not.toHaveBeenCalled();
+    pointer(stage, 'pointerMove', 120, 40, { pointerId: 2, pointerType: 'touch' }); expect(stage.style.width).toBe('200%');
+    pointer(stage, 'lostPointerCapture', 40, 40, { pointerType: 'touch' }); pointer(stage, 'pointerMove', 180, 40, { pointerId: 2, pointerType: 'touch' }); expect(stage.style.width).toBe('200%');
+    expect(last.strokes).toHaveLength(0);
+  });
+  it('discards a held stroke and touch ownership when navigating to a different notebook', () => {
+    const stage = mount(); pointer(stage, 'pointerDown', 10, 10);
+    act(() => changeContext('different-note')); pointer(stage, 'pointerUp', 30, 30);
+    expect(last.strokes).toHaveLength(0); expect(live.finish).toHaveBeenCalledWith(expect.any(String), true);
+    pointer(stage, 'pointerDown', 40, 40); pointer(stage, 'pointerUp', 60, 60); expect(last.strokes).toHaveLength(1);
+  });
   it('sweeps the eraser between sparse samples and keeps cancelling and undoing atomic', () => {
     const crossed = { id: 'crossed', color: '#abcdef', width: 3, tool: 'pen' as const, points: [{ x: 100, y: 50 }, { x: 100, y: 150 }] };
     const untouched = { ...crossed, id: 'untouched', points: [{ x: 100, y: 300 }, { x: 100, y: 350 }] };

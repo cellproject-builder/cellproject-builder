@@ -119,6 +119,8 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
   const initialSelection = useRef({ selectedId, selectionVersion });
   const [confirmingNoSignal, setConfirmingNoSignal] = useState(false);
   const [readingOpen, setReadingOpen] = useState(false);
+  // These unsubmitted fields belong to the current project, even when it reuses node IDs.
+  useEffect(() => { setNoteDraft(''); setRuleDraft(''); }, [project?.id]);
   // selectionVersion bumps on every selectNode — so tapping the SAME node
   // again on mobile re-opens a sheet the user had swiped away.
   // Célula que já tem explicação detalhada abre mostrando ela — sem clique
@@ -133,7 +135,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
     setConfirmingDelete(false);
     const current = selectedId ? useGraphStore.getState().project?.nodes[selectedId] : null;
     setExplanationOpen(Boolean(current?.explicacao));
-  }, [selectedId, selectionVersion]);
+  }, [project?.id, selectedId, selectionVersion]);
 
   const node = project && selectedId ? project.nodes[selectedId] ?? null : null;
 
@@ -512,8 +514,8 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
         </span>
       </div>
       <NameInput
-        audioScope={`node:${node.id}:name`}
-        key={node.id}
+        audioScope={`project:${project.id}:node:${node.id}:name`}
+        key={JSON.stringify([project.id, node.id, 'name'])}
         value={node.name}
         ariaLabel={tr.detail.nameAria}
         onCommit={(name) => updateNode(node.id, { name }, { commit: true })}
@@ -633,16 +635,16 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
           </p>
         )}
         <EduField
-          audioScope={`node:${node.id}:what`}
-          key={`${node.id}:oQue`}
+          audioScope={`project:${project.id}:node:${node.id}:what`}
+          key={JSON.stringify([project.id, node.id, 'oQue'])}
           label={tr.detail.whatIs}
           value={node.oQue}
           tr={tr}
           onCommit={(v) => updateNode(node.id, { oQue: v }, { commit: true })}
         />
         <EduField
-          audioScope={`node:${node.id}:why`}
-          key={`${node.id}:porQue`}
+          audioScope={`project:${project.id}:node:${node.id}:why`}
+          key={JSON.stringify([project.id, node.id, 'porQue'])}
           label={tr.detail.whyNeeded}
           value={node.porQue}
           tr={tr}
@@ -678,7 +680,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
             </div>
           )}
           <div className="flex gap-1.5">
-            <AudioTextInput audioScope={`node:${node.id}:rule`} audioWrapperClassName="flex-1 min-w-0" name="rule"
+            <AudioTextInput key={JSON.stringify([project.id, node.id, 'rule'])} audioScope={`project:${project.id}:node:${node.id}:rule`} audioWrapperClassName="flex-1 min-w-0" name="rule"
               value={ruleDraft}
               onChange={(e) => setRuleDraft(e.target.value)}
               onKeyDown={(e) => {
@@ -708,7 +710,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
       )}
 
       <div ref={criterionRef}>
-        <UserCriterionField node={node} />
+        <UserCriterionField node={node} projectId={project.id} />
       </div>
       <GroundTruthRefsList node={node} project={project} />
       <CritiqueSection node={node} project={project} />
@@ -822,8 +824,8 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
             <div className="label mb-1.5">{tr.detail.notes}</div>
             <NodeFileSources ids={node.sourceAttachmentIds} />
             <NotesField
-              audioScope={`node:${node.id}:notes`}
-              key={node.id}
+              audioScope={`project:${project.id}:node:${node.id}:notes`}
+              key={JSON.stringify([project.id, node.id, 'notes'])}
               value={node.notes}
               placeholder={tr.detail.notesPlaceholder}
               onCommit={(notes) => updateNode(node.id, { notes }, { commit: true })}
@@ -847,7 +849,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
               ))}
             </ul>
             <div className="flex gap-1.5 mt-2.5">
-              <AudioTextInput audioScope={`node:${node.id}:decision-note`} audioWrapperClassName="flex-1 min-w-0" name="decision-note"
+              <AudioTextInput key={JSON.stringify([project.id, node.id, 'decision-note'])} audioScope={`project:${project.id}:node:${node.id}:decision-note`} audioWrapperClassName="flex-1 min-w-0" name="decision-note"
                 value={noteDraft}
                 onChange={(e) => setNoteDraft(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && recordNote()}

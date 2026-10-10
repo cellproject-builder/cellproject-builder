@@ -13,6 +13,8 @@ O canal de prévias não é um editor colaborativo de texto nem um mecanismo de 
 | Camada | Responsabilidade | Código |
 | --- | --- | --- |
 | Motor de tinta | Ferramentas, pontos, pressão e desenho SVG | [model.ts](../../src/ink/model.ts), [InkStroke.tsx](../../src/ink/InkStroke.tsx) |
+| Entrada e navegação | Propriedade do ponteiro, prioridade da caneta, pan/pinch e cancelamento | [pointerGestures.ts](../../src/ink/pointerGestures.ts) |
+| Paleta lateral | Controles reunidos, expansão por hover/foco/toque e acesso por teclado | [InkPalette.tsx](../../src/ink/InkPalette.tsx) |
 | Cliente ao vivo | `LiveInkChannel`, escopos, sequências, cifra, expiração e cancelamento | [live.ts](../../src/ink/live.ts) |
 | Relay efêmero | SSE autenticado e POST de envelopes opacos, isolados por conta | [live-ink.mjs](../../server/live-ink.mjs) |
 | Snapshot canônico | Revisões confirmadas, rascunhos, fila, refresh e conflitos | [runtime.ts](../../src/cloud/runtime.ts) |
@@ -22,6 +24,18 @@ O canal de prévias não é um editor colaborativo de texto nem um mecanismo de 
 | Ciclo de autenticação | Pausar o canal expirado e recriá-lo após retomada verificada da mesma conta | [CloudInkConnection.ts](../../src/cloud/CloudInkConnection.ts) |
 
 O escopo da prévia é `{surface: board | note | notebook | planner, documentId}`. O frame aberto contém versão, emissor, identificador de gesto, sequência, fase `preview | commit | cancel` e um traço opcional. `x/y` posicionam o desenho no canvas; âncoras de seção permitem acompanhar o conteúdo das notas. A validação limita pontos, ferramentas e coordenadas antes de renderizar.
+
+## Caneta, dedo e paleta
+
+No modo de desenho do Board, mapa do plano, nota sobre texto e caderno livre, **caneta e mouse desenham; o dedo navega por padrão**. Um dedo desloca a vista e dois dedos ajustam o zoom em torno do ponto entre eles, respeitando os limites de cada superfície. Essa navegação não cria tinta, não altera nós/objetos e não entra no histórico de desfazer. O Board conserva a vista ao terminar uma navegação normal; nas outras superfícies a vista continua local.
+
+A opção **Desenhar com dedo** habilita traços de um dedo naquela superfície. A entrada de um segundo dedo cancela o traço provisório, sem salvá-lo, e começa a navegação. Depois disso, nenhum novo traço com dedo começa até todos os contatos serem retirados. Uma caneta pode assumir o gesto durante a navegação; contatos de toque mantidos durante a caneta ficam ignorados até serem retirados, evitando que a palma mova a vista ou conclua o traço. Isso depende de o navegador identificar o ponteiro como `pen`; não é reconhecimento físico de palma.
+
+A paleta lateral começa recolhida. Passar caneta/mouse sobre ela ou focá-la pelo teclado revela os controles; clicar/toque fixa a expansão. Recolher e Escape fecham a paleta sem sair do desenho. Sair do desenho e desfazer continuam disponíveis junto às ferramentas, com alvos de pelo menos 44 px. O painel respeita a largura e altura do canvas e rola quando necessário. Tocar na paleta não inicia um traço. O caderno reúne ali seus controles antes distribuídos no cabeçalho e na barra de pincéis.
+
+Perder a captura do ponteiro, perder foco da janela, trocar de documento/contexto ou mudar de instrumento cancela a operação provisória e libera o guard de edição. A passagem de dedo para pinch mantém as capturas dos dedos ainda ativos. Pressão, eventos coalescidos, salvamento canônico e prévias cifradas continuam pelos caminhos existentes.
+
+Na nota sobre texto, a navegação desloca o scroll do editor; o zoom local de 1–3× amplia texto e tinta juntos, mantendo a largura lógica e as âncoras dos traços. As medidas de tela são convertidas de volta às coordenadas lógicas antes de salvar. O zoom não faz parte do documento persistido e é reiniciado ao trocar de nota. A paleta fica fora do documento ampliado/rolado, com controles de zoom também disponíveis por teclado. O caderno livre continua opcional, separado dessa anotação sobre a escrita.
 
 ## Fluxo de um gesto
 
@@ -64,7 +78,7 @@ Rascunhos do planner, prompts visuais e propostas locais permanecem preservados.
 - Prévias exigem `liveInkAvailable`, cofre desbloqueado e a mesma conta/cofre nos dois dispositivos. `PasswordVaultGate` abre um aparelho novo com a senha da conta quando o vínculo cifrado já existe; sem vínculo, a pessoa precisa primeiro de um aparelho autorizado. O acesso por senha/aparelho está em [dados e privacidade](data-and-privacy.md); frase separada é caminho legado/fallback.
 - Sem cofre, há atualização de documentos salvos por polling, sem transmitir frames de desenho legíveis pelo relay.
 - Não há CRDT, união automática de dois desenhos simultâneos no mesmo documento nem compartilhamento entre contas. Um conflito de revisão preserva o rascunho e exige resolução explícita.
-- Offline não há prévia entre dispositivos nem fila durável cloud. Não fechar/recarregar uma aba com alterações ainda sem confirmação sem antes usar o resgate existente.
+- Offline não há prévia entre dispositivos. Em aparelho autorizado, a [edição offline](../offline-editing.md) pode manter documentos e fila durável cifrados, retomando após verificar a mesma conta e cofre. A prévia continua efêmera; o status distingue salvamento local de confirmação cloud. Falha no armazenamento local exige manter a aba aberta e usar o resgate disponível.
 - O polling ainda lê o snapshot/manifesto remoto inteiro. Não há endpoint de revisão leve/ETag nem download incremental de strokes nesta entrega; documentos muito grandes precisam de medição antes de ampliar a frequência.
 - Latência e precisão em Apple Pencil/S Pen dependem do hardware, navegador e rede. Os testes sintéticos não substituem a validação física tablet → computador.
 
@@ -79,3 +93,5 @@ O canal e o isolamento HTTP têm testes próprios em [live.test.ts](../../src/in
 [live.http.test.ts](../../src/ink/live.http.test.ts) atravessa dois `LiveInkChannel`, sessões AES-GCM independentes, fetch HTTP, o handler de produção e SSE reais. Confere preview antes de terminar, commit, cancelamento, reconexão, revogação e isolamento de uma terceira conta também no stream bruto. A autenticação do fixture é sintética, portanto esse teste não comprova login Supabase nem hardware real. [CloudInkConnection.test.ts](../../src/cloud/CloudInkConnection.test.ts) cobre expiração SSE/POST, retomada da mesma conta, recusa de conta diferente, respostas tardias e encerramento definitivo.
 
 [BoardCanvas.live.test.tsx](../../src/boards/BoardCanvas.live.test.tsx) verifica os handlers de desenho, publicação cifrada, recepção SSE e renderização antes de finalizar o gesto ou gravar o documento. React Flow e HTTP usam fixtures; esse ensaio não mede a latência física. [BoardCanvas.test.tsx](../../src/boards/BoardCanvas.test.tsx) também protege contra gravações incidentais de título e viewport sem alteração, preservando pan e botões de zoom reais.
+
+[pointerGestures.test.ts](../../src/ink/pointerGestures.test.ts), [InkPalette.test.tsx](../../src/ink/InkPalette.test.tsx), [PlannerInkLayer.test.tsx](../../src/ink/PlannerInkLayer.test.tsx), [NoteInkOverlay.gestures.test.tsx](../../src/workspace/NoteInkOverlay.gestures.test.tsx) e [NoteCanvas.test.tsx](../../src/workspace/NoteCanvas.test.tsx) cobrem classificação de ponteiros, foco/teclado, pan/pinch, palma com caneta, cancelamento de tinta com dedo, perda de captura, blur e troca de documento. A nota sobre texto também confere coordenadas/âncoras após zoom e scroll e restauração dos estilos locais. São eventos sintéticos; não comprovam fluidez, rejeição de palma ou precisão em hardware real.

@@ -6,7 +6,7 @@ Entrada mantida em 10/10/2026. As fichas descrevem o código desta revisão e ap
 
 | Documento | Uso |
 | --- | --- |
-| [Módulos](modules/README.md) | Finalidade, fluxos, contratos, integração, persistência, testes e limites de dez áreas |
+| [Módulos](modules/README.md) | Finalidade, fluxos, contratos, integração, persistência, testes e limites por área |
 | [Arquitetura](architecture.md) | Propriedade dos dados e caminho de uma ação |
 | [Mapa do repositório](repository-map.md) | Pastas, regras de localização e classificação de artefatos |
 | [Sistema visual](design/system.md) | Tokens, superfícies e componentes de interface |
@@ -18,17 +18,18 @@ Entrada mantida em 10/10/2026. As fichas descrevem o código desta revisão e ap
 - [Guia para artigos](research/README.md): como descrever a implementação, selecionar evidências e evitar conclusões além dos testes.
 - [Laboratórios e protocolos](research/README.md#experimentos-e-artefatos-existentes): comparações 3D, geometria, diagramas e desconstrução.
 - [Qualidade de planos](design/plan-quality/README.md): primeiras respostas reais, condições de referência, rubrica humana e limites; [rodada de qualidade e desempenho](reports/planning-quality-performance-2026-10-10.md).
+- [PDF no navegador real](design/pdf-worker-validation/README.md): extração, cancelamento e encerramento do worker com CSP de produção, sem chamadas de IA.
 - [Template do resumo expandido](Template_ResumoExpandido2026.6bced2c68d504ba99fc5.md) e [referência do congresso](III_Congresso_UniSENAI_SP_2026.md): materiais de redação; verificar as exigências do evento ao submeter.
 
 ## Configuração e contratos específicos
 
 | Área | Referências complementares |
 | --- | --- |
-| Produção e dados | [Cloud](cloud-production.md), [cofre](encrypted-vault.md), [migração cloud](cloud-client-migration.md), [PWA](pwa.md) |
+| Produção e dados | [Cloud](cloud-production.md), [cofre](encrypted-vault.md), [migração cloud](cloud-client-migration.md), [PWA](pwa.md), [edição offline cifrada](offline-editing.md) |
 | Projetos e fontes | [Anexos](plan-attachments.md), [aparência](project-appearance.md), [pesquisa no chat](chat-component-research.md) |
 | Superfícies visuais | [Abas do estúdio](visual-studio-tabs.md), [caderno](notes-visual-notebook.md), [validação do canvas](visual-canvas-validation.md) |
 | Modelagem | [Guia adaptado de skills](visual-modeling-skills.md), [decomposição](design/object-decomposition.md), [geração avançada](design/advanced-model-generation.md) |
-| Evolução proposta | [Biblioteca de fontes nos canvases](superpowers/specs/2026-10-10-canvas-source-library-design.md), [direção do Dairo](dairo-direction.md), [conceito inicial](CONCEPT.md) |
+| Evolução proposta | [Biblioteca de fontes nos canvases](superpowers/specs/2026-10-10-canvas-source-library-design.md), [direção do Dairo](dairo-direction.md), [assinatura Codex para futura versão open source](design/codex-subscription-feasibility.md), [conceito inicial](CONCEPT.md) |
 
 Os documentos específicos preservam detalhes e validações anteriores; o catálogo dos módulos orienta a leitura atual. Uma recomendação, protótipo ou checklist antigo não prova entrega.
 

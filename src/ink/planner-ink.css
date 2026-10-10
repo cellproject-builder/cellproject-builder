@@ -7,6 +7,9 @@
 .planner-ink-tools.is-open .ink-toolbar{border:0;background:transparent;box-shadow:none;padding:0}
 .planner-ink-tools .ink-settings-panel{top:auto;bottom:calc(100% + 12px)}
 .planner-ink-actions{display:flex;gap:1px;align-items:center}
+.planner-ink-palette .planner-ink-actions{flex-wrap:wrap}
+.planner-ink-palette .planner-ink-actions button{width:44px;height:44px}
+.planner-ink-palette .ink-settings-panel{top:auto;bottom:auto}
 .planner-ink-actions button[aria-pressed=true]{color:rgb(var(--ai-accent));background:rgb(var(--ai-accent)/.12)}
 .planner-ink-actions button:disabled{opacity:.3;cursor:default}
 .planner-ink-tools button:focus-visible{outline:2px solid rgb(var(--ai-accent));outline-offset:2px}

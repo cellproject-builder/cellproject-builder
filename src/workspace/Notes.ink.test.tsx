@@ -26,6 +26,7 @@ afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi
 const button = (label: string) => host.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!;
 function openInk() {
   act(() => Simulate.click(button('Desenhar na nota')));
+  act(() => Simulate.click(host.querySelector('[data-ink-palette-trigger]')!));
   const body = host.querySelector<HTMLElement>('[data-note-document]')!, stage = host.querySelector<HTMLElement>('[data-note-ink]')!;
   expect(body).not.toBeNull(); expect(stage).not.toBeNull();
   vi.spyOn(body, 'getBoundingClientRect').mockReturnValue(rect(10, 20, 600, 600));
@@ -53,12 +54,14 @@ it('draws over the document while retaining text layout and keeping the notebook
   expect(store.getState().notes[id].blocks[0].text).toBe('Texto continua editável.');
 });
 
-it('docks the optional notebook tools beside the editor toolbar instead of inside the note', () => {
+it('keeps optional notebook tools in one compact side palette and hides them while drawing over text', () => {
   act(() => { store.getState().updateNote(id, { canvas: createNoteCanvas() }); });
   const tools = host.querySelector('[aria-label="Ferramentas do caderno"]')!;
   expect(tools).not.toBeNull();
-  expect(tools.closest('[data-note-document]')).toBeNull();
-  expect(tools.closest('.ws-note-ink-tools-host')).not.toBeNull();
+  expect(tools.closest('[data-note-document]')).not.toBeNull();
+  expect(tools.matches('[data-ink-palette]')).toBe(true);
+  expect(tools.closest('.note-canvas')).not.toBeNull();
+  expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();
   openInk();
   expect(host.querySelector('[aria-label="Ferramentas do caderno"]')).toBeNull();
   expect(host.querySelector('[aria-label="Ferramentas de tinta da nota"]')).not.toBeNull();

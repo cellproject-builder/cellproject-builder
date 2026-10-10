@@ -327,6 +327,7 @@ function RunningRow({
 
 interface CriterionProps {
   node: ConceptNodeData;
+  projectId: string;
   // Card do tutor: expõe ids DOM (gt-criterion, gt-attest) pra rolar/focar.
   domIds?: boolean;
   // Primeira linha do grupo do tutor: sem borda própria (as seções abaixo
@@ -335,10 +336,10 @@ interface CriterionProps {
 }
 
 export function UserCriterionField(props: CriterionProps) {
-  return <UserCriterionBody key={props.node.id} {...props} />;
+  return <UserCriterionBody key={JSON.stringify([props.projectId, props.node.id])} {...props} />;
 }
 
-function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
+function UserCriterionBody({ node, projectId, domIds, inGroup }: CriterionProps) {
   const tr = useT();
   const setUserCriterion = useGraphStore((s) => s.setUserCriterion);
   const unlockCriterion = useGraphStore((s) => s.unlockCriterion);
@@ -432,7 +433,7 @@ function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
                 <p id={`gt-met-help-${node.id}`} className="text-footnote text-text-muted">
                   {tr.groundTruth.observationHelp}
                 </p>
-                <AudioTextarea audioScope={`node:${node.id}:criterion-met`}
+                <AudioTextarea audioScope={`project:${projectId}:node:${node.id}:criterion-met`}
                   id={`gt-met-${node.id}`}
                   aria-describedby={`gt-met-help-${node.id}`}
                   ref={metRef}
@@ -462,7 +463,7 @@ function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
             <p id={`${criterionId}-help`} className="text-footnote text-text-muted">
               {tr.groundTruth.criterionHelp}
             </p>
-            <AudioTextarea audioScope={`node:${node.id}:criterion`} name="user-criterion"
+            <AudioTextarea audioScope={`project:${projectId}:node:${node.id}:criterion`} name="user-criterion"
               value={draft}
               onChange={(e) => setDraft(node.id, 'criterion', e.target.value)}
               onKeyDown={submitOnModEnter(handleLock)}
@@ -561,7 +562,7 @@ interface SectionProps {
 }
 
 export function CritiqueSection(props: SectionProps) {
-  return <CritiqueBody key={props.node.id} {...props} />;
+  return <CritiqueBody key={JSON.stringify([props.project.id, props.node.id])} {...props} />;
 }
 
 function CritiqueBody({ node, project, collapsible }: SectionProps) {
@@ -770,7 +771,7 @@ const KIND_CYCLE: GroundTruthKind[] = ['link', 'spec', 'medida'];
 const HIGHLIGHT_MS = 3000;
 
 export function GroundTruthRefsList(props: SectionProps) {
-  return <RefsBody key={props.node.id} {...props} />;
+  return <RefsBody key={JSON.stringify([props.project.id, props.node.id])} {...props} />;
 }
 
 function RefsBody({ node, project, collapsible }: SectionProps) {
@@ -897,6 +898,7 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
           {refs.map((r) => (
             <RefRow
               key={r.id}
+              projectId={project.id}
               nodeId={node.id}
               refData={r}
               highlighted={highlight.has(r.value)}
@@ -933,7 +935,7 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
               className="field min-w-0 flex-1"
             />
           </div>
-          <AudioTextInput audioScope={`node:${node.id}:proof-label`} name="proof-label"
+          <AudioTextInput audioScope={`project:${project.id}:node:${node.id}:proof-label`} name="proof-label"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             onKeyDown={onFormKey}
@@ -1066,11 +1068,13 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
 }
 
 function RefRow({
+  projectId,
   nodeId,
   refData,
   highlighted,
   onRemove,
 }: {
+  projectId: string;
   nodeId: string;
   refData: GroundTruthRef;
   highlighted: boolean;
@@ -1203,7 +1207,7 @@ function RefRow({
                 {tr.groundTruth.verifyPrompt}
               </label>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <AudioTextInput audioScope={`node:${nodeId}:proof:${refData.id}:observation`} audioWrapperClassName="flex-1 min-w-0"
+                <AudioTextInput audioScope={`project:${projectId}:node:${nodeId}:proof:${refData.id}:observation`} audioWrapperClassName="flex-1 min-w-0"
                   id={`gt-verify-${refData.id}`}
                   autoFocus
                   value={obs}
@@ -1264,7 +1268,7 @@ const failureOrigin = (projectId: string, node: ConceptNodeData): string => {
 };
 
 export function FailureSection(props: SectionProps & { domIds?: boolean }) {
-  return <FailureBody key={props.node.id} {...props} />;
+  return <FailureBody key={JSON.stringify([props.project.id, props.node.id])} {...props} />;
 }
 
 function FailureBody({ node, project, collapsible, domIds }: SectionProps & { domIds?: boolean }) {
@@ -1400,7 +1404,7 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
 
       {!failed && opening && (
         <div className="space-y-2">
-          <AudioTextarea audioScope={`node:${node.id}:failure-context`} name="failure-context"
+          <AudioTextarea audioScope={`project:${project.id}:node:${node.id}:failure-context`} name="failure-context"
             autoFocus
             value={draft}
             onChange={(e) => setDraft(node.id, 'failure', e.target.value)}
@@ -1554,7 +1558,7 @@ export function GroundTruthInlineTutor({
       <h2 className="text-title3 font-semibold text-text-primary">{tr.groundTruth.sectionTitle}</h2>
       <p className="text-footnote text-text-muted pb-2">{tr.groundTruth.checkCycle}</p>
       <div className="-mx-4 space-y-1 [&>details]:border-t-0 [&_summary]:rounded-control">
-        <UserCriterionField node={node} domIds inGroup />
+        <UserCriterionField node={node} projectId={project.id} domIds inGroup />
         <GroundTruthRefsList node={node} project={project} collapsible />
         <CritiqueSection node={node} project={project} collapsible />
         <FailureSection node={node} project={project} collapsible domIds />
