@@ -140,6 +140,42 @@ describe('getContextFor — seleção de docs da base', () => {
     await expect(p).rejects.toMatchObject({ name: 'AbortError' });
   });
 
+  it.each([
+    { statusCode: 429, responseHeaders: { 'retry-after': '7' } },
+    { statusCode: 429, responseBody: '{"error":{"code":"insufficient_quota"}}' },
+  ])('chat propaga limite do provedor sem continuar com contexto vazio', async (error) => {
+    seed(3);
+    const beforeRequest = vi.fn().mockResolvedValue(undefined);
+    const ctrl = new AbortController();
+    pickMock.mockRejectedValueOnce(error);
+    await expect(useKBStore.getState().getContextFor(objective, 2, {
+      signal: ctrl.signal, maxRetries: 0, beforeRequest, throwOnRateLimit: true,
+    })).rejects.toBe(error);
+    expect(pickMock).toHaveBeenCalledWith(objective, expect.any(Array), 2, {
+      signal: ctrl.signal, maxRetries: 0, beforeRequest,
+    });
+    expect(useKBStore.getState().pickCache).toEqual({});
+  });
+
+  it('chat cancela a própria chamada sem herdar uma seleção sem controle em andamento', async () => {
+    seed(3);
+    let resolveShared!: (picks: { docId: string; reason: string }[]) => void;
+    pickMock.mockReturnValueOnce(new Promise((resolve) => { resolveShared = resolve; }));
+    const shared = useKBStore.getState().getContextFor(objective);
+    pickMock.mockImplementationOnce((_ctx, _docs, _max, opts) => new Promise((_resolve, reject) => {
+      opts.signal.addEventListener('abort', () => reject(opts.signal.reason), { once: true });
+    }));
+    const ctrl = new AbortController();
+    const controlled = useKBStore.getState().getContextFor(objective, 2, {
+      signal: ctrl.signal, maxRetries: 0, beforeRequest: async () => {}, throwOnRateLimit: true,
+    });
+    ctrl.abort();
+    await expect(controlled).rejects.toMatchObject({ name: 'AbortError' });
+    expect(pickMock).toHaveBeenCalledTimes(2);
+    resolveShared([{ docId: 'd0', reason: 'x' }]);
+    expect(await shared).toHaveLength(1);
+  });
+
   it('registra uso por doc e o último contexto', async () => {
     seed(1);
     await useKBStore.getState().getContextFor(objective);

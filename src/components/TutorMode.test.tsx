@@ -162,11 +162,17 @@ describe('TutorMode — confirmar com toast e desfazer', () => {
     expect(useGraphStore.getState().project!.nodes[parentId].confirmado).toBe(false);
   });
 
-  it('critério travado e não aferido: a ação da barra fala em aferir', () => {
+  it('critério travado sem observação: a ação da barra leva ao resultado observado', () => {
     const parentId = nodeByName('Passo pai').id;
     act(() => useGraphStore.getState().setUserCriterion(parentId, 'o LED acende'));
     render();
-    expect(container.textContent).toMatch(/Dizer se foi atendido|Say if it was met/);
+    const button = [...container.querySelectorAll('button')].find((b) =>
+      /Registrar resultado observado|Record observed result/.test(b.textContent ?? ''),
+    );
+    expect(button).toBeTruthy();
+    act(() => button!.click());
+    expect(document.activeElement).toBe(container.querySelector('#gt-attest textarea'));
+    expect(useGraphStore.getState().project!.nodes[parentId].comoConfirmarAtendido).toBeUndefined();
   });
 });
 

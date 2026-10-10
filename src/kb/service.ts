@@ -1,6 +1,7 @@
 import { generateObject, NoObjectGeneratedError } from 'ai';
 import { kbModel, assertAIReady, currentModelIds, isReasoningModel } from '@/ai/client';
 import { currentLocaleAIName } from '@/i18n';
+import { readRateLimit } from '@/ai/rateLimit';
 import { KBSummarySchema, RelevancePickSchema } from './schemas';
 import type { KBContextEntry, KBDocument, KBSummary } from './types';
 
@@ -34,7 +35,7 @@ async function withOneRetry<T>(fn: () => Promise<T>, signal?: AbortSignal): Prom
   try {
     return await fn();
   } catch (e) {
-    if (signal?.aborted || !NoObjectGeneratedError.isInstance(e)) throw e;
+    if (signal?.aborted || readRateLimit(e) || !NoObjectGeneratedError.isInstance(e)) throw e;
     return await fn();
   }
 }
@@ -126,6 +127,12 @@ export interface PickContext {
   cacheKey?: string;
 }
 
+export interface KBRequestOptions {
+  signal?: AbortSignal;
+  maxRetries?: number;
+  beforeRequest?: () => Promise<void>;
+}
+
 function judgeSystem(): string {
   const lang = currentLocaleAIName();
   return `You pick which documents from a personal repository are relevant to a specific planning goal.
@@ -141,7 +148,7 @@ export async function pickRelevantDocs(
   ctx: PickContext,
   docs: KBDocument[],
   max = 2,
-  opts: { signal?: AbortSignal } = {},
+  opts: KBRequestOptions = {},
 ): Promise<{ docId: string; reason: string }[]> {
   if (docs.length === 0) return [];
   assertAIReady();
@@ -167,8 +174,10 @@ ${catalog}
 TASK
 Pick up to ${max} docs whose content directly applies to the context. Empty if none applies.`;
   const { object } = await withOneRetry(
-    () =>
-      generateObject({
+    async () => {
+      await opts.beforeRequest?.();
+      opts.signal?.throwIfAborted();
+      return generateObject({
         model: kbModel,
         schema: RelevancePickSchema,
         schemaName: 'RelevancePick',
@@ -176,7 +185,9 @@ Pick up to ${max} docs whose content directly applies to the context. Empty if n
         prompt,
         ...kbCallOpts(0.2, 600),
         abortSignal: opts.signal,
-      }),
+        maxRetries: opts.maxRetries,
+      });
+    },
     opts.signal,
   );
 

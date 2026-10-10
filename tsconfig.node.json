@@ -6,9 +6,10 @@
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
+    "outDir": ".vite/config-types",
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "src/pwa/buildPlugin.ts"]
 }

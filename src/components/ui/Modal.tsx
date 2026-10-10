@@ -95,7 +95,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`flex max-h-[90dvh] w-full animate-sheet-in flex-col overflow-hidden rounded-t-window bg-bg-secondary shadow-mac-lg outline-none sm:rounded-window ${className ?? 'max-w-lg'}`}
+        className={`liquid-glass flex max-h-[90dvh] w-full animate-sheet-in flex-col overflow-hidden rounded-t-window shadow-mac-lg outline-none sm:rounded-window ${className ?? 'max-w-lg'}`}
       >
         <div className="flex items-center gap-2 border-b border-border-base/70 px-5 py-3">
           <h2 id={titleId} className="min-w-0 flex-1 text-control font-semibold text-text-primary">

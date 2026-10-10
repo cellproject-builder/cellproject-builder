@@ -1,0 +1,23 @@
+.ws-comments { margin-top:26px; padding-top:22px; border-top:1px solid rgb(var(--hairline)/.35); color:rgb(var(--text-primary)); }
+.ws-comments-heading { display:flex; align-items:center; gap:8px; margin-bottom:16px; }
+.ws-comments-heading h3 { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; }
+.ws-comments-save { margin-left:auto; font-size:10px; color:rgb(var(--text-muted)); }
+.ws-comments-save.save-error { color:rgb(var(--state-problem)); }
+.ws-comments-list { display:flex; flex-direction:column; gap:10px; }
+.ws-comment { padding:12px 14px; border:1px solid rgb(var(--hairline)/.3); border-radius:12px; background:linear-gradient(145deg,rgb(255 255 255/.04),transparent 65%),rgb(var(--bg-secondary)/.6); -webkit-backdrop-filter:blur(16px) saturate(125%); backdrop-filter:blur(16px) saturate(125%); box-shadow:inset 0 1px 0 rgb(255 255 255/.06); }
+.ws-comment-heading { display:flex; flex-wrap:wrap; align-items:center; gap:7px; min-height:26px; color:rgb(var(--text-muted)); font-size:10px; }
+.ws-comment-author { font-size:11px; font-weight:600; color:rgb(var(--text-secondary)); }
+.ws-comment-author.assistant { color:rgb(var(--accent)); border-radius:5px; padding:3px 6px; background:rgb(var(--accent)/.1); }
+.ws-comment-heading time { font-size:10px; }
+.ws-comment-edited { font-size:9px; color:rgb(var(--text-faint)); }
+.ws-comment-actions { display:flex; gap:2px; margin-left:auto; }
+.ws-comment-body { white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; line-height:1.7; color:rgb(var(--text-secondary)); margin:8px 0 0; }
+.ws-comments-empty { color:rgb(var(--text-muted)); font-size:12px; line-height:1.7; padding:0 0 7px; }
+.ws-comment-form { gap:10px; margin-top:10px; }
+.ws-comment-compose { margin-top:18px; }
+.ws-comment-form-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+.ws-comment-form textarea { min-height:76px; }
+:root:is([data-theme=dark],[data-theme=oled]) .ws-comment { background-image:none; }
+@media (max-width:450px) { .ws-comment { padding:10px; } .ws-comment-heading { gap:6px; } .ws-comment-heading time { flex-basis:calc(100% - 70px); order:2; } .ws-comment-edited { order:3; } .ws-comment-actions { margin-left:auto; } }
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) { .ws-comment { background:rgb(var(--bg-secondary)); } }
+@media (prefers-reduced-transparency:reduce), (forced-colors:active) { .ws-comment { background:rgb(var(--bg-secondary)); -webkit-backdrop-filter:none; backdrop-filter:none; } }

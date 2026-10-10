@@ -1,0 +1,89 @@
+/* The illustration occupies the card's bottom padding, outside its content flow. */
+.ws-start-panel:has(.ws-drift-workshop) { position: relative; padding-bottom: 76px; }
+.ws-drift-workshop { position: absolute; inset-inline: 24px; bottom: 8px; height: 64px; min-width: 0; pointer-events: none; }
+.ws-drift-ink-a { fill: rgb(var(--text-muted) / .8); }
+.ws-drift-ink-b { fill: rgb(var(--text-muted) / .45); }
+.ws-drift-ink-c { fill: rgb(var(--text-muted)); }
+.ws-scene-stage { --scene-cycle: 180s; --scene-floor: 6px; --desk-x: clamp(14px, 4%, 40px); --board-x: calc(28% - 14px); --bench-x: calc(52% - 12px); --scope-x: calc(100% - 48px); position: relative; height: 64px; overflow: hidden; pointer-events: none; opacity: .42; transition: opacity 1.6s ease; mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent), linear-gradient(180deg, transparent, #000 12px, #000 54px, transparent); mask-composite: intersect; }
+.is-engaged .ws-scene-stage { opacity: .52; }
+.ws-scene-stage svg { display: block; image-rendering: pixelated; }
+.ws-scene-desk { position: absolute; bottom: var(--scene-floor); left: calc(var(--desk-x) - 12px); width: 56px; height: 32px; z-index: 2; }
+.ws-scene-board { position: absolute; bottom: var(--scene-floor); left: calc(var(--board-x) + 11px); width: 48px; height: 44px; }
+.ws-scene-bench { position: absolute; bottom: var(--scene-floor); left: calc(var(--bench-x) + 2px); width: 56px; height: 40px; }
+.ws-scene-telescope { position: absolute; right: 4px; bottom: var(--scene-floor); width: 32px; height: 40px; z-index: 2; }
+.ws-scene-sky { position: absolute; right: 24px; top: 2px; width: 64px; height: 40px; opacity: .7; }
+.ws-scene-cloud { position: absolute; top: 6px; width: 48px; height: 15px; opacity: .3; animation: ws-scene-cloud 190s linear infinite; }
+.ws-scene-cloud-b { top: 19px; width: 36px; height: 12px; animation-duration: 240s; animation-delay: -110s; }
+.ws-scene-starlight { position: absolute; inset: 0; }
+.ws-scene-starlight .ws-scene-star { position: absolute; width: 1px; height: 1px; background: rgb(var(--text-muted) / .8); }
+.ws-scene-starlight .is-spark { width: 3px; height: 3px; background: transparent; }
+.ws-scene-starlight .is-spark::before, .ws-scene-starlight .is-spark::after { content: ''; position: absolute; background: rgb(var(--text-muted) / .8); }
+.ws-scene-starlight .is-spark::before { width: 3px; height: 1px; top: 1px; }
+.ws-scene-starlight .is-spark::after { width: 1px; height: 3px; left: 1px; }
+.ws-scene-ground { position: absolute; inset-inline: 0; bottom: 3px; height: 3px; border-top: 1px solid rgb(var(--text-muted) / .45); opacity: .65; }
+.ws-scene-ground::after { content: ''; position: absolute; inset-inline: 0; top: 2px; height: 1px; background: repeating-linear-gradient(90deg, transparent 0 19px, rgb(var(--text-muted) / .45) 19px 22px, transparent 22px 71px); }
+.ws-scene-ground-mark { position: absolute; bottom: var(--scene-floor); width: 5px; height: 1px; background: rgb(var(--text-muted) / .45); opacity: .5; }
+.ws-scene-ground-mark::before, .ws-scene-ground-mark::after { content: ''; position: absolute; bottom: 1px; width: 1px; height: 2px; background: inherit; }
+.ws-scene-ground-mark::before { left: 1px; }
+.ws-scene-ground-mark::after { left: 3px; height: 1px; }
+.ws-scene-star { animation: ws-scene-twinkle 7s ease-in-out infinite; }
+.ws-scene-star:nth-of-type(2n) { animation-delay: -2.7s; }
+.ws-scene-star:nth-of-type(3n) { animation-delay: -4.3s; }
+.ws-scene-chalk { animation: ws-scene-chalk var(--scene-cycle) linear infinite; }
+.ws-scene-robot-base { animation: ws-scene-robot-base var(--scene-cycle) linear infinite; }
+.ws-scene-robot-finish { animation: ws-scene-robot-finish var(--scene-cycle) linear infinite; }
+.ws-scene-sparks { opacity: 0; animation: ws-scene-hammering var(--scene-cycle) steps(1, end) infinite; }
+.ws-scene-sparks rect { animation: ws-engineer-impact 1.2s ease-in-out infinite; }
+.ws-scene-character { position: absolute; bottom: var(--scene-floor); left: var(--desk-x); width: 20px; height: 32px; z-index: 1; animation: ws-scene-journey var(--scene-cycle) linear infinite; }
+.ws-scene-facing { position: relative; width: 100%; height: 100%; animation: ws-scene-facing var(--scene-cycle) steps(1, end) infinite; }
+.ws-scene-pose { position: absolute; inset: 0; opacity: 0; animation: var(--pose-animation) var(--scene-cycle) steps(1, end) infinite; }
+.ws-scene-pose-idle { --pose-animation: ws-scene-idle; opacity: 1; }
+.ws-scene-pose-walk { --pose-animation: ws-scene-walking; }
+.ws-scene-pose-write { --pose-animation: ws-scene-writing; }
+.ws-scene-pose-hammer { --pose-animation: ws-scene-hammering; }
+.ws-scene-pose-observe { --pose-animation: ws-scene-observing; }
+.ws-scene-pose > svg { width: 20px; height: 32px; overflow: visible; }
+.ws-scene-pose-walk > svg { animation: ws-engineer-walk .8s steps(2, end) infinite; }
+.ws-scene-pose-walk .ws-engineer-leg-front, .ws-scene-pose-walk .ws-engineer-leg-back { animation: ws-engineer-step .8s steps(2, end) infinite; }
+.ws-scene-pose-walk .ws-engineer-leg-back { animation-delay: -.4s; }
+.ws-engineer-writing-arm { animation: ws-engineer-write .9s steps(2, end) infinite; }
+.ws-engineer-hammer-arm { transform-box: view-box; transform-origin: 28px 38px; animation: ws-engineer-hammer 1.2s ease-in-out infinite; }
+.ws-drift-pause { position: absolute; top: -4px; right: -8px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: var(--ws-radius-control); color: rgb(var(--text-muted)); opacity: .5; pointer-events: auto; transition: opacity .6s ease; }
+.ws-drift-pause > svg { width: 10px; height: 10px; }
+.ws-drift-pause:hover { opacity: 1; }
+.ws-drift-pause:focus-visible { opacity: 1; outline: 2px solid rgb(var(--accent)); outline-offset: 2px; transition: none; }
+@media (hover: hover) {
+  .ws-drift-pause { opacity: 0; }
+  .ws-start-panel:hover .ws-drift-pause { opacity: .5; }
+  .ws-drift-pause:hover, .ws-drift-pause:focus-visible { opacity: 1; }
+}
+.ws-drift-workshop.is-paused .ws-scene-stage * { animation-play-state: paused; }
+/* One shared clock keeps the engineer, chalk and robot assembly in sequence. */
+@keyframes ws-scene-journey { 0%, 8%, 64%, 72%, 100% { left: var(--desk-x); } 20%, 28% { left: var(--board-x); } 38%, 50% { left: var(--bench-x); } 86%, 92% { left: var(--scope-x); } }
+@keyframes ws-scene-facing { 0%, 64%, 100% { transform: scaleX(1); } 50%, 92% { transform: scaleX(-1); } }
+@keyframes ws-scene-idle { 0%, 64% { opacity: 1; } 8%, 72%, 100% { opacity: 0; } }
+@keyframes ws-scene-walking { 0%, 20%, 38%, 64%, 86%, 100% { opacity: 0; } 8%, 28%, 50%, 72%, 92% { opacity: 1; } }
+@keyframes ws-scene-writing { 0%, 28%, 100% { opacity: 0; } 20% { opacity: 1; } }
+@keyframes ws-scene-hammering { 0%, 50%, 100% { opacity: 0; } 38% { opacity: 1; } }
+@keyframes ws-scene-observing { 0%, 92%, 100% { opacity: 0; } 86% { opacity: 1; } }
+@keyframes ws-scene-chalk { 0%, 20% { clip-path: inset(0 100% 0 0); } 27%, 100% { clip-path: inset(0); } }
+@keyframes ws-scene-robot-base { 0%, 38%, 100% { opacity: .3; transform: translateY(3px); } 43%, 97% { opacity: 1; transform: translateY(0); } }
+@keyframes ws-scene-robot-finish { 0%, 44%, 100% { opacity: 0; transform: translateY(4px); } 49%, 97% { opacity: 1; transform: translateY(0); } }
+@keyframes ws-scene-cloud { from { left: -64px; } to { left: 100%; } }
+@keyframes ws-scene-twinkle { 0%, 100% { opacity: .15; } 50% { opacity: .45; } }
+@keyframes ws-engineer-walk { 50% { transform: translateY(-1px); } }
+@keyframes ws-engineer-step { 50% { transform: translateX(1px); } }
+@keyframes ws-engineer-write { 50% { transform: translateY(-1px); } }
+@keyframes ws-engineer-hammer { 0%, 55%, 100% { transform: rotate(-12deg); } 70% { transform: rotate(35deg); } 78% { transform: rotate(27deg); } }
+@keyframes ws-engineer-impact { 0%, 65%, 100% { opacity: 0; transform: translateY(0); } 72% { opacity: .8; } 88% { opacity: 0; transform: translateY(-3px); } }
+@container workspace-page (max-width: 600px) {
+  .ws-scene-stage { --scene-cycle: 132s; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-scene-stage * { animation: none !important; }
+  .ws-scene-cloud-a { left: 14%; }
+  .ws-scene-cloud-b { left: 67%; }
+  .ws-scene-sparks { opacity: 0; }
+  .ws-scene-stage, .ws-drift-pause { transition: none; }
+  .ws-drift-pause { display: none; }
+}

@@ -1,0 +1,120 @@
+/* Local issue-view geometry, measured from the saved Linear board and list. */
+.ws-page.ws-board-page {
+  --ws-issue-column-width:348px;
+  --ws-issue-row-height:44px;
+  --ws-issue-group-height:36px;
+  --ws-issue-column-header-height:50px;
+  display:flex;
+  flex-direction:column;
+  height:100%;
+  min-height:0;
+  padding-bottom:0;
+}
+.ws-board-page>.ws-page-header { flex:none; }
+.ws-view-switch { flex:none; }
+.ws-view-switch button { display:flex; align-items:center; justify-content:center; width:30px; padding:3px; }
+.ws-view-switch svg { width:15px; height:15px; }
+
+.ws-board {
+  display:grid;
+  grid-template-columns:repeat(4,var(--ws-issue-column-width));
+  gap:var(--ws-space-4);
+  align-items:stretch;
+  flex:1;
+  min-height:0;
+  overflow:auto;
+  padding-bottom:var(--ws-space-4);
+  scrollbar-gutter:stable;
+}
+.ws-column { min-width:0; border-radius:var(--ws-radius-row); background:rgb(var(--bg-elevated)/.12); transition:background-color var(--ws-transition), box-shadow var(--ws-transition); }
+.ws-column.drag-over { background:rgb(var(--accent)/.06); outline:1px dashed rgb(var(--accent)/.6); outline-offset:-1px; }
+.ws-column-heading {
+  position:sticky; top:0; z-index:3;
+  display:flex; align-items:center; gap:var(--ws-space-2);
+  height:var(--ws-issue-column-header-height); padding:0 var(--ws-space-2);
+  background:rgb(var(--bg-primary));
+}
+.ws-board-page .ws-column-heading h2, .ws-board-page .ws-issue-group-heading h2 { font-size:var(--ws-text-sm); font-weight:var(--ws-weight-medium); }
+.ws-column-heading .ws-icon-button { margin-left:auto; }
+.ws-column-heading .ws-count, .ws-issue-group-heading .ws-count { background:none; padding:0; border-radius:0; font-size:var(--ws-text-sm); }
+.ws-column-content { min-height:160px; padding:0 var(--ws-space-2) var(--ws-space-2); }
+.ws-column-add { display:flex; align-items:center; gap:var(--ws-space-2); width:100%; padding:var(--ws-space-2); border-radius:var(--ws-radius-control); font-size:var(--ws-text-sm); color:rgb(var(--text-muted)); text-align:left; transition:background-color var(--ws-transition), box-shadow var(--ws-transition); }
+.ws-column-add:hover { background:var(--ws-surface-hover); color:rgb(var(--text-primary)); box-shadow:var(--ws-shadow-control); }
+.ws-column-empty { padding:var(--ws-space-6) var(--ws-space-2); color:rgb(var(--text-muted)); font-size:var(--ws-text-xs); }
+
+.ws-issue-card {
+  position:relative;
+  display:flex; flex-direction:column; gap:var(--ws-space-2);
+  padding:var(--ws-space-3); margin-bottom:var(--ws-space-2);
+  border:1px solid transparent; border-radius:var(--ws-radius-row);
+  background:var(--ws-surface); box-shadow:var(--ws-shadow-card);
+  cursor:grab;
+  transition:box-shadow var(--ws-transition), background-color var(--ws-transition);
+}
+.ws-issue-card:hover { background:var(--ws-surface-hover); box-shadow:var(--ws-shadow-card-hover); }
+.ws-issue-card:active { cursor:grabbing; }
+.ws-issue-card-top { display:flex; align-items:center; min-height:16px; }
+.ws-issue-reference { flex:none; color:rgb(var(--text-muted)); font-size:var(--ws-text-xs); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ws-issue-card-title { display:flex; align-items:flex-start; gap:6px; }
+.ws-issue-card-title>button { min-width:0; flex:1; text-align:left; color:rgb(var(--text-primary)); font-size:var(--ws-text-sm); font-weight:var(--ws-weight-medium); line-height:20px; overflow-wrap:anywhere; }
+/* Stretch the real edit button across the card; the status control stays above it. */
+.ws-issue-card-title>button::after { content:""; position:absolute; inset:0; border-radius:var(--ws-radius-row); }
+.ws-issue-card-title>button:focus-visible { outline:none; }
+.ws-issue-card:has(.ws-issue-card-title>button:focus-visible) { outline:2px solid var(--ws-focus); outline-offset:2px; }
+.ws-issue-card-title .ws-issue-status-control { margin-top:1px; }
+.ws-issue-card-labels { display:flex; align-items:center; gap:var(--ws-space-2); flex-wrap:wrap; margin-top:2px; }
+.ws-issue-chip, .ws-issue-priority.is-chip { display:inline-flex; align-items:center; gap:4px; min-height:24px; padding:2px var(--ws-space-2); border:1px solid transparent; border-radius:48px; color:rgb(var(--text-secondary)); background:rgb(var(--bg-elevated)/.35); font-size:var(--ws-text-xs); line-height:18px; }
+.ws-issue-chip svg { width:14px; height:14px; }
+.ws-issue-card-meta { display:flex; align-items:center; gap:var(--ws-space-3); color:rgb(var(--text-muted)); font-size:var(--ws-text-xs); min-height:18px; }
+.ws-issue-card-meta>:last-child:not(:first-child) { margin-left:auto; }
+.ws-issue-card-meta :is(time,span), .ws-issue-row-meta :is(time,span) { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
+.ws-issue-card-meta svg, .ws-issue-row-meta svg { width:14px; height:14px; flex:none; }
+
+.ws-issue-status { flex:none; color:rgb(var(--text-muted)); }
+.ws-issue-status.doing { color:rgb(var(--conf-mid)); }
+.ws-issue-status.review { color:rgb(var(--ai-accent)); }
+.ws-issue-status.done { color:rgb(var(--accent)); }
+.ws-issue-status-control { position:relative; z-index:2; display:inline-flex; flex:none; align-items:center; justify-content:center; width:20px; height:20px; border-radius:4px; transition:background-color var(--ws-transition), box-shadow var(--ws-transition); }
+.ws-issue-status-control:hover { background:var(--ws-surface-hover); box-shadow:var(--ws-shadow-control); }
+.ws-issue-status-control:focus-within { outline:2px solid var(--ws-focus); outline-offset:2px; }
+.ws-issue-status-control select { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+.ws-issue-priority { display:inline-flex; flex:none; align-items:center; justify-content:center; color:rgb(var(--text-muted)); }
+.ws-issue-priority.high>svg { color:rgb(var(--conf-mid)); }
+
+.ws-issue-list { flex:1; min-height:0; overflow:auto; padding-bottom:var(--ws-space-4); scrollbar-gutter:stable; }
+.ws-issue-group { padding-bottom:var(--ws-space-2); }
+.ws-issue-group-heading { position:sticky; top:0; z-index:3; display:flex; align-items:center; gap:var(--ws-space-2); height:var(--ws-issue-group-height); margin-bottom:2px; padding:0 var(--ws-space-2); background:var(--ws-surface-hover); border-radius:var(--ws-radius-control); box-shadow:var(--ws-shadow-control); }
+.ws-issue-group-heading h2 { flex:1; min-width:0; height:100%; }
+.ws-issue-group-toggle { display:flex; flex:1; align-items:center; gap:var(--ws-space-2); min-width:0; height:100%; text-align:left; }
+.ws-issue-group-toggle>svg:first-child { color:rgb(var(--text-muted)); width:12px; height:12px; }
+.ws-issue-group-heading .ws-icon-button { width:28px; height:28px; }
+.ws-issue-row {
+  display:flex; align-items:center; gap:var(--ws-space-3);
+  height:var(--ws-issue-row-height); margin:0 var(--ws-space-2); padding:0 var(--ws-space-2);
+  border-radius:var(--ws-radius-row); border-bottom:1px solid transparent;
+  box-shadow:var(--ws-shadow-divider-bottom);
+  transition:background-color var(--ws-transition), box-shadow var(--ws-transition);
+}
+.ws-issue-row:hover, .ws-issue-row:focus-within { background:var(--ws-surface-hover); box-shadow:var(--ws-shadow-control); }
+.ws-issue-row>.ws-issue-reference { width:96px; font-size:var(--ws-text-sm); }
+.ws-issue-row-title { flex:1; min-width:0; align-self:stretch; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgb(var(--text-primary)); font-size:var(--ws-text-sm); font-weight:var(--ws-weight-medium); }
+.ws-issue-row-meta { display:flex; flex:none; align-items:center; gap:var(--ws-space-4); color:rgb(var(--text-muted)); font-size:var(--ws-text-xs); }
+.ws-issue-row-meta time { min-width:76px; justify-content:flex-end; }
+.ws-issue-list-empty { padding:var(--ws-space-3) var(--ws-space-6); color:rgb(var(--text-muted)); font-size:var(--ws-text-xs); }
+
+@container workspace-page (max-width:600px) {
+  .ws-issue-row { gap:var(--ws-space-2); }
+  .ws-issue-row>.ws-issue-reference { display:none; }
+  .ws-issue-row-meta { gap:var(--ws-space-2); }
+  .ws-issue-row-meta>span { display:none; }
+  .ws-issue-row-meta time { min-width:0; }
+  .ws-issue-row-meta time svg { display:none; }
+}
+@media (pointer:coarse) {
+  .ws-issue-status-control { width:28px; height:28px; }
+}
+@media (forced-colors:active) {
+  .ws-issue-card, .ws-issue-chip, .ws-issue-priority.is-chip, .ws-issue-row { border-color:CanvasText; }
+  .ws-issue-group-heading { outline:1px solid CanvasText; outline-offset:-1px; }
+  .ws-column.drag-over { outline-color:Highlight; }
+}

@@ -27,6 +27,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useT } from '@/i18n';
 import type { Messages } from '@/i18n';
 import type { ConceptNodeData, Project } from '@/types';
+import { normalizePlanningIntent } from '@/planningIntent';
 import { GroundTruthInlineTutor, GroundTruthRefsList, FailureSection } from './GroundTruth';
 import { ExplanationContent } from './Markdown';
 import { MobileSheet } from './MobileSheet';
@@ -322,6 +323,7 @@ export function TutorMode() {
             <div className="hidden md:block text-text-muted text-footnote truncate">{tr.tutor.focusHint}</div>
             <button
               onClick={() => setSidebarOpen(true)}
+              aria-label={tr.tutor.mobileStepsAria(progress.done, progress.total)}
               className="md:hidden tap btn btn-secondary btn-sm tabular-nums"
             >
               <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-text-muted">
@@ -583,6 +585,7 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
           {
             projectName: project.name,
             projectObjective: project.objective,
+            ...normalizePlanningIntent(project),
             breadcrumb: crumbs.map((c) => c.name),
             nodeName: node.name,
             nodeKind: node.kind,
@@ -638,6 +641,7 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
           {
             projectName: project.name,
             projectObjective: project.objective,
+            ...normalizePlanningIntent(project),
             breadcrumb: crumbs.map((c) => c.name),
             nodeName: node.name,
             nodeKind: node.kind,
@@ -759,8 +763,8 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
   const canMarkKnown = !resolved && !isDecision && !hasKids && !pendingHere;
   // Barra vazia (nó já decomposto): some, e o card fecha com um respiro.
   const barEmpty = hasKids && !pendingHere && !resolved;
-  // "…" da barra: o que não é primário nem secundário. No mobile o decompor
-  // também mora aqui (no máximo 2 botões de 44px).
+  // "…" da barra: o que não é primário nem secundário. A decomposição
+  // permanece visível também no mobile.
   const offerNoProof =
     !resolved && !pendingHere && !hasKids && !blocker && !openFailure && !ready && !(isDecision && !pickedOpt);
   const moreItems: OverflowMenuItem[] = [
@@ -770,20 +774,6 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
             key: 'noProof',
             label: isDecision && pickedOpt ? tr.tutor.pickOptionNoProof(pickedOpt.label) : tr.tutor.confirmNoProof,
             onClick: () => setConfirmingNoSignal(true),
-          },
-        ]
-      : []),
-    ...(canDecompose && !decomposeRunning
-      ? [
-          {
-            key: 'decompose',
-            label: tr.tutor.decomposeShort,
-            title: decomposeBlocked?.reason ?? decomposeTitle,
-            icon: '✦',
-            iconClassName: 'text-ai-accent',
-            onClick: handleDecompose,
-            disabled: !!job || !!decomposeBlocked,
-            mobileOnly: true,
           },
         ]
       : []),
@@ -1216,7 +1206,7 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
           </div>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {pendingHere && confirmingDiscard ? (
             <>
               <button
@@ -1317,19 +1307,6 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
                   </span>
                 </button>
               )}
-              {!confirmingNoSignal && canDecompose && !decomposeRunning && (
-                <button
-                  onClick={handleDecompose}
-                  disabled={!!job || !!decomposeBlocked}
-                  title={decomposeBlocked?.reason ?? decomposeTitle}
-                  className="tap btn btn-ai h-8 shrink-0 hidden sm:inline-flex"
-                >
-                  <span className="ai-icon" aria-hidden>
-                    ✦
-                  </span>
-                  {tr.tutor.decomposeShort}
-                </button>
-              )}
               {!confirmingNoSignal && (
                 <OverflowMenu
                   label={tr.topBar.moreActions}
@@ -1337,6 +1314,19 @@ function TutorCard({ node, project, byParent, isNext, next, notice, tr }: TutorC
                   buttonClassName="btn-secondary h-8 w-8"
                   items={moreItems}
                 />
+              )}
+              {!confirmingNoSignal && canDecompose && !decomposeRunning && (
+                <button
+                  onClick={handleDecompose}
+                  disabled={!!job || !!decomposeBlocked}
+                  title={decomposeBlocked?.reason ?? decomposeTitle}
+                  className="tap btn btn-ai min-h-[44px] w-full sm:w-auto sm:h-8 sm:min-h-0 shrink-0"
+                >
+                  <span className="ai-icon" aria-hidden>
+                    ✦
+                  </span>
+                  {tr.tutor.decomposeShort}
+                </button>
               )}
             </>
           )}

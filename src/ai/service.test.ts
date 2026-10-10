@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { APICallError, NoObjectGeneratedError, RetryError } from 'ai';
 import { MockLanguageModelV3 } from 'ai/test';
 import type { LanguageModelV3StreamPart } from '@ai-sdk/provider';
+import * as research from './research';
 
 // O modelo é trocado por um mock — nada sai pra rede. Os testes cobrem o
 // contrato do service: normalização null→undefined, política de âncoras,
@@ -150,6 +151,43 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('chat request limits', () => {
+  it('does not retry a rate limited planner request when retries are disabled', async () => {
+    const limit = new APICallError({ message: 'Too many requests', statusCode: 429, isRetryable: true, url: 'https://example.test/chat', requestBodyValues: {}, responseHeaders: { 'retry-after': '7' } });
+    const model = new MockLanguageModelV3({ doStream: async () => { throw limit; } });
+    holder.model = model as unknown as Record<string | symbol, unknown>;
+    const error = await outlinePlans('Objetivo', undefined, undefined, undefined, undefined, { maxRetries: 0 }).catch((error: unknown) => error);
+    expect(model.doStreamCalls).toHaveLength(1);
+    expect(classifyAIError(error)).toMatchObject({ kind: 'rate', retryAfterMs: 7000 });
+  });
+
+  it('does not start planning after optional research hits the provider limit', async () => {
+    vi.spyOn(research, 'isWebResearchOn').mockReturnValue(true);
+    const limit = new APICallError({ message: 'Too many requests', statusCode: 429, url: 'https://example.test/chat', requestBodyValues: {}, responseHeaders: { 'retry-after-ms': '5000' } });
+    const lookup = vi.spyOn(research, 'runResearch').mockRejectedValue(limit);
+    const model = useStreamModel([JSON.stringify({ plans: [plan('A', 1)] })]);
+    const error = await outlinePlans('Objetivo', undefined, undefined, undefined, undefined, { maxRetries: 0 }).catch((error: unknown) => error);
+    expect(lookup).toHaveBeenCalledOnce();
+    expect(model.doStreamCalls).toHaveLength(0);
+    expect(classifyAIError(error)).toMatchObject({ kind: 'rate', retryAfterMs: 5000 });
+  });
+
+  it('distinguishes depleted account quota from a temporary rate limit', () => {
+    const error = new APICallError({ message: 'Provider returned error', statusCode: 429, url: 'https://example.test/chat', requestBodyValues: {}, responseBody: JSON.stringify({ error: { code: 'insufficient_quota' } }) });
+    expect(classifyAIError(error).kind).toBe('credits');
+  });
+
+  it('classifies an embedded HTTP 200 rate error with its advertised cooldown', () => {
+    const error = new APICallError({ message: 'Provider returned error', statusCode: 200, url: 'https://example.test/chat', requestBodyValues: {}, responseHeaders: { 'retry-after': '8' }, data: { code: 429, message: 'Provider returned error' } });
+    expect(classifyAIError(error)).toMatchObject({ kind: 'rate', retryAfterMs: 8000 });
+  });
+
+  it('classifies depleted account quota embedded in HTTP 200 as credits', () => {
+    const error = new APICallError({ message: 'Provider returned error', statusCode: 200, url: 'https://example.test/chat', requestBodyValues: {}, data: { code: 'insufficient_quota' } });
+    expect(classifyAIError(error).kind).toBe('credits');
+  });
+});
+
 describe('generatePlans', () => {
   it('hidrata planos: null→undefined, sem link sem pesquisa, no máx. 2 âncoras', async () => {
     const json = JSON.stringify({ plans: [plan('A', 1), plan('B', 2), plan('C', 3)] });
@@ -273,6 +311,28 @@ function outline(title: string, rank: number, strategy = 'reaproveitar') {
     },
   };
 }
+
+describe('explicit planning approach', () => {
+  it.each(['reverse_engineering', 'new_creation'] as const)('carries %s through outline generation without asking the model to select it', async planApproach => {
+    const model = useStreamModel([JSON.stringify({ plans: [outline('Referência', 1)] })]);
+    const generated = await outlinePlans('Construir patinete caseiro', undefined, undefined, undefined, undefined, {
+      planApproach, referenceTarget: 'Produto e variante informados pelo usuário',
+    });
+    const prompt = JSON.stringify(model.doStreamCalls[0].prompt);
+    expect(prompt).toContain(planApproach === 'reverse_engineering' ? 'REVERSE ENGINEERING' : 'NEW CREATION');
+    expect(prompt).toContain('Produto e variante informados pelo usuário');
+    expect(generated[0]).toMatchObject({ planApproach, referenceTarget: 'Produto e variante informados pelo usuário' });
+    expect(generated[0].strategy).toBe('reaproveitar');
+  });
+  it('reuses the chosen reverse-engineering brief in expansion and preserves it in the resulting plan', async () => {
+    const selected = { ...chosenOutline(), planApproach: 'reverse_engineering' as const, referenceTarget: 'Variante a confirmar' };
+    const model = useStreamModel([JSON.stringify(expandJson())]);
+    const result = await expandPlan('Estudar patinete', selected, undefined, undefined, undefined, { research: null });
+    expect(JSON.stringify(model.doStreamCalls[0].prompt)).toContain('REVERSE ENGINEERING');
+    expect(JSON.stringify(model.doStreamCalls[0].prompt)).toContain('Variante a confirmar');
+    expect(result).toMatchObject({ planApproach: 'reverse_engineering', referenceTarget: 'Variante a confirmar' });
+  });
+});
 
 function chosenOutline(): PlanOutline {
   return {
@@ -559,6 +619,18 @@ describe('decomposeNode / replanFromFailure', () => {
     siblings: [],
   };
 
+  it('keeps reverse-engineering separate from reuse strategy and asks for missing reference evidence', async () => {
+    const model = useGenerateModel({ nodes: [node('a')], edges: [] });
+    await decomposeNode({ ...base, strategy: 'do_zero', archetype: 'entender', planApproach: 'reverse_engineering', referenceTarget: 'Patinete de referência, variante desconhecida' });
+    const prompt = JSON.stringify(model.doGenerateCalls[0].prompt);
+    expect(prompt).toContain('REVERSE ENGINEERING');
+    expect(prompt).toContain('Patinete de referência, variante desconhecida');
+    expect(prompt).toContain('FROM SCRATCH');
+    expect(prompt).toContain('ARCHETYPE: UNDERSTAND');
+    expect(prompt).toContain('UNKNOWN');
+    expect(prompt).toContain('not a verified bill of materials');
+  });
+
   it('manda o conteúdo do nó e o que o usuário já sabe; filtra link sem pesquisa', async () => {
     const model = useGenerateModel({
       nodes: [
@@ -728,6 +800,17 @@ describe('classifyAIError', () => {
       finishReason: 'length',
     });
     expect(classifyAIError(err).kind).toBe('schema');
+  });
+
+  it('preserves a provider cooldown wrapped as a structured-output failure', () => {
+    const err = new NoObjectGeneratedError({
+      message: 'no object', text: '{',
+      cause: new APICallError({ message: 'Provider returned error', url: 'https://example.test', requestBodyValues: {}, statusCode: 429, responseHeaders: { 'retry-after': '9' } }),
+      response: { id: '1', timestamp: new Date(), modelId: 'm' },
+      usage: { inputTokens: 1, inputTokenDetails: { noCacheTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 }, outputTokens: 1, outputTokenDetails: { textTokens: 1, reasoningTokens: 0 }, totalTokens: 2 },
+      finishReason: 'error',
+    });
+    expect(classifyAIError(err)).toMatchObject({ kind: 'rate', retryAfterMs: 9000 });
   });
 
   it('falha de rede → network', () => {

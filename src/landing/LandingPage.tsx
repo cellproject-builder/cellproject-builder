@@ -1,5 +1,4 @@
 import { useLocaleStore } from '@/i18n';
-import { Logo } from '@/components/Logo';
 import { LanguageToggle } from '@/components/LanguageToggle';
 
 const GITHUB_URL = 'https://github.com/cellproject-builder/cellproject-builder';
@@ -275,9 +274,8 @@ export function LandingPage() {
       <header className="sticky top-0 z-50 backdrop-blur-md bg-bg-primary/80 border-b border-border-base">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <a href="/" className="flex items-center gap-2.5 min-w-0">
-            <Logo size={22} className="text-text-primary shrink-0" />
             <span className="font-semibold tracking-tight text-sm sm:text-base text-text-primary truncate">
-              CellProject Builder
+              dynamic_diary
             </span>
           </a>
           <div className="flex items-center gap-3 sm:gap-4">
@@ -470,8 +468,7 @@ export function LandingPage() {
       <footer>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <Logo size={18} className="text-text-muted" />
-            <span className="font-mono text-[11px] text-text-muted">CellProject Builder</span>
+            <span className="font-mono text-[11px] text-text-muted">dynamic_diary</span>
           </div>
           <div className="font-mono text-[11px] text-text-muted text-center">
             {t.footer.tagline}

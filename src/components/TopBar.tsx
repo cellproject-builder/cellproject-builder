@@ -4,6 +4,7 @@ import {
   breadcrumbFor,
   isDemoProject,
   projectProgress,
+  projectEvidenceProgress,
   type Lens,
   type ViewMode,
 } from '@/store';
@@ -14,8 +15,9 @@ import { useReviewingParents } from '@/hooks/useReviewingParents';
 import { toast } from '@/components/ui/Toast';
 import { KnowledgeRepo } from './KnowledgeRepo';
 import { ApiKeyGate } from './ApiKeyGate';
-import { Logo } from './Logo';
 import { ProgressRing } from '@/components/ui/ProgressRing';
+import { hasActiveAIActions } from '@/ai/actions';
+import { exportVisualPlan, prepareVisualPlanImport, watchVisualImportContext } from '@/visuals/portable';
 
 // Nome curto do modelo ativo: rótulo conhecido, senão o id sem o prefixo do
 // provider ("openai/gpt-6.1-sol" → "gpt-6.1-sol").
@@ -51,6 +53,7 @@ export function TopBar() {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuByKeyboard = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importAttemptRef = useRef(0);
 
   const LENSES: { value: Lens; label: string; key: string }[] = [
     { value: 'structure', label: tr.topBar.lensStructure, key: '1' },
@@ -60,9 +63,9 @@ export function TopBar() {
     { value: 'connections', label: tr.topBar.lensConnections, key: '5' },
   ];
 
-  const VIEWS: { value: ViewMode; label: string }[] = [
-    { value: 'tutor', label: tr.topBar.viewTutor },
-    { value: 'graph', label: tr.topBar.viewGraph },
+  const VIEWS: { value: ViewMode; label: string; description: string }[] = [
+    { value: 'tutor', label: tr.topBar.viewTutor, description: tr.topBar.viewTutorAria },
+    { value: 'graph', label: tr.topBar.viewGraph, description: tr.topBar.viewGraphAria },
   ];
 
   // Menu ⋯: fecha no clique fora e no Esc (devolvendo o foco ao botão);
@@ -120,25 +123,37 @@ export function TopBar() {
   // Anel da toolbar: o mesmo seletor de progresso da StatusBar e do tutor.
   const reviewing = useReviewingParents();
   const progress = useMemo(() => projectProgress(project, reviewing), [project, reviewing]);
+  const evidence = useMemo(() => projectEvidenceProgress(project, reviewing), [project, reviewing]);
   const inDemo = isDemoProject(project);
   const otherArchived = archivedProject && archivedProject.id !== project?.id ? archivedProject : null;
   // Sair da demo não arquiva nada — o arquivado continua intacto.
   const newWouldDiscard = !inDemo && otherArchived !== null;
 
-  const exportJson = () => {
+  const exportJson = async () => {
     if (!project) return;
-    const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
+    try {
+    const payload = await exportVisualPlan(project);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `${project.name.toLowerCase().replace(/\s+/g, '-')}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.show({ message: error instanceof Error && error.message === 'visualExportTooLarge' ? 'A exportação visual permite até 40 MiB de arquivos originais.' : 'Não foi possível exportar todos os arquivos visuais. Confira se os originais estão disponíveis.', tone: 'warn' });
+    }
   };
 
   // "Novo projeto" não destrói: o atual vai pro arquivo e o toast desfaz.
   // A demo não é arquivada (não há o que perder).
+  const canChangeContext = () => {
+    if (!hasActiveAIActions()) return true;
+    toast.show({ message: tr.workspace.errors.plannerBusy, tone: 'warn' });
+    return false;
+  };
   const handleNewProject = () => {
+    if (!canChangeContext()) return;
     const wasDemo = inDemo;
     const prevView = viewMode;
     resetProject();
@@ -154,7 +169,7 @@ export function TopBar() {
         label: tr.common.undo,
         // Volta para a mesma vista em que o usuário estava (grafo ou tutor).
         onClick: () => {
-          if (undoReset()) setViewMode(prevView);
+          if (canChangeContext() && undoReset()) setViewMode(prevView);
         },
       },
     });
@@ -162,15 +177,22 @@ export function TopBar() {
 
   // Reabre o arquivado; o atual (se houver) vai para o arquivo no lugar dele.
   const handleReopenArchived = () => {
+    if (!canChangeContext()) return;
     if (!otherArchived) return;
     const name = otherArchived.name;
     if (undoReset()) toast.show({ message: tr.topBar.reopenedArchived(name), tone: 'ok' });
   };
 
   const handleImportFile = (file: File) => {
+    if (!canChangeContext()) return;
+    if (file.size > 60 * 1024 * 1024) { toast.show({ message: 'O JSON de importação deve ter até 60 MiB.', tone: 'warn' }); return; }
+    const guard = watchVisualImportContext(), attempt = ++importAttemptRef.current;
     const reader = new FileReader();
-    reader.onerror = () => toast.show({ message: tr.topBar.importReadError, tone: 'warn' });
-    reader.onload = () => {
+    reader.onerror = () => { guard.dispose(); toast.show({ message: tr.topBar.importReadError, tone: 'warn' }); };
+    reader.onabort = () => guard.dispose();
+    reader.onload = async () => {
+      try {
+      if (!canChangeContext()) return;
       let json: unknown;
       try {
         json = JSON.parse(String(reader.result ?? ''));
@@ -178,8 +200,14 @@ export function TopBar() {
         toast.show({ message: tr.topBar.importNotJson, tone: 'warn' });
         return;
       }
-      const hadProject = Boolean(useGraphStore.getState().project) && !inDemo;
-      const result = importProject(json);
+      guard.assert();
+      if (attempt !== importAttemptRef.current) return;
+      const prepared = await prepareVisualPlanImport(json);
+      guard.assert();
+      if (attempt !== importAttemptRef.current || !canChangeContext()) return;
+      const current = useGraphStore.getState().project;
+      const hadProject = Boolean(current) && !isDemoProject(current);
+      const result = importProject(prepared);
       if (!result.ok) {
         toast.show({ message: tr.topBar.importFailed(result.error), tone: 'warn' });
         return;
@@ -190,8 +218,11 @@ export function TopBar() {
         tone: 'ok',
         durationMs: hadProject ? 10000 : undefined,
         // O projeto anterior foi arquivado pelo import — dá pra voltar.
-        action: hadProject ? { label: tr.common.undo, onClick: () => void undoReset() } : undefined,
+        action: hadProject ? { label: tr.common.undo, onClick: () => { if (canChangeContext()) undoReset(); } } : undefined,
       });
+      } catch (error) {
+        toast.show({ message: error instanceof Error && error.message === 'visualImportContextChanged' ? 'O projeto mudou durante a leitura. Importe o arquivo novamente no projeto desejado.' : tr.topBar.importFailed(error instanceof Error ? error.message : tr.topBar.importReadError), tone: 'warn' });
+      } finally { guard.dispose(); }
     };
     reader.readAsText(file);
   };
@@ -203,12 +234,11 @@ export function TopBar() {
     'min-w-0 truncate text-right text-footnote text-text-muted group-hover:text-accent-fg/80 group-focus-visible:text-accent-fg/80';
 
   const modelName = activeProvider && activeModel ? modelLabel(activeProvider, activeModel) : null;
-  const progressLabel = tr.topBar.progressLabel(progress.done, progress.total, progress.doneWithSignal);
+  const progressLabel = tr.topBar.progressLabel(progress.done, progress.total, evidence.withEvidence, evidence.assumedKnown);
 
   return (
     <div className="glass-host border-b relative z-20 shrink-0 min-h-[calc(52px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] flex items-center px-3 sm:px-4 gap-1.5 sm:gap-3 text-control">
-      <div className="flex items-center gap-2 min-w-[96px] sm:min-w-[24px] overflow-hidden">
-        <Logo size={14} className="text-text-secondary shrink-0 hidden sm:inline-flex" />
+      <div className="flex items-center gap-2 min-w-0 overflow-hidden">
         <span className="text-text-primary font-semibold truncate hidden sm:inline">{project?.name}</span>
         {/* Mobile: sem o prefixo "Demo ·" — o nome do projeto é o que cabe. */}
         <span className="text-text-primary font-semibold truncate sm:hidden" title={project?.name}>
@@ -224,13 +254,16 @@ export function TopBar() {
             <ProgressRing
               total={progress.total}
               done={progress.done}
-              withProof={progress.doneWithSignal}
+              withProof={evidence.withEvidence}
               size={22}
               strokeWidth={2.5}
               label={progressLabel}
             />
-            <span aria-hidden className="hidden sm:inline text-footnote text-text-muted tabular-nums">
+            <span aria-hidden className="sm:hidden text-footnote text-text-muted tabular-nums">
               {progress.done}/{progress.total}
+            </span>
+            <span aria-hidden className="hidden sm:inline text-footnote text-text-muted tabular-nums">
+              {tr.topBar.progressCompact(progress.done, progress.total, evidence.withEvidence)}
             </span>
           </span>
         )}
@@ -272,6 +305,8 @@ export function TopBar() {
           <button
             key={v.value}
             onClick={() => setViewMode(v.value)}
+            aria-label={v.description}
+            title={v.description}
             aria-pressed={viewMode === v.value}
             className="segmented-item"
           >
@@ -409,7 +444,7 @@ export function TopBar() {
             <button
               role="menuitem"
               onClick={() => {
-                exportJson();
+                void exportJson();
                 setMenuOpen(false);
               }}
               className={menuItemClass}

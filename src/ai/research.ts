@@ -88,7 +88,7 @@ function buildResearchCall(tier: ResearchTier): ResearchCall {
   // URLs de redirect inúteis como âncora; a Exa devolve URL direta + título.
   const client = createOpenRouter({
     apiKey: config.apiKey,
-    appName: 'cellproject',
+    appName: 'dynamic_diary',
     appUrl: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173',
   });
   return {
@@ -110,7 +110,7 @@ function shouldFallbackToMain(err: unknown): boolean {
 
 function researchSystem(): string {
   const lang = currentLocaleAIName();
-  return `You are the research arm of Cellproject, a planning assistant grounded in reality.
+  return `You are the research arm of dynamic_diary, a planning assistant grounded in reality.
 Use web search to gather CONCRETE, CURRENT facts about the topic: official documentation, real prices, real part/model numbers, specs with units, known tutorials, version numbers.
 
 RULES
@@ -159,8 +159,12 @@ export async function groundedText(opts: {
   prompt: string;
   temperature?: number;
   signal?: AbortSignal;
+  maxRetries?: number;
+  beforeRequest?: () => Promise<void>;
 }): Promise<GroundedTextResult> {
   const run = async (tier: ResearchTier) => {
+    await opts.beforeRequest?.();
+    opts.signal?.throwIfAborted();
     const { model, modelId, tools } = buildResearchCall(tier);
     return generateText({
       model,
@@ -169,6 +173,7 @@ export async function groundedText(opts: {
       prompt: opts.prompt,
       ...callOpts('research', opts.temperature ?? 0.4, modelId),
       abortSignal: opts.signal,
+      maxRetries: opts.maxRetries,
     });
   };
 
@@ -179,7 +184,7 @@ export async function groundedText(opts: {
     result = await run('research');
   } catch (err) {
     if (sameModel || opts.signal?.aborted || !shouldFallbackToMain(err)) throw err;
-    console.warn('[cellproject] research model failed — retrying with the main model', err);
+    console.warn('[dynamic_diary] research model failed — retrying with the main model', err);
     result = await run('main');
   }
   return { text: result.text.trim(), sources: normalizeSources(result.sources) };
@@ -190,7 +195,7 @@ export async function groundedText(opts: {
 export async function runResearch(
   topic: string,
   focus?: string,
-  opts?: { signal?: AbortSignal },
+  opts?: { signal?: AbortSignal; maxRetries?: number; beforeRequest?: () => Promise<void> },
 ): Promise<ResearchDigest> {
   const prompt = `RESEARCH TOPIC:
 """
@@ -204,6 +209,8 @@ Search the web and produce the digest now.`;
     prompt,
     temperature: 0.3,
     signal: opts?.signal,
+    maxRetries: opts?.maxRetries,
+    beforeRequest: opts?.beforeRequest,
   });
 
   return {

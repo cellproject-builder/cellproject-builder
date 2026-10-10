@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '@/i18n';
 import { classifyAIError, type AIErrorInfo } from '@/ai/service';
 import { useGraphStore, type AIJobKind } from '@/store';
+import { registerAIAction } from '@/ai/actions';
 
 // ---------------------------------------------------------------------------
 // useAIAction — um único jeito de chamar a IA a partir da UI: estado de
@@ -147,6 +148,7 @@ export function useAIAction<T extends unknown[], R>(
     if (job) useGraphStore.getState().startAIJob(job.nodeId, job.kind);
 
     const isCurrent = () => runId === runIdRef.current;
+    const releaseAction = registerAIAction();
     try {
       const result = await fnRef.current(controller.signal, ...args);
       if (controller.signal.aborted) return undefined;
@@ -159,6 +161,7 @@ export function useAIAction<T extends unknown[], R>(
       if (classified.kind !== 'aborted' && isCurrent() && mountedRef.current) setError(classified);
       return undefined;
     } finally {
+      releaseAction();
       // Run substituído/cancelado: quem o substituiu cuida do job e do timer.
       if (isCurrent()) {
         endActiveJob();

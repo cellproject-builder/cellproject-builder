@@ -1,0 +1,185 @@
+/* Shared workspace primitives. Theme colors remain owned by src/index.css. */
+:root {
+  --ws-space-1:4px;
+  --ws-space-2:8px;
+  --ws-space-3:12px;
+  --ws-space-4:16px;
+  --ws-space-6:24px;
+  --ws-space-8:32px;
+  --ws-text-xs:12px;
+  --ws-text-sm:13px;
+  --ws-text-md:14px;
+  --ws-text-caption:11px;
+  --ws-text-title:16px;
+  --ws-font-body:var(--ws-text-sm);
+  --ws-weight-normal:450;
+  --ws-weight-medium:500;
+  --ws-weight-semibold:600;
+  --ws-control-height:32px;
+  --ws-header-height:44px;
+  --ws-page-gutter:24px;
+  --ws-page-top:12px;
+  --ws-sidebar-width:244px;
+  --ws-radius-control:6px;
+  --ws-radius-row:8px;
+  --ws-radius-panel:12px;
+  --ws-radius-island:16px;
+  --ws-radius-dialog:16px;
+  --ws-surface:rgb(var(--bg-secondary));
+  --ws-surface-raised:rgb(var(--bg-elevated));
+  --ws-surface-hover:var(--ws-surface-raised);
+  --ws-material:rgb(var(--glass)/.78);
+  --ws-border:rgb(var(--border-base)/.7);
+  --ws-material-border:rgb(var(--hairline)/.32);
+  --ws-focus:rgb(var(--accent)/.8);
+  --ws-transition:150ms ease;
+  --ws-shadow-ink:22 26 34;
+  --ws-shadow-ambient-alpha:.035;
+  --ws-shadow-contact-alpha:.055;
+  --ws-shadow-hover-alpha:.07;
+  --ws-shadow-dialog-alpha:.16;
+  --ws-shadow-divider-alpha:.16;
+  --ws-shadow-control:0 1px 3px rgb(var(--ws-shadow-ink)/var(--ws-shadow-contact-alpha)), 0 3px 8px rgb(var(--ws-shadow-ink)/var(--ws-shadow-ambient-alpha));
+  --ws-shadow-card:0 2px 5px rgb(var(--ws-shadow-ink)/var(--ws-shadow-contact-alpha)), 0 8px 20px rgb(var(--ws-shadow-ink)/var(--ws-shadow-ambient-alpha));
+  --ws-shadow-card-hover:0 4px 10px rgb(var(--ws-shadow-ink)/var(--ws-shadow-hover-alpha)), 0 12px 28px rgb(var(--ws-shadow-ink)/var(--ws-shadow-ambient-alpha));
+  --ws-shadow-island:0 3px 10px rgb(var(--ws-shadow-ink)/var(--ws-shadow-contact-alpha)), 0 16px 36px rgb(var(--ws-shadow-ink)/var(--ws-shadow-ambient-alpha));
+  --ws-shadow-dialog:0 8px 24px rgb(var(--ws-shadow-ink)/var(--ws-shadow-hover-alpha)), 0 28px 72px rgb(var(--ws-shadow-ink)/var(--ws-shadow-dialog-alpha));
+  --ws-shadow-divider:inset 0 5px 8px -8px rgb(var(--ws-shadow-ink)/var(--ws-shadow-divider-alpha));
+  --ws-shadow-divider-bottom:inset 0 -5px 8px -8px rgb(var(--ws-shadow-ink)/var(--ws-shadow-divider-alpha));
+}
+@supports (background:color-mix(in srgb, white, black)) {
+  :root { --ws-surface-hover:color-mix(in srgb, var(--ws-surface) 72%, var(--ws-surface-raised)); }
+}
+
+/* Dark surfaces keep their existing solid colors; only shadow strength changes. */
+@media (prefers-color-scheme:dark) {
+  :root:not([data-theme=light]) { --ws-shadow-ink:0 0 0; --ws-shadow-ambient-alpha:.12; --ws-shadow-contact-alpha:.2; --ws-shadow-hover-alpha:.26; --ws-shadow-dialog-alpha:.45; --ws-shadow-divider-alpha:.28; }
+}
+:root:is([data-theme=dark],[data-theme=oled]) { --ws-shadow-ink:0 0 0; --ws-shadow-ambient-alpha:.12; --ws-shadow-contact-alpha:.2; --ws-shadow-hover-alpha:.26; --ws-shadow-dialog-alpha:.45; --ws-shadow-divider-alpha:.28; }
+
+/* Low specificity lets each editor keep its own text hierarchy. */
+:where(.ws-app, .ws-form) :where(button, input, select, textarea) { font:inherit; }
+:where(.ws-app, .ws-form) :where(button) { cursor:pointer; }
+:where(.ws-app, .ws-form) :where(button:disabled) { cursor:default; opacity:.45; }
+:where(.ws-app, .ws-form) :is(button, input, select, textarea, [tabindex]):focus-visible { outline:2px solid var(--ws-focus); outline-offset:2px; }
+
+.ws-button {
+  display:inline-flex; flex:none; align-items:center; justify-content:center; gap:var(--ws-space-2);
+  min-height:var(--ws-control-height); padding:5px var(--ws-space-3);
+  border:1px solid transparent; border-radius:var(--ws-radius-control);
+  background:var(--ws-surface); color:rgb(var(--text-secondary));
+  box-shadow:var(--ws-shadow-control);
+  font-size:var(--ws-text-xs); font-weight:var(--ws-weight-medium); line-height:20px; white-space:nowrap;
+  transition:background-color var(--ws-transition), box-shadow var(--ws-transition), color var(--ws-transition);
+}
+.ws-button:hover { background:var(--ws-surface-hover); box-shadow:var(--ws-shadow-card); }
+.ws-button.primary { background:rgb(var(--accent-solid)); border-color:transparent; color:rgb(var(--accent-fg)); }
+.ws-button.primary:hover { filter:brightness(1.07); }
+.ws-button.small { min-height:var(--ws-control-height); padding:5px var(--ws-space-2); }
+.ws-button.danger { color:rgb(var(--state-problem)); }
+.ws-push-left { margin-right:auto; }
+.ws-push-right { margin-left:auto; }
+.ws-icon-button { display:inline-flex; flex:none; align-items:center; justify-content:center; width:var(--ws-control-height); height:var(--ws-control-height); border-radius:var(--ws-radius-control); color:rgb(var(--text-muted)); transition:background-color var(--ws-transition), box-shadow var(--ws-transition), color var(--ws-transition); }
+.ws-icon-button:hover, .ws-icon-button[aria-pressed=true] { background:var(--ws-surface-hover); color:rgb(var(--text-primary)); box-shadow:var(--ws-shadow-control); }
+.ws-text-button { display:inline-flex; align-items:center; gap:var(--ws-space-2); color:rgb(var(--accent)); font-size:var(--ws-text-xs); font-weight:var(--ws-weight-medium); }
+.ws-text-button:hover { text-decoration:underline; }
+
+.ws-search { display:flex; align-items:center; gap:var(--ws-space-2); width:240px; min-height:var(--ws-control-height); padding:5px var(--ws-space-2); border:1px solid transparent; border-radius:var(--ws-radius-control); background:var(--ws-surface); color:rgb(var(--text-muted)); box-shadow:var(--ws-shadow-control); transition:box-shadow var(--ws-transition), background-color var(--ws-transition); }
+.ws-search input { width:100%; min-width:0; border:0; outline:none; background:transparent; color:rgb(var(--text-primary)); font-size:var(--ws-text-xs); line-height:20px; }
+.ws-search input:focus-visible { outline:none; }
+.ws-search:focus-within { border-color:var(--ws-focus); box-shadow:0 0 0 1px var(--ws-focus), var(--ws-shadow-control); }
+.ws-select { max-width:100%; min-height:var(--ws-control-height); padding:5px var(--ws-space-2); border:1px solid transparent; border-radius:var(--ws-radius-control); background:var(--ws-surface); color:rgb(var(--text-secondary)); font-size:var(--ws-text-xs); line-height:20px; box-shadow:var(--ws-shadow-control); transition:box-shadow var(--ws-transition), background-color var(--ws-transition); }
+.ws-segmented { display:flex; min-height:var(--ws-control-height); padding:2px; border:1px solid transparent; border-radius:var(--ws-radius-control); background:rgb(var(--bg-elevated)/.45); }
+.ws-segmented button { padding:3px var(--ws-space-3); border-radius:var(--ws-space-1); color:rgb(var(--text-muted)); font-size:var(--ws-text-xs); line-height:20px; transition:box-shadow var(--ws-transition), background-color var(--ws-transition); }
+.ws-segmented button.selected { background:var(--ws-surface); color:rgb(var(--text-primary)); box-shadow:var(--ws-shadow-control); }
+
+.ws-panel, .ws-project-card, .ws-stat { border:1px solid transparent; border-radius:var(--ws-radius-panel); background:var(--ws-surface); box-shadow:var(--ws-shadow-card); }
+.ws-panel { overflow:hidden; }
+.ws-page h2 { font-size:var(--ws-text-md); font-weight:var(--ws-weight-semibold); letter-spacing:-.2px; }
+.ws-project-card { display:flex; flex-direction:column; min-height:222px; padding:var(--ws-space-6); text-align:left; transition:box-shadow var(--ws-transition), background-color var(--ws-transition); }
+.ws-project-card:hover { background:var(--ws-surface-hover); box-shadow:var(--ws-shadow-card-hover); }
+.ws-stat { display:flex; flex-direction:column; gap:var(--ws-space-2); padding:var(--ws-space-6); text-align:left; transition:box-shadow var(--ws-transition), background-color var(--ws-transition); }
+
+.ws-sidebar { width:var(--ws-sidebar-width); flex:none; display:flex; flex-direction:column; min-height:0; padding:var(--ws-space-6) var(--ws-space-3) var(--ws-space-4); border:1px solid transparent; border-radius:var(--ws-radius-island); overflow-y:auto; box-shadow:var(--ws-shadow-island); }
+.ws-sidebar, .ws-note-library, .ws-note-toolbar { background:var(--ws-material); -webkit-backdrop-filter:blur(24px) saturate(120%); backdrop-filter:blur(24px) saturate(120%); }
+.ws-nav-item { display:flex; align-items:center; gap:var(--ws-space-2); width:100%; min-height:var(--ws-control-height); padding:6px var(--ws-space-3); margin:2px 0; border-radius:var(--ws-radius-row); color:rgb(var(--text-secondary)); text-align:left; font-size:var(--ws-text-sm); line-height:20px; transition:box-shadow var(--ws-transition), background-color var(--ws-transition); }
+.ws-nav-item>svg { flex:none; color:rgb(var(--text-muted)); }
+.ws-nav-item:hover { background:var(--ws-surface-hover); }
+.ws-nav-item.selected { color:rgb(var(--accent)); background:rgb(var(--accent)/.08); font-weight:var(--ws-weight-medium); }
+.ws-nav-item.selected>svg { color:inherit; }
+.ws-nav-item small { margin-left:auto; color:rgb(var(--text-muted)); font-size:var(--ws-text-xs); font-weight:var(--ws-weight-normal); }
+.ws-appearance { display:flex; align-items:center; gap:var(--ws-space-2); margin:var(--ws-space-2) var(--ws-space-3) var(--ws-space-4); color:rgb(var(--text-muted)); font-size:var(--ws-text-xs); }
+.ws-appearance select { flex:1; min-width:0; min-height:var(--ws-control-height); padding:5px var(--ws-space-2); border:1px solid transparent; border-radius:var(--ws-radius-control); color:rgb(var(--text-secondary)); background:var(--ws-surface); cursor:pointer; box-shadow:var(--ws-shadow-control); }
+
+/* Planner keeps a shell header; notes integrate navigation into the library heading. */
+.ws-header { display:flex; flex:none; align-items:center; gap:var(--ws-space-3); height:var(--ws-header-height); min-width:0; padding:0 var(--ws-page-gutter); background:transparent; }
+.ws-breadcrumb { display:flex; align-items:center; gap:var(--ws-space-2); min-width:0; font-size:var(--ws-text-xs); color:rgb(var(--text-muted)); white-space:nowrap; }
+.ws-breadcrumb button { max-width:220px; overflow:hidden; text-overflow:ellipsis; }
+.ws-breadcrumb button:hover { color:rgb(var(--accent)); }
+.ws-breadcrumb strong { font-weight:var(--ws-weight-medium); color:rgb(var(--text-secondary)); }
+.ws-breadcrumb>span { color:rgb(var(--text-muted)); }
+
+/* Forms also render in portals, so tokens live on :root instead of .ws-app. */
+.ws-form { display:flex; flex-direction:column; gap:var(--ws-space-4); font-size:var(--ws-text-sm); }
+.ws-form label { display:flex; flex-direction:column; gap:var(--ws-space-2); color:rgb(var(--text-secondary)); font-size:var(--ws-text-xs); font-weight:var(--ws-weight-medium); }
+.ws-form :is(input, textarea, select) { width:100%; min-width:0; min-height:var(--ws-control-height); padding:5px var(--ws-space-2); border:1px solid transparent; border-radius:var(--ws-radius-control); background:rgb(var(--bg-primary)/.6); color:rgb(var(--text-primary)); font-size:var(--ws-text-sm); font-weight:var(--ws-weight-normal); line-height:20px; box-shadow:var(--ws-shadow-control); transition:box-shadow var(--ws-transition), background-color var(--ws-transition); }
+.ws-form textarea { resize:vertical; min-height:80px; padding:var(--ws-space-2); }
+.ws-form-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:var(--ws-space-4); }
+.ws-form-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:var(--ws-space-2); padding-top:var(--ws-space-2); margin-top:var(--ws-space-1); }
+.liquid-glass:has(.ws-form) { border:1px solid transparent; border-radius:var(--ws-radius-dialog); background:var(--ws-material); box-shadow:var(--ws-shadow-dialog); -webkit-backdrop-filter:blur(24px) saturate(120%); backdrop-filter:blur(24px) saturate(120%); }
+:root:is([data-theme=dark],[data-theme=oled]) .liquid-glass { background-image:none; }
+
+/* Solid OLED layers keep navigation legible against the black canvas. */
+@media (forced-colors:none) {
+  :root[data-theme=oled] {
+    --ws-material:rgb(var(--glass));
+    --ws-surface-hover:rgb(var(--bg-elevated));
+  }
+  :root[data-theme=oled] :is(.ws-sidebar, .ws-note-library, .ws-panel, .ws-project-card, .ws-stat) {
+    border-color:rgb(var(--border-base)/.5);
+  }
+  :root[data-theme=oled] :is(.ws-button:not(.primary), .ws-search, .ws-select, .ws-appearance select),
+  :root[data-theme=oled] .ws-form :is(input, textarea, select) {
+    background:rgb(var(--bg-elevated));
+  }
+  :root[data-theme=oled] .ws-button:not(.primary):hover {
+    background:rgb(var(--segmented-active));
+  }
+  :root[data-theme=oled] .ws-segmented button.selected {
+    background:rgb(var(--segmented-active));
+  }
+  :root[data-theme=oled] .ws-nav-item.selected {
+    background:rgb(var(--accent)/.16);
+  }
+}
+
+@media (max-width:900px) {
+  .ws-sidebar { width:198px; padding-left:var(--ws-space-2); padding-right:var(--ws-space-2); }
+}
+@media (max-width:700px) {
+  :root { --ws-page-gutter:12px; }
+  .ws-header { gap:var(--ws-space-2); }
+  .ws-breadcrumb { gap:var(--ws-space-2); }
+  .ws-breadcrumb button { max-width:110px; }
+  .ws-breadcrumb>button:first-child, .ws-breadcrumb>span:first-of-type { display:none; }
+  .ws-header .ws-push-right { max-width:110px; white-space:normal; }
+  .ws-sidebar { background:rgb(var(--glass)/.96); }
+  .ws-nav-item { min-height:40px; }
+}
+@media (max-width:639px) {
+  .liquid-glass:has(.ws-form) { border-bottom:0; border-radius:var(--ws-radius-dialog) var(--ws-radius-dialog) 0 0; }
+}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
+  .ws-sidebar, .ws-note-library, .ws-note-toolbar, .liquid-glass:has(.ws-form) { background:var(--ws-surface); }
+}
+@media (prefers-reduced-transparency:reduce), (forced-colors:active) {
+  .ws-sidebar, .ws-note-library, .ws-note-toolbar, .liquid-glass:has(.ws-form) { background:var(--ws-surface); -webkit-backdrop-filter:none; backdrop-filter:none; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .ws-form *, .liquid-glass:has(.ws-form) { transition:none; }
+}
+@media (forced-colors:active) {
+  :root { --ws-shadow-control:none; --ws-shadow-card:none; --ws-shadow-card-hover:none; --ws-shadow-island:none; --ws-shadow-dialog:none; --ws-shadow-divider:none; --ws-shadow-divider-bottom:none; }
+  .ws-button, .ws-search, .ws-select, .ws-segmented, .ws-panel, .ws-project-card, .ws-stat, .ws-sidebar, .ws-appearance select, .ws-form :is(input, textarea, select), .liquid-glass:has(.ws-form) { border-color:CanvasText; }
+  .ws-segmented button.selected, .ws-nav-item.selected { outline:1px solid Highlight; outline-offset:-1px; }
+}

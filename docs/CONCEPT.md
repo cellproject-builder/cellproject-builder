@@ -1,8 +1,22 @@
-# Cellproject — Concept
+# dynamic_diary — Concept
 
 ## One-line pitch
 
-Cellproject is a **visual planning framework based on decomposition**: the user declares a concrete goal, the AI proposes complete paths shaped as a tree, and the user validates node by node until it ships.
+dynamic_diary ajuda uma pessoa a **aprender, compreender e construir com IA**, explicitando premissas de um plano e revisando-as com base em evidências do mundo real.
+
+O artigo do SENAI tem como objetivo principal desenvolver e avaliar um método de desconstrução de planos gerados por IA orientado por evidências físicas. Seu ciclo é **premissa explícita → previsão/critério próprio antes do ensaio → ensaio → observação real → revisão justificada**. O aplicativo é geral para diferentes usuários e projetos; o robô de dois braços é o estudo de caso, sem pressupor sua conclusão. Controle físico pertence a um módulo futuro.
+
+O [objetivo aprovado do artigo](OBJETIVO_DO_ARTIGO.md) é a referência canônica para o propósito, a contribuição candidata, a direção da avaliação e os limites. Os mecanismos descritos abaixo apoiam registros humanos e revisões; não certificam, por si mesmos, a validade de uma observação ou de uma conclusão.
+
+The tree is a scope-building tool inside a project. Its actionable steps can become execution tasks while retaining their origin. Completing a task does not replace validation of the corresponding plan node.
+
+The first workspace release includes project management, Kanban, sprints and a block-based notes editor inspired by Apple Notes. Full notes parity, attachments, account synchronization and collaboration are outside this release.
+
+An always-accessible AI chat uses the same validated actions as the interface for projects, tasks/issues, sprints, notes, folders and comments. Scoped planner tools retain the builder's validation rules. The assistant can navigate to its results, while conversations and action outcomes persist locally. User-written criteria and observations must come from the user's message, and hidden AI criteria remain hidden.
+
+Persistence is separated behind a replaceable repository, with versioned transfer contracts and an owner-scoped SQL draft for a future Supabase migration. The application remains local; the [data architecture](data-architecture.md) records the migration path and the checks still required before deployment.
+
+The sections below describe the existing plan builder and its validation model. Their `Project` type refers to the planner graph, which is stored as a snapshot within a managed project.
 
 ## The problem it solves
 
@@ -186,7 +200,7 @@ The planner (`expandPlan` / `decomposeNode` / `replanFromFailure`) is instructed
 
 - It's not a generic task manager — the structure is a tree with fixed kinds, not a free-form list.
 - It's not an open brainstorming tool — everything anchors on the root goal.
-- It's not a chat — the AI replies in validated objects, not free text (except in tutor mode).
+- The planner's structured generation uses validated objects. The assistant adds conversational replies and explicit tool calls into the shared application actions.
 - It has no multi-user, real-time collaboration, or backend. A project lives in the browser's IndexedDB.
 
 ## Quick glossary

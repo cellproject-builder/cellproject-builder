@@ -7,7 +7,7 @@
 //    prompts sem precisar re-enviar o PDF inteiro a cada chamada.
 //
 // O PDF binário NÃO é armazenado. O usuário fica com o arquivo dele no disco
-// e o Cellproject guarda apenas o texto + o resumo. Isso mantém o IndexedDB
+// e o dynamic_diary guarda apenas o texto + o resumo. Isso mantém o IndexedDB
 // pequeno e o custo de API baixo: a injeção no prompt usa só o resumo.
 
 export type KBNivel = 'iniciante' | 'intermediario' | 'avancado';
@@ -58,6 +58,8 @@ export interface KBDocSummaryView {
 // Contexto que o graph store injeta nos prompts do AI service.
 // Os campos são enxutos de propósito: cada doc passado tem ~400-800 tokens.
 export interface KBContextEntry {
+  sourceText?: string;
+  sourceTruncated?: boolean;
   docId: string;
   titulo: string;
   dominio: string;

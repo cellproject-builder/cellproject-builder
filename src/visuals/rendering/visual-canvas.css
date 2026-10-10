@@ -1,0 +1,41 @@
+.react-flow__node-visual { pointer-events: none !important; background: transparent !important; border: none !important; box-shadow: none !important; }
+.visual-artifact { position: relative; pointer-events: none; background: transparent; }
+.visual-drag-surface { position: absolute; inset: 0; pointer-events: auto; cursor: grab; touch-action: none; user-select: none; border-radius: 5px; }
+.visual-drag-surface:hover { outline: 1px dashed rgb(var(--ai-accent) / .25); outline-offset: 1px; }
+.visual-artifact.is-selected .visual-drag-surface { outline: 1px solid rgb(var(--ai-accent) / .4); outline-offset: 1px; }
+.visual-artifact.is-dragging .visual-drag-surface { cursor: grabbing; outline: 1px solid rgb(var(--ai-accent) / .55); outline-offset: 1px; }
+.visual-artifact.is-orbiting .visual-drag-surface { cursor: move; outline-style: dashed; }
+.visual-artifact.is-orbiting .visual-drag-surface:active { cursor: grabbing; }
+.visual-artifact.is-quick-orbit .visual-drag-surface { outline: none; cursor: grab; }
+.visual-artifact.is-quick-orbit .visual-drag-surface:active { cursor: grabbing; }
+.visual-image-fallback { width: 100%; height: 100%; display: block; object-fit: contain; border-radius: var(--ws-radius-panel, 12px); }
+.visual-artifact.is-image .visual-drag-surface { border-radius: var(--ws-radius-panel, 12px); overflow: hidden; outline-width: 1px; outline-offset: -1px; }
+.visual-artifact .react-flow__resize-control.line { border-color: transparent; }
+.visual-artifact .react-flow__resize-control.handle { background-color: rgb(var(--ai-accent) / .65); border-color: rgb(var(--text-primary) / .45); }
+.visual-artifact-controls { position: relative; display: flex; align-items: center; flex-wrap: wrap; width: max-content; max-width: min(280px, calc(100vw - 32px)); gap: 2px; pointer-events: auto; background: rgb(var(--bg-elevated) / .94); color: rgb(var(--text-secondary)); border: 1px solid rgb(var(--border-base) / .7); border-radius: 7px; padding: 2px 3px; font-size: 10px; line-height: 18px; box-shadow: 0 3px 10px #0002; }
+.visual-artifact-label { padding: 0 4px; min-width: 0; max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.visual-artifact-controls.is-compact .visual-artifact-label { display: none; }
+.visual-artifact-controls button { display: inline-flex; align-items: center; justify-content: center; flex: none; min-width: 24px; min-height: 24px; border-radius: 5px; }
+.visual-artifact-controls button:hover { color: rgb(var(--text-primary)); background: rgb(var(--bg-primary)); }
+.visual-artifact-controls .visual-orbit-toggle { display: inline-flex; align-items: center; gap: 4px; padding: 0 7px; white-space: nowrap; }
+.visual-artifact-controls .visual-orbit-toggle[aria-pressed="true"] { color: rgb(var(--ai-accent)); background: rgb(var(--ai-accent) / .12); }
+.visual-orbit-hint { flex-basis: 100%; padding: 2px 5px; line-height: 1.5; font-size: 10px; color: rgb(var(--text-muted)); }
+.visual-discuss { display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.visual-discuss svg,.visual-link-toggle svg { width: 13px; height: 13px; }
+.visual-link-toggle.is-linked { color: rgb(var(--ai-accent)); }
+.visual-artifact-link { position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 5px; width: 232px; max-width: calc(100vw - 40px); min-width: 0; border: 1px solid rgb(var(--border-base)); border-radius: 7px; padding: 4px 6px; background: rgb(var(--bg-elevated) / .98); box-shadow: 0 3px 10px #0002; color: rgb(var(--text-muted)); }
+.visual-artifact-link.is-linked { color: rgb(var(--ai-accent)); }
+.visual-artifact-link > svg { width: 14px; height: 14px; flex: none; }
+.visual-artifact-link select { flex: 1; min-width: 0; width: 0; min-height: 26px; border-radius: 5px; border: 0; background: transparent; color: inherit; font: inherit; text-overflow: ellipsis; cursor: pointer; }
+.visual-artifact-link select:focus-visible { outline: 2px solid rgb(var(--ai-accent)); outline-offset: 1px; }
+.visual-artifact-link option { color: rgb(var(--text-primary)); background: rgb(var(--bg-elevated)); }
+.visual-artifact .visual-link-handle { opacity: 0; width: 1px; height: 1px; border: 0; pointer-events: none !important; }
+.visual-model-fallback,.visual-missing { display: grid; height: 100%; place-items: center; color: rgb(var(--text-muted)); font-size: 12px; }
+[data-visual-gpu="true"] .visual-image-fallback,[data-visual-gpu="true"] .visual-model-fallback { visibility: hidden; }
+.visual-artifact .react-flow__resize-control { pointer-events: auto; z-index: 1; }
+.visual-canvas-actions { position: absolute; left: 12px; bottom: 76px; z-index: 10; display: flex; flex-direction: column; gap: 8px; }
+.react-flow:has(.react-flow__controls) ~ .visual-canvas-actions { bottom: 156px; }
+.visual-canvas-actions button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 12px; color: rgb(var(--text-primary)); background: rgb(var(--bg-elevated) / .95); border: 1px solid rgb(var(--border-base)); box-shadow: 0 5px 20px #0002; }
+.visual-canvas-actions button:hover { border-color: rgb(var(--ai-accent) / .7); }
+.visual-canvas-actions button:focus-visible { outline: 2px solid rgb(var(--ai-accent)); outline-offset: 3px; }
+@media(pointer:coarse) { .visual-artifact-controls button, .visual-artifact-link select { min-width: 44px; min-height: 44px; } }

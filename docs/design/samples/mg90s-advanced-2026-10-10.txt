@@ -1,0 +1,4141 @@
+CONJUNTO MODULAR 3D · ILUSTRATIVO
+
+Articulação ilustrativa de bancada com MG90S, suporte em U e elo curto · conjunto ilustrativo
+
+Cada módulo foi gerado separadamente. O contrato compartilha escala, envelopes e pontos de contato. Geometria, encaixes e conexões não são fisicamente validados. Documentos lidos não certificam automaticamente o modelo.
+
+CONTRATO E REFERÊNCIAS
+
+{
+  "version": 1,
+  "sceneFingerprint": "19396:490ab85",
+  "summary": "Limitar a montagem a uma única articulação, organizada em três pedidos independentes: (1) um microservo MG90S completo, com orelhas de fixação, parafusos, cabo e horn; (2) um suporte em U; (3) um elo curto conectado ao horn. Os pedidos devem compartilhar escala e coordenadas, com posições e contatos coerentes entre servo, suporte, horn e elo. Preservar os detalhes visíveis e solicitar geometria nativa detalhada: contornos extrudados com furos reais no suporte e no elo, perfil de revolução no eixo e tubo curvo no cabo. Consultar documentação primária do MG90S para dimensões físicas e acessórios; declarar como aproximados os encaixes, folgas, furações e interfaces não confirmados. Não incluir o restante do robô, eletrônica, ferramentas ou tarefas de execução.",
+  "plan": {
+    "units": "illustrative",
+    "sharedConstraints": [
+      "Modelar somente uma articulação de bancada, dividida em três módulos físicos: MG90S completo, suporte em U e elo curto. Não incluir o restante do robô, eletrônica, ferramentas ou cenário.",
+      "Usar um único sistema mundial XYZ, com Y para cima e rotações Euler XYZ em radianos. Todos os módulos são descritos na posição montada, sem reposicionamento independente.",
+      "As coordenadas são unidades ilustrativas compartilhadas, não milímetros. Os envelopes incluem todos os acessórios e protrusões previstos; não são dimensões documentadas do MG90S.",
+      "Orientar o corpo do servo com sua maior dimensão horizontal em X. O eixo de saída é paralelo a Y, passando por X=-4 e Z=0. O horn fica no plano XZ e aponta principalmente para +X.",
+      "Situar aproximadamente o corpo do servo em X=-9 a 9, Y=-9 a 7 e Z=-5 a 5. As orelhas laterais alcançam X=-14 e 14, com faces inferiores em Y=4.",
+      "O suporte em U envolve o servo pelos lados em X, com base abaixo do corpo. Seus assentos superiores encostam nas faces inferiores das orelhas em Y=4, sem atravessar a carcaça.",
+      "Compartilhar os centros ilustrativos das furações de fixação do servo e do suporte em [-12,4,0] e [12,4,0], com eixos paralelos a Y. Os parafusos dessas fixações pertencem ao módulo do servo.",
+      "A face superior de apoio do horn e a face inferior do elo coincidem em Y=11. Compartilhar a furação ilustrativa de ligação em X=10 e Z=0, com eixo paralelo a Y. O parafuso de ligação pertence ao módulo do servo.",
+      "Manter o cabo fora do suporte: sair próximo de [8,-6,4] e curvar em direção a +Z, passando além de Z=9 sem atravessar a base ou as laterais.",
+      "Usar contornos extrudados e subtrações reais para as furações do suporte e do elo, perfil de revolução para o eixo e tubo curvo para o cabo. Não substituir esses detalhes por marcas pintadas.",
+      "Verificar a compatibilidade das superfícies e dos furos além dos pontos de ancoragem. Os contatos são ilustrativos, sem tolerâncias, capacidade de carga ou funcionamento mecânico garantidos."
+    ],
+    "unknowns": [
+      "Não há documentação primária legível do MG90S disponível nas referências fornecidas, nem fonte recuperada que confirme dimensões físicas e acessórios. Não tratar resumos de busca como especificações.",
+      "Dimensões da carcaça, posição exata do eixo, formato das orelhas, diâmetros e espaçamentos dos furos permanecem aproximados.",
+      "O formato do horn, seu estriado, os parafusos e o terminal do cabo podem variar entre fornecedores e versões comercializadas como MG90S; a variante exata não foi confirmada.",
+      "O suporte em U é uma proposta ilustrativa, não a reprodução de um suporte comercial identificado.",
+      "Espessuras, encaixes, folgas, furações e comprimentos dos parafusos não foram confirmados. Não representar roscas ou estriados como interfaces fabricáveis.",
+      "A referência ao compensado de 3 mm é uma intenção do projeto, não uma confirmação dimensional desta montagem. O elo terá aparência de compensado fino, mantendo a escala ilustrativa comum.",
+      "A ligação do elo ao horn é apenas uma composição visual coerente; resistência, travamento e transmissão de movimento não foram verificados.",
+      "Não há especificação para um apoio passivo oposto ao eixo. Não acrescentar segundo eixo, rolamento ou bucha não solicitados."
+    ],
+    "modules": [
+      {
+        "id": "servo_mg90s",
+        "name": "Microservo MG90S completo com horn e acessórios",
+        "prompt": "Modelar um único microservo com aparência reconhecível de MG90S, sem alegar dimensões de fabricante. Usar o envelope mundial X=[-15,15], Y=[-12,16], Z=[-6,22]. Corpo principal aproximadamente X=[-9,9], Y=[-9,7], Z=[-5,5], com carcaça plástica escura, cantos suavizados, tampa superior escalonada, linhas de união, pequenos parafusos da carcaça e painel lateral discreto de identificação. Criar orelhas integrais em ±X, alcançando ±14, entre Y=4 e 6, com furos reais centrados em X=±12, Z=0 e orientados em Y. Incluir os dois parafusos de montagem atravessando as orelhas e os assentos do suporte, aproximadamente entre Y=2 e 8, com cabeças e hastes legíveis. O eixo de saída fica em X=-4, Z=0, paralelo a Y: construir por perfil de revolução, com ressalto, ombro e trecho superior; estriado apenas visual e aproximado. Criar horn plástico de um braço, entre Y=9 e 11, com cubo circular no eixo, braço afilado até aproximadamente X=14, bordas arredondadas e pequenas furações reais alinhadas. Incluir parafuso central acima do cubo. Reservar uma furação em [10,11,0] para o elo, incluindo neste módulo o parafuso de ligação que atravessa o elo e termina com cabeça até Y=16. A face superior do horn em Y=11 deve oferecer contato sólido ao redor desse furo, incluindo [12,11,0]. Criar saída do cabo junto de [8,-6,4], alívio de tensão e tubo curvo de seção arredondada em direção a +Z, chegando no máximo a Z=22; distinguir visualmente três condutores agrupados e um pequeno terminal, sem pinagem ou conexão externa. Manter o cabo afastado do suporte e todos os acessórios dentro do envelope. Não expor engrenagens internas nem acrescentar eletrônica.",
+        "nodeIds": [
+          "CbxzwHXjNE"
+        ],
+        "sourceIds": [],
+        "center": [
+          0,
+          2,
+          8
+        ],
+        "size": [
+          30,
+          28,
+          28
+        ],
+        "primitiveBudget": 64
+      },
+      {
+        "id": "suporte_u",
+        "name": "Suporte em U com assentos para as orelhas",
+        "prompt": "Modelar um suporte rígido em U, aberto para +Y e com silhueta legível quando visto de +Z. Envelope mundial X=[-18,18], Y=[-14,6], Z=[-9,9]. Usar contorno fechado extrudado ao longo de Z, com base aproximadamente entre Y=-13 e -11, duas laterais externas próximas de X=-17 a -14 e X=14 a 17, subindo até Y=4. Acrescentar assentos integrais voltados para dentro: o esquerdo ocupa aproximadamente X=-14 a -9 e o direito X=9 a 14, entre Y=2 e 4. As faces superiores em Y=4 apoiam diretamente as orelhas do servo. A abertura central deve acomodar o corpo X=[-9,9], Y=[-9,7], Z=[-5,5] sem interpenetração, preservando espaço visual entre a base e a carcaça. Criar furos passantes reais nos assentos, com centros X=±12, Z=0 e eixos paralelos a Y, correspondentes aos parafusos pertencentes ao servo. Fazer esses furos atravessarem a espessura dos assentos; não duplicar os parafusos. Incluir dois furos de bancada reais na base, orientados em Y e posicionados aproximadamente em X=±7, Z=0, sem adicionar mesa ou fixadores externos. Usar pequenos arredondamentos nas bordas, transições coerentes nos cantos e aparência de peça metálica ou polimérica rígida, sem atribuir material estrutural certificado. Os contatos principais são [-12,4,0] e [12,4,0]. Deixar livre a saída do cabo rumo a +Z e não criar apoio fictício no horn.",
+        "nodeIds": [
+          "p8cjnCQzVk"
+        ],
+        "sourceIds": [],
+        "center": [
+          0,
+          -4,
+          0
+        ],
+        "size": [
+          36,
+          20,
+          18
+        ],
+        "primitiveBudget": 28
+      },
+      {
+        "id": "elo_curto",
+        "name": "Elo curto de compensado ligado ao horn",
+        "prompt": "Modelar um único elo curto e leve com aparência de compensado fino, no envelope mundial X=[6,42], Y=[11,15], Z=[-5,5]. Criar a peça por extrusão de um contorno fechado no plano XZ, aproximadamente entre Y=11 e 14. A silhueta deve ter extremidade proximal arredondada em torno de X=10, corpo estreito alongado rumo a +X e extremidade distal arredondada perto de X=38, sem acrescentar outra articulação. Mostrar faces planas, bordas suavizadas e discretas camadas na espessura. Criar furo proximal passante real com centro X=10, Z=0 e eixo paralelo a Y, compatível visualmente com a furação e o parafuso do horn; diâmetro apenas ilustrativo. A região proximal deve sobrepor o braço do horn em X aproximadamente de 7 a 13, apoiando sua face inferior Y=11 na face superior do horn. Preservar contato sólido em [12,11,0] e espaço para a cabeça do parafuso acima do elo, sem modelar esse parafuso novamente. Criar um furo distal real perto de X=37, Z=0, também orientado em Y, apenas como detalhe do elo e sem conexão a outra peça. Evitar colisão com o cubo e o parafuso central do servo em X=-4. Todas as espessuras e furações são aproximações visuais, não medidas de fabricação.",
+        "nodeIds": [
+          "p8cjnCQzVk"
+        ],
+        "sourceIds": [],
+        "center": [
+          24,
+          13,
+          0
+        ],
+        "size": [
+          36,
+          4,
+          10
+        ],
+        "primitiveBudget": 16
+      }
+    ],
+    "interfaces": [
+      {
+        "id": "apoio_servo_suporte",
+        "moduleIds": [
+          "servo_mg90s",
+          "suporte_u"
+        ],
+        "anchor": [
+          -12,
+          4,
+          0
+        ],
+        "description": "Contato entre a face inferior da orelha esquerda do servo e a face superior do assento esquerdo do suporte em Y=4. A ancoragem representa o centro da fixação; o apoio material ocorre ao redor do furo. Repetir o contato simétrico em [12,4,0]. Os parafusos pertencem ao servo, atravessando furos correspondentes do suporte. Encaixes e folgas aproximados."
+      },
+      {
+        "id": "contato_horn_elo",
+        "moduleIds": [
+          "servo_mg90s",
+          "elo_curto"
+        ],
+        "anchor": [
+          12,
+          11,
+          0
+        ],
+        "description": "Contato sólido entre a face superior do braço do horn e a face inferior do elo em Y=11, ao lado da furação compartilhada centrada em [10,11,0]. O parafuso de ligação pertence ao módulo do servo e atravessa o furo proximal do elo. Verificar sobreposição das faces e espaço para a cabeça; a ancoragem não confirma ajuste mecânico nem transmissão de movimento."
+      }
+    ]
+  },
+  "groups": [
+    {
+      "partId": "servo_mg90s",
+      "name": "Microservo MG90S completo com horn e acessórios",
+      "objectIds": [
+        "servo_mg90s/carcaca-principal",
+        "servo_mg90s/tampa-inferior",
+        "servo_mg90s/linha-uniao-superior",
+        "servo_mg90s/carcaca-superior",
+        "servo_mg90s/tampa-superior",
+        "servo_mg90s/ressalto-tampa-eixo",
+        "servo_mg90s/orelha-esquerda-furada",
+        "servo_mg90s/orelha-direita-furada",
+        "servo_mg90s/reforco-orelha-esquerda",
+        "servo_mg90s/reforco-orelha-direita",
+        "servo_mg90s/fixacao-esquerda-haste",
+        "servo_mg90s/fixacao-direita-haste",
+        "servo_mg90s/fixacao-esquerda-arruela",
+        "servo_mg90s/fixacao-direita-arruela",
+        "servo_mg90s/fixacao-esquerda-cabeca",
+        "servo_mg90s/fixacao-direita-cabeca",
+        "servo_mg90s/fixacao-esquerda-fenda",
+        "servo_mg90s/fixacao-direita-fenda",
+        "servo_mg90s/parafuso-tampa-esquerdo-frente",
+        "servo_mg90s/parafuso-tampa-esquerdo-tras",
+        "servo_mg90s/parafuso-tampa-direito-frente",
+        "servo_mg90s/parafuso-tampa-direito-tras",
+        "servo_mg90s/fenda-tampa-esquerda-frente",
+        "servo_mg90s/fenda-tampa-esquerda-tras",
+        "servo_mg90s/fenda-tampa-direita-frente",
+        "servo_mg90s/fenda-tampa-direita-tras",
+        "servo_mg90s/painel-lateral-moldura",
+        "servo_mg90s/painel-lateral-discreto",
+        "servo_mg90s/painel-faixa-superior",
+        "servo_mg90s/painel-faixa-inferior",
+        "servo_mg90s/eixo-perfil-escalonado",
+        "servo_mg90s/estria-eixo-01",
+        "servo_mg90s/estria-eixo-02",
+        "servo_mg90s/estria-eixo-03",
+        "servo_mg90s/estria-eixo-04",
+        "servo_mg90s/estria-eixo-05",
+        "servo_mg90s/estria-eixo-06",
+        "servo_mg90s/estria-eixo-07",
+        "servo_mg90s/estria-eixo-08",
+        "servo_mg90s/horn-braco-cubo-furados",
+        "servo_mg90s/horn-cubo-reforco-inferior",
+        "servo_mg90s/parafuso-central-haste",
+        "servo_mg90s/parafuso-central-cabeca",
+        "servo_mg90s/parafuso-central-fenda",
+        "servo_mg90s/ligacao-elo-haste",
+        "servo_mg90s/ligacao-elo-arruela",
+        "servo_mg90s/ligacao-elo-cabeca",
+        "servo_mg90s/ligacao-elo-fenda",
+        "servo_mg90s/cabo-alivio-tensao",
+        "servo_mg90s/cabo-alivio-ressalto-01",
+        "servo_mg90s/cabo-alivio-ressalto-02",
+        "servo_mg90s/cabo-condutor-marrom",
+        "servo_mg90s/cabo-condutor-vermelho",
+        "servo_mg90s/cabo-condutor-laranja",
+        "servo_mg90s/terminal-capa-aberta",
+        "servo_mg90s/terminal-fundo",
+        "servo_mg90s/terminal-contato-01",
+        "servo_mg90s/terminal-contato-02",
+        "servo_mg90s/terminal-contato-03"
+      ]
+    },
+    {
+      "partId": "suporte_u",
+      "name": "Suporte em U com assentos para as orelhas",
+      "objectIds": [
+        "suporte_u/estrutura-u-frontal",
+        "suporte_u/estrutura-u-traseira",
+        "suporte_u/lateral-esquerda",
+        "suporte_u/lateral-direita",
+        "suporte_u/base-com-furos-de-bancada",
+        "suporte_u/assento-esquerdo-furado",
+        "suporte_u/assento-direito-furado"
+      ]
+    },
+    {
+      "partId": "elo_curto",
+      "name": "Elo curto de compensado ligado ao horn",
+      "objectIds": [
+        "elo_curto/elo-lamina-inferior-apoio",
+        "elo_curto/elo-nucleo-compensado",
+        "elo_curto/elo-lamina-superior"
+      ]
+    }
+  ],
+  "selectedNodeIds": [
+    "MMNRxiEwgN",
+    "CbxzwHXjNE",
+    "p8cjnCQzVk"
+  ],
+  "selectedImageIds": [],
+  "sources": [],
+  "unknowns": [
+    "Não foi possível ler os documentos citados. Resumos de busca não foram tratados como especificações.",
+    "Não há documentação primária legível do MG90S disponível nas referências fornecidas, nem fonte recuperada que confirme dimensões físicas e acessórios. Não tratar resumos de busca como especificações.",
+    "Dimensões da carcaça, posição exata do eixo, formato das orelhas, diâmetros e espaçamentos dos furos permanecem aproximados.",
+    "O formato do horn, seu estriado, os parafusos e o terminal do cabo podem variar entre fornecedores e versões comercializadas como MG90S; a variante exata não foi confirmada.",
+    "O suporte em U é uma proposta ilustrativa, não a reprodução de um suporte comercial identificado.",
+    "Espessuras, encaixes, folgas, furações e comprimentos dos parafusos não foram confirmados. Não representar roscas ou estriados como interfaces fabricáveis.",
+    "A referência ao compensado de 3 mm é uma intenção do projeto, não uma confirmação dimensional desta montagem. O elo terá aparência de compensado fino, mantendo a escala ilustrativa comum.",
+    "A ligação do elo ao horn é apenas uma composição visual coerente; resistência, travamento e transmissão de movimento não foram verificados.",
+    "Não há especificação para um apoio passivo oposto ao eixo. Não acrescentar segundo eixo, rolamento ou bucha não solicitados."
+  ]
+}
+
+CENA COMPLETA MONTADA
+
+{
+  "version": 1,
+  "label": "Articulação ilustrativa de bancada com MG90S, suporte em U e elo curto · conjunto ilustrativo",
+  "objects": [
+    {
+      "id": "servo_mg90s/carcaca-principal",
+      "type": "custom",
+      "position": [
+        0,
+        -2.1,
+        0
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#303238",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -8.2,
+            -5
+          ],
+          [
+            8.2,
+            -5
+          ],
+          [
+            8.75,
+            -4.75
+          ],
+          [
+            9,
+            -4.2
+          ],
+          [
+            9,
+            4.2
+          ],
+          [
+            8.75,
+            4.75
+          ],
+          [
+            8.2,
+            5
+          ],
+          [
+            -8.2,
+            5
+          ],
+          [
+            -8.75,
+            4.75
+          ],
+          [
+            -9,
+            4.2
+          ],
+          [
+            -9,
+            -4.2
+          ],
+          [
+            -8.75,
+            -4.75
+          ]
+        ],
+        "holes": [],
+        "depth": 12.6,
+        "bevel": 0.08
+      }
+    },
+    {
+      "id": "servo_mg90s/tampa-inferior",
+      "type": "custom",
+      "position": [
+        0,
+        -8.65,
+        0
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#24262B",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -8.15,
+            -4.95
+          ],
+          [
+            8.15,
+            -4.95
+          ],
+          [
+            8.7,
+            -4.7
+          ],
+          [
+            8.95,
+            -4.15
+          ],
+          [
+            8.95,
+            4.15
+          ],
+          [
+            8.7,
+            4.7
+          ],
+          [
+            8.15,
+            4.95
+          ],
+          [
+            -8.15,
+            4.95
+          ],
+          [
+            -8.7,
+            4.7
+          ],
+          [
+            -8.95,
+            4.15
+          ],
+          [
+            -8.95,
+            -4.15
+          ],
+          [
+            -8.7,
+            -4.7
+          ]
+        ],
+        "holes": [],
+        "depth": 0.7,
+        "bevel": 0.06
+      }
+    },
+    {
+      "id": "servo_mg90s/linha-uniao-superior",
+      "type": "custom",
+      "position": [
+        0,
+        4.35,
+        0
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#17191D",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -8.2,
+            -5
+          ],
+          [
+            8.2,
+            -5
+          ],
+          [
+            8.75,
+            -4.75
+          ],
+          [
+            9,
+            -4.2
+          ],
+          [
+            9,
+            4.2
+          ],
+          [
+            8.75,
+            4.75
+          ],
+          [
+            8.2,
+            5
+          ],
+          [
+            -8.2,
+            5
+          ],
+          [
+            -8.75,
+            4.75
+          ],
+          [
+            -9,
+            4.2
+          ],
+          [
+            -9,
+            -4.2
+          ],
+          [
+            -8.75,
+            -4.75
+          ]
+        ],
+        "holes": [],
+        "depth": 0.3,
+        "bevel": 0
+      }
+    },
+    {
+      "id": "servo_mg90s/carcaca-superior",
+      "type": "custom",
+      "position": [
+        0,
+        5.15,
+        0
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#383B41",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -8.2,
+            -5
+          ],
+          [
+            8.2,
+            -5
+          ],
+          [
+            8.75,
+            -4.75
+          ],
+          [
+            9,
+            -4.2
+          ],
+          [
+            9,
+            4.2
+          ],
+          [
+            8.75,
+            4.75
+          ],
+          [
+            8.2,
+            5
+          ],
+          [
+            -8.2,
+            5
+          ],
+          [
+            -8.75,
+            4.75
+          ],
+          [
+            -9,
+            4.2
+          ],
+          [
+            -9,
+            -4.2
+          ],
+          [
+            -8.75,
+            -4.75
+          ]
+        ],
+        "holes": [],
+        "depth": 1.3,
+        "bevel": 0.05
+      }
+    },
+    {
+      "id": "servo_mg90s/tampa-superior",
+      "type": "custom",
+      "position": [
+        0,
+        6.45,
+        0
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#292C31",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -8.15,
+            -4.85
+          ],
+          [
+            8.15,
+            -4.85
+          ],
+          [
+            8.7,
+            -4.6
+          ],
+          [
+            8.9,
+            -4.05
+          ],
+          [
+            8.9,
+            4.05
+          ],
+          [
+            8.7,
+            4.6
+          ],
+          [
+            8.15,
+            4.85
+          ],
+          [
+            -8.15,
+            4.85
+          ],
+          [
+            -8.7,
+            4.6
+          ],
+          [
+            -8.9,
+            4.05
+          ],
+          [
+            -8.9,
+            -4.05
+          ],
+          [
+            -8.7,
+            -4.6
+          ]
+        ],
+        "holes": [],
+        "depth": 1.3,
+        "bevel": 0.07
+      }
+    },
+    {
+      "id": "servo_mg90s/ressalto-tampa-eixo",
+      "type": "custom",
+      "position": [
+        0,
+        7.7,
+        0
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#34373C",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -7.9,
+            -4
+          ],
+          [
+            0.7,
+            -4
+          ],
+          [
+            1.35,
+            -3.6
+          ],
+          [
+            1.65,
+            -2.9
+          ],
+          [
+            1.65,
+            2.9
+          ],
+          [
+            1.35,
+            3.6
+          ],
+          [
+            0.7,
+            4
+          ],
+          [
+            -7.9,
+            4
+          ],
+          [
+            -8.45,
+            3.6
+          ],
+          [
+            -8.6,
+            2.9
+          ],
+          [
+            -8.6,
+            -2.9
+          ],
+          [
+            -8.45,
+            -3.6
+          ]
+        ],
+        "holes": [],
+        "depth": 1.2,
+        "bevel": 0.06
+      }
+    },
+    {
+      "id": "servo_mg90s/orelha-esquerda-furada",
+      "type": "custom",
+      "position": [
+        0,
+        5,
+        0
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#35383E",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -8.8,
+            -2.7
+          ],
+          [
+            -13.25,
+            -2.7
+          ],
+          [
+            -13.8,
+            -2.35
+          ],
+          [
+            -14,
+            -1.8
+          ],
+          [
+            -14,
+            1.8
+          ],
+          [
+            -13.8,
+            2.35
+          ],
+          [
+            -13.25,
+            2.7
+          ],
+          [
+            -8.8,
+            2.7
+          ]
+        ],
+        "holes": [
+          [
+            [
+              -10.95,
+              0
+            ],
+            [
+              -11.09,
+              0.525
+            ],
+            [
+              -11.475,
+              0.909
+            ],
+            [
+              -12,
+              1.05
+            ],
+            [
+              -12.525,
+              0.909
+            ],
+            [
+              -12.909,
+              0.525
+            ],
+            [
+              -13.05,
+              0
+            ],
+            [
+              -12.909,
+              -0.525
+            ],
+            [
+              -12.525,
+              -0.909
+            ],
+            [
+              -12,
+              -1.05
+            ],
+            [
+              -11.475,
+              -0.909
+            ],
+            [
+              -11.09,
+              -0.525
+            ]
+          ]
+        ],
+        "depth": 2,
+        "bevel": 0
+      }
+    },
+    {
+      "id": "servo_mg90s/orelha-direita-furada",
+      "type": "custom",
+      "position": [
+        0,
+        5,
+        0
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#35383E",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            8.8,
+            -2.7
+          ],
+          [
+            13.25,
+            -2.7
+          ],
+          [
+            13.8,
+            -2.35
+          ],
+          [
+            14,
+            -1.8
+          ],
+          [
+            14,
+            1.8
+          ],
+          [
+            13.8,
+            2.35
+          ],
+          [
+            13.25,
+            2.7
+          ],
+          [
+            8.8,
+            2.7
+          ]
+        ],
+        "holes": [
+          [
+            [
+              13.05,
+              0
+            ],
+            [
+              12.909,
+              0.525
+            ],
+            [
+              12.525,
+              0.909
+            ],
+            [
+              12,
+              1.05
+            ],
+            [
+              11.475,
+              0.909
+            ],
+            [
+              11.09,
+              0.525
+            ],
+            [
+              10.95,
+              0
+            ],
+            [
+              11.09,
+              -0.525
+            ],
+            [
+              11.475,
+              -0.909
+            ],
+            [
+              12,
+              -1.05
+            ],
+            [
+              12.525,
+              -0.909
+            ],
+            [
+              12.909,
+              -0.525
+            ]
+          ]
+        ],
+        "depth": 2,
+        "bevel": 0
+      }
+    },
+    {
+      "id": "servo_mg90s/reforco-orelha-esquerda",
+      "type": "box",
+      "position": [
+        -9.35,
+        5,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.2,
+        2,
+        4
+      ],
+      "color": "#35383E",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/reforco-orelha-direita",
+      "type": "box",
+      "position": [
+        9.35,
+        5,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.2,
+        2,
+        4
+      ],
+      "color": "#35383E",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/fixacao-esquerda-haste",
+      "type": "cylinder",
+      "position": [
+        -12,
+        4.25,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.24,
+        4.5,
+        1.24
+      ],
+      "color": "#A7ADB5",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/fixacao-direita-haste",
+      "type": "cylinder",
+      "position": [
+        12,
+        4.25,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.24,
+        4.5,
+        1.24
+      ],
+      "color": "#A7ADB5",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/fixacao-esquerda-arruela",
+      "type": "custom",
+      "position": [
+        -12,
+        6.15,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#858D97",
+      "geometry": {
+        "kind": "lathe",
+        "points": [
+          [
+            0.68,
+            -0.15
+          ],
+          [
+            1.65,
+            -0.15
+          ],
+          [
+            1.65,
+            0.15
+          ],
+          [
+            0.68,
+            0.15
+          ],
+          [
+            0.68,
+            -0.15
+          ]
+        ],
+        "segments": 32
+      }
+    },
+    {
+      "id": "servo_mg90s/fixacao-direita-arruela",
+      "type": "custom",
+      "position": [
+        12,
+        6.15,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#858D97",
+      "geometry": {
+        "kind": "lathe",
+        "points": [
+          [
+            0.68,
+            -0.15
+          ],
+          [
+            1.65,
+            -0.15
+          ],
+          [
+            1.65,
+            0.15
+          ],
+          [
+            0.68,
+            0.15
+          ],
+          [
+            0.68,
+            -0.15
+          ]
+        ],
+        "segments": 32
+      }
+    },
+    {
+      "id": "servo_mg90s/fixacao-esquerda-cabeca",
+      "type": "custom",
+      "position": [
+        -12,
+        6.3,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#BCC2C9",
+      "geometry": {
+        "kind": "lathe",
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            1.35,
+            0
+          ],
+          [
+            1.45,
+            0.15
+          ],
+          [
+            1.45,
+            0.65
+          ],
+          [
+            1.25,
+            1
+          ],
+          [
+            0,
+            1
+          ]
+        ],
+        "segments": 32
+      }
+    },
+    {
+      "id": "servo_mg90s/fixacao-direita-cabeca",
+      "type": "custom",
+      "position": [
+        12,
+        6.3,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#BCC2C9",
+      "geometry": {
+        "kind": "lathe",
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            1.35,
+            0
+          ],
+          [
+            1.45,
+            0.15
+          ],
+          [
+            1.45,
+            0.65
+          ],
+          [
+            1.25,
+            1
+          ],
+          [
+            0,
+            1
+          ]
+        ],
+        "segments": 32
+      }
+    },
+    {
+      "id": "servo_mg90s/fixacao-esquerda-fenda",
+      "type": "box",
+      "position": [
+        -12,
+        7.305,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.75,
+        0.018,
+        0.22
+      ],
+      "color": "#353A40",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/fixacao-direita-fenda",
+      "type": "box",
+      "position": [
+        12,
+        7.305,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.75,
+        0.018,
+        0.22
+      ],
+      "color": "#353A40",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/parafuso-tampa-esquerdo-frente",
+      "type": "cylinder",
+      "position": [
+        -7,
+        8.35,
+        3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.05,
+        0.22,
+        1.05
+      ],
+      "color": "#858B93",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/parafuso-tampa-esquerdo-tras",
+      "type": "cylinder",
+      "position": [
+        -7,
+        8.35,
+        -3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.05,
+        0.22,
+        1.05
+      ],
+      "color": "#858B93",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/parafuso-tampa-direito-frente",
+      "type": "cylinder",
+      "position": [
+        7,
+        7.15,
+        3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.05,
+        0.22,
+        1.05
+      ],
+      "color": "#858B93",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/parafuso-tampa-direito-tras",
+      "type": "cylinder",
+      "position": [
+        7,
+        7.15,
+        -3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.05,
+        0.22,
+        1.05
+      ],
+      "color": "#858B93",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/fenda-tampa-esquerda-frente",
+      "type": "box",
+      "position": [
+        -7,
+        8.467,
+        3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.65,
+        0.016,
+        0.12
+      ],
+      "color": "#23262C",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/fenda-tampa-esquerda-tras",
+      "type": "box",
+      "position": [
+        -7,
+        8.467,
+        -3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.65,
+        0.016,
+        0.12
+      ],
+      "color": "#23262C",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/fenda-tampa-direita-frente",
+      "type": "box",
+      "position": [
+        7,
+        7.267,
+        3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.65,
+        0.016,
+        0.12
+      ],
+      "color": "#23262C",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/fenda-tampa-direita-tras",
+      "type": "box",
+      "position": [
+        7,
+        7.267,
+        -3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.65,
+        0.016,
+        0.12
+      ],
+      "color": "#23262C",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/painel-lateral-moldura",
+      "type": "box",
+      "position": [
+        0,
+        -2.3,
+        5.04
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        10.6,
+        5,
+        0.18
+      ],
+      "color": "#191C21",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/painel-lateral-discreto",
+      "type": "box",
+      "position": [
+        0,
+        -2.3,
+        5.16
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        9.9,
+        4.3,
+        0.1
+      ],
+      "color": "#61727D",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/painel-faixa-superior",
+      "type": "box",
+      "position": [
+        0,
+        -0.8,
+        5.225
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        9.3,
+        0.48,
+        0.035
+      ],
+      "color": "#A5B2BA",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/painel-faixa-inferior",
+      "type": "box",
+      "position": [
+        0,
+        -3.8,
+        5.225
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        9.3,
+        0.28,
+        0.035
+      ],
+      "color": "#3A4A56",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/eixo-perfil-escalonado",
+      "type": "custom",
+      "position": [
+        -4,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#B5A27A",
+      "geometry": {
+        "kind": "lathe",
+        "points": [
+          [
+            0,
+            7.85
+          ],
+          [
+            1.8,
+            7.85
+          ],
+          [
+            1.8,
+            8.35
+          ],
+          [
+            1.65,
+            8.5
+          ],
+          [
+            1.25,
+            8.5
+          ],
+          [
+            1.25,
+            8.85
+          ],
+          [
+            0.85,
+            8.85
+          ],
+          [
+            0.85,
+            10.55
+          ],
+          [
+            0,
+            10.55
+          ]
+        ],
+        "segments": 40
+      }
+    },
+    {
+      "id": "servo_mg90s/estria-eixo-01",
+      "type": "box",
+      "position": [
+        -3.15,
+        9.3,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.12,
+        0.9,
+        0.16
+      ],
+      "color": "#C3B18A",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/estria-eixo-02",
+      "type": "box",
+      "position": [
+        -3.399,
+        9.3,
+        0.601
+      ],
+      "rotation": [
+        0,
+        -0.7853981634,
+        0
+      ],
+      "scale": [
+        0.12,
+        0.9,
+        0.16
+      ],
+      "color": "#C3B18A",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/estria-eixo-03",
+      "type": "box",
+      "position": [
+        -4,
+        9.3,
+        0.85
+      ],
+      "rotation": [
+        0,
+        1.57079632679,
+        0
+      ],
+      "scale": [
+        0.12,
+        0.9,
+        0.16
+      ],
+      "color": "#C3B18A",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/estria-eixo-04",
+      "type": "box",
+      "position": [
+        -4.601,
+        9.3,
+        0.601
+      ],
+      "rotation": [
+        0,
+        0.7853981634,
+        0
+      ],
+      "scale": [
+        0.12,
+        0.9,
+        0.16
+      ],
+      "color": "#C3B18A",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/estria-eixo-05",
+      "type": "box",
+      "position": [
+        -4.85,
+        9.3,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.12,
+        0.9,
+        0.16
+      ],
+      "color": "#C3B18A",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/estria-eixo-06",
+      "type": "box",
+      "position": [
+        -4.601,
+        9.3,
+        -0.601
+      ],
+      "rotation": [
+        0,
+        -0.7853981634,
+        0
+      ],
+      "scale": [
+        0.12,
+        0.9,
+        0.16
+      ],
+      "color": "#C3B18A",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/estria-eixo-07",
+      "type": "box",
+      "position": [
+        -4,
+        9.3,
+        -0.85
+      ],
+      "rotation": [
+        0,
+        1.57079632679,
+        0
+      ],
+      "scale": [
+        0.12,
+        0.9,
+        0.16
+      ],
+      "color": "#C3B18A",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/estria-eixo-08",
+      "type": "box",
+      "position": [
+        -3.399,
+        9.3,
+        -0.601
+      ],
+      "rotation": [
+        0,
+        0.7853981634,
+        0
+      ],
+      "scale": [
+        0.12,
+        0.9,
+        0.16
+      ],
+      "color": "#C3B18A",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/horn-braco-cubo-furados",
+      "type": "custom",
+      "position": [
+        0,
+        10,
+        0
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#E3E5E3",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -7,
+            0
+          ],
+          [
+            -6.9,
+            -0.78
+          ],
+          [
+            -6.6,
+            -1.5
+          ],
+          [
+            -6.12,
+            -2.12
+          ],
+          [
+            -5.5,
+            -2.6
+          ],
+          [
+            -4.78,
+            -2.9
+          ],
+          [
+            -4,
+            -3
+          ],
+          [
+            -3.22,
+            -2.9
+          ],
+          [
+            -2.5,
+            -2.6
+          ],
+          [
+            -1.7,
+            -2.4
+          ],
+          [
+            11.8,
+            -1.8
+          ],
+          [
+            13.25,
+            -1.65
+          ],
+          [
+            13.9,
+            -1.2
+          ],
+          [
+            14.2,
+            -0.6
+          ],
+          [
+            14.3,
+            0
+          ],
+          [
+            14.2,
+            0.6
+          ],
+          [
+            13.9,
+            1.2
+          ],
+          [
+            13.25,
+            1.65
+          ],
+          [
+            11.8,
+            1.8
+          ],
+          [
+            -1.7,
+            2.4
+          ],
+          [
+            -2.5,
+            2.6
+          ],
+          [
+            -3.22,
+            2.9
+          ],
+          [
+            -4,
+            3
+          ],
+          [
+            -4.78,
+            2.9
+          ],
+          [
+            -5.5,
+            2.6
+          ],
+          [
+            -6.12,
+            2.12
+          ],
+          [
+            -6.6,
+            1.5
+          ],
+          [
+            -6.9,
+            0.78
+          ]
+        ],
+        "holes": [
+          [
+            [
+              -3.05,
+              0
+            ],
+            [
+              -3.177,
+              0.475
+            ],
+            [
+              -3.525,
+              0.823
+            ],
+            [
+              -4,
+              0.95
+            ],
+            [
+              -4.475,
+              0.823
+            ],
+            [
+              -4.823,
+              0.475
+            ],
+            [
+              -4.95,
+              0
+            ],
+            [
+              -4.823,
+              -0.475
+            ],
+            [
+              -4.475,
+              -0.823
+            ],
+            [
+              -4,
+              -0.95
+            ],
+            [
+              -3.525,
+              -0.823
+            ],
+            [
+              -3.177,
+              -0.475
+            ]
+          ],
+          [
+            [
+              2.45,
+              0
+            ],
+            [
+              2.318,
+              0.318
+            ],
+            [
+              2,
+              0.45
+            ],
+            [
+              1.682,
+              0.318
+            ],
+            [
+              1.55,
+              0
+            ],
+            [
+              1.682,
+              -0.318
+            ],
+            [
+              2,
+              -0.45
+            ],
+            [
+              2.318,
+              -0.318
+            ]
+          ],
+          [
+            [
+              4.95,
+              0
+            ],
+            [
+              4.818,
+              0.318
+            ],
+            [
+              4.5,
+              0.45
+            ],
+            [
+              4.182,
+              0.318
+            ],
+            [
+              4.05,
+              0
+            ],
+            [
+              4.182,
+              -0.318
+            ],
+            [
+              4.5,
+              -0.45
+            ],
+            [
+              4.818,
+              -0.318
+            ]
+          ],
+          [
+            [
+              7.45,
+              0
+            ],
+            [
+              7.318,
+              0.318
+            ],
+            [
+              7,
+              0.45
+            ],
+            [
+              6.682,
+              0.318
+            ],
+            [
+              6.55,
+              0
+            ],
+            [
+              6.682,
+              -0.318
+            ],
+            [
+              7,
+              -0.45
+            ],
+            [
+              7.318,
+              -0.318
+            ]
+          ],
+          [
+            [
+              10.85,
+              0
+            ],
+            [
+              10.736,
+              0.425
+            ],
+            [
+              10.425,
+              0.736
+            ],
+            [
+              10,
+              0.85
+            ],
+            [
+              9.575,
+              0.736
+            ],
+            [
+              9.264,
+              0.425
+            ],
+            [
+              9.15,
+              0
+            ],
+            [
+              9.264,
+              -0.425
+            ],
+            [
+              9.575,
+              -0.736
+            ],
+            [
+              10,
+              -0.85
+            ],
+            [
+              10.425,
+              -0.736
+            ],
+            [
+              10.736,
+              -0.425
+            ]
+          ],
+          [
+            [
+              13.38,
+              0
+            ],
+            [
+              13.269,
+              0.269
+            ],
+            [
+              13,
+              0.38
+            ],
+            [
+              12.731,
+              0.269
+            ],
+            [
+              12.62,
+              0
+            ],
+            [
+              12.731,
+              -0.269
+            ],
+            [
+              13,
+              -0.38
+            ],
+            [
+              13.269,
+              -0.269
+            ]
+          ]
+        ],
+        "depth": 2,
+        "bevel": 0
+      }
+    },
+    {
+      "id": "servo_mg90s/horn-cubo-reforco-inferior",
+      "type": "custom",
+      "position": [
+        -4,
+        9,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#D3D7D4",
+      "geometry": {
+        "kind": "lathe",
+        "points": [
+          [
+            0.95,
+            -0.4
+          ],
+          [
+            2.2,
+            -0.4
+          ],
+          [
+            2.35,
+            -0.25
+          ],
+          [
+            2.35,
+            0
+          ],
+          [
+            0.95,
+            0
+          ],
+          [
+            0.95,
+            -0.4
+          ]
+        ],
+        "segments": 40
+      }
+    },
+    {
+      "id": "servo_mg90s/parafuso-central-haste",
+      "type": "cylinder",
+      "position": [
+        -4,
+        10.8,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.65,
+        1.2,
+        0.65
+      ],
+      "color": "#949BA4",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/parafuso-central-cabeca",
+      "type": "custom",
+      "position": [
+        -4,
+        11,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#B6BDC5",
+      "geometry": {
+        "kind": "lathe",
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            1.2,
+            0
+          ],
+          [
+            1.2,
+            0.28
+          ],
+          [
+            1.05,
+            0.6
+          ],
+          [
+            0,
+            0.6
+          ]
+        ],
+        "segments": 32
+      }
+    },
+    {
+      "id": "servo_mg90s/parafuso-central-fenda",
+      "type": "box",
+      "position": [
+        -4,
+        11.605,
+        0
+      ],
+      "rotation": [
+        0,
+        0.35,
+        0
+      ],
+      "scale": [
+        1.45,
+        0.018,
+        0.2
+      ],
+      "color": "#353A40",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/ligacao-elo-haste",
+      "type": "cylinder",
+      "position": [
+        10,
+        12.2,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.2,
+        6,
+        1.2
+      ],
+      "color": "#A7ADB5",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/ligacao-elo-arruela",
+      "type": "custom",
+      "position": [
+        10,
+        15.1,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#858D97",
+      "geometry": {
+        "kind": "lathe",
+        "points": [
+          [
+            0.65,
+            -0.1
+          ],
+          [
+            1.4,
+            -0.1
+          ],
+          [
+            1.4,
+            0.1
+          ],
+          [
+            0.65,
+            0.1
+          ],
+          [
+            0.65,
+            -0.1
+          ]
+        ],
+        "segments": 32
+      }
+    },
+    {
+      "id": "servo_mg90s/ligacao-elo-cabeca",
+      "type": "custom",
+      "position": [
+        10,
+        15.2,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#BCC2C9",
+      "geometry": {
+        "kind": "lathe",
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            1.15,
+            0
+          ],
+          [
+            1.2,
+            0.12
+          ],
+          [
+            1.2,
+            0.4
+          ],
+          [
+            1,
+            0.7
+          ],
+          [
+            0,
+            0.7
+          ]
+        ],
+        "segments": 32
+      }
+    },
+    {
+      "id": "servo_mg90s/ligacao-elo-fenda",
+      "type": "box",
+      "position": [
+        10,
+        15.905,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.35,
+        0.018,
+        0.2
+      ],
+      "color": "#353A40",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/cabo-alivio-tensao",
+      "type": "box",
+      "position": [
+        7.8,
+        -6,
+        5.25
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.8,
+        2,
+        1.5
+      ],
+      "color": "#1D2024",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/cabo-alivio-ressalto-01",
+      "type": "box",
+      "position": [
+        7.8,
+        -6,
+        5.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2,
+        2.2,
+        0.18
+      ],
+      "color": "#35383E",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/cabo-alivio-ressalto-02",
+      "type": "box",
+      "position": [
+        7.8,
+        -6,
+        5.95
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2,
+        2.2,
+        0.18
+      ],
+      "color": "#35383E",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/cabo-condutor-marrom",
+      "type": "custom",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#55392D",
+      "geometry": {
+        "kind": "tube",
+        "points": [
+          [
+            7.3,
+            -6,
+            5.8
+          ],
+          [
+            7.3,
+            -6,
+            7.7
+          ],
+          [
+            6.8,
+            -5.8,
+            10
+          ],
+          [
+            4.8,
+            -5.3,
+            13
+          ],
+          [
+            3.3,
+            -4.8,
+            16
+          ],
+          [
+            3.5,
+            -4.4,
+            19.4
+          ]
+        ],
+        "radius": 0.23,
+        "segments": 48,
+        "radialSegments": 10,
+        "closed": false
+      }
+    },
+    {
+      "id": "servo_mg90s/cabo-condutor-vermelho",
+      "type": "custom",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#B7463D",
+      "geometry": {
+        "kind": "tube",
+        "points": [
+          [
+            7.8,
+            -6,
+            5.8
+          ],
+          [
+            7.8,
+            -6,
+            7.7
+          ],
+          [
+            7.3,
+            -5.8,
+            10
+          ],
+          [
+            5.3,
+            -5.3,
+            13
+          ],
+          [
+            3.8,
+            -4.8,
+            16
+          ],
+          [
+            4,
+            -4.4,
+            19.4
+          ]
+        ],
+        "radius": 0.23,
+        "segments": 48,
+        "radialSegments": 10,
+        "closed": false
+      }
+    },
+    {
+      "id": "servo_mg90s/cabo-condutor-laranja",
+      "type": "custom",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#D89536",
+      "geometry": {
+        "kind": "tube",
+        "points": [
+          [
+            8.3,
+            -6,
+            5.8
+          ],
+          [
+            8.3,
+            -6,
+            7.7
+          ],
+          [
+            7.8,
+            -5.8,
+            10
+          ],
+          [
+            5.8,
+            -5.3,
+            13
+          ],
+          [
+            4.3,
+            -4.8,
+            16
+          ],
+          [
+            4.5,
+            -4.4,
+            19.4
+          ]
+        ],
+        "radius": 0.23,
+        "segments": 48,
+        "radialSegments": 10,
+        "closed": false
+      }
+    },
+    {
+      "id": "servo_mg90s/terminal-capa-aberta",
+      "type": "custom",
+      "position": [
+        4,
+        -4.4,
+        20.35
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#25282D",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -1.6,
+            -0.9
+          ],
+          [
+            1.6,
+            -0.9
+          ],
+          [
+            1.6,
+            0.9
+          ],
+          [
+            -1.6,
+            0.9
+          ]
+        ],
+        "holes": [
+          [
+            [
+              -1.25,
+              -0.55
+            ],
+            [
+              -1.25,
+              0.55
+            ],
+            [
+              1.25,
+              0.55
+            ],
+            [
+              1.25,
+              -0.55
+            ]
+          ]
+        ],
+        "depth": 2.6,
+        "bevel": 0.03
+      }
+    },
+    {
+      "id": "servo_mg90s/terminal-fundo",
+      "type": "box",
+      "position": [
+        4,
+        -4.4,
+        19.45
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2.5,
+        1.1,
+        0.35
+      ],
+      "color": "#35383E",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/terminal-contato-01",
+      "type": "box",
+      "position": [
+        3.25,
+        -4.4,
+        20.45
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.28,
+        0.24,
+        1.55
+      ],
+      "color": "#B8A273",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/terminal-contato-02",
+      "type": "box",
+      "position": [
+        4,
+        -4.4,
+        20.45
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.28,
+        0.24,
+        1.55
+      ],
+      "color": "#B8A273",
+      "geometry": null
+    },
+    {
+      "id": "servo_mg90s/terminal-contato-03",
+      "type": "box",
+      "position": [
+        4.75,
+        -4.4,
+        20.45
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.28,
+        0.24,
+        1.55
+      ],
+      "color": "#B8A273",
+      "geometry": null
+    },
+    {
+      "id": "suporte_u/estrutura-u-frontal",
+      "type": "custom",
+      "position": [
+        0,
+        0,
+        8
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#78828C",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -16.4,
+            -13
+          ],
+          [
+            16.4,
+            -13
+          ],
+          [
+            16.82,
+            -12.82
+          ],
+          [
+            17,
+            -12.4
+          ],
+          [
+            17,
+            3.5
+          ],
+          [
+            16.85,
+            3.85
+          ],
+          [
+            16.5,
+            4
+          ],
+          [
+            9,
+            4
+          ],
+          [
+            9,
+            2
+          ],
+          [
+            14,
+            2
+          ],
+          [
+            14,
+            -10.4
+          ],
+          [
+            13.82,
+            -10.82
+          ],
+          [
+            13.4,
+            -11
+          ],
+          [
+            -13.4,
+            -11
+          ],
+          [
+            -13.82,
+            -10.82
+          ],
+          [
+            -14,
+            -10.4
+          ],
+          [
+            -14,
+            2
+          ],
+          [
+            -9,
+            2
+          ],
+          [
+            -9,
+            4
+          ],
+          [
+            -16.5,
+            4
+          ],
+          [
+            -16.85,
+            3.85
+          ],
+          [
+            -17,
+            3.5
+          ],
+          [
+            -17,
+            -12.4
+          ],
+          [
+            -16.82,
+            -12.82
+          ]
+        ],
+        "holes": [],
+        "depth": 2,
+        "bevel": 0
+      }
+    },
+    {
+      "id": "suporte_u/estrutura-u-traseira",
+      "type": "custom",
+      "position": [
+        0,
+        0,
+        -8
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#78828C",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -16.4,
+            -13
+          ],
+          [
+            16.4,
+            -13
+          ],
+          [
+            16.82,
+            -12.82
+          ],
+          [
+            17,
+            -12.4
+          ],
+          [
+            17,
+            3.5
+          ],
+          [
+            16.85,
+            3.85
+          ],
+          [
+            16.5,
+            4
+          ],
+          [
+            9,
+            4
+          ],
+          [
+            9,
+            2
+          ],
+          [
+            14,
+            2
+          ],
+          [
+            14,
+            -10.4
+          ],
+          [
+            13.82,
+            -10.82
+          ],
+          [
+            13.4,
+            -11
+          ],
+          [
+            -13.4,
+            -11
+          ],
+          [
+            -13.82,
+            -10.82
+          ],
+          [
+            -14,
+            -10.4
+          ],
+          [
+            -14,
+            2
+          ],
+          [
+            -9,
+            2
+          ],
+          [
+            -9,
+            4
+          ],
+          [
+            -16.5,
+            4
+          ],
+          [
+            -16.85,
+            3.85
+          ],
+          [
+            -17,
+            3.5
+          ],
+          [
+            -17,
+            -12.4
+          ],
+          [
+            -16.82,
+            -12.82
+          ]
+        ],
+        "holes": [],
+        "depth": 2,
+        "bevel": 0
+      }
+    },
+    {
+      "id": "suporte_u/lateral-esquerda",
+      "type": "custom",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#78828C",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -16.4,
+            -13
+          ],
+          [
+            -14,
+            -13
+          ],
+          [
+            -14,
+            4
+          ],
+          [
+            -16.5,
+            4
+          ],
+          [
+            -16.85,
+            3.85
+          ],
+          [
+            -17,
+            3.5
+          ],
+          [
+            -17,
+            -12.4
+          ],
+          [
+            -16.82,
+            -12.82
+          ]
+        ],
+        "holes": [],
+        "depth": 14,
+        "bevel": 0
+      }
+    },
+    {
+      "id": "suporte_u/lateral-direita",
+      "type": "custom",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#78828C",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            14,
+            -13
+          ],
+          [
+            16.4,
+            -13
+          ],
+          [
+            16.82,
+            -12.82
+          ],
+          [
+            17,
+            -12.4
+          ],
+          [
+            17,
+            3.5
+          ],
+          [
+            16.85,
+            3.85
+          ],
+          [
+            16.5,
+            4
+          ],
+          [
+            14,
+            4
+          ]
+        ],
+        "holes": [],
+        "depth": 14,
+        "bevel": 0
+      }
+    },
+    {
+      "id": "suporte_u/base-com-furos-de-bancada",
+      "type": "custom",
+      "position": [
+        0,
+        -12,
+        0
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#78828C",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -14,
+            -7
+          ],
+          [
+            14,
+            -7
+          ],
+          [
+            14,
+            7
+          ],
+          [
+            -14,
+            7
+          ]
+        ],
+        "holes": [
+          [
+            [
+              -5.9,
+              0
+            ],
+            [
+              -6.0474,
+              -0.55
+            ],
+            [
+              -6.45,
+              -0.9526
+            ],
+            [
+              -7,
+              -1.1
+            ],
+            [
+              -7.55,
+              -0.9526
+            ],
+            [
+              -7.9526,
+              -0.55
+            ],
+            [
+              -8.1,
+              0
+            ],
+            [
+              -7.9526,
+              0.55
+            ],
+            [
+              -7.55,
+              0.9526
+            ],
+            [
+              -7,
+              1.1
+            ],
+            [
+              -6.45,
+              0.9526
+            ],
+            [
+              -6.0474,
+              0.55
+            ]
+          ],
+          [
+            [
+              8.1,
+              0
+            ],
+            [
+              7.9526,
+              -0.55
+            ],
+            [
+              7.55,
+              -0.9526
+            ],
+            [
+              7,
+              -1.1
+            ],
+            [
+              6.45,
+              -0.9526
+            ],
+            [
+              6.0474,
+              -0.55
+            ],
+            [
+              5.9,
+              0
+            ],
+            [
+              6.0474,
+              0.55
+            ],
+            [
+              6.45,
+              0.9526
+            ],
+            [
+              7,
+              1.1
+            ],
+            [
+              7.55,
+              0.9526
+            ],
+            [
+              7.9526,
+              0.55
+            ]
+          ]
+        ],
+        "depth": 2,
+        "bevel": 0
+      }
+    },
+    {
+      "id": "suporte_u/assento-esquerdo-furado",
+      "type": "custom",
+      "position": [
+        -11.5,
+        3,
+        0
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#78828C",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -2.5,
+            -7
+          ],
+          [
+            2.5,
+            -7
+          ],
+          [
+            2.5,
+            7
+          ],
+          [
+            -2.5,
+            7
+          ]
+        ],
+        "holes": [
+          [
+            [
+              0.4,
+              0
+            ],
+            [
+              0.2794,
+              -0.45
+            ],
+            [
+              -0.05,
+              -0.7794
+            ],
+            [
+              -0.5,
+              -0.9
+            ],
+            [
+              -0.95,
+              -0.7794
+            ],
+            [
+              -1.2794,
+              -0.45
+            ],
+            [
+              -1.4,
+              0
+            ],
+            [
+              -1.2794,
+              0.45
+            ],
+            [
+              -0.95,
+              0.7794
+            ],
+            [
+              -0.5,
+              0.9
+            ],
+            [
+              -0.05,
+              0.7794
+            ],
+            [
+              0.2794,
+              0.45
+            ]
+          ]
+        ],
+        "depth": 2,
+        "bevel": 0
+      }
+    },
+    {
+      "id": "suporte_u/assento-direito-furado",
+      "type": "custom",
+      "position": [
+        11.5,
+        3,
+        0
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#78828C",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -2.5,
+            -7
+          ],
+          [
+            2.5,
+            -7
+          ],
+          [
+            2.5,
+            7
+          ],
+          [
+            -2.5,
+            7
+          ]
+        ],
+        "holes": [
+          [
+            [
+              1.4,
+              0
+            ],
+            [
+              1.2794,
+              -0.45
+            ],
+            [
+              0.95,
+              -0.7794
+            ],
+            [
+              0.5,
+              -0.9
+            ],
+            [
+              0.05,
+              -0.7794
+            ],
+            [
+              -0.2794,
+              -0.45
+            ],
+            [
+              -0.4,
+              0
+            ],
+            [
+              -0.2794,
+              0.45
+            ],
+            [
+              0.05,
+              0.7794
+            ],
+            [
+              0.5,
+              0.9
+            ],
+            [
+              0.95,
+              0.7794
+            ],
+            [
+              1.2794,
+              0.45
+            ]
+          ]
+        ],
+        "depth": 2,
+        "bevel": 0
+      }
+    },
+    {
+      "id": "elo_curto/elo-lamina-inferior-apoio",
+      "type": "custom",
+      "position": [
+        24,
+        11.4,
+        0
+      ],
+      "rotation": [
+        -1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#CBA578",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -18,
+            0
+          ],
+          [
+            -17.696,
+            -1.531
+          ],
+          [
+            -16.828,
+            -2.828
+          ],
+          [
+            -15.531,
+            -3.696
+          ],
+          [
+            -14,
+            -4
+          ],
+          [
+            -12.469,
+            -3.696
+          ],
+          [
+            -10,
+            -2.8
+          ],
+          [
+            13.4,
+            -2.8
+          ],
+          [
+            14,
+            -3
+          ],
+          [
+            15.148,
+            -2.772
+          ],
+          [
+            16.121,
+            -2.121
+          ],
+          [
+            16.772,
+            -1.148
+          ],
+          [
+            17,
+            0
+          ],
+          [
+            16.772,
+            1.148
+          ],
+          [
+            16.121,
+            2.121
+          ],
+          [
+            15.148,
+            2.772
+          ],
+          [
+            14,
+            3
+          ],
+          [
+            13.4,
+            2.8
+          ],
+          [
+            -10,
+            2.8
+          ],
+          [
+            -12.469,
+            3.696
+          ],
+          [
+            -14,
+            4
+          ],
+          [
+            -15.531,
+            3.696
+          ],
+          [
+            -16.828,
+            2.828
+          ],
+          [
+            -17.696,
+            1.531
+          ]
+        ],
+        "holes": [
+          [
+            [
+              -12.75,
+              0
+            ],
+            [
+              -12.917,
+              -0.625
+            ],
+            [
+              -13.375,
+              -1.083
+            ],
+            [
+              -14,
+              -1.25
+            ],
+            [
+              -14.625,
+              -1.083
+            ],
+            [
+              -15.083,
+              -0.625
+            ],
+            [
+              -15.25,
+              0
+            ],
+            [
+              -15.083,
+              0.625
+            ],
+            [
+              -14.625,
+              1.083
+            ],
+            [
+              -14,
+              1.25
+            ],
+            [
+              -13.375,
+              1.083
+            ],
+            [
+              -12.917,
+              0.625
+            ]
+          ],
+          [
+            [
+              14.1,
+              0
+            ],
+            [
+              13.953,
+              -0.55
+            ],
+            [
+              13.55,
+              -0.953
+            ],
+            [
+              13,
+              -1.1
+            ],
+            [
+              12.45,
+              -0.953
+            ],
+            [
+              12.047,
+              -0.55
+            ],
+            [
+              11.9,
+              0
+            ],
+            [
+              12.047,
+              0.55
+            ],
+            [
+              12.45,
+              0.953
+            ],
+            [
+              13,
+              1.1
+            ],
+            [
+              13.55,
+              0.953
+            ],
+            [
+              13.953,
+              0.55
+            ]
+          ]
+        ],
+        "depth": 0.8,
+        "bevel": 0
+      }
+    },
+    {
+      "id": "elo_curto/elo-nucleo-compensado",
+      "type": "custom",
+      "position": [
+        24,
+        12.5,
+        0
+      ],
+      "rotation": [
+        -1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#AA8057",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -18,
+            0
+          ],
+          [
+            -17.696,
+            -1.531
+          ],
+          [
+            -16.828,
+            -2.828
+          ],
+          [
+            -15.531,
+            -3.696
+          ],
+          [
+            -14,
+            -4
+          ],
+          [
+            -12.469,
+            -3.696
+          ],
+          [
+            -10,
+            -2.8
+          ],
+          [
+            13.4,
+            -2.8
+          ],
+          [
+            14,
+            -3
+          ],
+          [
+            15.148,
+            -2.772
+          ],
+          [
+            16.121,
+            -2.121
+          ],
+          [
+            16.772,
+            -1.148
+          ],
+          [
+            17,
+            0
+          ],
+          [
+            16.772,
+            1.148
+          ],
+          [
+            16.121,
+            2.121
+          ],
+          [
+            15.148,
+            2.772
+          ],
+          [
+            14,
+            3
+          ],
+          [
+            13.4,
+            2.8
+          ],
+          [
+            -10,
+            2.8
+          ],
+          [
+            -12.469,
+            3.696
+          ],
+          [
+            -14,
+            4
+          ],
+          [
+            -15.531,
+            3.696
+          ],
+          [
+            -16.828,
+            2.828
+          ],
+          [
+            -17.696,
+            1.531
+          ]
+        ],
+        "holes": [
+          [
+            [
+              -12.75,
+              0
+            ],
+            [
+              -12.917,
+              -0.625
+            ],
+            [
+              -13.375,
+              -1.083
+            ],
+            [
+              -14,
+              -1.25
+            ],
+            [
+              -14.625,
+              -1.083
+            ],
+            [
+              -15.083,
+              -0.625
+            ],
+            [
+              -15.25,
+              0
+            ],
+            [
+              -15.083,
+              0.625
+            ],
+            [
+              -14.625,
+              1.083
+            ],
+            [
+              -14,
+              1.25
+            ],
+            [
+              -13.375,
+              1.083
+            ],
+            [
+              -12.917,
+              0.625
+            ]
+          ],
+          [
+            [
+              14.1,
+              0
+            ],
+            [
+              13.953,
+              -0.55
+            ],
+            [
+              13.55,
+              -0.953
+            ],
+            [
+              13,
+              -1.1
+            ],
+            [
+              12.45,
+              -0.953
+            ],
+            [
+              12.047,
+              -0.55
+            ],
+            [
+              11.9,
+              0
+            ],
+            [
+              12.047,
+              0.55
+            ],
+            [
+              12.45,
+              0.953
+            ],
+            [
+              13,
+              1.1
+            ],
+            [
+              13.55,
+              0.953
+            ],
+            [
+              13.953,
+              0.55
+            ]
+          ]
+        ],
+        "depth": 1.4,
+        "bevel": 0
+      }
+    },
+    {
+      "id": "elo_curto/elo-lamina-superior",
+      "type": "custom",
+      "position": [
+        24,
+        13.6,
+        0
+      ],
+      "rotation": [
+        -1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "color": "#DCBA8B",
+      "geometry": {
+        "kind": "extrude",
+        "points": [
+          [
+            -18,
+            0
+          ],
+          [
+            -17.696,
+            -1.531
+          ],
+          [
+            -16.828,
+            -2.828
+          ],
+          [
+            -15.531,
+            -3.696
+          ],
+          [
+            -14,
+            -4
+          ],
+          [
+            -12.469,
+            -3.696
+          ],
+          [
+            -10,
+            -2.8
+          ],
+          [
+            13.4,
+            -2.8
+          ],
+          [
+            14,
+            -3
+          ],
+          [
+            15.148,
+            -2.772
+          ],
+          [
+            16.121,
+            -2.121
+          ],
+          [
+            16.772,
+            -1.148
+          ],
+          [
+            17,
+            0
+          ],
+          [
+            16.772,
+            1.148
+          ],
+          [
+            16.121,
+            2.121
+          ],
+          [
+            15.148,
+            2.772
+          ],
+          [
+            14,
+            3
+          ],
+          [
+            13.4,
+            2.8
+          ],
+          [
+            -10,
+            2.8
+          ],
+          [
+            -12.469,
+            3.696
+          ],
+          [
+            -14,
+            4
+          ],
+          [
+            -15.531,
+            3.696
+          ],
+          [
+            -16.828,
+            2.828
+          ],
+          [
+            -17.696,
+            1.531
+          ]
+        ],
+        "holes": [
+          [
+            [
+              -12.75,
+              0
+            ],
+            [
+              -12.917,
+              -0.625
+            ],
+            [
+              -13.375,
+              -1.083
+            ],
+            [
+              -14,
+              -1.25
+            ],
+            [
+              -14.625,
+              -1.083
+            ],
+            [
+              -15.083,
+              -0.625
+            ],
+            [
+              -15.25,
+              0
+            ],
+            [
+              -15.083,
+              0.625
+            ],
+            [
+              -14.625,
+              1.083
+            ],
+            [
+              -14,
+              1.25
+            ],
+            [
+              -13.375,
+              1.083
+            ],
+            [
+              -12.917,
+              0.625
+            ]
+          ],
+          [
+            [
+              14.1,
+              0
+            ],
+            [
+              13.953,
+              -0.55
+            ],
+            [
+              13.55,
+              -0.953
+            ],
+            [
+              13,
+              -1.1
+            ],
+            [
+              12.45,
+              -0.953
+            ],
+            [
+              12.047,
+              -0.55
+            ],
+            [
+              11.9,
+              0
+            ],
+            [
+              12.047,
+              0.55
+            ],
+            [
+              12.45,
+              0.953
+            ],
+            [
+              13,
+              1.1
+            ],
+            [
+              13.55,
+              0.953
+            ],
+            [
+              13.953,
+              0.55
+            ]
+          ]
+        ],
+        "depth": 0.8,
+        "bevel": 0
+      }
+    }
+  ]
+}

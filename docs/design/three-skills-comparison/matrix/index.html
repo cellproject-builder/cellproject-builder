@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>Three.js · laboratório de referências</title>
+    <link rel="stylesheet" href="./viewer.css?matrix=20261009-4" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <div><p class="eyebrow">Construtor de planos / laboratório visual</p><h1>O que muda com uma referência?</h1></div>
+        <a class="back" href="../">Ver a primeira amostra ↗</a>
+      </header>
+      <p class="intro">Compare gerações reais com e sem o guia adaptado das skills de Three.js, mantendo o mesmo pedido em cada par. Explore imagem, especificações e a combinação das duas.</p>
+      <div class="experiment-line"><p id="model-line">Carregando o registro do experimento…</p><button id="refresh" type="button">Atualizar registro</button></div>
+      <p id="load-error" role="alert" hidden></p>
+      <section class="workbench" aria-label="Escolher um par de gerações">
+        <div class="selectors">
+          <label class="select-field">Objeto<select id="case-select" disabled><option>Carregando…</option></select></label>
+          <div class="context-field"><span class="field-label" id="context-label">Referência enviada</span><div id="contexts" class="segmented" role="group" aria-labelledby="context-label"></div></div>
+          <label class="select-field repeat-field">Repetição<select id="repeat-select" disabled><option>—</option></select></label>
+        </div>
+        <div class="reference-summary"><p id="context-description">Os mesmos dados são enviados para as duas condições.</p><span id="pair-count" class="quiet">—</span></div>
+        <div id="reference-panel" class="reference-panel" hidden>
+          <figure id="image-reference" hidden><a id="reference-link" target="_blank" rel="noopener noreferrer"><img id="reference-image" alt="" /><span>Abrir imagem enviada ↗</span></a><figcaption><details><summary>Créditos e limites da referência</summary><p id="image-caption"></p></details></figcaption><a id="source-link" class="source-link" target="_blank" rel="noopener noreferrer">Origem da imagem ↗</a></figure>
+          <section id="spec-reference" hidden aria-labelledby="spec-heading"><h2 id="spec-heading">Especificações enviadas</h2><pre id="spec-text"></pre><div id="spec-sources"></div></section>
+        </div>
+        <details class="instruction"><summary>Pedido idêntico nas duas condições</summary><p id="prompt-text"></p></details>
+      </section>
+      <div class="view-toolbar"><p>Mesmas luzes, orientação e regra de enquadramento</p><div class="actions" aria-label="Controles sincronizados dos modelos"><button id="rotate" type="button" disabled>Girar 90°</button><button id="reset" type="button" disabled>Restaurar vista</button></div></div>
+      <section class="comparison" aria-label="Comparação visual lado a lado">
+        <article class="sample" data-condition="baseline">
+          <header class="sample-header"><div><p class="condition-kicker">Instruções anteriores</p><h2>Sem guia de skills</h2></div><span class="status" role="status">Aguardando</span></header>
+          <div class="viewport" tabindex="0" role="img" aria-label="Modelo sem guia. Arraste para girar os dois modelos; use as setas esquerda e direita quando focado."><canvas aria-hidden="true"></canvas><div class="fallback">Carregando modelo…</div></div>
+          <footer class="sample-footer"><p class="scene-label">—</p><div class="metrics"><span class="primitive-count">— primitivas</span><span class="duration">— segundos</span><span class="cost">— USD</span></div><div class="run-line"><span class="finish">—</span><a class="download-run" hidden>Baixar execução JSON ↗</a></div></footer>
+        </article>
+        <article class="sample" data-condition="skills">
+          <header class="sample-header"><div><p class="condition-kicker">Guia adaptado do projeto</p><h2>Com guia de skills</h2></div><span class="status" role="status">Aguardando</span></header>
+          <div class="viewport" tabindex="0" role="img" aria-label="Modelo com guia. Arraste para girar os dois modelos; use as setas esquerda e direita quando focado."><canvas aria-hidden="true"></canvas><div class="fallback">Carregando modelo…</div></div>
+          <footer class="sample-footer"><p class="scene-label">—</p><div class="metrics"><span class="primitive-count">— primitivas</span><span class="duration">— segundos</span><span class="cost">— USD</span></div><div class="run-line"><span class="finish">—</span><a class="download-run" hidden>Baixar execução JSON ↗</a></div></footer>
+        </article>
+      </section>
+      <p class="interaction">Arraste qualquer modelo para girar os dois juntos. A grade pertence ao visualizador; os objetos têm fundo transparente.</p>
+      <details class="criteria"><summary>O que observar neste objeto</summary><ul id="criteria-list"></ul><p>Compare as duas respostas pelos mesmos critérios. Nenhuma nota ou vencedor é calculado automaticamente.</p></details>
+      <section class="overview" aria-labelledby="overview-heading">
+        <div class="section-heading"><div><h2 id="overview-heading">Todas as execuções deste objeto</h2><p>Tempo, custo e quantidade de primitivas descrevem a execução. Eles não medem qualidade.</p></div><span id="completion" class="completion">—</span></div>
+        <div class="table-scroll"><table><caption class="sr-only">Resultados por referência e repetição. Abra um par para compará-lo nas vistas acima.</caption><thead><tr><th scope="col">Referência / repetição</th><th scope="col">Sem guia</th><th scope="col">Com guia</th><th scope="col"><span class="sr-only">Comparar</span></th></tr></thead><tbody id="overview-body"></tbody></table></div>
+      </section>
+      <section class="method" aria-label="Método e arquivos da comparação">
+        <div class="method-top"><details><summary>Como interpretar o experimento</summary><div class="method-content"><p>Dentro de cada par, modelo, pedido, referências, contrato de saída e orçamento são iguais. A intervenção é o guia adaptado nas instruções de sistema. Os modelos são exibidos sem retoques no mesmo renderizador da aplicação.</p><p>As duas vistas usam as mesmas luzes e orientação. O enquadramento automático centraliza cada cena e a ajusta ao espaço disponível, preservando as proporções internas de cada resultado.</p><p>Quando há referência de imagem, os pixels do arquivo registrado são enviados ao modelo, além do texto do pedido. No contexto de especificações, o texto mostrado acima é enviado nas duas condições.</p><p>O guia combina as skills comunitárias com regras e receitas próprias deste projeto. Este experimento não isola o texto upstream puro. Duas repetições permitem observar variação, mas não constituem validação estatística nem física.</p><p>Neste conjunto, o ESP32 ativa o guia geral e uma receita específica de placa. O MG90S recebe o guia geral: o seletor atual não ativa a receita de microservo para esse pedido. Considere essa diferença ao comparar os dois objetos.</p><p>Fonte do guia: <a href="https://github.com/CloudAI-X/threejs-skills" target="_blank" rel="noopener noreferrer">CloudAI-X/threejs-skills</a>.</p><pre id="method-metadata"></pre><div id="notes"></div><details><summary>Instruções enviadas: sem guia</summary><pre id="baseline-system"></pre></details><details><summary>Instruções enviadas: com guia</summary><pre id="skills-system"></pre></details></div></details><a id="download-manifest" href="./manifest.json" download="three-reference-matrix.json" hidden>Baixar registro completo ↗</a></div>
+      </section>
+    </main>
+    <script type="module" src="./viewer.ts?matrix=20261009-3"></script>
+  </body>
+</html>

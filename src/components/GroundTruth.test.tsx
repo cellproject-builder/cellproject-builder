@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { useGraphStore } from '@/store';
+import { useLocaleStore, type Locale } from '@/i18n';
 import type { AIPlan, ConceptNodeData } from '@/types';
 import {
   assessCriterion,
@@ -110,7 +111,16 @@ function render() {
   });
 }
 
+function typeInto(field: HTMLTextAreaElement, text: string) {
+  const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
+  act(() => {
+    setValue.call(field, text);
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
 beforeEach(() => {
+  useLocaleStore.setState({ locale: 'pt-BR' });
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -122,6 +132,101 @@ afterEach(() => {
 });
 
 describe('GroundTruthInlineTutor', () => {
+  it.each<Locale>(['pt-BR', 'en'])('associa a previsão ao contexto da parte e às instruções antes do ensaio (%s)', (locale) => {
+    useLocaleStore.setState({ locale });
+    setupNode({ name: 'Testar a fixação do braço esquerdo' });
+    render();
+    const field = container.querySelector<HTMLTextAreaElement>('textarea[name="user-criterion"]')!;
+    const descriptionIds = field.getAttribute('aria-describedby')?.split(/\s+/) ?? [];
+    expect(descriptionIds).toHaveLength(2);
+    const descriptions = descriptionIds.map((id) => document.getElementById(id));
+    expect(descriptions.every((element) => Boolean(element?.textContent?.trim()))).toBe(true);
+    expect(descriptions[0]?.textContent).toContain('Testar a fixação do braço esquerdo');
+    expect(container.querySelector('#gt-attest')).toBeNull();
+    expect(container.textContent).not.toContain('CRITERIO_DA_IA_SECRETO');
+
+    setupNode({ name: 'Explicar a transmissão', kind: 'concept' });
+    render();
+    const conceptField = container.querySelector<HTMLTextAreaElement>('textarea[name="user-criterion"]')!;
+    const conceptContext = conceptField.getAttribute('aria-describedby')?.split(/\s+/)[0];
+    expect(document.getElementById(conceptContext!)?.textContent).toContain('Explicar a transmissão');
+    expect(container.textContent).not.toContain('Testar a fixação do braço esquerdo');
+  });
+
+  it('trava a previsão escrita pelo usuário e mantém a IA oculta enquanto ainda pode desfazer', () => {
+    setupNode({});
+    render();
+    const field = container.querySelector<HTMLTextAreaElement>('textarea[name="user-criterion"]')!;
+    const prediction = 'Com a carga fixada, medir o desvio e comparar com o limite definido.';
+    typeInto(field, prediction);
+    act(() => field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true })));
+    render();
+
+    const node = useGraphStore.getState().project!.nodes[nodeId];
+    expect(node.comoConfirmarUsuario).toBe(prediction);
+    expect(node.comoConfirmarUsuarioAt).toBeGreaterThan(0);
+    expect(node.comoConfirmarAtendido).toBeUndefined();
+    expect(container.querySelector('#gt-attest textarea')).not.toBeNull();
+    expect(container.textContent).not.toContain('CRITERIO_DA_IA_SECRETO');
+  });
+
+  it('registra a observação real separada da previsão e recusa observação vazia', () => {
+    setupNode({
+      comoConfirmarUsuario: 'Explicar o caminho da transmissão sem consultar a fonte.',
+      comoConfirmarUsuarioAt: Date.now() - CRITERION_UNDO_MS - 1000,
+    });
+    render();
+    const field = container.querySelector<HTMLTextAreaElement>('#gt-attest textarea')!;
+    const submit = container.querySelector<HTMLButtonElement>('#gt-attest button')!;
+    expect(submit.disabled).toBe(true);
+    act(() => field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true })));
+    expect(useGraphStore.getState().project!.nodes[nodeId].comoConfirmarAtendido).toBeUndefined();
+
+    const observation = 'Sem a fonte, expliquei a transmissão e comparei meu desenho com a referência.';
+    typeInto(field, `  ${observation}  `);
+    act(() => submit.click());
+    render();
+    const node = useGraphStore.getState().project!.nodes[nodeId];
+    expect(node.comoConfirmarAtendido?.observacao).toBe(observation);
+    expect(node.comoConfirmarUsuario).toBe('Explicar o caminho da transmissão sem consultar a fonte.');
+    expect(node.confirmado).toBe(false);
+    expect(useGraphStore.getState().drafts[nodeId]?.met).toBeUndefined();
+    expect(container.querySelector('#gt-attest textarea')).toBeNull();
+    expect(container.textContent).toContain(observation);
+  });
+
+  it('relatar divergência invalida o resultado atendido e abre a revisão preservando a previsão', () => {
+    setupNode({
+      confirmado: true,
+      state: 'done',
+      comoConfirmarUsuario: 'O braço deve manter a posição durante o teste.',
+      comoConfirmarUsuarioAt: Date.now() - CRITERION_UNDO_MS - 1000,
+      comoConfirmarAtendido: { observacao: 'Manteve a posição no primeiro teste.', at: Date.now() },
+    });
+    render();
+    const failureSection = container.querySelector<HTMLDetailsElement>('#gt-failure')!;
+    act(() => failureSection.querySelector('summary')!.click());
+    act(() => failureSection.querySelector('button')!.click());
+    const field = failureSection.querySelector<HTMLTextAreaElement>('textarea[name="failure-context"]')!;
+    const failure = 'Com a carga reposicionada, o braço perdeu a posição antes do fim do teste.';
+    typeInto(field, failure);
+    const recordOnly = [...failureSection.querySelectorAll('button')].find((button) =>
+      /Só registrar|Record only/.test(button.textContent ?? ''),
+    )!;
+    act(() => recordOnly.click());
+    render();
+
+    const node = useGraphStore.getState().project!.nodes[nodeId];
+    expect(node.failureContext).toBe(failure);
+    expect(node.state).toBe('problem');
+    expect(node.confirmado).toBe(false);
+    expect(node.comoConfirmarAtendido).toBeUndefined();
+    expect(node.comoConfirmarUsuario).toBe('O braço deve manter a posição durante o teste.');
+    expect(container.querySelector<HTMLDetailsElement>('#gt-failure')!.open).toBe(true);
+    expect(container.querySelector('#gt-failure textarea')).toBeNull();
+    expect(container.querySelector('#gt-failure')!.textContent).toContain(failure);
+  });
+
   it('só o critério fica aberto; as outras seções mostram resumo', () => {
     setupNode({});
     render();

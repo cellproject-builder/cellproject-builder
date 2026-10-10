@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { ConceptNodeData, GroundTruthKind, GroundTruthRef, Project } from '@/types';
+import { normalizePlanningIntent } from '@/planningIntent';
 import {
   useGraphStore,
   breadcrumbFor,
@@ -346,6 +347,7 @@ function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
   const draft = useGraphStore((s) => s.drafts[node.id]?.criterion ?? '');
   const metDraft = useGraphStore((s) => s.drafts[node.id]?.met ?? '');
   const metRef = useRef<HTMLTextAreaElement>(null);
+  const criterionId = useId();
   const { revealed, remainingMs } = useAIReveal(node);
 
   const locked = Boolean(node.comoConfirmarUsuarioAt);
@@ -395,6 +397,9 @@ function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
             </span>
           )}
         </div>
+        <p id={`${criterionId}-focus`} className="text-footnote text-text-secondary break-words">
+          {tr.groundTruth.testFocus(node.name)}
+        </p>
         {locked ? (
           <div className="space-y-3">
             <div className="flex items-start gap-3 rounded-control bg-bg-elevated/60 px-3 py-2 text-control text-text-primary">
@@ -424,8 +429,12 @@ function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
                 <label htmlFor={`gt-met-${node.id}`} className="label block">
                   {tr.groundTruth.criterionMetPrompt}
                 </label>
+                <p id={`gt-met-help-${node.id}`} className="text-footnote text-text-muted">
+                  {tr.groundTruth.observationHelp}
+                </p>
                 <textarea
                   id={`gt-met-${node.id}`}
+                  aria-describedby={`gt-met-help-${node.id}`}
                   ref={metRef}
                   value={metDraft}
                   onChange={(e) => setDraft(node.id, 'met', e.target.value)}
@@ -450,12 +459,16 @@ function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
           </div>
         ) : (
           <>
+            <p id={`${criterionId}-help`} className="text-footnote text-text-muted">
+              {tr.groundTruth.criterionHelp}
+            </p>
             <textarea name="user-criterion"
               value={draft}
               onChange={(e) => setDraft(node.id, 'criterion', e.target.value)}
               onKeyDown={submitOnModEnter(handleLock)}
               rows={2}
               aria-label={tr.groundTruth.yourCriterion}
+              aria-describedby={`${criterionId}-focus ${criterionId}-help`}
               placeholder={
                 node.kind === 'concept'
                   ? tr.groundTruth.criterionPlaceholderUnderstand
@@ -567,6 +580,7 @@ function CritiqueBody({ node, project, collapsible }: SectionProps) {
         {
           projectName: proj.name,
           projectObjective: proj.objective,
+          ...normalizePlanningIntent(proj),
           breadcrumb: breadcrumbFor(proj, cur.id).map((c) => c.name),
           nodeName: cur.name,
           nodeKind: cur.kind,
@@ -1292,6 +1306,7 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
         {
           projectName: proj.name,
           projectObjective: proj.objective,
+          ...normalizePlanningIntent(proj),
           breadcrumb: breadcrumbFor(proj, cur.id).map((c) => c.name),
           nodeName: cur.name,
           nodeKind: cur.kind,
@@ -1514,6 +1529,7 @@ export function GroundTruthInlineTutor({
     // nem hairlines entre os acordeões.
     <div className="mt-8 space-y-1">
       <h2 className="text-title3 font-semibold text-text-primary">{tr.groundTruth.sectionTitle}</h2>
+      <p className="text-footnote text-text-muted pb-2">{tr.groundTruth.checkCycle}</p>
       <div className="-mx-4 space-y-1 [&>details]:border-t-0 [&_summary]:rounded-control">
         <UserCriterionField node={node} domIds inGroup />
         <GroundTruthRefsList node={node} project={project} collapsible />

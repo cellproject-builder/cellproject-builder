@@ -1,0 +1,4452 @@
+{
+  "assembly": {
+    "scene": {
+      "version": 1,
+      "label": "ESP32-DevKitC V4 — segmentação ilustrativa dos componentes selecionados, proporções aproximadas e contatos sem pinagem",
+      "objects": [
+        {
+          "id": "led-alimentacao-base",
+          "type": "box",
+          "position": [
+            -1.72,
+            0.12,
+            -0.96
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.4,
+            0.12,
+            0.18
+          ],
+          "color": "#B6B8AA"
+        },
+        {
+          "id": "led-alimentacao",
+          "type": "box",
+          "position": [
+            -1.72,
+            0.205,
+            -0.96
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.14,
+            0.05,
+            0.12
+          ],
+          "color": "#C94F35"
+        },
+        {
+          "id": "botao-en-base",
+          "type": "box",
+          "position": [
+            -2.78,
+            0.17,
+            -1.02
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.51,
+            0.22,
+            0.38
+          ],
+          "color": "#AEB3B0"
+        },
+        {
+          "id": "botao-en-atuador",
+          "type": "cylinder",
+          "position": [
+            -2.78,
+            0.315,
+            -1.02
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.22,
+            0.09,
+            0.22
+          ],
+          "color": "#393B3D"
+        },
+        {
+          "id": "botao-boot-base",
+          "type": "box",
+          "position": [
+            -2.78,
+            0.17,
+            1.02
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.51,
+            0.22,
+            0.38
+          ],
+          "color": "#AEB3B0"
+        },
+        {
+          "id": "botao-boot-atuador",
+          "type": "cylinder",
+          "position": [
+            -2.78,
+            0.315,
+            1.02
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.22,
+            0.09,
+            0.22
+          ],
+          "color": "#393B3D"
+        },
+        {
+          "id": "ci-ponte-usb-uart",
+          "type": "box",
+          "position": [
+            -1.78,
+            0.19,
+            -0.02
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.74,
+            0.26,
+            0.71
+          ],
+          "color": "#353838"
+        },
+        {
+          "id": "terminais-ci-superior",
+          "type": "box",
+          "position": [
+            -1.78,
+            0.1,
+            -0.414
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.68,
+            0.08,
+            0.1
+          ],
+          "color": "#A5AAA5"
+        },
+        {
+          "id": "terminais-ci-inferior",
+          "type": "box",
+          "position": [
+            -1.78,
+            0.1,
+            0.374
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.68,
+            0.08,
+            0.1
+          ],
+          "color": "#A5AAA5"
+        },
+        {
+          "id": "terminais-ci-esquerda",
+          "type": "box",
+          "position": [
+            -2.2,
+            0.1,
+            -0.02
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.1,
+            0.08,
+            0.65
+          ],
+          "color": "#A5AAA5"
+        },
+        {
+          "id": "terminais-ci-direita",
+          "type": "box",
+          "position": [
+            -1.36,
+            0.1,
+            -0.02
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.1,
+            0.08,
+            0.65
+          ],
+          "color": "#A5AAA5"
+        },
+        {
+          "id": "usb-corpo-metalico",
+          "type": "box",
+          "position": [
+            -3.12,
+            0.28,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.8,
+            0.44,
+            0.94
+          ],
+          "color": "#BFC2C1"
+        },
+        {
+          "id": "usb-abertura-escura",
+          "type": "box",
+          "position": [
+            -3.526,
+            0.28,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.018,
+            0.26,
+            0.72
+          ],
+          "color": "#252A2D"
+        },
+        {
+          "id": "usb-lingueta-interna",
+          "type": "box",
+          "position": [
+            -3.538,
+            0.255,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.016,
+            0.06,
+            0.52
+          ],
+          "color": "#696E6B"
+        },
+        {
+          "id": "contato-superior-01",
+          "type": "cylinder",
+          "position": [
+            -3.04,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-02",
+          "type": "cylinder",
+          "position": [
+            -2.72,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-03",
+          "type": "cylinder",
+          "position": [
+            -2.4,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-04",
+          "type": "cylinder",
+          "position": [
+            -2.08,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-05",
+          "type": "cylinder",
+          "position": [
+            -1.76,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-06",
+          "type": "cylinder",
+          "position": [
+            -1.44,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-07",
+          "type": "cylinder",
+          "position": [
+            -1.12,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-08",
+          "type": "cylinder",
+          "position": [
+            -0.8,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-09",
+          "type": "cylinder",
+          "position": [
+            -0.48,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-10",
+          "type": "cylinder",
+          "position": [
+            -0.16,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-11",
+          "type": "cylinder",
+          "position": [
+            0.16,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-12",
+          "type": "cylinder",
+          "position": [
+            0.48,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-13",
+          "type": "cylinder",
+          "position": [
+            0.8,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-14",
+          "type": "cylinder",
+          "position": [
+            1.12,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-15",
+          "type": "cylinder",
+          "position": [
+            1.44,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-16",
+          "type": "cylinder",
+          "position": [
+            1.76,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-17",
+          "type": "cylinder",
+          "position": [
+            2.08,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-18",
+          "type": "cylinder",
+          "position": [
+            2.4,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-superior-19",
+          "type": "cylinder",
+          "position": [
+            2.72,
+            0.09,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-01",
+          "type": "cylinder",
+          "position": [
+            -3.04,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-02",
+          "type": "cylinder",
+          "position": [
+            -2.72,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-03",
+          "type": "cylinder",
+          "position": [
+            -2.4,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-04",
+          "type": "cylinder",
+          "position": [
+            -2.08,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-05",
+          "type": "cylinder",
+          "position": [
+            -1.76,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-06",
+          "type": "cylinder",
+          "position": [
+            -1.44,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-07",
+          "type": "cylinder",
+          "position": [
+            -1.12,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-08",
+          "type": "cylinder",
+          "position": [
+            -0.8,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-09",
+          "type": "cylinder",
+          "position": [
+            -0.48,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-10",
+          "type": "cylinder",
+          "position": [
+            -0.16,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-11",
+          "type": "cylinder",
+          "position": [
+            0.16,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-12",
+          "type": "cylinder",
+          "position": [
+            0.48,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-13",
+          "type": "cylinder",
+          "position": [
+            0.8,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-14",
+          "type": "cylinder",
+          "position": [
+            1.12,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-15",
+          "type": "cylinder",
+          "position": [
+            1.44,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-16",
+          "type": "cylinder",
+          "position": [
+            1.76,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-17",
+          "type": "cylinder",
+          "position": [
+            2.08,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-18",
+          "type": "cylinder",
+          "position": [
+            2.4,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "contato-inferior-19",
+          "type": "cylinder",
+          "position": [
+            2.72,
+            0.09,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.19,
+            0.06,
+            0.19
+          ],
+          "color": "#BEC1B9"
+        },
+        {
+          "id": "centro-contato-superior-01",
+          "type": "cylinder",
+          "position": [
+            -3.04,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-02",
+          "type": "cylinder",
+          "position": [
+            -2.72,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-03",
+          "type": "cylinder",
+          "position": [
+            -2.4,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-04",
+          "type": "cylinder",
+          "position": [
+            -2.08,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-05",
+          "type": "cylinder",
+          "position": [
+            -1.76,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-06",
+          "type": "cylinder",
+          "position": [
+            -1.44,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-07",
+          "type": "cylinder",
+          "position": [
+            -1.12,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-08",
+          "type": "cylinder",
+          "position": [
+            -0.8,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-09",
+          "type": "cylinder",
+          "position": [
+            -0.48,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-10",
+          "type": "cylinder",
+          "position": [
+            -0.16,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-11",
+          "type": "cylinder",
+          "position": [
+            0.16,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-12",
+          "type": "cylinder",
+          "position": [
+            0.48,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-13",
+          "type": "cylinder",
+          "position": [
+            0.8,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-14",
+          "type": "cylinder",
+          "position": [
+            1.12,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-15",
+          "type": "cylinder",
+          "position": [
+            1.44,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-16",
+          "type": "cylinder",
+          "position": [
+            1.76,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-17",
+          "type": "cylinder",
+          "position": [
+            2.08,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-18",
+          "type": "cylinder",
+          "position": [
+            2.4,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-superior-19",
+          "type": "cylinder",
+          "position": [
+            2.72,
+            0.125,
+            -1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-01",
+          "type": "cylinder",
+          "position": [
+            -3.04,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-02",
+          "type": "cylinder",
+          "position": [
+            -2.72,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-03",
+          "type": "cylinder",
+          "position": [
+            -2.4,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-04",
+          "type": "cylinder",
+          "position": [
+            -2.08,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-05",
+          "type": "cylinder",
+          "position": [
+            -1.76,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-06",
+          "type": "cylinder",
+          "position": [
+            -1.44,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-07",
+          "type": "cylinder",
+          "position": [
+            -1.12,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-08",
+          "type": "cylinder",
+          "position": [
+            -0.8,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-09",
+          "type": "cylinder",
+          "position": [
+            -0.48,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-10",
+          "type": "cylinder",
+          "position": [
+            -0.16,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-11",
+          "type": "cylinder",
+          "position": [
+            0.16,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-12",
+          "type": "cylinder",
+          "position": [
+            0.48,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-13",
+          "type": "cylinder",
+          "position": [
+            0.8,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-14",
+          "type": "cylinder",
+          "position": [
+            1.12,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-15",
+          "type": "cylinder",
+          "position": [
+            1.44,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-16",
+          "type": "cylinder",
+          "position": [
+            1.76,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-17",
+          "type": "cylinder",
+          "position": [
+            2.08,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-18",
+          "type": "cylinder",
+          "position": [
+            2.4,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        },
+        {
+          "id": "centro-contato-inferior-19",
+          "type": "cylinder",
+          "position": [
+            2.72,
+            0.125,
+            1.54
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.082,
+            0.012,
+            0.082
+          ],
+          "color": "#424843"
+        }
+      ]
+    },
+    "groups": [
+      {
+        "partId": "12345678-1234-5678-1234-567812345678",
+        "objectIds": [
+          "led-alimentacao-base",
+          "led-alimentacao"
+        ],
+        "explodeOffset": [
+          2.4821999999999997,
+          1.5957,
+          0
+        ]
+      },
+      {
+        "partId": "abcdef01-2345-6789-abcd-ef0123456789",
+        "objectIds": [
+          "botao-en-base",
+          "botao-en-atuador"
+        ],
+        "explodeOffset": [
+          1.2411,
+          1.5957,
+          2.1496482572737334
+        ]
+      },
+      {
+        "partId": "fedcba98-7654-3210-fedc-ba9876543210",
+        "objectIds": [
+          "botao-boot-base",
+          "botao-boot-atuador"
+        ],
+        "explodeOffset": [
+          -1.2410999999999992,
+          1.5957,
+          2.1496482572737334
+        ]
+      },
+      {
+        "partId": "11223344-5566-7788-99aa-bbccddeeff00",
+        "objectIds": [
+          "ci-ponte-usb-uart",
+          "terminais-ci-superior",
+          "terminais-ci-inferior",
+          "terminais-ci-esquerda",
+          "terminais-ci-direita"
+        ],
+        "explodeOffset": [
+          -2.4821999999999997,
+          1.5957,
+          3.03981828484356E-16
+        ]
+      },
+      {
+        "partId": "aabbccdd-eeff-0011-2233-445566778899",
+        "objectIds": [
+          "usb-corpo-metalico",
+          "usb-abertura-escura",
+          "usb-lingueta-interna"
+        ],
+        "explodeOffset": [
+          -1.241100000000001,
+          1.5957,
+          -2.1496482572737325
+        ]
+      },
+      {
+        "partId": "99887766-5544-3322-1100-aabbccddeeff",
+        "objectIds": [
+          "contato-superior-01",
+          "contato-superior-02",
+          "contato-superior-03",
+          "contato-superior-04",
+          "contato-superior-05",
+          "contato-superior-06",
+          "contato-superior-07",
+          "contato-superior-08",
+          "contato-superior-09",
+          "contato-superior-10",
+          "contato-superior-11",
+          "contato-superior-12",
+          "contato-superior-13",
+          "contato-superior-14",
+          "contato-superior-15",
+          "contato-superior-16",
+          "contato-superior-17",
+          "contato-superior-18",
+          "contato-superior-19",
+          "contato-inferior-01",
+          "contato-inferior-02",
+          "contato-inferior-03",
+          "contato-inferior-04",
+          "contato-inferior-05",
+          "contato-inferior-06",
+          "contato-inferior-07",
+          "contato-inferior-08",
+          "contato-inferior-09",
+          "contato-inferior-10",
+          "contato-inferior-11",
+          "contato-inferior-12",
+          "contato-inferior-13",
+          "contato-inferior-14",
+          "contato-inferior-15",
+          "contato-inferior-16",
+          "contato-inferior-17",
+          "contato-inferior-18",
+          "contato-inferior-19",
+          "centro-contato-superior-01",
+          "centro-contato-superior-02",
+          "centro-contato-superior-03",
+          "centro-contato-superior-04",
+          "centro-contato-superior-05",
+          "centro-contato-superior-06",
+          "centro-contato-superior-07",
+          "centro-contato-superior-08",
+          "centro-contato-superior-09",
+          "centro-contato-superior-10",
+          "centro-contato-superior-11",
+          "centro-contato-superior-12",
+          "centro-contato-superior-13",
+          "centro-contato-superior-14",
+          "centro-contato-superior-15",
+          "centro-contato-superior-16",
+          "centro-contato-superior-17",
+          "centro-contato-superior-18",
+          "centro-contato-superior-19",
+          "centro-contato-inferior-01",
+          "centro-contato-inferior-02",
+          "centro-contato-inferior-03",
+          "centro-contato-inferior-04",
+          "centro-contato-inferior-05",
+          "centro-contato-inferior-06",
+          "centro-contato-inferior-07",
+          "centro-contato-inferior-08",
+          "centro-contato-inferior-09",
+          "centro-contato-inferior-10",
+          "centro-contato-inferior-11",
+          "centro-contato-inferior-12",
+          "centro-contato-inferior-13",
+          "centro-contato-inferior-14",
+          "centro-contato-inferior-15",
+          "centro-contato-inferior-16",
+          "centro-contato-inferior-17",
+          "centro-contato-inferior-18",
+          "centro-contato-inferior-19"
+        ],
+        "explodeOffset": [
+          1.2411,
+          1.5957,
+          -2.1496482572737334
+        ]
+      }
+    ],
+    "createdAt": 1791601318946,
+    "dossierId": "q4X_dDoLdNOdonklxWnYf",
+    "dossierFingerprint": "58300:f65c991d",
+    "selectedPartIds": [
+      "12345678-1234-5678-1234-567812345678",
+      "abcdef01-2345-6789-abcd-ef0123456789",
+      "fedcba98-7654-3210-fedc-ba9876543210",
+      "11223344-5566-7788-99aa-bbccddeeff00",
+      "aabbccdd-eeff-0011-2233-445566778899",
+      "99887766-5544-3322-1100-aabbccddeeff"
+    ],
+    "geometryBasis": "source",
+    "reusedObjectIds": [
+      "led-alimentacao-base",
+      "led-alimentacao",
+      "botao-en-base",
+      "botao-en-atuador",
+      "botao-boot-base",
+      "botao-boot-atuador",
+      "ci-ponte-usb-uart",
+      "terminais-ci-superior",
+      "terminais-ci-inferior",
+      "terminais-ci-esquerda",
+      "terminais-ci-direita",
+      "usb-corpo-metalico",
+      "usb-abertura-escura",
+      "usb-lingueta-interna",
+      "contato-superior-01",
+      "contato-superior-02",
+      "contato-superior-03",
+      "contato-superior-04",
+      "contato-superior-05",
+      "contato-superior-06",
+      "contato-superior-07",
+      "contato-superior-08",
+      "contato-superior-09",
+      "contato-superior-10",
+      "contato-superior-11",
+      "contato-superior-12",
+      "contato-superior-13",
+      "contato-superior-14",
+      "contato-superior-15",
+      "contato-superior-16",
+      "contato-superior-17",
+      "contato-superior-18",
+      "contato-superior-19",
+      "contato-inferior-01",
+      "contato-inferior-02",
+      "contato-inferior-03",
+      "contato-inferior-04",
+      "contato-inferior-05",
+      "contato-inferior-06",
+      "contato-inferior-07",
+      "contato-inferior-08",
+      "contato-inferior-09",
+      "contato-inferior-10",
+      "contato-inferior-11",
+      "contato-inferior-12",
+      "contato-inferior-13",
+      "contato-inferior-14",
+      "contato-inferior-15",
+      "contato-inferior-16",
+      "contato-inferior-17",
+      "contato-inferior-18",
+      "contato-inferior-19",
+      "centro-contato-superior-01",
+      "centro-contato-superior-02",
+      "centro-contato-superior-03",
+      "centro-contato-superior-04",
+      "centro-contato-superior-05",
+      "centro-contato-superior-06",
+      "centro-contato-superior-07",
+      "centro-contato-superior-08",
+      "centro-contato-superior-09",
+      "centro-contato-superior-10",
+      "centro-contato-superior-11",
+      "centro-contato-superior-12",
+      "centro-contato-superior-13",
+      "centro-contato-superior-14",
+      "centro-contato-superior-15",
+      "centro-contato-superior-16",
+      "centro-contato-superior-17",
+      "centro-contato-superior-18",
+      "centro-contato-superior-19",
+      "centro-contato-inferior-01",
+      "centro-contato-inferior-02",
+      "centro-contato-inferior-03",
+      "centro-contato-inferior-04",
+      "centro-contato-inferior-05",
+      "centro-contato-inferior-06",
+      "centro-contato-inferior-07",
+      "centro-contato-inferior-08",
+      "centro-contato-inferior-09",
+      "centro-contato-inferior-10",
+      "centro-contato-inferior-11",
+      "centro-contato-inferior-12",
+      "centro-contato-inferior-13",
+      "centro-contato-inferior-14",
+      "centro-contato-inferior-15",
+      "centro-contato-inferior-16",
+      "centro-contato-inferior-17",
+      "centro-contato-inferior-18",
+      "centro-contato-inferior-19"
+    ]
+  },
+  "original": {
+    "version": 1,
+    "label": "ESP32-DevKitC V4 com ESP32-WROOM-32 — representação ilustrativa, proporções aproximadas e contatos sem pinagem",
+    "objects": [
+      {
+        "id": "pcb-principal",
+        "type": "box",
+        "position": [
+          -0.15,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          6.1,
+          0.12,
+          3.4
+        ],
+        "color": "#252C2B"
+      },
+      {
+        "id": "substrato-modulo",
+        "type": "box",
+        "position": [
+          1.82,
+          0.12,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          3.56,
+          0.12,
+          2.24
+        ],
+        "color": "#242628"
+      },
+      {
+        "id": "blindagem-metalica",
+        "type": "box",
+        "position": [
+          1.52,
+          0.31,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2.34,
+          0.28,
+          2.04
+        ],
+        "color": "#B8BAB7"
+      },
+      {
+        "id": "regiao-antena",
+        "type": "box",
+        "position": [
+          3.13,
+          0.19,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.94,
+          0.08,
+          2.2
+        ],
+        "color": "#303135"
+      },
+      {
+        "id": "antena-traco-longitudinal",
+        "type": "box",
+        "position": [
+          3.44,
+          0.24,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.055,
+          0.025,
+          1.78
+        ],
+        "color": "#555650"
+      },
+      {
+        "id": "antena-traco-superior",
+        "type": "box",
+        "position": [
+          3.17,
+          0.24,
+          -0.86
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.59,
+          0.025,
+          0.055
+        ],
+        "color": "#555650"
+      },
+      {
+        "id": "antena-traco-inferior",
+        "type": "box",
+        "position": [
+          3.17,
+          0.24,
+          0.86
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.59,
+          0.025,
+          0.055
+        ],
+        "color": "#555650"
+      },
+      {
+        "id": "antena-traco-central",
+        "type": "box",
+        "position": [
+          3.17,
+          0.24,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.59,
+          0.025,
+          0.055
+        ],
+        "color": "#555650"
+      },
+      {
+        "id": "antena-retorno-superior",
+        "type": "box",
+        "position": [
+          2.9,
+          0.24,
+          -0.63
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.055,
+          0.025,
+          0.49
+        ],
+        "color": "#555650"
+      },
+      {
+        "id": "antena-traco-intermedio",
+        "type": "box",
+        "position": [
+          3.16,
+          0.24,
+          -0.4
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.57,
+          0.025,
+          0.055
+        ],
+        "color": "#555650"
+      },
+      {
+        "id": "antena-retorno-inferior",
+        "type": "box",
+        "position": [
+          2.9,
+          0.24,
+          0.43
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.055,
+          0.025,
+          0.9
+        ],
+        "color": "#555650"
+      },
+      {
+        "id": "usb-corpo-metalico",
+        "type": "box",
+        "position": [
+          -3.12,
+          0.28,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.8,
+          0.44,
+          0.94
+        ],
+        "color": "#BFC2C1"
+      },
+      {
+        "id": "usb-abertura-escura",
+        "type": "box",
+        "position": [
+          -3.526,
+          0.28,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.018,
+          0.26,
+          0.72
+        ],
+        "color": "#252A2D"
+      },
+      {
+        "id": "usb-lingueta-interna",
+        "type": "box",
+        "position": [
+          -3.538,
+          0.255,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.016,
+          0.06,
+          0.52
+        ],
+        "color": "#696E6B"
+      },
+      {
+        "id": "botao-en-base",
+        "type": "box",
+        "position": [
+          -2.78,
+          0.17,
+          -1.02
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.51,
+          0.22,
+          0.38
+        ],
+        "color": "#AEB3B0"
+      },
+      {
+        "id": "botao-en-atuador",
+        "type": "cylinder",
+        "position": [
+          -2.78,
+          0.315,
+          -1.02
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.22,
+          0.09,
+          0.22
+        ],
+        "color": "#393B3D"
+      },
+      {
+        "id": "botao-boot-base",
+        "type": "box",
+        "position": [
+          -2.78,
+          0.17,
+          1.02
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.51,
+          0.22,
+          0.38
+        ],
+        "color": "#AEB3B0"
+      },
+      {
+        "id": "botao-boot-atuador",
+        "type": "cylinder",
+        "position": [
+          -2.78,
+          0.315,
+          1.02
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.22,
+          0.09,
+          0.22
+        ],
+        "color": "#393B3D"
+      },
+      {
+        "id": "ci-ponte-usb-uart",
+        "type": "box",
+        "position": [
+          -1.78,
+          0.19,
+          -0.02
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.74,
+          0.26,
+          0.71
+        ],
+        "color": "#353838"
+      },
+      {
+        "id": "ci-regulador",
+        "type": "box",
+        "position": [
+          -0.89,
+          0.21,
+          0.05
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.76,
+          0.3,
+          0.45
+        ],
+        "color": "#393B38"
+      },
+      {
+        "id": "regulador-aba-metalica",
+        "type": "box",
+        "position": [
+          -0.89,
+          0.13,
+          0.39
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.4,
+          0.14,
+          0.23
+        ],
+        "color": "#929890"
+      },
+      {
+        "id": "ci-inferior",
+        "type": "box",
+        "position": [
+          -0.91,
+          0.15,
+          0.97
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.33,
+          0.18,
+          0.35
+        ],
+        "color": "#343937"
+      },
+      {
+        "id": "componente-superior-01",
+        "type": "box",
+        "position": [
+          -2.17,
+          0.13,
+          -0.94
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.3,
+          0.14,
+          0.13
+        ],
+        "color": "#C3C5B8"
+      },
+      {
+        "id": "led-alimentacao-base",
+        "type": "box",
+        "position": [
+          -1.72,
+          0.12,
+          -0.96
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.4,
+          0.12,
+          0.18
+        ],
+        "color": "#B6B8AA"
+      },
+      {
+        "id": "led-alimentacao",
+        "type": "box",
+        "position": [
+          -1.72,
+          0.205,
+          -0.96
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.14,
+          0.05,
+          0.12
+        ],
+        "color": "#C94F35"
+      },
+      {
+        "id": "componente-superior-02",
+        "type": "box",
+        "position": [
+          -1.17,
+          0.14,
+          -0.95
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.13,
+          0.16,
+          0.3
+        ],
+        "color": "#AAAFA7"
+      },
+      {
+        "id": "componente-superior-03",
+        "type": "box",
+        "position": [
+          -0.97,
+          0.14,
+          -0.95
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.13,
+          0.16,
+          0.3
+        ],
+        "color": "#AAAFA7"
+      },
+      {
+        "id": "componente-superior-04",
+        "type": "box",
+        "position": [
+          -0.67,
+          0.15,
+          -0.94
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.31,
+          0.18,
+          0.16
+        ],
+        "color": "#B7B2A2"
+      },
+      {
+        "id": "componente-superior-05",
+        "type": "box",
+        "position": [
+          -0.67,
+          0.15,
+          -0.67
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.31,
+          0.18,
+          0.16
+        ],
+        "color": "#B7B2A2"
+      },
+      {
+        "id": "componente-central-01",
+        "type": "box",
+        "position": [
+          -2.36,
+          0.13,
+          -0.65
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.25,
+          0.14,
+          0.12
+        ],
+        "color": "#AAAFA7"
+      },
+      {
+        "id": "componente-central-02",
+        "type": "box",
+        "position": [
+          -1.99,
+          0.13,
+          -0.6
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.12,
+          0.14,
+          0.24
+        ],
+        "color": "#B6B1A1"
+      },
+      {
+        "id": "componente-central-03",
+        "type": "box",
+        "position": [
+          -1.74,
+          0.13,
+          -0.6
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.12,
+          0.14,
+          0.24
+        ],
+        "color": "#B6B1A1"
+      },
+      {
+        "id": "componente-central-04",
+        "type": "box",
+        "position": [
+          -1.49,
+          0.13,
+          -0.6
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.12,
+          0.14,
+          0.24
+        ],
+        "color": "#B6B1A1"
+      },
+      {
+        "id": "componente-inferior-01",
+        "type": "box",
+        "position": [
+          -2.36,
+          0.13,
+          0.7
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.23,
+          0.14,
+          0.13
+        ],
+        "color": "#AAAFA7"
+      },
+      {
+        "id": "componente-inferior-02",
+        "type": "box",
+        "position": [
+          -1.81,
+          0.15,
+          1.02
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.16,
+          0.18,
+          0.32
+        ],
+        "color": "#AAAFA7"
+      },
+      {
+        "id": "componente-inferior-03",
+        "type": "box",
+        "position": [
+          -1.49,
+          0.13,
+          0.64
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.2,
+          0.14,
+          0.16
+        ],
+        "color": "#AAAFA7"
+      },
+      {
+        "id": "terminais-ci-superior",
+        "type": "box",
+        "position": [
+          -1.78,
+          0.1,
+          -0.414
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.68,
+          0.08,
+          0.1
+        ],
+        "color": "#A5AAA5"
+      },
+      {
+        "id": "terminais-ci-inferior",
+        "type": "box",
+        "position": [
+          -1.78,
+          0.1,
+          0.374
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.68,
+          0.08,
+          0.1
+        ],
+        "color": "#A5AAA5"
+      },
+      {
+        "id": "terminais-ci-esquerda",
+        "type": "box",
+        "position": [
+          -2.2,
+          0.1,
+          -0.02
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.08,
+          0.65
+        ],
+        "color": "#A5AAA5"
+      },
+      {
+        "id": "terminais-ci-direita",
+        "type": "box",
+        "position": [
+          -1.36,
+          0.1,
+          -0.02
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.08,
+          0.65
+        ],
+        "color": "#A5AAA5"
+      },
+      {
+        "id": "terminais-modulo-superior",
+        "type": "box",
+        "position": [
+          1.48,
+          0.185,
+          -1.105
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2.57,
+          0.07,
+          0.07
+        ],
+        "color": "#B7AD87"
+      },
+      {
+        "id": "terminais-modulo-inferior",
+        "type": "box",
+        "position": [
+          1.48,
+          0.185,
+          1.105
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2.57,
+          0.07,
+          0.07
+        ],
+        "color": "#B7AD87"
+      },
+      {
+        "id": "terminais-modulo-esquerda",
+        "type": "box",
+        "position": [
+          0.11,
+          0.185,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.07,
+          0.07,
+          1.9
+        ],
+        "color": "#B7AD87"
+      },
+      {
+        "id": "contato-superior-01",
+        "type": "cylinder",
+        "position": [
+          -3.04,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-02",
+        "type": "cylinder",
+        "position": [
+          -2.72,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-03",
+        "type": "cylinder",
+        "position": [
+          -2.4,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-04",
+        "type": "cylinder",
+        "position": [
+          -2.08,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-05",
+        "type": "cylinder",
+        "position": [
+          -1.76,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-06",
+        "type": "cylinder",
+        "position": [
+          -1.44,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-07",
+        "type": "cylinder",
+        "position": [
+          -1.12,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-08",
+        "type": "cylinder",
+        "position": [
+          -0.8,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-09",
+        "type": "cylinder",
+        "position": [
+          -0.48,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-10",
+        "type": "cylinder",
+        "position": [
+          -0.16,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-11",
+        "type": "cylinder",
+        "position": [
+          0.16,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-12",
+        "type": "cylinder",
+        "position": [
+          0.48,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-13",
+        "type": "cylinder",
+        "position": [
+          0.8,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-14",
+        "type": "cylinder",
+        "position": [
+          1.12,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-15",
+        "type": "cylinder",
+        "position": [
+          1.44,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-16",
+        "type": "cylinder",
+        "position": [
+          1.76,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-17",
+        "type": "cylinder",
+        "position": [
+          2.08,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-18",
+        "type": "cylinder",
+        "position": [
+          2.4,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-superior-19",
+        "type": "cylinder",
+        "position": [
+          2.72,
+          0.09,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-01",
+        "type": "cylinder",
+        "position": [
+          -3.04,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-02",
+        "type": "cylinder",
+        "position": [
+          -2.72,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-03",
+        "type": "cylinder",
+        "position": [
+          -2.4,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-04",
+        "type": "cylinder",
+        "position": [
+          -2.08,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-05",
+        "type": "cylinder",
+        "position": [
+          -1.76,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-06",
+        "type": "cylinder",
+        "position": [
+          -1.44,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-07",
+        "type": "cylinder",
+        "position": [
+          -1.12,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-08",
+        "type": "cylinder",
+        "position": [
+          -0.8,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-09",
+        "type": "cylinder",
+        "position": [
+          -0.48,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-10",
+        "type": "cylinder",
+        "position": [
+          -0.16,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-11",
+        "type": "cylinder",
+        "position": [
+          0.16,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-12",
+        "type": "cylinder",
+        "position": [
+          0.48,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-13",
+        "type": "cylinder",
+        "position": [
+          0.8,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-14",
+        "type": "cylinder",
+        "position": [
+          1.12,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-15",
+        "type": "cylinder",
+        "position": [
+          1.44,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-16",
+        "type": "cylinder",
+        "position": [
+          1.76,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-17",
+        "type": "cylinder",
+        "position": [
+          2.08,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-18",
+        "type": "cylinder",
+        "position": [
+          2.4,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "contato-inferior-19",
+        "type": "cylinder",
+        "position": [
+          2.72,
+          0.09,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.19,
+          0.06,
+          0.19
+        ],
+        "color": "#BEC1B9"
+      },
+      {
+        "id": "centro-contato-superior-01",
+        "type": "cylinder",
+        "position": [
+          -3.04,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-02",
+        "type": "cylinder",
+        "position": [
+          -2.72,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-03",
+        "type": "cylinder",
+        "position": [
+          -2.4,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-04",
+        "type": "cylinder",
+        "position": [
+          -2.08,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-05",
+        "type": "cylinder",
+        "position": [
+          -1.76,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-06",
+        "type": "cylinder",
+        "position": [
+          -1.44,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-07",
+        "type": "cylinder",
+        "position": [
+          -1.12,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-08",
+        "type": "cylinder",
+        "position": [
+          -0.8,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-09",
+        "type": "cylinder",
+        "position": [
+          -0.48,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-10",
+        "type": "cylinder",
+        "position": [
+          -0.16,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-11",
+        "type": "cylinder",
+        "position": [
+          0.16,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-12",
+        "type": "cylinder",
+        "position": [
+          0.48,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-13",
+        "type": "cylinder",
+        "position": [
+          0.8,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-14",
+        "type": "cylinder",
+        "position": [
+          1.12,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-15",
+        "type": "cylinder",
+        "position": [
+          1.44,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-16",
+        "type": "cylinder",
+        "position": [
+          1.76,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-17",
+        "type": "cylinder",
+        "position": [
+          2.08,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-18",
+        "type": "cylinder",
+        "position": [
+          2.4,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-superior-19",
+        "type": "cylinder",
+        "position": [
+          2.72,
+          0.125,
+          -1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-01",
+        "type": "cylinder",
+        "position": [
+          -3.04,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-02",
+        "type": "cylinder",
+        "position": [
+          -2.72,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-03",
+        "type": "cylinder",
+        "position": [
+          -2.4,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-04",
+        "type": "cylinder",
+        "position": [
+          -2.08,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-05",
+        "type": "cylinder",
+        "position": [
+          -1.76,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-06",
+        "type": "cylinder",
+        "position": [
+          -1.44,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-07",
+        "type": "cylinder",
+        "position": [
+          -1.12,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-08",
+        "type": "cylinder",
+        "position": [
+          -0.8,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-09",
+        "type": "cylinder",
+        "position": [
+          -0.48,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-10",
+        "type": "cylinder",
+        "position": [
+          -0.16,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-11",
+        "type": "cylinder",
+        "position": [
+          0.16,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-12",
+        "type": "cylinder",
+        "position": [
+          0.48,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-13",
+        "type": "cylinder",
+        "position": [
+          0.8,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-14",
+        "type": "cylinder",
+        "position": [
+          1.12,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-15",
+        "type": "cylinder",
+        "position": [
+          1.44,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-16",
+        "type": "cylinder",
+        "position": [
+          1.76,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-17",
+        "type": "cylinder",
+        "position": [
+          2.08,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-18",
+        "type": "cylinder",
+        "position": [
+          2.4,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      },
+      {
+        "id": "centro-contato-inferior-19",
+        "type": "cylinder",
+        "position": [
+          2.72,
+          0.125,
+          1.54
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.082,
+          0.012,
+          0.082
+        ],
+        "color": "#424843"
+      }
+    ]
+  }
+}

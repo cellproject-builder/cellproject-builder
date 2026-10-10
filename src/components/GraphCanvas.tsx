@@ -18,7 +18,6 @@ import {
 } from '@xyflow/react';
 import {
   useGraphStore,
-  computeTreeLayout,
   confidenceBand,
   isBlocked,
   canConcludeNode,
@@ -39,6 +38,13 @@ import type { Messages } from '@/i18n';
 import { ConceptNode, SIDE_HANDLE } from './ConceptNode';
 import { discardSuggestionsWithUndo, acceptSuggestionsWithUndo } from './suggestionActions';
 import type { ConceptEdgeData, ConceptNodeData, Project } from '@/types';
+import { computeAdaptiveTreeLayout, DEFAULT_NODE_DIMENSIONS, type GraphLayoutMode, type LayoutDimensions, type Orientation } from '@/graph/autoLayout';
+import { useCanvasSize } from '@/graph/useCanvasSize';
+import { getVisualWorkspace, updateVisualArtifact } from '@/visuals/domain';
+import { VisualArtifactNode } from '@/visuals/rendering/VisualArtifactNode';
+import { VisualLinkEdge } from '@/visuals/rendering/VisualLinkEdge';
+import { VisualWorkspaceBridge } from '@/visuals/VisualWorkspaceBridge';
+import { useVisualPopupStore } from '@/visuals/ui/uiStore';
 
 // ---------------------------------------------------------------------------
 // Cabeçalho de coluna (lentes Risco/Estado) — nó não interativo.
@@ -66,7 +72,7 @@ const ColumnHeaderNode = memo(function ColumnHeaderNode({ data }: NodeProps) {
   );
 });
 
-const nodeTypes = { concept: ConceptNode, columnHeader: ColumnHeaderNode };
+const nodeTypes = { concept: ConceptNode, columnHeader: ColumnHeaderNode, visual: VisualArtifactNode };
 
 const MOBILE_LENSES: Lens[] = ['structure', 'flow', 'risk', 'state', 'connections'];
 const LENS_LABEL_KEY = {
@@ -117,7 +123,7 @@ const READABLE_MIN_ZOOM = 0.7;
 // O encaixe é pela largura — as colunas leem de cima e rolam na vertical.
 const COLUMNS_MIN_ZOOM = 0.5;
 const CONNECTIONS_MIN_ZOOM = 0.5;
-const FIT_ALL_MIN_ZOOM = 0.15;
+const FIT_ALL_MIN_ZOOM = 0.05;
 // Cromo flutuante sobre o canvas (px de tela): faixa dos botões do topo
 // (Organizar, zoom, Legenda). O enquadramento automático desconta isso.
 const CHROME_TOP = 44;
@@ -131,7 +137,7 @@ const MINIMAP_MIN_NODES = 40;
 // Folga mínima entre cards empilhados numa coluna (lentes de colunas).
 const STACK_GAP = 28;
 
-const edgeTypes: EdgeTypes = {};
+const edgeTypes: EdgeTypes = { visualLink: VisualLinkEdge };
 
 const HEADER_PREFIX = 'header-';
 const SUGGESTION_PREFIX = 'suggestion-';
@@ -427,7 +433,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
 }
 
-export function GraphCanvas() {
+export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximized?: boolean; onToggleMaximized?: () => void }) {
   const tr = useT();
   const isMobile = useIsMobile();
   const { setViewport, getNode, getNodes, getNodesBounds, zoomIn, zoomOut } =
@@ -437,6 +443,10 @@ export function GraphCanvas() {
   const lens = useGraphStore((s) => s.lens);
   const selectedId = useGraphStore((s) => s.selectedNodeId);
   const selectionVersion = useGraphStore((s) => s.selectionVersion);
+  // Plan context and the canvas selection are different: selecting a photo
+  // retains its plan context without leaving that concept selected for drag.
+  const [selectedVisualId, setSelectedVisualId] = useState<string | null>(null);
+  useEffect(() => { setSelectedVisualId(null); }, [selectionVersion, project?.id]);
   const focusedParentId = useGraphStore((s) => s.focusedParentId);
   const focusVersion = useGraphStore((s) => s.focusVersion);
   const centerRequest = useGraphStore((s) => s.centerRequest);
@@ -450,14 +460,36 @@ export function GraphCanvas() {
   const applyLayoutPositions = useGraphStore((s) => s.applyLayoutPositions);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const canvasSize = useCanvasSize(containerRef);
+  const [layoutMode, setLayoutMode] = useState<GraphLayoutMode>(() => project?.manualLayout ? 'manual' : 'auto');
+  const [manualOrientation, setManualOrientation] = useState<Orientation>(() => {
+    if (!project) return 'vertical';
+    const root = project.nodes[project.rootId];
+    const children = Object.values(project.nodes).filter((n) => n.parentId === project.rootId);
+    if (!root || !children.length) return 'vertical';
+    const dx = children.reduce((sum, n) => sum + n.position.x - root.position.x, 0);
+    const dy = children.reduce((sum, n) => sum + n.position.y - root.position.y, 0);
+    return Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+  });
+  // Grow the reserved card envelope when content is taller. Never shrink it on
+  // semantic zoom changes, which would otherwise cause layout/zoom oscillation.
+  const [dimensions, setDimensions] = useState<LayoutDimensions>({});
+  const orientation = layoutMode === 'manual' ? manualOrientation : layoutMode === 'auto' ? canvasSize.orientation : layoutMode;
+  const adaptive = lens === 'structure' && layoutMode !== 'manual';
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   // Seleção feita por clique no próprio canvas: no desktop o nó já está à
   // vista, então não mexemos na câmera.
   const clickedInCanvasRef = useRef(false);
+  const selectedByDragRef = useRef(false);
 
   const layout = useMemo<LensLayout | null>(
-    () => (project ? lensLayout(lens, project, tr) : null),
-    [project, lens, tr],
+    () => {
+      if (!project) return null;
+      const result = lensLayout(lens, project, tr);
+      return adaptive ? { ...result, positions: computeAdaptiveTreeLayout(project, orientation, dimensions) } : result;
+    },
+    [project, lens, tr, adaptive, orientation, dimensions],
   );
 
   // -------------------------------------------------------------------------
@@ -501,7 +533,7 @@ export function GraphCanvas() {
       H,
       left: isMobile ? MOBILE_CONTROLS_W : pad,
       right: pad,
-      top: pad + (isMobile ? CHROME_TOP_MOBILE : CHROME_TOP) + banner,
+      top: pad + (toolbarRef.current?.offsetHeight || (isMobile ? CHROME_TOP_MOBILE : CHROME_TOP)) + 12 + banner,
       bottom,
     };
   }, [isMobile]);
@@ -706,8 +738,32 @@ export function GraphCanvas() {
   useEffect(() => {
     if (didInitialFrame.current || initialTarget || !nodesInitialized) return;
     didInitialFrame.current = true;
-    schedule(camTimer, () => frameOverview(0), 30);
-  }, [nodesInitialized, initialTarget, frameOverview, schedule]);
+    schedule(camTimer, () => frameOverview(0, layoutMode !== 'manual'), 30);
+  }, [nodesInitialized, initialTarget, frameOverview, schedule, layoutMode]);
+
+  // Reframe after the actual canvas changes (sidebar, inspector, chat or device
+  // rotation), allowing React Flow to measure the newly arranged cards first.
+  // Text edits and selection do not reset a user's zoom/pan.
+  const topology = project ? Object.values(project.nodes).map((n) => `${n.id}:${n.parentId}:${n.order}`).sort().join('|') : '';
+  const reframeInputs = useMemo(() => ({ width: canvasSize.width, height: canvasSize.height, orientation, layoutMode, lens, topology, dimensions }),
+    [canvasSize.width, canvasSize.height, orientation, layoutMode, lens, topology, dimensions]);
+  const lastReframeInputs = useRef<typeof reframeInputs | null>(null);
+  useEffect(() => {
+    if (layoutMode === 'manual') {
+      if (camTimer.current) clearTimeout(camTimer.current);
+      camTimer.current = null;
+      return;
+    }
+    if (!nodesInitialized || !canvasSize.width || !canvasSize.height) return;
+    // A newly dropped image is measured too. Its ready transition must not
+    // reframe the map and move the drop point away from the user's cursor.
+    if (lastReframeInputs.current === reframeInputs) return;
+    lastReframeInputs.current = reframeInputs;
+    schedule(camTimer, () => {
+      if (useGraphStore.getState().pendingSuggestions) frameStaging();
+      else frameOverview(200, true);
+    }, 180);
+  }, [canvasSize.width, canvasSize.height, layoutMode, reframeInputs, nodesInitialized, frameOverview, frameStaging, schedule]);
 
   // Um efeito só para os pedidos de câmera — breadcrumb (focusNode) chama
   // selectNode junto, e o enquadramento da subárvore tem precedência.
@@ -724,7 +780,7 @@ export function GraphCanvas() {
     let action: (() => void) | null = null;
 
     if (lens !== p.lens) {
-      action = () => frameOverview(350);
+      action = () => frameOverview(350, layoutMode !== 'manual');
     } else if (focusVersion !== p.focusVersion && focusedParentId && project) {
       const ids = [
         focusedParentId,
@@ -741,9 +797,10 @@ export function GraphCanvas() {
       if (isOnCanvas(id)) action = () => centerOn(id);
     } else if (selectionVersion !== p.selectionVersion && selectedId) {
       const fromCanvas = clickedInCanvasRef.current;
-      if ((!fromCanvas || isMobile) && isOnCanvas(selectedId)) action = () => centerOn(selectedId);
+      if (!selectedByDragRef.current && (!fromCanvas || isMobile) && isOnCanvas(selectedId)) action = () => centerOn(selectedId);
     }
     clickedInCanvasRef.current = false;
+    selectedByDragRef.current = false;
     if (action) schedule(camTimer, action, 60);
   }, [
     lens,
@@ -759,6 +816,7 @@ export function GraphCanvas() {
     centerOn,
     isOnCanvas,
     schedule,
+    layoutMode,
   ]);
 
   // Sugestões novas (decompor): enquadra pai + sugestões. Fora da Estrutura
@@ -791,21 +849,37 @@ export function GraphCanvas() {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       if (isTypingTarget(e.target)) return;
       if (document.querySelector('[aria-modal="true"]')) return;
+      const popup = [...document.querySelectorAll<HTMLElement>('[data-visual-popup]')]
+        .sort((a, b) => Number(b.style.zIndex) - Number(a.style.zIndex))[0];
+      if (popup) {
+        const kind = popup.dataset.visualPopup;
+        if (maximized && (kind === 'search' || kind === 'model')) {
+          e.preventDefault();
+          useVisualPopupStore.getState().close(kind);
+        }
+        return;
+      }
+      if (maximized && onToggleMaximized) {
+        e.preventDefault();
+        onToggleMaximized();
+        return;
+      }
       if (!useGraphStore.getState().selectedNodeId) return;
       selectNode(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectNode]);
+  }, [selectNode, maximized, onToggleMaximized]);
 
   // Tidy tree: recompute positions for the whole decomposition and persist
   // them (structure lens shows stored positions, so switch to it).
   const handleTidy = useCallback(() => {
     if (!project) return;
-    applyLayoutPositions(computeTreeLayout(project));
+    applyLayoutPositions(computeAdaptiveTreeLayout(project, canvasSize.orientation, dimensions));
+    setLayoutMode('auto');
     if (lens !== 'structure') setLens('structure');
-    else schedule(camTimer, () => frameOverview(350), 50);
-  }, [project, lens, applyLayoutPositions, setLens, frameOverview, schedule]);
+    else schedule(camTimer, () => frameOverview(350, true), 50);
+  }, [project, lens, canvasSize.orientation, dimensions, applyLayoutPositions, setLens, frameOverview, schedule]);
 
   // -------------------------------------------------------------------------
   // Nós
@@ -849,7 +923,7 @@ export function GraphCanvas() {
           isNext: n.id === nextId,
           canConclude: isLeafAction && !n.confirmado ? canConcludeNode(project, n.id).ready : false,
         },
-        selected: n.id === selectedId,
+        selected: n.id === selectedId && selectedVisualId === null,
         draggable: lens === 'structure',
       };
     });
@@ -873,20 +947,29 @@ export function GraphCanvas() {
       // nó existente (outra subárvore), desce em degraus até ficar livre.
       const SUG_W = CARD_W + 20;
       const SUG_H = 190;
-      const raw = pending.nodes.map((p) => p.data.position as { x: number; y: number });
-      const existing = Object.values(project.nodes).map((n) => n.position);
+      const savedParent = project.nodes[pending.parentId]?.position ?? { x: 0, y: 0 };
+      const shownParent = layout.positions[pending.parentId] ?? savedParent;
+      const raw = pending.nodes.map((p) => {
+        const original = p.data.position as { x: number; y: number };
+        const dx = original.x - savedParent.x, dy = original.y - savedParent.y;
+        return adaptive && orientation === 'horizontal'
+          ? { x: shownParent.x + dy, y: shownParent.y + dx }
+          : { x: shownParent.x + dx, y: shownParent.y + dy };
+      });
+      const existing = Object.values(project.nodes).map((n) => layout.positions[n.id] ?? n.position);
+      const horizontal = adaptive && orientation === 'horizontal';
       let dy = 0;
       for (let step = 0; step < 12; step++) {
         const hit = raw.some((r) =>
           existing.some(
-            (e) => Math.abs(e.x - r.x) < SUG_W && Math.abs(e.y - (r.y + dy)) < SUG_H,
+            (e) => Math.abs(e.x - (r.x + (horizontal ? dy : 0))) < SUG_W && Math.abs(e.y - (r.y + (horizontal ? 0 : dy))) < SUG_H,
           ),
         );
         if (!hit) break;
         dy += LAYOUT_Y_GAP / 2;
       }
       pending.nodes.forEach((p, i) => {
-        const pos = { x: raw[i].x, y: raw[i].y + dy };
+        const pos = { x: raw[i].x + (horizontal ? dy : 0), y: raw[i].y + (horizontal ? 0 : dy) };
         base.push({
           id: `${SUGGESTION_PREFIX}${p.tempId}`,
           type: 'concept',
@@ -906,8 +989,15 @@ export function GraphCanvas() {
       });
     }
 
+    for (const artifact of getVisualWorkspace(project).artifacts) {
+      base.push({ id: `visual:${artifact.id}`, type: 'visual', position: { x: artifact.x, y: artifact.y },
+        data: { artifact }, width: artifact.width, height: artifact.height, draggable: true, selectable: true,
+        selected: `visual:${artifact.id}` === selectedVisualId,
+        // React Flow raises selected nodes by 1000; keep concept click targets above visuals.
+        connectable: false, dragHandle: '.visual-drag-surface', zIndex: -1001, style: { pointerEvents: 'none' } });
+    }
     return base;
-  }, [project, layout, lens, selectedId, pending, reviewing]);
+  }, [project, layout, lens, selectedId, selectedVisualId, pending, reviewing, adaptive, orientation]);
 
   // React Flow precisa ser controlado: aplicamos NodeChanges (drag, select,
   // resize) num state local e ressincronizamos sempre que o store recalcular
@@ -915,7 +1005,18 @@ export function GraphCanvas() {
   // é chamado em `dragging === false` — portanto não há race com o useEffect.
   const [nodes, setNodes] = useState<Node[]>(computedNodes);
   useEffect(() => {
-    setNodes(computedNodes);
+    setNodes(current => {
+      const previous = new Map(current.map(node => [node.id, node]));
+      return computedNodes.map(node => {
+        const live = previous.get(node.id);
+        // Keep active geometry during background edits. Selection has one
+        // canvas owner, so saving cannot accidentally restore a drag group.
+        if (node.type !== 'visual' || !live) return node;
+        return { ...node,
+          ...(live.dragging ? { position: live.position, dragging: true } : {}),
+          ...(live.resizing ? { width: live.width, height: live.height, position: live.position, resizing: true } : {}) };
+      });
+    });
   }, [computedNodes]);
 
   // Lentes de colunas: o layout usa uma altura de linha fixa, mas os cards
@@ -968,11 +1069,21 @@ export function GraphCanvas() {
       const s0 = pos(source);
       const t0 = pos(target);
       if (!s0 || !t0) return {};
+      if (hierarchy && lens === 'structure' && orientation === 'horizontal') {
+        const right = t0.x > s0.x;
+        return {
+          type: 'smoothstep',
+          sourceHandle: right ? SIDE_HANDLE.sourceRight : SIDE_HANDLE.sourceLeft,
+          targetHandle: isLeafGridParent(byParent, source)
+            ? (t0.y < s0.y ? SIDE_HANDLE.targetBottom : undefined)
+            : (right ? SIDE_HANDLE.targetLeft : SIDE_HANDLE.targetRight),
+        };
+      }
       if (
         hierarchy &&
         lens === 'structure' &&
         isLeafGridParent(byParent, source) &&
-        Math.abs(Math.abs(t0.x - s0.x) - 190) < 2
+        Math.abs(t0.x - s0.x) > 60
       ) {
         return {
           type: 'smoothstep',
@@ -1042,32 +1153,98 @@ export function GraphCanvas() {
           id: `sugg-edge-${p.tempId}`,
           source: pending.parentId,
           target: `${SUGGESTION_PREFIX}${p.tempId}`,
+          ...(adaptive && orientation === 'horizontal' ? { sourceHandle: SIDE_HANDLE.sourceRight, targetHandle: SIDE_HANDLE.targetLeft } : {}),
           style: SUGGESTION_EDGE_STYLE,
           animated: !isMobile,
         });
       });
     }
 
+    const artifacts = getVisualWorkspace(project).artifacts;
+    for (const artifact of artifacts) {
+      const source = artifact.sourceArtifactId && artifacts.find(item => item.id === artifact.sourceArtifactId);
+      const linkedId = artifact.linkedNodeId;
+      if (!source && (!linkedId || !project.nodes[linkedId] || !shown(linkedId))) continue;
+      base.push({
+        id: `visual-link:${artifact.id}`, source: source ? `visual:${source.id}` : linkedId!, target: `visual:${artifact.id}`,
+        ...(source ? { sourceHandle: 'visual-origin' } : {}),
+        type: 'visualLink', targetHandle: 'visual-link',
+        selectable: false, deletable: false, focusable: false, reconnectable: false,
+        ariaLabel: `${source ? source.label : project.nodes[linkedId!].name} · ${artifact.label}`,
+        style: { stroke: 'rgb(var(--ai-accent))', strokeWidth: 1.25, strokeDasharray: '6 5', strokeLinecap: 'round', strokeLinejoin: 'round', opacity: .55, pointerEvents: 'none' },
+        zIndex: -1,
+      });
+    }
     return base;
-  }, [project, layout, lens, pending, isMobile, selectedId, hoveredId]);
+  }, [project, layout, lens, pending, isMobile, selectedId, hoveredId, adaptive, orientation]);
+
+  const onNodeDragStart = useCallback((_event?: React.MouseEvent, node?: Node) => {
+    if (camTimer.current) clearTimeout(camTimer.current);
+    camTimer.current = null;
+    if (node?.type === 'visual') return;
+    if (node?.type === 'concept' && project?.nodes[node.id]) {
+      setSelectedVisualId(null);
+      if (useGraphStore.getState().selectedNodeId !== node.id) {
+        clickedInCanvasRef.current = true;
+        selectedByDragRef.current = true;
+        selectNode(node.id);
+      }
+    }
+    if (!adaptive || !layout) return;
+    // Freeze every displayed position before entering Manual, so dragging one
+    // card never sends its siblings back to their older saved coordinates.
+    applyLayoutPositions(layout.positions);
+    setManualOrientation(orientation);
+    setLayoutMode('manual');
+  }, [adaptive, layout, orientation, applyLayoutPositions, project, selectNode]);
+
+  const changeLayoutMode = useCallback((next: GraphLayoutMode) => {
+    if (next === 'manual' && adaptive && layout && project) {
+      applyLayoutPositions(layout.positions);
+      // Manual is a saved user choice, just like a completed card drag.
+      const rootPosition = layout.positions[project.rootId];
+      if (rootPosition) updateNodePosition(project.rootId, rootPosition);
+      setManualOrientation(orientation);
+    }
+    setLayoutMode(next);
+  }, [adaptive, layout, project, orientation, applyLayoutPositions, updateNodePosition]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
+      const selection = changes.find(change => change.type === 'select' && change.selected);
+      if (selection && selection.type === 'select') {
+        setSelectedVisualId(selection.id.startsWith('visual:') ? selection.id : null);
+      } else if (changes.some(change => change.type === 'select' && !change.selected && change.id === selectedVisualId)) {
+        setSelectedVisualId(null);
+      }
       setNodes((curr) => applyNodeChanges(changes, curr));
+      const measured = changes.filter((change) => change.type === 'dimensions' && change.dimensions && project?.nodes[change.id]);
+      if (measured.length) setDimensions((current) => {
+        let next = current;
+        for (const change of measured) {
+          if (change.type !== 'dimensions' || !change.dimensions) continue;
+          const previous = next[change.id] ?? DEFAULT_NODE_DIMENSIONS;
+          const width = Math.max(previous.width ?? DEFAULT_NODE_DIMENSIONS.width, change.dimensions.width);
+          const height = Math.max(previous.height ?? DEFAULT_NODE_DIMENSIONS.height, change.dimensions.height);
+          if (width !== previous.width || height !== previous.height) next = { ...next, [change.id]: { width, height } };
+        }
+        return next;
+      });
       for (const change of changes) {
         if (change.type === 'position' && change.dragging === false && change.position) {
+          if (change.id.startsWith('visual:')) { updateVisualArtifact(change.id.slice(7), change.position); continue; }
           if (!change.id.startsWith(SUGGESTION_PREFIX) && !change.id.startsWith(HEADER_PREFIX)) {
             updateNodePosition(change.id, change.position);
           }
         }
       }
     },
-    [updateNodePosition],
+    [updateNodePosition, project, selectedVisualId],
   );
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      if (node.id.startsWith(SUGGESTION_PREFIX) || node.id.startsWith(HEADER_PREFIX)) return;
+      if (node.type === 'visual' || node.id.startsWith(SUGGESTION_PREFIX) || node.id.startsWith(HEADER_PREFIX)) return;
       clickedInCanvasRef.current = true;
       selectNode(node.id);
     },
@@ -1088,19 +1265,22 @@ export function GraphCanvas() {
     !Object.values(project.edges).some((e) => !isHierarchyEdge(project, e));
 
   return (
-    <div ref={containerRef} className="flex-1 relative bg-bg-primary">
+    <div ref={containerRef} data-layout-mode={layoutMode} data-orientation={orientation} data-canvas-maximized={maximized} className="flex-1 min-w-0 min-h-0 relative bg-bg-primary">
       <ReactFlow
         nodes={nodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
+        onNodeDragStart={onNodeDragStart}
         onNodeClick={onNodeClick}
         onNodeMouseEnter={onNodeMouseEnter}
         onNodeMouseLeave={onNodeMouseLeave}
+        nodeDragThreshold={4}
+        multiSelectionKeyCode={null}
         fitView={!initialTarget}
-        fitViewOptions={{ padding: 0.15, minZoom: READABLE_MIN_ZOOM, maxZoom: 1 }}
-        minZoom={0.15}
+        fitViewOptions={{ padding: 0.15, minZoom: layoutMode === 'manual' ? READABLE_MIN_ZOOM : FIT_ALL_MIN_ZOOM, maxZoom: 1 }}
+        minZoom={FIT_ALL_MIN_ZOOM}
         maxZoom={2}
         colorMode="system"
         proOptions={{ hideAttribution: true }}
@@ -1125,69 +1305,58 @@ export function GraphCanvas() {
             ))}
           </Controls>
         )}
-        {isMobile ? (
-          // Mobile: os três controles numa única barra de vidro (sem frestas
-          // por onde o texto dos cards aparecia), todos com 44px de alvo.
-          <Panel
-            position="top-left"
-            // Opaca (não vidro): no mobile os cards passam por baixo e o texto
-            // deles vazava pela pílula como "texto fantasma".
-            className="bar-solid border rounded-card shadow-mac p-1 flex items-center gap-1 max-w-[calc(100%-24px)]"
+        <Panel
+          ref={toolbarRef}
+          position="top-left"
+          className={`flex flex-wrap items-center gap-2 !mr-3 w-[calc(100%-24px)] ${isMobile ? 'bar-solid border rounded-card shadow-mac p-1' : ''}`}
+        >
+          <button
+            onClick={handleTidy}
+            title={tr.graph.tidyTitle}
+            aria-label={tr.graph.tidy}
+            className={`tap btn text-text-primary ${isMobile ? 'btn-ghost btn-icon' : 'glass shadow-mac hover:bg-bg-elevated/60'}`}
           >
-            <button
-              onClick={handleTidy}
-              title={tr.graph.tidyTitle}
-              aria-label={tr.graph.tidy}
-              className="tap btn btn-ghost btn-icon text-text-primary"
-            >
-              <TidyIcon />
-            </button>
-            <select name="lens"
-              value={lens}
-              onChange={(e) => setLens(e.target.value as Lens)}
+            <TidyIcon />
+            {!isMobile && canvasSize.width >= 540 && tr.graph.tidy}
+          </button>
+          {isMobile && (
+            <select name="lens" value={lens} onChange={(e) => setLens(e.target.value as Lens)}
               aria-label={tr.topBar.lensSelectAria}
-              className="tap h-[30px] min-w-0 rounded-control bg-transparent hover:bg-bg-elevated/60 pl-2.5 pr-7 text-control text-text-primary border-0"
-            >
-              {MOBILE_LENSES.map((l) => (
-                <option key={l} value={l}>
-                  {tr.topBar[LENS_LABEL_KEY[l]]}
-                </option>
-              ))}
+              className="tap h-9 min-w-0 rounded-control bg-transparent pl-2 pr-6 text-control text-text-primary border-0">
+              {MOBILE_LENSES.map((l) => <option key={l} value={l}>{tr.topBar[LENS_LABEL_KEY[l]]}</option>)}
             </select>
-            <span aria-hidden className="w-px h-5 bg-border-base/70 shrink-0" />
-            <EdgeLegend key={lens} tr={tr} inBar />
-          </Panel>
-        ) : (
-          <>
-            <Panel position="top-left" className="flex items-center gap-2">
-              <button
-                onClick={handleTidy}
-                title={tr.graph.tidyTitle}
-                className="tap glass btn shadow-mac text-text-primary hover:bg-bg-elevated/60"
-              >
-                <TidyIcon />
-                {tr.graph.tidy}
-              </button>
-              <div role="group" aria-label={tr.graph.zoomGroup} className="glass border rounded-control shadow-mac flex items-center p-0.5">
-                {zoomButtons.map((b) => (
-                  <button
-                    key={b.glyph}
-                    onClick={b.onClick}
-                    title={b.label}
-                    aria-label={b.label}
-                    className="tap btn btn-ghost btn-icon !h-7 !w-7 text-[15px] leading-none text-text-primary"
-                  >
-                    <span aria-hidden>{b.glyph}</span>
-                  </button>
-                ))}
-              </div>
-            </Panel>
-            <Panel position="top-right">
-              {/* key=lens: trocar de lente fecha a legenda (não cobre colunas novas). */}
-              <EdgeLegend key={lens} tr={tr} />
-            </Panel>
-          </>
-        )}
+          )}
+          {lens === 'structure' && (
+            <select name="graph-layout" value={layoutMode}
+              onChange={(e) => changeLayoutMode(e.target.value as GraphLayoutMode)}
+              aria-label={tr.graph.layoutMode} title={tr.graph.layoutHint}
+              className={`tap min-w-0 max-w-full rounded-control pl-2.5 pr-7 text-control text-text-primary ${isMobile ? 'h-11 bg-transparent border-0' : 'h-8 glass border shadow-mac'}`}>
+              <option value="auto">{tr.graph.layoutAuto} · {canvasSize.orientation === 'horizontal' ? tr.graph.layoutHorizontal : tr.graph.layoutVertical}</option>
+              <option value="horizontal">{tr.graph.layoutHorizontal}</option>
+              <option value="vertical">{tr.graph.layoutVertical}</option>
+              <option value="manual">{tr.graph.layoutManual}</option>
+            </select>
+          )}
+          {!isMobile && (
+            <div role="group" aria-label={tr.graph.zoomGroup} className="glass border rounded-control shadow-mac flex items-center p-0.5">
+              {zoomButtons.map((b) => (
+                <button key={b.glyph} onClick={b.onClick} title={b.label} aria-label={b.label}
+                  className="tap btn btn-ghost btn-icon !h-7 !w-7 text-[15px] leading-none text-text-primary">
+                  <span aria-hidden>{b.glyph}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {onToggleMaximized && <button type="button" onClick={onToggleMaximized}
+            aria-label={maximized ? tr.graph.restoreCanvas : tr.graph.maximizeCanvas}
+            title={maximized ? tr.graph.restoreCanvas : tr.graph.maximizeCanvas} aria-pressed={maximized}
+            className={`tap btn btn-icon text-text-primary ${isMobile ? 'btn-ghost' : 'glass border shadow-mac hover:bg-bg-elevated/60'}`}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d={maximized ? 'M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5' : 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5'} />
+            </svg>
+          </button>}
+          <div className="ml-auto"><EdgeLegend key={lens} tr={tr} inBar={isMobile} /></div>
+        </Panel>
         {pending && pending.nodes.length > 0 && (
           <Panel position="top-center" className="!mt-16 md:!mt-3 max-w-[calc(100vw-24px)]">
             <div
@@ -1279,6 +1448,7 @@ export function GraphCanvas() {
           />
         )}
       </ReactFlow>
+      {project && <VisualWorkspaceBridge project={project} containerRef={containerRef} selectedArtifactId={selectedVisualId?.slice(7) ?? null} onSelectArtifact={id => setSelectedVisualId(id ? `visual:${id}` : null)} />}
     </div>
   );
 }

@@ -1,0 +1,63 @@
+/* Size the inspector against the planner's available width, including its sidebar. */
+.planner-detail-panel {
+  container:planner-inspector / inline-size;
+  width:clamp(300px,40%,420px);
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+}
+.planner-detail-content, .planner-detail-header, .planner-detail-footer {
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.planner-detail-scroll { overflow-x:hidden; }
+.planner-detail-sheet { container:planner-inspector / inline-size; }
+.planner-detail-status .chip {
+  max-width:100%;
+  height:auto;
+  min-height:20px;
+  white-space:normal;
+}
+.planner-detail-rule.chip {
+  max-width:100%;
+  min-height:24px;
+  height:auto;
+  padding-top:3px;
+  padding-bottom:3px;
+  white-space:normal;
+}
+.planner-detail-rule-text { min-width:0; overflow-wrap:anywhere; }
+.planner-detail-actions {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));
+  gap:8px;
+}
+.planner-detail-footer .btn {
+  min-width:0;
+  max-width:100%;
+  height:auto!important;
+  min-height:32px;
+  padding:6px 10px;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.planner-detail-footer .ai-icon { flex:none; }
+/* Leave the lower-right corner clear for the floating assistant button. */
+.planner-detail-panel > .planner-detail-footer { padding-right:68px; }
+/* Forms in the shared content use viewport breakpoints elsewhere. In a narrow
+   inspector, stack their controls against the actual panel width instead. */
+@container planner-inspector (max-width:400px) {
+  .planner-detail-content [class~="sm:flex-row"] { flex-direction:column; }
+  .planner-detail-content .btn:not(.btn-icon) {
+    min-width:0;
+    max-width:100%;
+    height:auto;
+    min-height:30px;
+    padding-top:6px;
+    padding-bottom:6px;
+    white-space:normal;
+  }
+}
+@media (pointer:coarse) {
+  .planner-detail-footer .btn, .planner-detail-content .btn:not(.btn-icon) { min-height:44px; }
+}

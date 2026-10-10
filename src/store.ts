@@ -16,10 +16,14 @@ import type {
   GroundTruthRef,
   WebResearchDigest,
   WebSourceRef,
+  PlanningIntent,
 } from '@/types';
+import { normalizePlanningIntent } from '@/planningIntent';
 import { safeHref } from '@/safeHref';
 import { t } from '@/i18n';
 import { buildDemoProject, DEMO_PROJECT_ID } from '@/data/demoProject';
+import { clearMissingVisualNodeLinks, normalizeVisualWorkspace } from '@/visuals/normalize';
+import { normalizeStoredProjectVisuals } from '@/visuals/projectBoundary';
 
 type Lens = 'structure' | 'flow' | 'risk' | 'state' | 'connections';
 type ViewMode = 'graph' | 'tutor';
@@ -41,7 +45,7 @@ export interface ObjectiveExpansion {
   startedAt: number;
 }
 
-export interface ObjectiveDraft {
+export interface ObjectiveDraft extends PlanningIntent {
   name: string;
   objective: string;
   rules: string[];
@@ -52,7 +56,7 @@ export interface ObjectiveDraft {
   expansion: ObjectiveExpansion | null;
   // Digest da pesquisa web feita com os esboços — a expansão reaproveita.
   outlineResearch: WebResearchDigest | null;
-  plansFor: { objective: string; rules: string[] } | null;
+  plansFor: ({ objective: string; rules: string[]; attachmentsFingerprint?: string } & PlanningIntent) | null;
   selectedId: string | null;
   generatingSince: number | null;
   updatedAt: number;
@@ -514,7 +518,7 @@ function withTreeLayout(project: Project): Project {
 // Valida o mínimo de um JSON exportado (rootId, nodes, edges) e normaliza os
 // campos obrigatórios de cada nó — um export antigo ou editado à mão não pode
 // derrubar a UI com `undefined.map`.
-function parseImportedProject(json: unknown): Project | null {
+export function parseImportedProject(json: unknown): Project | null {
   let raw: unknown = json;
   if (typeof raw === 'string') {
     try {
@@ -529,6 +533,11 @@ function parseImportedProject(json: unknown): Project | null {
   if (!p.nodes || typeof p.nodes !== 'object') return null;
   if (!p.edges || typeof p.edges !== 'object') return null;
   if (!p.nodes[p.rootId]) return null;
+  // Import is strict; malformed scenes cannot reach a renderer or write media.
+  let visuals: Project['visuals'];
+  if (p.visuals !== undefined) {
+    try { visuals = normalizeVisualWorkspace(p.visuals); } catch { return null; }
+  }
 
   // URLs de um JSON importado não são confiáveis: só http(s) sobrevive.
   const safeSources = (list: unknown): WebSourceRef[] =>
@@ -591,6 +600,7 @@ function parseImportedProject(json: unknown): Project | null {
   for (const n of Object.values(nodes)) {
     if (n.id !== p.rootId && (!n.parentId || !nodes[n.parentId])) n.parentId = p.rootId;
   }
+  if (visuals) visuals = clearMissingVisualNodeLinks(visuals, nodes);
   const edges: Record<string, ConceptEdgeData> = {};
   for (const [id, e] of Object.entries(p.edges)) {
     if (!e || typeof e !== 'object' || !nodes[e.source] || !nodes[e.target]) continue;
@@ -600,6 +610,8 @@ function parseImportedProject(json: unknown): Project | null {
   // O gate vale também para o import: 'done' sem sinal real não entra verde.
   return demoteUnprovenDone({
     ...p,
+    ...normalizePlanningIntent(p),
+    ...(visuals === undefined ? {} : { visuals }),
     id: typeof p.id === 'string' && p.id ? p.id : nanoid(10),
     name:
       typeof p.name === 'string' && p.name
@@ -814,6 +826,7 @@ export const useGraphStore = create<GraphState>()(
           rules: cleanRules.length > 0 ? cleanRules : undefined,
           constructionStrategy: plan.strategy,
           archetype: plan.archetype,
+          ...normalizePlanningIntent(plan),
           alternativePlans: others.length > 0 ? others : undefined,
         });
 
@@ -1071,8 +1084,16 @@ export const useGraphStore = create<GraphState>()(
           const parkedSuggestions = Object.fromEntries(
             Object.entries(state.parkedSuggestions).filter(([pid]) => !toRemove.has(pid)),
           );
+          const visuals = state.project.visuals && {
+            ...state.project.visuals,
+            artifacts: state.project.visuals.artifacts.map(artifact =>
+              artifact.linkedNodeId && toRemove.has(artifact.linkedNodeId)
+                ? { ...artifact, linkedNodeId: null }
+                : artifact,
+            ),
+          };
           return {
-            project: { ...state.project, updatedAt: now(), nodes, edges },
+            project: { ...state.project, updatedAt: now(), nodes, edges, ...(visuals ? { visuals } : {}) },
             drafts,
             parkedSuggestions,
             pendingSuggestions:
@@ -2013,11 +2034,12 @@ export const useGraphStore = create<GraphState>()(
         if (version < 6 && p.objectiveDraft) {
           p = { ...p, objectiveDraft: { ...EMPTY_OBJECTIVE_DRAFT, ...p.objectiveDraft } };
         }
-        return p as GraphState;
+        return { ...p, project: normalizeStoredProjectVisuals(p.project), archivedProject: normalizeStoredProjectVisuals(p.archivedProject) } as GraphState;
       },
       // Campos novos ausentes num snapshot antigo caem no default do estado.
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<GraphState>;
+        const saved = (persisted ?? {}) as Partial<GraphState>;
+        const p = { ...saved, project: normalizeStoredProjectVisuals(saved.project), archivedProject: normalizeStoredProjectVisuals(saved.archivedProject) };
         return {
           ...current,
           ...p,
@@ -2513,6 +2535,19 @@ export const projectProgress = (
   const doneWithSignal = done - doneWithoutSignal;
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);
   return { total, done, doneWithSignal, doneWithoutSignal, percent };
+};
+
+/** Recorded verification is distinct from a user-declared recursion floor. */
+export const projectEvidenceProgress = (project: Project | null, reviewing?: ReadonlySet<string>) => {
+  if (!project) return { withEvidence: 0, assumedKnown: 0 };
+  const leaves = effectiveLeavesUnder(project, project.rootId, undefined, undefined, reviewing);
+  return {
+    withEvidence: leaves.filter((node) =>
+      (node.confirmado || node.takenAsKnown) && !node.failureContext &&
+      (Boolean(node.comoConfirmarAtendido) || (node.groundTruthRefs ?? []).some(refCountsAsSignal)),
+    ).length,
+    assumedKnown: leaves.filter((node) => node.takenAsKnown).length,
+  };
 };
 
 // Ids das folhas resolvidas sem prova (mesma regra do doneWithoutSignal), na

@@ -53,7 +53,7 @@ const statusDot: Record<NodeVisualStatus, string> = {
 // Alças laterais invisíveis: as arestas entre irmãos na mesma fileira e as do
 // barramento pai→filhos (grade de folhas) entram pelo lado, sem laçadas nem
 // atravessar outros cards. Vêm depois das de cima/baixo, que seguem padrão.
-export const SIDE_HANDLE = { sourceLeft: 'sl', sourceRight: 'sr', targetLeft: 'tl', targetRight: 'tr' } as const;
+export const SIDE_HANDLE = { sourceLeft: 'sl', sourceRight: 'sr', targetLeft: 'tl', targetRight: 'tr', targetBottom: 'tb' } as const;
 function SideHandles() {
   const cls = '!opacity-0 !pointer-events-none';
   return (
@@ -62,6 +62,7 @@ function SideHandles() {
       <Handle id={SIDE_HANDLE.sourceRight} type="source" position={Position.Right} className={cls} isConnectable={false} />
       <Handle id={SIDE_HANDLE.targetLeft} type="target" position={Position.Left} className={cls} isConnectable={false} />
       <Handle id={SIDE_HANDLE.targetRight} type="target" position={Position.Right} className={cls} isConnectable={false} />
+      <Handle id={SIDE_HANDLE.targetBottom} type="target" position={Position.Bottom} className={cls} isConnectable={false} />
     </>
   );
 }
@@ -187,6 +188,7 @@ function ConceptNodeImpl({ data, selected }: Props) {
     return (
       <div className={`${baseClass} w-[260px] p-3`}>
         <Handle type="target" position={Position.Top} className="!bg-ai-accent !border-none" />
+        <SideHandles />
         <div className="flex items-center gap-2 mb-1.5">
           <span className="ai-icon text-footnote" aria-hidden>
             ✦

@@ -53,7 +53,7 @@ function buildModels(provider: Provider, cfg: ProviderConfig): ResolvedModels {
   // openrouter
   const client = createOpenRouter({
     apiKey: cfg.apiKey,
-    appName: 'cellproject',
+    appName: 'dynamic_diary',
     appUrl: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173',
   });
   return {

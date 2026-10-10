@@ -16,6 +16,7 @@ import {
   pendingParent,
   flushGraphPersistence,
   EMPTY_OBJECTIVE_DRAFT,
+  parseImportedProject,
 } from './store';
 import type { AIPlan, AIPlanOutline, ConceptNodeData } from './types';
 import { isPlanOutline } from './types';
@@ -46,6 +47,31 @@ const minimalPlan: AIPlan = {
 type StagedNode = Omit<ConceptNodeData, 'id' | 'parentId' | 'history'> & {
   tempId: string;
 };
+
+describe('planning approach is independent from archetype and construction strategy', () => {
+  it.each(['reverse_engineering', 'new_creation'] as const)('retains %s in creation, reload and portable JSON', async planApproach => {
+    useGraphStore.getState().createProjectFromPlan('Estudar um produto', 'Referência', {
+      ...minimalPlan, planApproach, referenceTarget: '  Produto de referência / variante a confirmar  ', archetype: 'entender', strategy: 'do_zero',
+    });
+    const project = useGraphStore.getState().project!;
+    expect(project).toMatchObject({ planApproach, referenceTarget: 'Produto de referência / variante a confirmar', archetype: 'entender', constructionStrategy: 'do_zero' });
+    expect(parseImportedProject(JSON.stringify(project))).toMatchObject({ planApproach, referenceTarget: project.referenceTarget });
+    await flushGraphPersistence();
+    const raw = await idbGet<string>('cellproject-graph');
+    useGraphStore.setState({ project: null }); await flushGraphPersistence();
+    await idbSet('cellproject-graph', raw!); await useGraphStore.persist.rehydrate();
+    expect(useGraphStore.getState().project).toMatchObject({ planApproach, referenceTarget: project.referenceTarget });
+  });
+  it('does not infer an approach for a legacy plan or accept malformed optional imported intent', () => {
+    useGraphStore.getState().createProjectFromPlan('obj', 'Antigo', minimalPlan);
+    const legacy = useGraphStore.getState().project!;
+    expect(legacy.planApproach).toBeUndefined();
+    expect(parseImportedProject(legacy)?.planApproach).toBeUndefined();
+    const imported = parseImportedProject({ ...legacy, planApproach: 'delete_everything', referenceTarget: { unsafe: true } });
+    expect(imported?.planApproach).toBeUndefined();
+    expect(imported?.referenceTarget).toBeUndefined();
+  });
+});
 
 function makeSuggestionNode(tempId: string, name: string, order: number): StagedNode {
   return {

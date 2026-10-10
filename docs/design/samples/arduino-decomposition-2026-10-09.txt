@@ -1,0 +1,3032 @@
+DECOMPOSIÇÃO DOCUMENTADA — CELLPROJECT
+Objeto: Arduino UNO R3 DIP A000066, revisão UNO-TH Rev3e
+Artefato: model-7qwc6DaY1O9zjzvrQ8y4V
+Plano: 88tqb0WRzC
+Dossiê: SoTNicSxtT4FjGGQF0x4b
+Pesquisa: 2026-10-10T00:59:54.009Z
+Estado: atual
+Imagens de origem: qR6NuKLYY-TlipP7r7h6I
+
+A geometria e a posição das peças são ilustrativas e didáticas. Documentação não comprova medidas físicas, compatibilidade, conexões elétricas ou procedimento de desmontagem.
+A lista pode ser parcial. Somente peças com trechos das fontes aparecem abaixo.
+
+[part-0001] Microcontrolador ATmega328P
+Código: não documentado | Quantidade: não documentada
+Função: Microcontrolador principal da placa Arduino UNO R3.
+  Evidência [spec-2f50bdc5260c5a20e146]: "The Main Processor is a ATmega328P running at up to 20 MHz."
+  Evidência [spec-2bdee0d3ce79a33ec2c2]: "Microcontroller ATmega328P"
+  Evidência [spec-8eaa1dca7f60c6cfc6a1]: "Microcontroller (MCU):[14] IC: Microchip ATmega328P (8-bit AVR core)"
+  Evidência [spec-60b86afe0f505efd90d5]: "Microcontroller ATmega328P"
+  A verificar: Especificação sem trecho correspondente: 8-bit AVR CPU
+  A verificar: Especificação sem trecho correspondente: 32 kB Flash
+  A verificar: Especificação sem trecho correspondente: 2 kB SRAM
+  A verificar: Especificação sem trecho correspondente: 1 kB EEPROM
+  A verificar: Especificação sem trecho correspondente: Clock Speed: 16 MHz
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+  A verificar: A pesquisa individual não acrescentou especificações confirmadas.
+
+[part-0003] Cristal Oscilador
+Código: ECS-160-20-4X-DU | Quantidade: não documentada
+Função: Fornece o sinal de clock para o microcontrolador.
+  Evidência [spec-2f50bdc5260c5a20e146]: "Y1 ECS-160-20-4X-DU Oscillator"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-0004] Regulador de Tensão
+Código: SPX1117M3-L-5 | Quantidade: não documentada
+Função: Regula a tensão de entrada para 5V.
+  Evidência [spec-2f50bdc5260c5a20e146]: "U1 SPX1117M3-L-5 Regulator"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-0005] Capacitor SMD
+Código: EEE-1EA470WP | Quantidade: não documentada
+Função: Componente de filtragem e estabilização de tensão.
+  Especificação: 25V
+  Evidência [spec-2f50bdc5260c5a20e146]: "PC1 EEE-1EA470WP 25V SMD Capacitor"
+  Evidência [spec-2f50bdc5260c5a20e146]: "PC2 EEE-1EA470WP 25V SMD Capacitor"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-0006] Conector de Alimentação
+Código: não documentado | Quantidade: não documentada
+Função: Conector para fonte de alimentação externa.
+  Especificação: 2.1x5.5mm
+  Evidência [spec-2f50bdc5260c5a20e146]: "X1 Power jack 2.1x5.5mm"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-0007] Conector USB B
+Código: não documentado | Quantidade: não documentada
+Função: Conector para comunicação e alimentação via USB.
+  Especificação: Maximum input voltage from USB connector - 5.5 V
+  Evidência [spec-2f50bdc5260c5a20e146]: "X2 USB B Connector"
+  Evidência [spec-2f50bdc5260c5a20e146]: "VUSBMax Maximum input voltage from USB connector - 5.5 V"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-0008] Conector ICSP
+Código: não documentado | Quantidade: não documentada
+Função: Conector para programação in-circuit serial.
+  Especificação: through hole
+  Evidência [spec-2f50bdc5260c5a20e146]: "ICSP Pin header connector (through hole 6)"
+  Evidência [spec-2f50bdc5260c5a20e146]: "ICSP1 Pin header connector (through hole 6)"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-0010] Amplificador Operacional
+Código: LMV358LIST-A.9 | Quantidade: não documentada
+Função: Amplificador de uso geral.
+  Evidência [spec-2f50bdc5260c5a20e146]: "U5 LMV358LIST-A.9 IC"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-0011] Capacitor de Chip
+Código: não documentado | Quantidade: não documentada
+Função: Componente de filtragem de alta densidade.
+  Especificação: High Density
+  Evidência [spec-2f50bdc5260c5a20e146]: "F1 Chip Capacitor, High Density"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+FONTES CONSULTADAS
+[spec-2f50bdc5260c5a20e146] localhost:8123/A000066/cfmn5-datasheet.html
+https://docs.arduino.cc/resources/datasheets/A000066-datasheet.pdf
+Lida em: 2026-10-10T00:59:46.756Z
+[spec-2bdee0d3ce79a33ec2c2] ARDUINO UNO REV3
+https://media.digikey.com/pdf/Data%20Sheets/Arduino%20PDFs/A000066_Web.pdf
+Lida em: 2026-10-10T00:59:46.485Z
+[spec-60b86afe0f505efd90d5] Arduino UNO Rev3 – Reliable ATmega328P Board with Digital & Analog I/O — Arduino Online Shop
+https://store-usa.arduino.cc/products/arduino-uno-rev3
+Lida em: 2026-10-10T00:59:47.018Z
+[spec-8eaa1dca7f60c6cfc6a1] Arduino Uno
+https://en.wikipedia.org/wiki/Arduino_Uno
+Lida em: 2026-10-10T00:59:46.863Z
+[spec-5a254ef7a1eead9c3be0] File : Arduino Uno - R3.jpg
+https://commons.wikimedia.org/wiki/File:Arduino_Uno_-_R3.jpg
+Lida em: 2026-10-10T00:59:47.073Z
+[spec-710af43cd1d84efb0310] docs.arduino.cc
+https://docs.arduino.cc/hardware/uno-rev3
+Lida em: 2026-10-10T01:01:02.302Z
+[spec-726bdefa0bdd0f22e5bd] docs.arduino.cc
+https://docs.arduino.cc/hardware/uno-rev3/
+Lida em: 2026-10-10T01:01:02.424Z
+[spec-2625746e8f6b6f7a47b0] Arduino UNO Rev3 – Reliable ATmega328P Board with Digital & Analog I/O — Arduino Official Store
+https://store.arduino.cc/products/arduino-uno-rev3
+Lida em: 2026-10-10T01:01:03.234Z
+
+LACUNAS E CONFLITOS
+- Leitura limitada aos primeiros 12.000 caracteres de Arduino UNO Rev3 – Reliable ATmega328P Board with Digital & Analog I/O — Arduino Online Shop; a lista pode ser parcial.
+- Leitura limitada aos primeiros 12.000 caracteres de Arduino Uno; a lista pode ser parcial.
+- A revisão da placa é UNO-TH Rev3e.
+- O número exato de pinos de cabeçalho não é especificado.
+- O tipo de encapsulamento do ATmega328P não é especificado.
+- O tipo de encapsulamento do ATMega16U2 não é especificado.
+- A lista de componentes está incompleta.
+- Peça não confirmada pelos documentos: Microcontrolador ATMega16U2.
+- Peça não confirmada pelos documentos: Diodo Retificador.
+- 1 fonte(s) não puderam ser lidas; seus conteúdos não foram usados.
+- A revisão exata da placa é UNO-TH Rev3e, mas não há detalhes específicos sobre esta revisão nos trechos fornecidos.
+- O part number exato do microcontrolador ATmega328P não é especificado.
+- O part number exato do conector USB B não é especificado.
+- A lista de componentes pode não cobrir a montagem completa.
+- Peça não confirmada pelos documentos: Microcontrolador ATmega328P.
+- Sem documentação suficiente para Microcontrolador ATmega328P.
+
+MODELO ORIGINAL — GEOMETRIA DECLARATIVA ILUSTRATIVA
+{
+  "version": 1,
+  "label": "Modelo ilustrativo de placa Arduino Uno R3 com microcontrolador em encapsulamento DIP-28",
+  "objects": [
+    {
+      "id": "placa-azul",
+      "type": "box",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        6.8,
+        0.16,
+        5.2
+      ],
+      "color": "#167B95"
+    },
+    {
+      "id": "usb-carcaca",
+      "type": "box",
+      "position": [
+        -2.9,
+        0.58,
+        -1.25
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.25,
+        1,
+        1.25
+      ],
+      "color": "#B8BEC5"
+    },
+    {
+      "id": "usb-abertura",
+      "type": "box",
+      "position": [
+        -3.535,
+        0.58,
+        -1.25
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.025,
+        0.7,
+        0.92
+      ],
+      "color": "#343B42"
+    },
+    {
+      "id": "usb-lingueta",
+      "type": "box",
+      "position": [
+        -3.555,
+        0.44,
+        -1.25
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.03,
+        0.16,
+        0.66
+      ],
+      "color": "#D9DDE0"
+    },
+    {
+      "id": "usb-base",
+      "type": "box",
+      "position": [
+        -2.9,
+        0.12,
+        -1.25
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.35,
+        0.1,
+        1.4
+      ],
+      "color": "#8F969D"
+    },
+    {
+      "id": "alimentacao-base",
+      "type": "box",
+      "position": [
+        -2.8,
+        0.3,
+        1.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.3,
+        0.44,
+        0.95
+      ],
+      "color": "#24282E"
+    },
+    {
+      "id": "alimentacao-corpo",
+      "type": "cylinder",
+      "position": [
+        -2.85,
+        0.68,
+        1.18
+      ],
+      "rotation": [
+        0,
+        0,
+        1.57079632679
+      ],
+      "scale": [
+        0.78,
+        1.3,
+        0.78
+      ],
+      "color": "#24282E"
+    },
+    {
+      "id": "alimentacao-boca",
+      "type": "cylinder",
+      "position": [
+        -3.51,
+        0.68,
+        1.18
+      ],
+      "rotation": [
+        0,
+        0,
+        1.57079632679
+      ],
+      "scale": [
+        0.59,
+        0.025,
+        0.59
+      ],
+      "color": "#969DA3"
+    },
+    {
+      "id": "alimentacao-interior",
+      "type": "cylinder",
+      "position": [
+        -3.53,
+        0.68,
+        1.18
+      ],
+      "rotation": [
+        0,
+        0,
+        1.57079632679
+      ],
+      "scale": [
+        0.43,
+        0.028,
+        0.43
+      ],
+      "color": "#101419"
+    },
+    {
+      "id": "alimentacao-pino-central",
+      "type": "cylinder",
+      "position": [
+        -3.55,
+        0.68,
+        1.18
+      ],
+      "rotation": [
+        0,
+        0,
+        1.57079632679
+      ],
+      "scale": [
+        0.12,
+        0.035,
+        0.12
+      ],
+      "color": "#BFC4C8"
+    },
+    {
+      "id": "mcu-soquete",
+      "type": "box",
+      "position": [
+        0.95,
+        0.19,
+        0.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        3.35,
+        0.22,
+        1.1
+      ],
+      "color": "#34383C"
+    },
+    {
+      "id": "mcu-dip28",
+      "type": "box",
+      "position": [
+        0.95,
+        0.43,
+        0.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        3.05,
+        0.32,
+        0.69
+      ],
+      "color": "#20252A"
+    },
+    {
+      "id": "mcu-marca-orientacao",
+      "type": "sphere",
+      "position": [
+        -0.37,
+        0.59,
+        0.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.18,
+        0.035,
+        0.18
+      ],
+      "color": "#61666B"
+    },
+    {
+      "id": "mcu-pino-frente-01",
+      "type": "box",
+      "position": [
+        -0.48,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-frente-02",
+      "type": "box",
+      "position": [
+        -0.26,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-frente-03",
+      "type": "box",
+      "position": [
+        -0.04,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-frente-04",
+      "type": "box",
+      "position": [
+        0.18,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-frente-05",
+      "type": "box",
+      "position": [
+        0.4,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-frente-06",
+      "type": "box",
+      "position": [
+        0.62,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-frente-07",
+      "type": "box",
+      "position": [
+        0.84,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-frente-08",
+      "type": "box",
+      "position": [
+        1.06,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-frente-09",
+      "type": "box",
+      "position": [
+        1.28,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-frente-10",
+      "type": "box",
+      "position": [
+        1.5,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-frente-11",
+      "type": "box",
+      "position": [
+        1.72,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-frente-12",
+      "type": "box",
+      "position": [
+        1.94,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-frente-13",
+      "type": "box",
+      "position": [
+        2.16,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-frente-14",
+      "type": "box",
+      "position": [
+        2.38,
+        0.3,
+        1.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-01",
+      "type": "box",
+      "position": [
+        -0.48,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-02",
+      "type": "box",
+      "position": [
+        -0.26,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-03",
+      "type": "box",
+      "position": [
+        -0.04,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-04",
+      "type": "box",
+      "position": [
+        0.18,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-05",
+      "type": "box",
+      "position": [
+        0.4,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-06",
+      "type": "box",
+      "position": [
+        0.62,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-07",
+      "type": "box",
+      "position": [
+        0.84,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-08",
+      "type": "box",
+      "position": [
+        1.06,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-09",
+      "type": "box",
+      "position": [
+        1.28,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-10",
+      "type": "box",
+      "position": [
+        1.5,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-11",
+      "type": "box",
+      "position": [
+        1.72,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-12",
+      "type": "box",
+      "position": [
+        1.94,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-13",
+      "type": "box",
+      "position": [
+        2.16,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "mcu-pino-tras-14",
+      "type": "box",
+      "position": [
+        2.38,
+        0.3,
+        0.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.25,
+        0.26
+      ],
+      "color": "#ADB4BB"
+    },
+    {
+      "id": "header-digital-esquerdo",
+      "type": "box",
+      "position": [
+        -0.98,
+        0.43,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2.4,
+        0.7,
+        0.4
+      ],
+      "color": "#25292E"
+    },
+    {
+      "id": "header-digital-direito",
+      "type": "box",
+      "position": [
+        1.69,
+        0.43,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2.04,
+        0.7,
+        0.4
+      ],
+      "color": "#25292E"
+    },
+    {
+      "id": "header-alimentacao",
+      "type": "box",
+      "position": [
+        -0.94,
+        0.43,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2.04,
+        0.7,
+        0.4
+      ],
+      "color": "#25292E"
+    },
+    {
+      "id": "header-analogico",
+      "type": "box",
+      "position": [
+        1.54,
+        0.43,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.56,
+        0.7,
+        0.4
+      ],
+      "color": "#25292E"
+    },
+    {
+      "id": "socket-digital-esquerdo-01",
+      "type": "box",
+      "position": [
+        -2.06,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-esquerdo-02",
+      "type": "box",
+      "position": [
+        -1.82,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-esquerdo-03",
+      "type": "box",
+      "position": [
+        -1.58,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-esquerdo-04",
+      "type": "box",
+      "position": [
+        -1.34,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-esquerdo-05",
+      "type": "box",
+      "position": [
+        -1.1,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-esquerdo-06",
+      "type": "box",
+      "position": [
+        -0.86,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-esquerdo-07",
+      "type": "box",
+      "position": [
+        -0.62,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-esquerdo-08",
+      "type": "box",
+      "position": [
+        -0.38,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-esquerdo-09",
+      "type": "box",
+      "position": [
+        -0.14,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-esquerdo-10",
+      "type": "box",
+      "position": [
+        0.1,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-direito-01",
+      "type": "box",
+      "position": [
+        0.85,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-direito-02",
+      "type": "box",
+      "position": [
+        1.09,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-direito-03",
+      "type": "box",
+      "position": [
+        1.33,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-direito-04",
+      "type": "box",
+      "position": [
+        1.57,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-direito-05",
+      "type": "box",
+      "position": [
+        1.81,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-direito-06",
+      "type": "box",
+      "position": [
+        2.05,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-direito-07",
+      "type": "box",
+      "position": [
+        2.29,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-digital-direito-08",
+      "type": "box",
+      "position": [
+        2.53,
+        0.785,
+        -2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-alimentacao-01",
+      "type": "box",
+      "position": [
+        -1.78,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-alimentacao-02",
+      "type": "box",
+      "position": [
+        -1.54,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-alimentacao-03",
+      "type": "box",
+      "position": [
+        -1.3,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-alimentacao-04",
+      "type": "box",
+      "position": [
+        -1.06,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-alimentacao-05",
+      "type": "box",
+      "position": [
+        -0.82,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-alimentacao-06",
+      "type": "box",
+      "position": [
+        -0.58,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-alimentacao-07",
+      "type": "box",
+      "position": [
+        -0.34,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-alimentacao-08",
+      "type": "box",
+      "position": [
+        -0.1,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-analogico-01",
+      "type": "box",
+      "position": [
+        0.94,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-analogico-02",
+      "type": "box",
+      "position": [
+        1.18,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-analogico-03",
+      "type": "box",
+      "position": [
+        1.42,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-analogico-04",
+      "type": "box",
+      "position": [
+        1.66,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-analogico-05",
+      "type": "box",
+      "position": [
+        1.9,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "socket-analogico-06",
+      "type": "box",
+      "position": [
+        2.14,
+        0.785,
+        2.19
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.13,
+        0.015,
+        0.16
+      ],
+      "color": "#080D12"
+    },
+    {
+      "id": "fixacao-tras-esquerda",
+      "type": "torus",
+      "position": [
+        -2.88,
+        0.09,
+        -2.23
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        0.35,
+        0.35,
+        0.12
+      ],
+      "color": "#C4AE71"
+    },
+    {
+      "id": "fixacao-tras-direita",
+      "type": "torus",
+      "position": [
+        3.02,
+        0.09,
+        -1.75
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        0.35,
+        0.35,
+        0.12
+      ],
+      "color": "#C4AE71"
+    },
+    {
+      "id": "fixacao-frente-esquerda",
+      "type": "torus",
+      "position": [
+        -2.88,
+        0.09,
+        2.23
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        0.35,
+        0.35,
+        0.12
+      ],
+      "color": "#C4AE71"
+    },
+    {
+      "id": "fixacao-frente-direita",
+      "type": "torus",
+      "position": [
+        3.02,
+        0.09,
+        1.75
+      ],
+      "rotation": [
+        1.57079632679,
+        0,
+        0
+      ],
+      "scale": [
+        0.35,
+        0.35,
+        0.12
+      ],
+      "color": "#C4AE71"
+    },
+    {
+      "id": "chip-interface-usb",
+      "type": "box",
+      "position": [
+        -1.51,
+        0.21,
+        -0.94
+      ],
+      "rotation": [
+        0,
+        0.78539816339,
+        0
+      ],
+      "scale": [
+        0.66,
+        0.26,
+        0.66
+      ],
+      "color": "#292D32"
+    },
+    {
+      "id": "cristal-metalico",
+      "type": "box",
+      "position": [
+        -0.56,
+        0.23,
+        -0.88
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.7,
+        0.3,
+        0.34
+      ],
+      "color": "#C2C8CD"
+    },
+    {
+      "id": "capacitor-esquerdo",
+      "type": "cylinder",
+      "position": [
+        -1.87,
+        0.43,
+        0.61
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.48,
+        0.7,
+        0.48
+      ],
+      "color": "#30373D"
+    },
+    {
+      "id": "capacitor-esquerdo-topo",
+      "type": "cylinder",
+      "position": [
+        -1.87,
+        0.79,
+        0.61
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.43,
+        0.025,
+        0.43
+      ],
+      "color": "#C6CCD0"
+    },
+    {
+      "id": "capacitor-direito",
+      "type": "cylinder",
+      "position": [
+        -1.29,
+        0.43,
+        0.61
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.48,
+        0.7,
+        0.48
+      ],
+      "color": "#30373D"
+    },
+    {
+      "id": "capacitor-direito-topo",
+      "type": "cylinder",
+      "position": [
+        -1.29,
+        0.79,
+        0.61
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.43,
+        0.025,
+        0.43
+      ],
+      "color": "#C6CCD0"
+    },
+    {
+      "id": "regulador-base-metalica",
+      "type": "box",
+      "position": [
+        -2.23,
+        0.12,
+        -0.08
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.62,
+        0.08,
+        0.53
+      ],
+      "color": "#B1B8BF"
+    },
+    {
+      "id": "regulador-corpo",
+      "type": "box",
+      "position": [
+        -2.23,
+        0.24,
+        -0.08
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.44,
+        0.19,
+        0.37
+      ],
+      "color": "#272D33"
+    },
+    {
+      "id": "reset-base",
+      "type": "box",
+      "position": [
+        -2.67,
+        0.18,
+        -2.01
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.44,
+        0.2,
+        0.41
+      ],
+      "color": "#B4BCC2"
+    },
+    {
+      "id": "reset-botao",
+      "type": "cylinder",
+      "position": [
+        -2.67,
+        0.33,
+        -2.01
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.24,
+        0.13,
+        0.24
+      ],
+      "color": "#B3473E"
+    },
+    {
+      "id": "led-verde",
+      "type": "box",
+      "position": [
+        2.33,
+        0.16,
+        -1.32
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.24,
+        0.14,
+        0.15
+      ],
+      "color": "#87C55B"
+    },
+    {
+      "id": "led-amarelo",
+      "type": "box",
+      "position": [
+        -1.35,
+        0.16,
+        -1.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.24,
+        0.14,
+        0.15
+      ],
+      "color": "#E4BB56"
+    },
+    {
+      "id": "resistor-01",
+      "type": "box",
+      "position": [
+        0.39,
+        0.14,
+        -1.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.37,
+        0.12,
+        0.16
+      ],
+      "color": "#B7AA91"
+    },
+    {
+      "id": "resistor-02",
+      "type": "box",
+      "position": [
+        0.93,
+        0.14,
+        -1.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.37,
+        0.12,
+        0.16
+      ],
+      "color": "#B7AA91"
+    },
+    {
+      "id": "resistor-03",
+      "type": "box",
+      "position": [
+        1.47,
+        0.14,
+        -1.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.37,
+        0.12,
+        0.16
+      ],
+      "color": "#B7AA91"
+    },
+    {
+      "id": "conector-programacao-base",
+      "type": "box",
+      "position": [
+        2.85,
+        0.19,
+        -0.45
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.56,
+        0.22,
+        0.78
+      ],
+      "color": "#272D33"
+    },
+    {
+      "id": "programacao-pino-01",
+      "type": "box",
+      "position": [
+        2.72,
+        0.47,
+        -0.69
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.07,
+        0.5,
+        0.07
+      ],
+      "color": "#CEB678"
+    },
+    {
+      "id": "programacao-pino-02",
+      "type": "box",
+      "position": [
+        2.98,
+        0.47,
+        -0.69
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.07,
+        0.5,
+        0.07
+      ],
+      "color": "#CEB678"
+    },
+    {
+      "id": "programacao-pino-03",
+      "type": "box",
+      "position": [
+        2.72,
+        0.47,
+        -0.45
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.07,
+        0.5,
+        0.07
+      ],
+      "color": "#CEB678"
+    },
+    {
+      "id": "programacao-pino-04",
+      "type": "box",
+      "position": [
+        2.98,
+        0.47,
+        -0.45
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.07,
+        0.5,
+        0.07
+      ],
+      "color": "#CEB678"
+    },
+    {
+      "id": "programacao-pino-05",
+      "type": "box",
+      "position": [
+        2.72,
+        0.47,
+        -0.21
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.07,
+        0.5,
+        0.07
+      ],
+      "color": "#CEB678"
+    },
+    {
+      "id": "programacao-pino-06",
+      "type": "box",
+      "position": [
+        2.98,
+        0.47,
+        -0.21
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.07,
+        0.5,
+        0.07
+      ],
+      "color": "#CEB678"
+    }
+  ]
+}
+
+GEOMETRIA DECLARATIVA (atual)
+Posições abaixo correspondem ao conjunto montado; explodeOffset representa o afastamento didático.
+{
+  "scene": {
+    "version": 1,
+    "label": "Modelo ilustrativo: ATmega328P DIP e conector USB B nas posições relativas do Arduino UNO R3, sem placa ou componentes não selecionados",
+    "objects": [
+      {
+        "id": "mcu-corpo-dip",
+        "type": "box",
+        "position": [
+          1.48,
+          0.43,
+          0.9
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          3.05,
+          0.32,
+          0.69
+        ],
+        "color": "#20252A"
+      },
+      {
+        "id": "mcu-marca-orientacao",
+        "type": "sphere",
+        "position": [
+          0.16,
+          0.59,
+          0.9
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.18,
+          0.035,
+          0.18
+        ],
+        "color": "#61666B"
+      },
+      {
+        "id": "mcu-pino-frente-01",
+        "type": "box",
+        "position": [
+          0.05,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-frente-02",
+        "type": "box",
+        "position": [
+          0.27,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-frente-03",
+        "type": "box",
+        "position": [
+          0.49,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-frente-04",
+        "type": "box",
+        "position": [
+          0.71,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-frente-05",
+        "type": "box",
+        "position": [
+          0.93,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-frente-06",
+        "type": "box",
+        "position": [
+          1.15,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-frente-07",
+        "type": "box",
+        "position": [
+          1.37,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-frente-08",
+        "type": "box",
+        "position": [
+          1.59,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-frente-09",
+        "type": "box",
+        "position": [
+          1.81,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-frente-10",
+        "type": "box",
+        "position": [
+          2.03,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-frente-11",
+        "type": "box",
+        "position": [
+          2.25,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-frente-12",
+        "type": "box",
+        "position": [
+          2.47,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-frente-13",
+        "type": "box",
+        "position": [
+          2.69,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-frente-14",
+        "type": "box",
+        "position": [
+          2.91,
+          0.3,
+          1.345
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-01",
+        "type": "box",
+        "position": [
+          0.05,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-02",
+        "type": "box",
+        "position": [
+          0.27,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-03",
+        "type": "box",
+        "position": [
+          0.49,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-04",
+        "type": "box",
+        "position": [
+          0.71,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-05",
+        "type": "box",
+        "position": [
+          0.93,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-06",
+        "type": "box",
+        "position": [
+          1.15,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-07",
+        "type": "box",
+        "position": [
+          1.37,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-08",
+        "type": "box",
+        "position": [
+          1.59,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-09",
+        "type": "box",
+        "position": [
+          1.81,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-10",
+        "type": "box",
+        "position": [
+          2.03,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-11",
+        "type": "box",
+        "position": [
+          2.25,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-12",
+        "type": "box",
+        "position": [
+          2.47,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-13",
+        "type": "box",
+        "position": [
+          2.69,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "mcu-pino-tras-14",
+        "type": "box",
+        "position": [
+          2.91,
+          0.3,
+          0.455
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          0.36,
+          0.26
+        ],
+        "color": "#ADB4BB"
+      },
+      {
+        "id": "usb-base-metalica",
+        "type": "box",
+        "position": [
+          -2.37,
+          0.12,
+          -1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.35,
+          0.1,
+          1.4
+        ],
+        "color": "#8F969D"
+      },
+      {
+        "id": "usb-parede-esquerda",
+        "type": "box",
+        "position": [
+          -2.37,
+          0.58,
+          -1.585
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.25,
+          1,
+          0.08
+        ],
+        "color": "#B8BEC5"
+      },
+      {
+        "id": "usb-parede-direita",
+        "type": "box",
+        "position": [
+          -2.37,
+          0.58,
+          -0.415
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.25,
+          1,
+          0.08
+        ],
+        "color": "#B8BEC5"
+      },
+      {
+        "id": "usb-teto",
+        "type": "box",
+        "position": [
+          -2.37,
+          1.04,
+          -1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.25,
+          0.08,
+          1.25
+        ],
+        "color": "#C5CBD0"
+      },
+      {
+        "id": "usb-piso",
+        "type": "box",
+        "position": [
+          -2.37,
+          0.16,
+          -1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.25,
+          0.08,
+          1.25
+        ],
+        "color": "#B8BEC5"
+      },
+      {
+        "id": "usb-fundo",
+        "type": "box",
+        "position": [
+          -1.785,
+          0.58,
+          -1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.08,
+          1,
+          1.25
+        ],
+        "color": "#969DA3"
+      },
+      {
+        "id": "usb-interior-escuro",
+        "type": "box",
+        "position": [
+          -1.835,
+          0.59,
+          -1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.025,
+          0.78,
+          1.05
+        ],
+        "color": "#343B42"
+      },
+      {
+        "id": "usb-inserto-isolante",
+        "type": "box",
+        "position": [
+          -2.32,
+          0.44,
+          -1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.98,
+          0.22,
+          0.66
+        ],
+        "color": "#D9DDE0"
+      }
+    ]
+  },
+  "groups": [
+    {
+      "partId": "part-0001",
+      "objectIds": [
+        "mcu-corpo-dip",
+        "mcu-marca-orientacao",
+        "mcu-pino-frente-01",
+        "mcu-pino-frente-02",
+        "mcu-pino-frente-03",
+        "mcu-pino-frente-04",
+        "mcu-pino-frente-05",
+        "mcu-pino-frente-06",
+        "mcu-pino-frente-07",
+        "mcu-pino-frente-08",
+        "mcu-pino-frente-09",
+        "mcu-pino-frente-10",
+        "mcu-pino-frente-11",
+        "mcu-pino-frente-12",
+        "mcu-pino-frente-13",
+        "mcu-pino-frente-14",
+        "mcu-pino-tras-01",
+        "mcu-pino-tras-02",
+        "mcu-pino-tras-03",
+        "mcu-pino-tras-04",
+        "mcu-pino-tras-05",
+        "mcu-pino-tras-06",
+        "mcu-pino-tras-07",
+        "mcu-pino-tras-08",
+        "mcu-pino-tras-09",
+        "mcu-pino-tras-10",
+        "mcu-pino-tras-11",
+        "mcu-pino-tras-12",
+        "mcu-pino-tras-13",
+        "mcu-pino-tras-14"
+      ],
+      "explodeOffset": [
+        2.1315,
+        1.37025,
+        0
+      ]
+    },
+    {
+      "partId": "part-0007",
+      "objectIds": [
+        "usb-base-metalica",
+        "usb-parede-esquerda",
+        "usb-parede-direita",
+        "usb-teto",
+        "usb-piso",
+        "usb-fundo",
+        "usb-interior-escuro",
+        "usb-inserto-isolante"
+      ],
+      "explodeOffset": [
+        -2.1315,
+        1.37025,
+        2.610334652382583e-16
+      ]
+    }
+  ],
+  "createdAt": 1791594096140,
+  "dossierId": "SoTNicSxtT4FjGGQF0x4b",
+  "dossierFingerprint": "77027:9e8fa36",
+  "selectedPartIds": [
+    "part-0001",
+    "part-0007"
+  ]
+}

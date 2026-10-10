@@ -30,6 +30,15 @@ export type ConstructionStrategy = 'reaproveitar' | 'hibrido' | 'do_zero';
 // tree's vocabulary and decomposition.
 export type ProjectArchetype = 'construir' | 'entender';
 
+// Starting point of the plan, independent from the goal archetype and the
+// reuse/build strategy. Absence preserves the behavior of older projects.
+export type PlanApproach = 'reverse_engineering' | 'new_creation';
+export interface PlanningIntent {
+  planApproach?: PlanApproach;
+  // Human-described product/system and variant; not a verified specification.
+  referenceTarget?: string;
+}
+
 export interface HistoryEntry {
   id: string;
   timestamp: number;
@@ -114,6 +123,7 @@ export interface AdversarialCritique {
 }
 
 export interface ConceptNodeData {
+  sourceAttachmentIds?: string[];
   id: string;
   parentId: string | null;
   kind: NodeKind;
@@ -202,7 +212,8 @@ export interface ConceptEdgeData {
   note?: string;
 }
 
-export interface Project {
+export interface Project extends PlanningIntent {
+  visuals?: import('./visuals/types').VisualWorkspace;
   id: string;
   name: string;
   objective: string;
@@ -265,7 +276,7 @@ export interface AISuggestedEdge {
   note?: string;
 }
 
-export interface AIPlan {
+export interface AIPlan extends PlanningIntent {
   id: string;
   title: string;
   pitch: string;

@@ -13,7 +13,7 @@ import { useGraphStore } from '@/store';
 import { useKBStore } from '@/kb/store';
 import { useConfigStore, type Provider } from '@/config/store';
 import { useLocaleStore, useT, type Messages } from '@/i18n';
-import type { AIPlan, AIPlanOutline, ConstructionStrategy, WebResearchDigest } from '@/types';
+import type { AIPlan, AIPlanOutline, ConstructionStrategy, WebResearchDigest, PlanApproach, PlanningIntent } from '@/types';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { InlineError } from './ui/InlineError';
@@ -22,6 +22,11 @@ import { ApiKeyGate, modelDisplay } from './ApiKeyGate';
 import { KnowledgeRepo } from './KnowledgeRepo';
 import { LanguageToggle } from './LanguageToggle';
 import { OverflowMenu } from './ui/OverflowMenu';
+import { useWorkspaceStore } from '@/workspace/store';
+import { FileAttachments } from '@/attachments/FileAttachments';
+import { projectFiles, setProjectFiles } from '@/attachments/projectFiles';
+import { planFilesContext } from '@/attachments/files';
+import { classifyPlanRequest, intakeLabel, type PlanIntake } from '@/ai/planIntake';
 
 // ---------------------------------------------------------------------------
 // Helpers puros (testados em ObjectiveScreen.test.ts)
@@ -195,6 +200,8 @@ export function ObjectiveScreen() {
   const hasLegacyPlans = !draft0.outlines?.length && !!draft0.plans?.length;
   const [name, setName] = useState(draft0.name);
   const [objective, setObjective] = useState(draft0.objective);
+  const [planApproach, setPlanApproach] = useState<PlanApproach>(draft0.planApproach ?? 'new_creation');
+  const [referenceTarget, setReferenceTarget] = useState(draft0.referenceTarget ?? '');
   const [rules, setRules] = useState<string[]>(draft0.rules);
   const [ruleDraft, setRuleDraft] = useState(draft0.ruleDraft);
   const [selectedId, setSelectedId] = useState<string | null>(draft0.selectedId);
@@ -212,6 +219,20 @@ export function ObjectiveScreen() {
   const [kbOpen, setKbOpen] = useState(false);
   const [kbUsed, setKbUsed] = useState<{ titulo: string; docId: string }[]>([]);
   const [settings, setSettings] = useState<{ advanced: boolean } | null>(null);
+  const attachmentProjectId = useWorkspaceStore(s => s.activeProjectId);
+  const attachments = useWorkspaceStore(s => attachmentProjectId ? s.projects[attachmentProjectId]?.attachments : undefined) ?? [];
+  const [filesBusy, setFilesBusy] = useState(false);
+  const [fileIntake, setFileIntake] = useState<PlanIntake | null>(null);
+  const attachmentsFingerprint = attachments.map(file => `${file.id}:${file.fingerprint}`).join('|');
+  const attachmentsMatch = (saved?: string) => (saved ?? '') === projectFiles(attachmentProjectId).map(file => `${file.id}:${file.fingerprint}`).join('|');
+  const warnAttachmentsChanged = () => { setView('form'); toast.show(locale === 'en' ? 'References changed. Generate alternatives again to use the current files.' : 'As referências mudaram. Gere alternativas novamente para usar os anexos atuais.'); };
+  const currentIntent = (): PlanningIntent => ({ planApproach, referenceTarget: referenceTarget.trim() || undefined });
+  const matchesIntent = (saved?: PlanningIntent | null) => (saved?.planApproach ?? 'new_creation') === planApproach && (saved?.referenceTarget ?? '').trim() === referenceTarget.trim();
+  const stillCurrentIntent = (saved?: PlanningIntent | null) => {
+    const live = useGraphStore.getState().objectiveDraft;
+    return (saved?.planApproach ?? 'new_creation') === (live.planApproach ?? 'new_creation') && (saved?.referenceTarget ?? '').trim() === (live.referenceTarget ?? '').trim();
+  };
+  const warnIntentChanged = () => { setView('form'); toast.show(tr.objective.approachChanged); };
 
   // Expansão (fase 2): um plano por vez, o selecionado.
   const [expandProgress, setExpandProgress] = useState<ExpandProgressEvent | null>(null);
@@ -227,6 +248,11 @@ export function ObjectiveScreen() {
   const activeConfig = useConfigStore((s) =>
     s.activeProvider ? s.providers[s.activeProvider] : undefined,
   );
+  const ensureConfigured = () => {
+    if (activeProvider && activeConfig?.apiKey.trim()) return true;
+    setSettings({ advanced: false });
+    return false;
+  };
 
   // Pesquisa web feita junto com o lote de esboços — a expansão reaproveita.
   const batchResearchRef = useRef<WebResearchDigest | null>(null);
@@ -239,7 +265,13 @@ export function ObjectiveScreen() {
     existing?: ExistingPlanSummary[],
   ) => {
     batchResearchRef.current = null;
-    const kbPromise = getContextFor({ label: tr.notify.objectivePromptLabel(objectiveText) });
+    const selectedFiles = projectFiles(attachmentProjectId);
+    if (attachmentProjectId && selectedFiles.length) {
+      const intake = await classifyPlanRequest(objectiveText, attachmentProjectId, selectedFiles, signal);
+      signal.throwIfAborted(); setFileIntake(intake);
+    }
+    const fileContext = planFilesContext(selectedFiles);
+    const kbPromise = getContextFor({ label: tr.notify.objectivePromptLabel(objectiveText) }).then(kb => [...fileContext, ...kb]);
     kbPromise.then(
       (kb) => {
         if (!signal.aborted && kb.length > 0) {
@@ -258,12 +290,12 @@ export function ObjectiveScreen() {
       kbPromise,
       effRules,
       existing,
-      { signal },
+      { signal, ...currentIntent() },
     );
   };
   const gen = useAIAction(runOutlines);
   const more = useAIAction(runOutlines);
-  const busy = gen.running || more.running;
+  const busy = gen.running || more.running || filesBusy;
 
   // Fase 2: árvore completa de um esboço.
   const runExpand = async (
@@ -273,7 +305,8 @@ export function ObjectiveScreen() {
     effRules: string[],
     research: WebResearchDigest | null,
   ) => {
-    const kbPromise = getContextFor({ label: tr.notify.objectivePromptLabel(objectiveText) });
+    const fileContext = planFilesContext(projectFiles(attachmentProjectId));
+    const kbPromise = getContextFor({ label: tr.notify.objectivePromptLabel(objectiveText) }).then(kb => [...fileContext, ...kb]);
     return expandPlan(
       objectiveText,
       outline,
@@ -306,6 +339,8 @@ export function ObjectiveScreen() {
   // Expansão especulativa: começa ao selecionar o card, antes do "Começar".
   const startExpansion = async (id: string) => {
     const d = useGraphStore.getState().objectiveDraft;
+    if (!attachmentsMatch(d.plansFor?.attachmentsFingerprint)) { warnAttachmentsChanged(); return; }
+    if (!matchesIntent(d.plansFor)) { warnIntentChanged(); return; }
     const outline = d.outlines?.find((o) => o.id === id);
     if (!outline) return;
     if (d.expanded[id]) {
@@ -313,6 +348,7 @@ export function ObjectiveScreen() {
       if (activeExpandRef.current) stopExpansion();
       return;
     }
+    if (!ensureConfigured()) return;
     if (activeExpandRef.current === id) return;
     const token = ++expandTokenRef.current;
     activeExpandRef.current = id;
@@ -328,6 +364,8 @@ export function ObjectiveScreen() {
     );
     if (token !== expandTokenRef.current) return; // substituída ou cancelada
     activeExpandRef.current = null;
+    if (result && !stillCurrentIntent(d.plansFor)) { stopExpansion(); setStarting(false); warnIntentChanged(); return; }
+    if (result && !attachmentsMatch(d.plansFor?.attachmentsFingerprint)) { stopExpansion(); setStarting(false); warnAttachmentsChanged(); return; }
     if (result) {
       setExpandedPlan(id, result);
       setExpandingId(null);
@@ -340,6 +378,15 @@ export function ObjectiveScreen() {
   };
 
   const mountedRef = useRef(true);
+  const outlineGenerationRef = useRef<{ startedAt: number } | null>(null);
+  const clearOutlineGeneration = (owned = outlineGenerationRef.current) => {
+    if (!owned || outlineGenerationRef.current !== owned) return;
+    outlineGenerationRef.current = null;
+    const store = useGraphStore.getState();
+    if (store.objectiveDraft.generatingSince === owned.startedAt) {
+      store.setObjectiveDraft({ generatingSince: null });
+    }
+  };
   const moreProgressRef = useRef<HTMLDivElement>(null);
   // Progresso da 1ª geração: fica abaixo do formulário — ao começar, rola até
   // ele (no mobile ficava abaixo da dobra, sem retorno visível do clique).
@@ -358,6 +405,7 @@ export function ObjectiveScreen() {
   cancelRef.current = () => {
     gen.cancel();
     more.cancel();
+    clearOutlineGeneration();
     stopExpansion();
   };
   const startExpansionRef = useRef(startExpansion);
@@ -397,14 +445,29 @@ export function ObjectiveScreen() {
   }, []);
 
   // Espelha o formulário e a seleção no rascunho persistido.
+  const formMirror = useRef(false);
+  useEffect(() => useGraphStore.subscribe((state, previous) => {
+    if (formMirror.current || state.objectiveDraft === previous.objectiveDraft) return;
+    const next = state.objectiveDraft, old = previous.objectiveDraft;
+    if (next.name !== old.name) setName(next.name);
+    if (next.objective !== old.objective) setObjective(next.objective);
+    if (next.planApproach !== old.planApproach) setPlanApproach(next.planApproach ?? 'new_creation');
+    if (next.referenceTarget !== old.referenceTarget) setReferenceTarget(next.referenceTarget ?? '');
+    if (next.rules !== old.rules) setRules(next.rules);
+    if (next.ruleDraft !== old.ruleDraft) setRuleDraft(next.ruleDraft);
+    if (next.selectedId !== old.selectedId) setSelectedId(next.selectedId);
+    if (next.outlines?.length && !old.outlines?.length) setView('plans');
+  }), []);
   const firstSync = useRef(true);
   useEffect(() => {
     if (firstSync.current) {
       firstSync.current = false;
       return;
     }
-    setObjectiveDraft({ name, objective, rules, ruleDraft, selectedId });
-  }, [name, objective, rules, ruleDraft, selectedId, setObjectiveDraft]);
+    formMirror.current = true;
+    try { setObjectiveDraft({ name, objective, rules, ruleDraft, selectedId, ...currentIntent() }); }
+    finally { formMirror.current = false; }
+  }, [name, objective, rules, ruleDraft, selectedId, planApproach, referenceTarget, setObjectiveDraft]);
 
   // Regras efetivas = chips + o que ficou digitado sem "+ adicionar".
   const effectiveRules = mergeRules(rules, parseRules(ruleDraft));
@@ -429,11 +492,14 @@ export function ObjectiveScreen() {
     !!outlines &&
     !!plansFor &&
     plansFor.objective === objective.trim() &&
-    sameRules(plansFor.rules, effectiveRules);
+    sameRules(plansFor.rules, effectiveRules) &&
+    matchesIntent(plansFor) &&
+    (plansFor.attachmentsFingerprint ?? '') === attachmentsFingerprint;
 
   const handleGenerate = async () => {
     const obj = objective.trim();
     if (!obj || busy) return;
+    if (!ensureConfigured()) return;
     const eff = commitPendingRules();
     stopExpansion();
     setStarting(false);
@@ -446,18 +512,23 @@ export function ObjectiveScreen() {
     // O painel de progresso ocupa o rodapé: um toast antigo ("Projeto
     // arquivado") esconderia as etapas.
     toast.clear();
-    setObjectiveDraft({ generatingSince: Date.now() });
+    const generation = { startedAt: Date.now() };
+    const intent = currentIntent();
+    outlineGenerationRef.current = generation;
+    setObjectiveDraft({ generatingSince: generation.startedAt });
     const result = await gen.run(obj, eff, undefined);
     if (!mountedRef.current) return;
-    setObjectiveDraft({ generatingSince: null });
+    clearOutlineGeneration(generation);
     if (!result) {
       // Cancelado ou erro: o erro aparece pelo gen.error; o progresso some.
       setProgress(null);
       return;
     }
+    if (!stillCurrentIntent(intent)) { setProgress(null); warnIntentChanged(); return; }
+    if (!attachmentsMatch(attachmentsFingerprint)) { setProgress(null); warnAttachmentsChanged(); return; }
     // Nada pré-selecionado: a estratégia é escolha consciente do usuário.
     setSelectedId(null);
-    setOutlines(normalizeRanks(result), { objective: obj, rules: eff }, batchResearchRef.current);
+    setOutlines(normalizeRanks(result), { objective: obj, rules: eff, attachmentsFingerprint, ...intent }, batchResearchRef.current);
     setNewIds([]);
     setRestoredAt(null);
     setView('plans');
@@ -467,6 +538,9 @@ export function ObjectiveScreen() {
   // ângulos diferentes; o conjunto todo é re-ranqueado na fusão.
   const handleMorePlans = async () => {
     if (!outlines || busy || outlines.length >= MAX_PLANS) return;
+    if (!attachmentsMatch(plansFor?.attachmentsFingerprint)) { warnAttachmentsChanged(); return; }
+    if (!matchesIntent(plansFor)) { warnIntentChanged(); return; }
+    if (!ensureConfigured()) return;
     const obj = plansFor?.objective ?? objective.trim();
     const eff = mergeRules(plansFor?.rules ?? [], commitPendingRules());
     setProgress(null);
@@ -477,7 +551,10 @@ export function ObjectiveScreen() {
     requestAnimationFrame(() =>
       moreProgressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
     );
-    setObjectiveDraft({ generatingSince: Date.now() });
+    const generation = { startedAt: Date.now() };
+    const intent = currentIntent();
+    outlineGenerationRef.current = generation;
+    setObjectiveDraft({ generatingSince: generation.startedAt });
     const existing = outlines.map((p) => ({
       title: p.title,
       strategy: p.strategy,
@@ -486,11 +563,13 @@ export function ObjectiveScreen() {
     }));
     const result = await more.run(obj, eff, existing);
     if (!mountedRef.current) return;
-    setObjectiveDraft({ generatingSince: null });
+    clearOutlineGeneration(generation);
     if (!result) {
       setProgress(null);
       return;
     }
+    if (!stillCurrentIntent(intent)) { setProgress(null); warnIntentChanged(); return; }
+    if (!attachmentsMatch(attachmentsFingerprint)) { setProgress(null); warnAttachmentsChanged(); return; }
     // Lê de novo: o cache pode ter ganhado árvores durante a geração.
     const current = useGraphStore.getState().objectiveDraft;
     const merged = mergePlanBatches(current.outlines ?? [], result);
@@ -499,7 +578,7 @@ export function ObjectiveScreen() {
     if (selectedId && !keep.has(selectedId)) setSelectedId(null);
     setOutlines(
       merged.plans,
-      { objective: obj, rules: eff },
+      { objective: obj, rules: eff, attachmentsFingerprint, ...intent },
       current.outlineResearch ?? batchResearchRef.current,
     );
     setNewIds(merged.newIds);
@@ -509,7 +588,7 @@ export function ObjectiveScreen() {
     gen.cancel();
     more.cancel();
     setProgress(null);
-    setObjectiveDraft({ generatingSince: null });
+    clearOutlineGeneration();
   };
 
   const handleSelect = (id: string) => {
@@ -521,6 +600,8 @@ export function ObjectiveScreen() {
   const effectiveRulesForProject = plansFor?.rules ?? effectiveRules;
 
   const createProject = (id: string) => {
+    if (!attachmentsMatch(plansFor?.attachmentsFingerprint)) { warnAttachmentsChanged(); return false; }
+    if (!matchesIntent(plansFor)) { warnIntentChanged(); return false; }
     const outline = outlines?.find((o) => o.id === id);
     if (!outline) return false;
     cancelRef.current();
@@ -538,6 +619,7 @@ export function ObjectiveScreen() {
       createProject(selectedId);
       return;
     }
+    if (!ensureConfigured()) return;
     // Sem a árvore ainda: espera a expansão em andamento (ou começa uma).
     setStarting(true);
     if (activeExpandRef.current !== selectedId) void startExpansion(selectedId);
@@ -790,6 +872,20 @@ export function ObjectiveScreen() {
           <div className="space-y-4">
             {/* O campo principal: grande e calmo, como a folha de um app nativo. */}
             <div className="card p-4 sm:p-5">
+              <fieldset className="mb-5" disabled={busy}>
+                <legend className="text-control font-semibold text-text-primary mb-2">{tr.objective.approachLabel}</legend>
+                <div role="radiogroup" aria-label={tr.objective.approachLabel} className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {(['new_creation', 'reverse_engineering'] as const).map(value => <button key={value} type="button" role="radio" aria-checked={planApproach === value} data-plan-approach={value}
+                    onClick={() => setPlanApproach(value)} className={`text-left rounded-control border px-3 py-2 transition-colors ${planApproach === value ? 'border-accent/50 bg-accent/10 text-text-primary' : 'border-border-base text-text-secondary hover:bg-bg-tertiary'}`}>
+                    <span className="text-control font-medium block">{value === 'reverse_engineering' ? tr.objective.reverseEngineering : tr.objective.newCreation}</span>
+                    <span className="text-footnote text-text-muted block mt-0.5">{value === 'reverse_engineering' ? tr.objective.reverseEngineeringHint : tr.objective.newCreationHint}</span>
+                  </button>)}
+                </div>
+                <label htmlFor="cp-reference-target" className="label block mt-3 mb-1.5">{planApproach === 'reverse_engineering' ? tr.objective.referenceTargetLabel : tr.objective.referenceOptionalLabel}</label>
+                <input id="cp-reference-target" className="field" maxLength={2000} value={referenceTarget} onChange={event => setReferenceTarget(event.target.value)}
+                  placeholder={tr.objective.referenceTargetPlaceholder} aria-describedby="cp-reference-target-hint" />
+                <p id="cp-reference-target-hint" className="text-footnote text-text-muted mt-1.5">{planApproach === 'reverse_engineering' ? tr.objective.referenceTargetHint : tr.objective.referenceOptionalHint}</p>
+              </fieldset>
               <label
                 htmlFor="cp-objective"
                 className="block text-control font-semibold text-text-primary"
@@ -809,6 +905,11 @@ export function ObjectiveScreen() {
                 rows={4}
                 className="field text-body px-3 py-2.5 min-h-[112px]"
               />
+              {attachmentProjectId && <div className="mt-3"><FileAttachments files={attachments} english={locale === 'en'} disabled={gen.running || more.running || expand.running} scopeKey={attachmentProjectId} onBusy={setFilesBusy} onChange={next => {
+                setProjectFiles(attachmentProjectId, next);
+                setFileIntake(null);
+              }} /></div>}
+              {fileIntake && <small className="dd-chat-intake">{intakeLabel(fileIntake, locale === 'en')}</small>}
               {/* No toque, as fileiras ficam a 44px uma da outra: os alvos
                   ampliados (after) dos chips não se sobrepõem. */}
               <div className="mt-3 flex gap-x-1.5 gap-y-2 [@media(pointer:coarse)]:gap-y-5 flex-wrap items-center">
@@ -950,6 +1051,7 @@ export function ObjectiveScreen() {
                 <button
                   type="button"
                   onClick={handleGenerate}
+                  disabled={busy}
                   className="tap btn btn-tertiary"
                 >
                   {tr.objective.regenerate}
@@ -976,7 +1078,7 @@ export function ObjectiveScreen() {
                 <button
                   type="button"
                   onClick={handleGenerate}
-                  disabled={!objective.trim()}
+                  disabled={!objective.trim() || busy}
                   className="btn btn-primary h-9 px-5 min-w-0"
                 >
                   <span aria-hidden>✦</span>

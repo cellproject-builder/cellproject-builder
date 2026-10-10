@@ -1,0 +1,80 @@
+[
+  {
+    "id": "esp32",
+    "label": "ESP32-DevKitC V4 · ESP32-WROOM-32E",
+    "prompt": "Crie uma representação 3D ilustrativa de uma placa ESP32-DevKitC V4 com módulo ESP32-WROOM-32E, isolada e com as peças principais legíveis, sem chão, texto ou código.",
+    "image": {
+      "path": "../fixtures/esp32.png",
+      "mimeType": "image/png",
+      "sha256": "477e8e9f17b268215b5b27028473550f212e77fd4811f4df230bb9d12cb346b8",
+      "width": 160,
+      "height": 286,
+      "bytes": 4839,
+      "sourceUrl": "https://www.espressif.com/sites/all/themes/espressif/images/esp32-devkitc/esp32-devkitc-32e.png",
+      "sourcePageUrl": "https://www.espressif.com/en/products/devkits/esp32-devkitc",
+      "credit": "Espressif Systems. Ilustração oficial do ESP32-DevKitC-32E, inspecionada em 2026-10-09; arquivo original sem edição.",
+      "rights": "Direitos da Espressif Systems; nenhuma licença aberta de imagem foi identificada. Cópia de referência deste experimento local, com atribuição; não tratar como ativo livre. A ilustração tem baixa resolução, vista superior e representação esquemática dos conectores. Não é uma fotografia nem permite medir a altura."
+    },
+    "specifications": {
+      "text": "Alvo: ESP32-DevKitC V4 com ESP32-WROOM-32E e conectores machos. Unidades da cena: 1 unidade = 1 mm. Eixos: comprimento principal em X, largura em Z, altura em Y. PCB retangular nominal de 48,26 mm × 27,94 mm, conforme desenho dimensional oficial; não invente espessura exata. Duas fileiras laterais, cada uma com 19 contatos; passo nominal de 2,54 mm. Em uma extremidade há o módulo WROOM, com blindagem metálica e região de antena além da blindagem; na extremidade oposta há uma porta Micro-USB. Próximos à porta ficam dois botões, BOOT e EN, e o circuito USB-UART. Preserve a disposição geral; represente pequenos detalhes por primitivas simples. Modelo ilustrativo, sem validação de encaixe ou tolerância.",
+      "sources": [
+        {
+          "title": "Espressif · ESP32-DevKitC V4 — guia, componentes e tabelas J2/J3",
+          "url": "https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32/esp32-devkitc/user_guide.html"
+        },
+        {
+          "title": "Espressif · ESP32-DevKitC V4 Dimensions — desenho em mm",
+          "url": "https://dl.espressif.com/dl/schematics/esp32_devkitc_v4_dimensions.pdf"
+        },
+        {
+          "title": "Espressif · ESP32-DevKitC — variante 32E e ilustração",
+          "url": "https://www.espressif.com/en/products/devkits/esp32-devkitc"
+        }
+      ]
+    },
+    "criteria": [
+      "PCB fina e retangular, com proporção visual de comprimento/largura próxima de 48,26/27,94, sem afirmar precisão de fabricação.",
+      "Duas fileiras paralelas de conectores nas laterais longas, com 19 contatos por fileira reconhecíveis ou simplificação explicitamente indicada.",
+      "Módulo elevado numa extremidade, com blindagem metálica distinguível da antena exposta.",
+      "Porta Micro-USB reconhecível na extremidade oposta à antena.",
+      "Dois botões distintos próximos da porta, correspondentes a BOOT e EN.",
+      "Região de circuito USB-UART entre a porta e o módulo, sem componentes flutuando ou interseções grosseiras.",
+      "Conjunto legível como placa montada; a vista de perfil continua coerente apesar de a referência mostrar só a vista superior."
+    ]
+  },
+  {
+    "id": "mg90s",
+    "label": "TowerPro MG90S",
+    "prompt": "Crie uma representação 3D ilustrativa de um microservo TowerPro MG90S, isolado e com as peças principais legíveis, sem chão, texto ou código.",
+    "image": {
+      "path": "../fixtures/mg90s.jpg",
+      "mimeType": "image/jpeg",
+      "sha256": "e969fb3d76687174dae5b4f3acdff8502260f1a364614ad4bb2695789de7bd64",
+      "width": 500,
+      "height": 501,
+      "bytes": 96754,
+      "sourceUrl": "https://towerpro.com.tw/wp-content/uploads/2014/08/MG90S-1B.jpg",
+      "sourcePageUrl": "https://towerpro.com.tw/product/mg90s-3/",
+      "credit": "Torq Pro & Tower Pro. Fotografia oficial do MG90S, inspecionada em 2026-10-09; arquivo original sem edição, com marca d'água e fundo preservados.",
+      "rights": "O site informa direitos reservados a Torq Pro & Tower Pro; nenhuma licença aberta de imagem foi identificada. Cópia de referência deste experimento local, com atribuição; não tratar como ativo livre. A foto mostra eixo sem braço instalado e não revela todos os lados do servo."
+    },
+    "specifications": {
+      "text": "Alvo: TowerPro MG90S, sem braço acessório instalado. Unidades da cena: 1 unidade = 1 mm. Eixos: comprimento principal em X, largura em Z, altura em Y. O fabricante publica dimensões nominais de 22,8 × 12,2 × 28,5 mm; use-as como proporção aproximada do conjunto principal, sem deduzir medidas exatas de detalhes. A própria tabela A–F também informa C=28,4 e D=12,4 mm, divergindo dos valores gerais: não é referência de CAD ou encaixe. Represente caixa retangular escura, duas abas laterais de fixação com furos indicados, ressalto superior circular deslocado para uma extremidade, eixo metálico vertical e cabo de três vias saindo junto à base. O cabo real é listado com 25 cm; mostre só um trecho curto ilustrativo para não dominar o enquadramento. Não modele braços acessórios soltos.",
+      "sources": [
+        {
+          "title": "TowerPro · MG90S — produto, foto, dimensões e tabela A–F",
+          "url": "https://towerpro.com.tw/product/mg90s-3/"
+        }
+      ]
+    },
+    "criteria": [
+      "Caixa principal retangular escura, mais alta que larga e com espessura visual coerente com um microservo.",
+      "Duas abas de fixação opostas, junto ao topo da caixa; furos indicados por geometria simples.",
+      "Ressalto superior circular e eixo deslocados para uma extremidade do corpo, sem eixo centralizado por engano.",
+      "Eixo metálico vertical reconhecível e apoiado no ressalto, sem braço acessório instalado.",
+      "Trecho curto de cabo de três vias saindo próximo da base, distinguível do corpo.",
+      "Partes conectadas de forma coerente; sem caixa, eixo ou abas desconectados ou interseções grosseiras.",
+      "Proporções nominais aproximadas, sem apresentar a divergência de dimensões do fabricante como precisão comprovada."
+    ]
+  }
+]

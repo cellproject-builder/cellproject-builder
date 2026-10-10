@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "createdAt": "2026-10-10T04:03:24.271Z",
+  "model": "openai/gpt-6.1-sol",
+  "reasoningEffort": "medium",
+  "maxOutputTokens": 6500,
+  "paper": "https://arxiv.org/abs/2502.19133",
+  "context": {
+    "revision": "fixture-v1",
+    "synthetic": true,
+    "objective": "Construir um robô de dois braços aprendendo a testar premissas. Cenário fictício para ensaio do software.",
+    "selectedNodeId": "servo",
+    "nodes": [
+      {
+        "id": "root",
+        "parentId": null,
+        "kind": "concept",
+        "name": "Robô de dois braços",
+        "status": "unverified"
+      },
+      {
+        "id": "servo",
+        "parentId": "root",
+        "kind": "recurso",
+        "name": "Avaliar MG90S na primeira articulação",
+        "status": "unverified"
+      },
+      {
+        "id": "power",
+        "parentId": "root",
+        "kind": "recurso",
+        "name": "Conferir alimentação sob carga",
+        "status": "unverified"
+      },
+      {
+        "id": "test",
+        "parentId": "servo",
+        "kind": "passo",
+        "name": "Ensaiar uma articulação de bancada",
+        "status": "unverified"
+      }
+    ],
+    "humanPrediction": "Ainda não registrei um critério quantitativo. Quero comparar alimentação e carga antes de comprar outro motor.",
+    "observations": [
+      {
+        "id": "obs-jitter",
+        "text": "O servo tremeu e não sustentou o braço. Não medi tensão, corrente, massa, distância ao eixo ou atrito.",
+        "synthetic": true
+      }
+    ],
+    "documents": []
+  },
+  "contextHash": "5ba9f9b8f846d17960e8185cf484e60e7f2c425096bba88d535ac215c242db0c",
+  "baselineSource": "src/ai/service.ts:replanFromFailure task excerpt",
+  "baselineSourceHash": "448291861e615ec9781e4e877abe37854ba1af0f0f016989d14543e998741ba4",
+  "diagramTask": "Crie um artefato didático interativo sobre torque de uma carga em uma articulação do robô. Fundo totalmente transparente; desenho próprio elegante e legível em tema escuro com no máximo 3 tons, contornos suaves, sem cartão de fundo. Diagrama de braço horizontal, pivô, carga, distância e força. Dois controles de massa (kg, .05 a 1, inicial .2) e distância (m, .05 a .3, inicial .1), cálculo tau=m*9.81*r em N·m. Mudar controles deve mudar geometria e número de forma coerente. Clique no pivô deve referenciar o nó servo, clique na carga o nó test. Valores sintéticos; desconsidere massa do braço, aceleração e atrito, explicite essas limitações. Não compare torque à capacidade do MG90S, que não foi documentada. Não revele um critério de aprovação antes de o usuário escrever o próprio. Não duplique a árvore do plano.",
+  "runs": [
+    {
+      "id": "plan-current",
+      "status": "valid",
+      "durationMs": 33363
+    },
+    {
+      "id": "plan-adapted",
+      "status": "valid",
+      "durationMs": 10839
+    },
+    {
+      "id": "diagram-data",
+      "status": "failed",
+      "durationMs": 556
+    },
+    {
+      "id": "diagram-react",
+      "status": "valid",
+      "durationMs": 43167
+    },
+    {
+      "id": "typesafe-0",
+      "request": "Explique por que o servo pode tremer, sem mudar meu plano.",
+      "classification": {
+        "choice": "reference",
+        "confidence": 0.95,
+        "probabilities": {
+          "reference": 0.96,
+          "extend": 0.01,
+          "revise": 0.01,
+          "reorganize": 0,
+          "clarify": 0.02
+        },
+        "model": "jev-1.13.0",
+        "assessedAt": 1791605092543,
+        "rubricVersion": "plan-intake-v1"
+      },
+      "status": "classified",
+      "durationMs": 339
+    },
+    {
+      "id": "typesafe-1",
+      "request": "Adicione ao plano uma etapa de medir a alimentação sob carga.",
+      "classification": {
+        "choice": "extend",
+        "confidence": 0.99,
+        "probabilities": {
+          "reference": 0,
+          "extend": 0.99,
+          "revise": 0.01,
+          "reorganize": 0,
+          "clarify": 0
+        },
+        "model": "jev-1.13.0",
+        "assessedAt": 1791605092822,
+        "rubricVersion": "plan-intake-v1"
+      },
+      "status": "classified",
+      "durationMs": 278
+    },
+    {
+      "id": "typesafe-2",
+      "request": "Reorganize as etapas: teste a alimentação antes de comprar outro servo.",
+      "classification": {
+        "choice": "reorganize",
+        "confidence": 0.99,
+        "probabilities": {
+          "reference": 0,
+          "extend": 0.01,
+          "revise": 0,
+          "reorganize": 0.99,
+          "clarify": 0
+        },
+        "model": "jev-1.13.0",
+        "assessedAt": 1791605093101,
+        "rubricVersion": "plan-intake-v1"
+      },
+      "status": "classified",
+      "durationMs": 277
+    },
+    {
+      "id": "diagram-data-repaired",
+      "status": "failed",
+      "durationMs": 308,
+      "attempt": 3
+    },
+    {
+      "id": "diagram-data-text",
+      "status": "valid",
+      "durationMs": 50742,
+      "attempt": 4
+    },
+    {
+      "id": "diagram-data-diagnostic",
+      "status": "failed",
+      "durationMs": 805,
+      "attempt": 2,
+      "httpStatus": 400
+    }
+  ],
+  "notes": [
+    "Primeira resposta de cada condição; sem seleção de melhor resultado ou reparo automático.",
+    "Uma amostra por condição, sem seed fixa ou avaliação cega; não permite medir eficácia ou superioridade.",
+    "O baseline usa o trecho TASK atual, com schema de avaliação comum; não é chamada integral do motor em produção.",
+    "O grupo adaptado combina DBox e regras próprias; não isola o efeito exclusivo do artigo.",
+    "Dados fictícios; zero documentos técnicos e zero ensaios físicos.",
+    "Arquiteturas comparadas com a mesma tarefa, mas contratos e prompts técnicos distintos.",
+    "TypeSafe classifica intenção textual; nenhuma classificação autoriza alterações ou valida a física.",
+    "A tentativa declarativa inicial e uma repetição diagnóstica foram recusadas com HTTP 400 por schema de tupla. Uma terceira tentativa explícita corrigiu apenas o transporte e acrescentou a instrução viewBox [0,0,largura,altura]. Os resultados originais foram preservados; esta condição não é uma primeira tentativa bem sucedida.",
+    "O reparo por array também falhou antes de registrar uma resposta. Uma quarta tentativa explícita usa JSON como texto e validação local, após acrescentar x1/y1 ao contrato de linhas e instruções de serialização. Contrato, transporte e prompt técnico diferem do primeiro ensaio; não comparar taxa de sucesso como medida da arquitetura."
+  ],
+  "requestCounts": {
+    "llm": 7,
+    "typesafe": 3,
+    "successfulLlmOutputs": 4,
+    "failedDiagramAttempts": 3
+  }
+}

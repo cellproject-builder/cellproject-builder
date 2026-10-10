@@ -1,0 +1,2858 @@
+DECOMPOSIÇÃO DOCUMENTADA — CELLPROJECT
+Objeto: Arduino UNO R3 DIP A000066
+Artefato: decomposition-tJMpkENP89d20YTZiZH9g
+Plano: 88tqb0WRzC
+Artefato original: model-V1KnAwp7tTawkyHoARM-Q
+Artefato decomposto: decomposition-tJMpkENP89d20YTZiZH9g
+Dossiê: EDAHU7nwYAp5J3IDXWttE
+Pesquisa: 2026-10-10T01:30:32.740Z
+Estado: atual
+Imagens de origem: qR6NuKLYY-TlipP7r7h6I, ElMxOVC5pKqI84N-LhG_g
+
+A geometria e a posição das peças são ilustrativas e didáticas. Documentação não comprova medidas físicas, compatibilidade, conexões elétricas ou procedimento de desmontagem.
+A lista pode ser parcial. Somente peças com trechos das fontes aparecem abaixo.
+Trechos e códigos documentados não validam, por si só, as classificações e funções sugeridas pela IA.
+
+[part-000003] ECS-160-20-4X-DU
+Nome sugerido pela IA: Oscilador
+Código: ECS-160-20-4X-DU | Quantidade: não documentada
+Função sugerida pela IA: Oscilador de cristal para o clock do processador
+  Evidência [spec-2f50bdc5260c5a20e146]: "Y1 ECS-160-20-4X-DU Oscillator"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-000004] SPX1117M3-L-5
+Nome sugerido pela IA: Regulador de Tensão
+Código: SPX1117M3-L-5 | Quantidade: não documentada
+Função sugerida pela IA: Regulador de tensão de 5V
+  Evidência [spec-2f50bdc5260c5a20e146]: "U1 SPX1117M3-L-5 Regulator"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-000005] EEE-1EA470WP
+Nome sugerido pela IA: Capacitor Cerâmico
+Código: EEE-1EA470WP | Quantidade: não documentada
+Função sugerida pela IA: Capacitor de desacoplamento
+  Especificação: 25V
+  Evidência [spec-2f50bdc5260c5a20e146]: "PC1 EEE-1EA470WP 25V SMD Capacitor"
+  Evidência [spec-2f50bdc5260c5a20e146]: "PC2 EEE-1EA470WP 25V SMD Capacitor"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-000006] Componente sem código documentado
+Nome sugerido pela IA: Conector de Alimentação
+Código: não documentado | Quantidade: não documentada
+Função sugerida pela IA: Conector para fonte de alimentação externa
+  Especificação: 2.1x5.5mm
+  Evidência [spec-2f50bdc5260c5a20e146]: "X1 Power jack 2.1x5.5mm"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-000007] Componente sem código documentado
+Nome sugerido pela IA: Conector USB Tipo B
+Código: não documentado | Quantidade: não documentada
+Função sugerida pela IA: Conector para alimentação e comunicação via USB
+  Evidência [spec-2f50bdc5260c5a20e146]: "X2 USB B Connector"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-000008] Componente sem código documentado
+Nome sugerido pela IA: Conector ICSP
+Código: não documentado | Quantidade: não documentada
+Função sugerida pela IA: Conector para programação in-circuit serial
+  Especificação: through hole
+  Evidência [spec-2f50bdc5260c5a20e146]: "ICSP Pin header connector (through hole 6)"
+  Evidência [spec-2f50bdc5260c5a20e146]: "ICSP1 Pin header connector (through hole 6)"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-000009] CGRA4007-G
+Nome sugerido pela IA: Retificador
+Código: CGRA4007-G | Quantidade: não documentada
+Função sugerida pela IA: Retificador de corrente
+  Evidência [spec-2f50bdc5260c5a20e146]: "D1 CGRA4007-G Recti fi er"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-000010] LMV358LIST-A.9
+Nome sugerido pela IA: Amplificador Operacional
+Código: LMV358LIST-A.9 | Quantidade: não documentada
+Função sugerida pela IA: Amplificador operacional
+  Evidência [spec-2f50bdc5260c5a20e146]: "U5 LMV358LIST-A.9 IC"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-000011] EEE-1EA470WP
+Nome sugerido pela IA: Capacitor Cerâmico
+Código: EEE-1EA470WP | Quantidade: não documentada
+Função sugerida pela IA: Capacitor de desacoplamento
+  Especificação: 25V
+  Evidência [spec-2f50bdc5260c5a20e146]: "PC1 EEE-1EA470WP 25V SMD Capacitor"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-000012] EEE-1EA470WP
+Nome sugerido pela IA: Capacitor Cerâmico
+Código: EEE-1EA470WP | Quantidade: não documentada
+Função sugerida pela IA: Capacitor de desacoplamento
+  Especificação: 25V
+  Evidência [spec-2f50bdc5260c5a20e146]: "PC2 EEE-1EA470WP 25V SMD Capacitor"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+[part-000013] F1
+Nome sugerido pela IA: Capacitor Cerâmico
+Código: F1 | Quantidade: não documentada
+Função sugerida pela IA: Capacitor cerâmico de alta densidade
+  Evidência [spec-2f50bdc5260c5a20e146]: "F1 Chip Capacitor, High Density"
+  A verificar: Quantidade não documentada explicitamente nos trechos citados.
+
+FONTES CONSULTADAS
+[spec-2f50bdc5260c5a20e146] localhost:8123/A000066/cfmn5-datasheet.html
+https://docs.arduino.cc/resources/datasheets/A000066-datasheet.pdf
+Lida em: 2026-10-10T01:30:22.900Z
+[spec-2bdee0d3ce79a33ec2c2] ARDUINO UNO REV3
+https://media.digikey.com/pdf/Data%20Sheets/Arduino%20PDFs/A000066_Web.pdf
+Lida em: 2026-10-10T01:30:22.567Z
+[spec-12e0106caa05318f3899] Arduino Uno R3 - Standard Mechanical Component 2D Technical Drawing | PDF, SVG, DXF | Marathon OS
+https://marathon-os.com/library/2d-technical-drawings/arduino-uno-r3-standard-mechanical-680cac1211a13a42a587d605
+Lida em: 2026-10-10T01:30:25.208Z
+[spec-85915315d4df109f93b9] Arduino Uno R3 DIP com Cabo USB - MegaMaker
+https://www.megamaker.com.br/arduino-uno-r3-dip-com-cabo-usb
+Lida em: 2026-10-10T01:30:24.180Z
+
+LACUNAS E CONFLITOS
+- 1 fonte(s) não puderam ser lidas; seus conteúdos não foram usados.
+- A lista de peças está incompleta.
+- O número exato de pinos para os conectores ICSP não é especificado, apenas que são 'through hole 6'.
+- Peça não confirmada pelos documentos: ATmega328P.
+- Peça não confirmada pelos documentos: ATmega16U2.
+- Pesquisa individual: A pesquisa adicional não confirmou novas especificações; mantidos somente os componentes e trechos já verificados do conjunto.
+- Pesquisa individual: A lista de peças pode ser parcial, pois o texto não descreve todos os componentes do assembly.
+- Pesquisa individual: Peça não confirmada pelos documentos: Conector de Alimentação.
+- Pesquisa individual: Peça não confirmada pelos documentos: Conector USB Tipo B.
+- Pesquisa individual: Sem documentação suficiente para Conector de Alimentação.
+- Pesquisa individual: Sem documentação suficiente para Conector USB Tipo B.
+
+MODELO ORIGINAL — GEOMETRIA DECLARATIVA ILUSTRATIVA
+{
+  "version": 1,
+  "label": "Arduino Uno R3 com ATmega328P DIP-28 — representação estática ilustrativa, proporções aproximadas",
+  "objects": [
+    {
+      "id": "placa-principal",
+      "type": "box",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        6.6,
+        0.14,
+        5
+      ],
+      "color": "#167A87"
+    },
+    {
+      "id": "borda-esquerda-recuada",
+      "type": "box",
+      "position": [
+        -3.38,
+        0,
+        0.12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.16,
+        0.14,
+        4.64
+      ],
+      "color": "#167A87"
+    },
+    {
+      "id": "pequena-aba-direita",
+      "type": "box",
+      "position": [
+        3.35,
+        0,
+        -0.42
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.14,
+        3.7
+      ],
+      "color": "#167A87"
+    },
+    {
+      "id": "montagem-esquerda-superior",
+      "type": "torus",
+      "position": [
+        -2.77,
+        0.085,
+        -2.04
+      ],
+      "rotation": [
+        1.570796,
+        0,
+        0
+      ],
+      "scale": [
+        0.3,
+        0.3,
+        0.14
+      ],
+      "color": "#C6B991"
+    },
+    {
+      "id": "montagem-esquerda-inferior",
+      "type": "torus",
+      "position": [
+        -2.77,
+        0.085,
+        2.05
+      ],
+      "rotation": [
+        1.570796,
+        0,
+        0
+      ],
+      "scale": [
+        0.3,
+        0.3,
+        0.14
+      ],
+      "color": "#C6B991"
+    },
+    {
+      "id": "montagem-direita-superior",
+      "type": "torus",
+      "position": [
+        3.03,
+        0.085,
+        -0.92
+      ],
+      "rotation": [
+        1.570796,
+        0,
+        0
+      ],
+      "scale": [
+        0.3,
+        0.3,
+        0.14
+      ],
+      "color": "#C6B991"
+    },
+    {
+      "id": "montagem-direita-inferior",
+      "type": "torus",
+      "position": [
+        3.03,
+        0.085,
+        1.82
+      ],
+      "rotation": [
+        1.570796,
+        0,
+        0
+      ],
+      "scale": [
+        0.3,
+        0.3,
+        0.14
+      ],
+      "color": "#C6B991"
+    },
+    {
+      "id": "conector-superior-esquerdo",
+      "type": "box",
+      "position": [
+        -0.46,
+        0.44,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.92,
+        0.74,
+        0.4
+      ],
+      "color": "#202428"
+    },
+    {
+      "id": "conector-superior-direito",
+      "type": "box",
+      "position": [
+        1.92,
+        0.44,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2.4,
+        0.74,
+        0.4
+      ],
+      "color": "#202428"
+    },
+    {
+      "id": "conector-inferior-esquerdo",
+      "type": "box",
+      "position": [
+        0.34,
+        0.44,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.92,
+        0.74,
+        0.4
+      ],
+      "color": "#202428"
+    },
+    {
+      "id": "conector-inferior-direito",
+      "type": "box",
+      "position": [
+        2.26,
+        0.44,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.44,
+        0.74,
+        0.4
+      ],
+      "color": "#202428"
+    },
+    {
+      "id": "face-superior-esquerda",
+      "type": "box",
+      "position": [
+        -0.46,
+        0.814,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.84,
+        0.012,
+        0.3
+      ],
+      "color": "#45494C"
+    },
+    {
+      "id": "face-superior-direita",
+      "type": "box",
+      "position": [
+        1.92,
+        0.814,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2.32,
+        0.012,
+        0.3
+      ],
+      "color": "#45494C"
+    },
+    {
+      "id": "face-inferior-esquerda",
+      "type": "box",
+      "position": [
+        0.34,
+        0.814,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.84,
+        0.012,
+        0.3
+      ],
+      "color": "#45494C"
+    },
+    {
+      "id": "face-inferior-direita",
+      "type": "box",
+      "position": [
+        2.26,
+        0.814,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.36,
+        0.012,
+        0.3
+      ],
+      "color": "#45494C"
+    },
+    {
+      "id": "abertura-superior-esquerda-01",
+      "type": "box",
+      "position": [
+        -1.3,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-esquerda-02",
+      "type": "box",
+      "position": [
+        -1.06,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-esquerda-03",
+      "type": "box",
+      "position": [
+        -0.82,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-esquerda-04",
+      "type": "box",
+      "position": [
+        -0.58,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-esquerda-05",
+      "type": "box",
+      "position": [
+        -0.34,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-esquerda-06",
+      "type": "box",
+      "position": [
+        -0.1,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-esquerda-07",
+      "type": "box",
+      "position": [
+        0.14,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-esquerda-08",
+      "type": "box",
+      "position": [
+        0.38,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-direita-01",
+      "type": "box",
+      "position": [
+        0.84,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-direita-02",
+      "type": "box",
+      "position": [
+        1.08,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-direita-03",
+      "type": "box",
+      "position": [
+        1.32,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-direita-04",
+      "type": "box",
+      "position": [
+        1.56,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-direita-05",
+      "type": "box",
+      "position": [
+        1.8,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-direita-06",
+      "type": "box",
+      "position": [
+        2.04,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-direita-07",
+      "type": "box",
+      "position": [
+        2.28,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-direita-08",
+      "type": "box",
+      "position": [
+        2.52,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-direita-09",
+      "type": "box",
+      "position": [
+        2.76,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-superior-direita-10",
+      "type": "box",
+      "position": [
+        3,
+        0.823,
+        -2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-esquerda-01",
+      "type": "box",
+      "position": [
+        -0.5,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-esquerda-02",
+      "type": "box",
+      "position": [
+        -0.26,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-esquerda-03",
+      "type": "box",
+      "position": [
+        -0.02,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-esquerda-04",
+      "type": "box",
+      "position": [
+        0.22,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-esquerda-05",
+      "type": "box",
+      "position": [
+        0.46,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-esquerda-06",
+      "type": "box",
+      "position": [
+        0.7,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-esquerda-07",
+      "type": "box",
+      "position": [
+        0.94,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-esquerda-08",
+      "type": "box",
+      "position": [
+        1.18,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-direita-01",
+      "type": "box",
+      "position": [
+        1.66,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-direita-02",
+      "type": "box",
+      "position": [
+        1.9,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-direita-03",
+      "type": "box",
+      "position": [
+        2.14,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-direita-04",
+      "type": "box",
+      "position": [
+        2.38,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-direita-05",
+      "type": "box",
+      "position": [
+        2.62,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "abertura-inferior-direita-06",
+      "type": "box",
+      "position": [
+        2.86,
+        0.823,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.012,
+        0.18
+      ],
+      "color": "#080C10"
+    },
+    {
+      "id": "soquete-dip",
+      "type": "box",
+      "position": [
+        1.4,
+        0.19,
+        0.92
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        3.42,
+        0.24,
+        1.17
+      ],
+      "color": "#303338"
+    },
+    {
+      "id": "atmega328p-dip28",
+      "type": "box",
+      "position": [
+        1.4,
+        0.43,
+        0.92
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        3.3,
+        0.34,
+        0.93
+      ],
+      "color": "#171B20"
+    },
+    {
+      "id": "marca-extremidade-dip",
+      "type": "cylinder",
+      "position": [
+        -0.12,
+        0.602,
+        0.92
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.2,
+        0.009,
+        0.2
+      ],
+      "color": "#363B40"
+    },
+    {
+      "id": "terminal-dip-superior-01",
+      "type": "box",
+      "position": [
+        -0.095,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-superior-02",
+      "type": "box",
+      "position": [
+        0.135,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-superior-03",
+      "type": "box",
+      "position": [
+        0.365,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-superior-04",
+      "type": "box",
+      "position": [
+        0.595,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-superior-05",
+      "type": "box",
+      "position": [
+        0.825,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-superior-06",
+      "type": "box",
+      "position": [
+        1.055,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-superior-07",
+      "type": "box",
+      "position": [
+        1.285,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-superior-08",
+      "type": "box",
+      "position": [
+        1.515,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-superior-09",
+      "type": "box",
+      "position": [
+        1.745,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-superior-10",
+      "type": "box",
+      "position": [
+        1.975,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-superior-11",
+      "type": "box",
+      "position": [
+        2.205,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-superior-12",
+      "type": "box",
+      "position": [
+        2.435,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-superior-13",
+      "type": "box",
+      "position": [
+        2.665,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-superior-14",
+      "type": "box",
+      "position": [
+        2.895,
+        0.22,
+        0.31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-01",
+      "type": "box",
+      "position": [
+        -0.095,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-02",
+      "type": "box",
+      "position": [
+        0.135,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-03",
+      "type": "box",
+      "position": [
+        0.365,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-04",
+      "type": "box",
+      "position": [
+        0.595,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-05",
+      "type": "box",
+      "position": [
+        0.825,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-06",
+      "type": "box",
+      "position": [
+        1.055,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-07",
+      "type": "box",
+      "position": [
+        1.285,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-08",
+      "type": "box",
+      "position": [
+        1.515,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-09",
+      "type": "box",
+      "position": [
+        1.745,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-10",
+      "type": "box",
+      "position": [
+        1.975,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-11",
+      "type": "box",
+      "position": [
+        2.205,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-12",
+      "type": "box",
+      "position": [
+        2.435,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-13",
+      "type": "box",
+      "position": [
+        2.665,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "terminal-dip-inferior-14",
+      "type": "box",
+      "position": [
+        2.895,
+        0.22,
+        1.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.3,
+        0.35
+      ],
+      "color": "#B7BEC4"
+    },
+    {
+      "id": "usb-teto-metalico",
+      "type": "box",
+      "position": [
+        -3.1,
+        1.22,
+        -1.21
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.4,
+        0.12,
+        1.16
+      ],
+      "color": "#BEC6CD"
+    },
+    {
+      "id": "usb-base-metalica",
+      "type": "box",
+      "position": [
+        -3.1,
+        0.15,
+        -1.21
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.4,
+        0.16,
+        1.16
+      ],
+      "color": "#AAB4BE"
+    },
+    {
+      "id": "usb-lateral-superior",
+      "type": "box",
+      "position": [
+        -3.1,
+        0.68,
+        -1.75
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.4,
+        0.98,
+        0.12
+      ],
+      "color": "#AAB4BE"
+    },
+    {
+      "id": "usb-lateral-inferior",
+      "type": "box",
+      "position": [
+        -3.1,
+        0.68,
+        -0.67
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.4,
+        0.98,
+        0.12
+      ],
+      "color": "#AAB4BE"
+    },
+    {
+      "id": "usb-fundo",
+      "type": "box",
+      "position": [
+        -2.45,
+        0.68,
+        -1.21
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        1.05,
+        1.05
+      ],
+      "color": "#AAB4BE"
+    },
+    {
+      "id": "usb-abertura-frontal",
+      "type": "box",
+      "position": [
+        -3.77,
+        0.68,
+        -1.21
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.02,
+        0.94,
+        0.92
+      ],
+      "color": "#252C32"
+    },
+    {
+      "id": "usb-inserto-interno",
+      "type": "box",
+      "position": [
+        -3.787,
+        0.49,
+        -1.21
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.025,
+        0.25,
+        0.53
+      ],
+      "color": "#C5C6BA"
+    },
+    {
+      "id": "alimentacao-corpo-retangular",
+      "type": "box",
+      "position": [
+        -2.9,
+        0.48,
+        1.62
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.2,
+        0.82,
+        0.96
+      ],
+      "color": "#202328"
+    },
+    {
+      "id": "alimentacao-corpo-cilindrico",
+      "type": "cylinder",
+      "position": [
+        -3.52,
+        0.53,
+        1.62
+      ],
+      "rotation": [
+        0,
+        0,
+        1.570796
+      ],
+      "scale": [
+        0.86,
+        0.68,
+        0.86
+      ],
+      "color": "#24272B"
+    },
+    {
+      "id": "alimentacao-anel-frontal",
+      "type": "torus",
+      "position": [
+        -3.866,
+        0.53,
+        1.62
+      ],
+      "rotation": [
+        0,
+        1.570796,
+        0
+      ],
+      "scale": [
+        0.65,
+        0.65,
+        0.23
+      ],
+      "color": "#373B40"
+    },
+    {
+      "id": "alimentacao-abertura-escura",
+      "type": "cylinder",
+      "position": [
+        -3.906,
+        0.53,
+        1.62
+      ],
+      "rotation": [
+        0,
+        0,
+        1.570796
+      ],
+      "scale": [
+        0.57,
+        0.015,
+        0.57
+      ],
+      "color": "#070B0F"
+    },
+    {
+      "id": "reset-base",
+      "type": "box",
+      "position": [
+        -2.74,
+        0.17,
+        -2.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.54,
+        0.2,
+        0.47
+      ],
+      "color": "#272C30"
+    },
+    {
+      "id": "reset-tampa-metalica",
+      "type": "box",
+      "position": [
+        -2.74,
+        0.29,
+        -2.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.45,
+        0.08,
+        0.4
+      ],
+      "color": "#C4CBD0"
+    },
+    {
+      "id": "reset-botao",
+      "type": "cylinder",
+      "position": [
+        -2.74,
+        0.39,
+        -2.18
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.25,
+        0.13,
+        0.25
+      ],
+      "color": "#B09A85"
+    },
+    {
+      "id": "capacitor-alimentacao-01",
+      "type": "cylinder",
+      "position": [
+        -1.8,
+        0.46,
+        1.72
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.78,
+        0.5
+      ],
+      "color": "#B5BDC3"
+    },
+    {
+      "id": "capacitor-alimentacao-01-topo",
+      "type": "cylinder",
+      "position": [
+        -1.8,
+        0.855,
+        1.72
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.44,
+        0.015,
+        0.44
+      ],
+      "color": "#DFE3E5"
+    },
+    {
+      "id": "capacitor-alimentacao-02",
+      "type": "cylinder",
+      "position": [
+        -1.15,
+        0.43,
+        1.72
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.47,
+        0.72,
+        0.47
+      ],
+      "color": "#B5BDC3"
+    },
+    {
+      "id": "capacitor-alimentacao-02-topo",
+      "type": "cylinder",
+      "position": [
+        -1.15,
+        0.798,
+        1.72
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.41,
+        0.015,
+        0.41
+      ],
+      "color": "#DFE3E5"
+    },
+    {
+      "id": "pinos-usb-base",
+      "type": "box",
+      "position": [
+        -1.61,
+        0.17,
+        -1.89
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.2,
+        0.74
+      ],
+      "color": "#272B2F"
+    },
+    {
+      "id": "pinos-usb-01",
+      "type": "box",
+      "position": [
+        -1.74,
+        0.47,
+        -2.13
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.085,
+        0.52,
+        0.085
+      ],
+      "color": "#C8B77F"
+    },
+    {
+      "id": "pinos-usb-02",
+      "type": "box",
+      "position": [
+        -1.48,
+        0.47,
+        -2.13
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.085,
+        0.52,
+        0.085
+      ],
+      "color": "#C8B77F"
+    },
+    {
+      "id": "pinos-usb-03",
+      "type": "box",
+      "position": [
+        -1.74,
+        0.47,
+        -1.89
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.085,
+        0.52,
+        0.085
+      ],
+      "color": "#C8B77F"
+    },
+    {
+      "id": "pinos-usb-04",
+      "type": "box",
+      "position": [
+        -1.48,
+        0.47,
+        -1.89
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.085,
+        0.52,
+        0.085
+      ],
+      "color": "#C8B77F"
+    },
+    {
+      "id": "pinos-usb-05",
+      "type": "box",
+      "position": [
+        -1.74,
+        0.47,
+        -1.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.085,
+        0.52,
+        0.085
+      ],
+      "color": "#C8B77F"
+    },
+    {
+      "id": "pinos-usb-06",
+      "type": "box",
+      "position": [
+        -1.48,
+        0.47,
+        -1.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.085,
+        0.52,
+        0.085
+      ],
+      "color": "#C8B77F"
+    },
+    {
+      "id": "pinos-direita-base",
+      "type": "box",
+      "position": [
+        2.94,
+        0.17,
+        -0.29
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.48,
+        0.2,
+        0.74
+      ],
+      "color": "#272B2F"
+    },
+    {
+      "id": "pinos-direita-01",
+      "type": "box",
+      "position": [
+        2.82,
+        0.47,
+        -0.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.085,
+        0.52,
+        0.085
+      ],
+      "color": "#C8B77F"
+    },
+    {
+      "id": "pinos-direita-02",
+      "type": "box",
+      "position": [
+        3.06,
+        0.47,
+        -0.53
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.085,
+        0.52,
+        0.085
+      ],
+      "color": "#C8B77F"
+    },
+    {
+      "id": "pinos-direita-03",
+      "type": "box",
+      "position": [
+        2.82,
+        0.47,
+        -0.29
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.085,
+        0.52,
+        0.085
+      ],
+      "color": "#C8B77F"
+    },
+    {
+      "id": "pinos-direita-04",
+      "type": "box",
+      "position": [
+        3.06,
+        0.47,
+        -0.29
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.085,
+        0.52,
+        0.085
+      ],
+      "color": "#C8B77F"
+    },
+    {
+      "id": "pinos-direita-05",
+      "type": "box",
+      "position": [
+        2.82,
+        0.47,
+        -0.05
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.085,
+        0.52,
+        0.085
+      ],
+      "color": "#C8B77F"
+    },
+    {
+      "id": "pinos-direita-06",
+      "type": "box",
+      "position": [
+        3.06,
+        0.47,
+        -0.05
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.085,
+        0.52,
+        0.085
+      ],
+      "color": "#C8B77F"
+    },
+    {
+      "id": "chip-pequeno-proximo-usb",
+      "type": "box",
+      "position": [
+        -1.2,
+        0.19,
+        -0.86
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.58,
+        0.24,
+        0.62
+      ],
+      "color": "#24292D"
+    },
+    {
+      "id": "cristal-metalico",
+      "type": "box",
+      "position": [
+        -1.83,
+        0.2,
+        0.02
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.86,
+        0.26,
+        0.34
+      ],
+      "color": "#BDC5CA"
+    },
+    {
+      "id": "componente-preto-alimentacao",
+      "type": "box",
+      "position": [
+        -2.08,
+        0.2,
+        0.88
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.62,
+        0.26,
+        0.5
+      ],
+      "color": "#292D31"
+    },
+    {
+      "id": "componente-preto-central",
+      "type": "box",
+      "position": [
+        -0.58,
+        0.18,
+        0.7
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.3,
+        0.22,
+        0.54
+      ],
+      "color": "#292D31"
+    },
+    {
+      "id": "componente-pequeno-01",
+      "type": "box",
+      "position": [
+        -2.06,
+        0.14,
+        -0.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.18,
+        0.14,
+        0.3
+      ],
+      "color": "#B4A080"
+    },
+    {
+      "id": "componente-pequeno-02",
+      "type": "box",
+      "position": [
+        -2.06,
+        0.14,
+        -0.24
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.18,
+        0.14,
+        0.22
+      ],
+      "color": "#B4A080"
+    },
+    {
+      "id": "componente-pequeno-03",
+      "type": "box",
+      "position": [
+        -0.57,
+        0.14,
+        -0.87
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.17,
+        0.14,
+        0.33
+      ],
+      "color": "#B4A080"
+    },
+    {
+      "id": "componente-pequeno-04",
+      "type": "box",
+      "position": [
+        -0.57,
+        0.14,
+        -0.36
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.17,
+        0.14,
+        0.25
+      ],
+      "color": "#B4A080"
+    },
+    {
+      "id": "componente-pequeno-05",
+      "type": "box",
+      "position": [
+        -1.29,
+        0.14,
+        0.59
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.34,
+        0.14,
+        0.17
+      ],
+      "color": "#969FA6"
+    },
+    {
+      "id": "componente-pequeno-06",
+      "type": "box",
+      "position": [
+        -1.29,
+        0.14,
+        0.92
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.34,
+        0.14,
+        0.17
+      ],
+      "color": "#969FA6"
+    },
+    {
+      "id": "indicador-amarelo-proximo-usb",
+      "type": "box",
+      "position": [
+        -2.6,
+        0.15,
+        -0.25
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.19,
+        0.16,
+        0.29
+      ],
+      "color": "#D7BC59"
+    },
+    {
+      "id": "indicador-verde-direita",
+      "type": "box",
+      "position": [
+        2.34,
+        0.15,
+        -0.91
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.27,
+        0.16,
+        0.16
+      ],
+      "color": "#9BBC66"
+    }
+  ]
+}
+
+GEOMETRIA DECLARATIVA (atual)
+Posições abaixo correspondem ao conjunto montado; explodeOffset representa o afastamento didático.
+{
+  "scene": {
+    "version": 1,
+    "label": "Arduino UNO R3 — segmentação dos conectores de alimentação e USB Tipo B no modelo ilustrativo",
+    "objects": [
+      {
+        "id": "alimentacao-corpo-retangular",
+        "type": "box",
+        "position": [
+          -2.9,
+          0.48,
+          1.62
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.2,
+          0.82,
+          0.96
+        ],
+        "color": "#202328"
+      },
+      {
+        "id": "alimentacao-corpo-cilindrico",
+        "type": "cylinder",
+        "position": [
+          -3.52,
+          0.53,
+          1.62
+        ],
+        "rotation": [
+          0,
+          0,
+          1.570796
+        ],
+        "scale": [
+          0.86,
+          0.68,
+          0.86
+        ],
+        "color": "#24272B"
+      },
+      {
+        "id": "alimentacao-anel-frontal",
+        "type": "torus",
+        "position": [
+          -3.866,
+          0.53,
+          1.62
+        ],
+        "rotation": [
+          0,
+          1.570796,
+          0
+        ],
+        "scale": [
+          0.65,
+          0.65,
+          0.23
+        ],
+        "color": "#373B40"
+      },
+      {
+        "id": "alimentacao-abertura-escura",
+        "type": "cylinder",
+        "position": [
+          -3.906,
+          0.53,
+          1.62
+        ],
+        "rotation": [
+          0,
+          0,
+          1.570796
+        ],
+        "scale": [
+          0.57,
+          0.015,
+          0.57
+        ],
+        "color": "#070B0F"
+      },
+      {
+        "id": "usb-teto-metalico",
+        "type": "box",
+        "position": [
+          -3.1,
+          1.22,
+          -1.21
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.4,
+          0.12,
+          1.16
+        ],
+        "color": "#BEC6CD"
+      },
+      {
+        "id": "usb-base-metalica",
+        "type": "box",
+        "position": [
+          -3.1,
+          0.15,
+          -1.21
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.4,
+          0.16,
+          1.16
+        ],
+        "color": "#AAB4BE"
+      },
+      {
+        "id": "usb-lateral-superior",
+        "type": "box",
+        "position": [
+          -3.1,
+          0.68,
+          -1.75
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.4,
+          0.98,
+          0.12
+        ],
+        "color": "#AAB4BE"
+      },
+      {
+        "id": "usb-lateral-inferior",
+        "type": "box",
+        "position": [
+          -3.1,
+          0.68,
+          -0.67
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.4,
+          0.98,
+          0.12
+        ],
+        "color": "#AAB4BE"
+      },
+      {
+        "id": "usb-fundo",
+        "type": "box",
+        "position": [
+          -2.45,
+          0.68,
+          -1.21
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.1,
+          1.05,
+          1.05
+        ],
+        "color": "#AAB4BE"
+      },
+      {
+        "id": "usb-abertura-frontal",
+        "type": "box",
+        "position": [
+          -3.77,
+          0.68,
+          -1.21
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.02,
+          0.94,
+          0.92
+        ],
+        "color": "#252C32"
+      },
+      {
+        "id": "usb-inserto-interno",
+        "type": "box",
+        "position": [
+          -3.787,
+          0.49,
+          -1.21
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.025,
+          0.25,
+          0.53
+        ],
+        "color": "#C5C6BA"
+      }
+    ]
+  },
+  "groups": [
+    {
+      "partId": "part-000006",
+      "objectIds": [
+        "alimentacao-corpo-retangular",
+        "alimentacao-corpo-cilindrico",
+        "alimentacao-anel-frontal",
+        "alimentacao-abertura-escura"
+      ],
+      "explodeOffset": [
+        2.9336999999999995,
+        1.88595,
+        0
+      ]
+    },
+    {
+      "partId": "part-000007",
+      "objectIds": [
+        "usb-teto-metalico",
+        "usb-base-metalica",
+        "usb-lateral-superior",
+        "usb-lateral-inferior",
+        "usb-fundo",
+        "usb-abertura-frontal",
+        "usb-inserto-interno"
+      ],
+      "explodeOffset": [
+        -2.9336999999999995,
+        1.88595,
+        3.59274631465859e-16
+      ]
+    }
+  ],
+  "createdAt": 1791596153652,
+  "dossierId": "EDAHU7nwYAp5J3IDXWttE",
+  "dossierFingerprint": "35069:ec79ef1e",
+  "selectedPartIds": [
+    "part-000006",
+    "part-000007"
+  ],
+  "geometryBasis": "source",
+  "reusedObjectIds": [
+    "alimentacao-corpo-retangular",
+    "alimentacao-corpo-cilindrico",
+    "alimentacao-anel-frontal",
+    "alimentacao-abertura-escura",
+    "usb-teto-metalico",
+    "usb-base-metalica",
+    "usb-lateral-superior",
+    "usb-lateral-inferior",
+    "usb-fundo",
+    "usb-abertura-frontal",
+    "usb-inserto-interno"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "typesafe-2",
+  "request": "Reorganize as etapas: teste a alimentação antes de comprar outro servo.",
+  "classification": {
+    "choice": "reorganize",
+    "confidence": 0.99,
+    "probabilities": {
+      "reference": 0,
+      "extend": 0.01,
+      "revise": 0,
+      "reorganize": 0.99,
+      "clarify": 0
+    },
+    "model": "jev-1.13.0",
+    "assessedAt": 1791605093101,
+    "rubricVersion": "plan-intake-v1"
+  },
+  "status": "classified",
+  "durationMs": 277
+}

@@ -1,7 +1,10 @@
 // All user-facing strings live here, keyed by component namespace.
 // Add new strings to BOTH `en` and `ptBR` (TypeScript will enforce shape via Messages).
 
+import { workspaceEn, workspacePtBR } from '@/workspace/messages';
+
 export const en = {
+  workspace: workspaceEn,
   common: {
     cancel: 'Cancel',
     save: 'Save',
@@ -26,10 +29,10 @@ export const en = {
     label: 'Language',
   },
   apiKey: {
-    kicker: 'Cellproject',
+    kicker: 'dynamic_diary',
     title: 'Bring your own key.',
     subtitle:
-      'Cellproject is local-first. Your key is saved only in this browser’s IndexedDB — it never passes through any server other than the provider you choose.',
+      'dynamic_diary is local-first. Your key is saved only in this browser’s IndexedDB — it never passes through any server other than the provider you choose.',
     statusConfigured: 'Configured',
     statusConfigure: 'Not set up',
     statusActive: 'In use',
@@ -75,8 +78,10 @@ export const en = {
     removeKeyYes: 'Yes, remove',
   },
   topBar: {
-    viewTutor: 'Tutor',
-    viewGraph: 'Graph',
+    viewTutor: 'Explore',
+    viewGraph: 'Map',
+    viewTutorAria: 'Explore one part at a time',
+    viewGraphAria: 'Map of the parts',
     lensStructure: 'Structure',
     lensFlow: 'Flow',
     lensRisk: 'Risk',
@@ -120,8 +125,10 @@ export const en = {
     reopenArchivedHint: 'archived',
     reopenedArchived: (name: string) => `“${name}” reopened.`,
     // design Mac: anel de progresso da toolbar
-    progressLabel: (done: number, total: number, withProof: number) =>
-      `${done} of ${total} parts resolved, ${withProof} with proof`,
+    progressLabel: (done: number, total: number, withProof: number, assumedKnown = 0) =>
+      `${done} of ${total} parts resolved, ${withProof} with recorded proof${assumedKnown ? `, ${assumedKnown} marked as already known` : ''}. These counts do not measure knowledge.`,
+    progressCompact: (done: number, total: number, withProof: number) =>
+      `${done}/${total} parts · ${withProof} with proof`,
   },
   statusBar: {
     progress: 'Progress',
@@ -133,36 +140,47 @@ export const en = {
     reviewPendingTitle: 'Open the node with suggestions to review',
   },
   objective: {
-    kicker: 'Guided planning',
-    title: 'Start with the objective.',
-    lead: 'The AI proposes complete paths. You pick one and follow it step by step.',
-    projectNameLabel: 'Project name (optional)',
+    approachLabel: 'Where does this plan start?',
+    newCreation: 'New creation',
+    newCreationHint: 'Start with a goal, compare alternatives and define requirements.',
+    reverseEngineering: 'Reverse engineering',
+    reverseEngineeringHint: 'Start with a referenced system and examine its parts and connections.',
+    referenceTargetLabel: 'Which product or system do you want to examine?',
+    referenceOptionalLabel: 'Comparative reference (optional)',
+    referenceTargetPlaceholder: 'Product, model and variant, or describe what is still unknown',
+    referenceTargetHint: 'Attach photos, manuals, specifications or code below. Missing variants and interfaces become questions to investigate.',
+    referenceOptionalHint: 'References can inform the design; their specifications are not automatically specifications of your new project.',
+    approachChanged: 'The starting point or reference changed. Generate alternatives again before using the previous plan.',
+    kicker: 'Plan builder',
+    title: 'What do you want to learn, understand or build?',
+    lead: 'Explore the parts of a plan, make assumptions explicit and compare what you expect with what you observe. Revise what does not hold up.',
+    projectNameLabel: 'Plan name (optional)',
     projectNamePlaceholder: 'leave it empty to use the title of the plan you pick',
-    objectiveLabel: 'What do you want to build or understand?',
-    objectiveHint: 'Be concrete: what, how much, by when.',
+    objectiveLabel: 'Your objective',
+    objectiveHint: 'Describe what you want to discover or do, and where you want to get. Context and constraints help.',
     objectivePlaceholder:
-      'e.g. set up a home compost bin for 2 people’s food scraps, no smell, spending up to $40',
+      'e.g. understand how a 3D printer works, from its parts to the path of the material, so I can identify failures',
     examplesLabel: 'Examples',
     examples: [
       {
-        label: 'herb garden on the balcony',
+        label: 'learn programming logic',
         objective:
-          'grow a small herb garden on my balcony (basil, mint, parsley) that stays alive for 3 months, spending up to $30',
-      },
-      {
-        label: 'automated mini greenhouse',
-        objective:
-          'build a 50×30cm mini greenhouse with a DHT22 humidity sensor, ESP32 and peristaltic pump — auto-irrigates when humidity drops below 60%',
-      },
-      {
-        label: 'home Linux server',
-        objective:
-          'spin up an Ubuntu Server 24.04 box with SSH key-only auth, UFW firewall and Nextcloud running in Docker accessible on the LAN',
+          'learn programming logic from scratch, understand variables, conditions and loops, and apply them in a simple program of my own',
       },
       {
         label: 'understand how a plane flies',
         objective:
           'understand why an airplane can fly — well enough to explain it to someone else without memorized formulas',
+      },
+      {
+        label: 'reverse engineer a coffee maker',
+        objective:
+          'reverse engineer how a coffee maker works: identify its parts, what each one does, and how water and heat move through the system',
+      },
+      {
+        label: 'build automatic irrigation',
+        objective:
+          'build an automatic watering system for three plant pots, understand the role of each part, and test it for a week within a $60 budget',
       },
     ],
     exampleReplaced: 'Example applied in place of your text.',
@@ -231,11 +249,11 @@ export const en = {
     reopenArchivedTitle: 'Your previous project was archived — reopen it',
   },
   tutor: {
-    modeKicker: 'Tutor',
-    focusHint: 'One part at a time: confirm it, or break it down until you can.',
+    modeKicker: 'Explore',
+    focusHint: 'One part at a time: explore, break it down, and record how to check it.',
     rulesLabel: 'Rules',
     rulesTitle: 'Challenge rule — every part must comply',
-    confirmedOf: (done: number, total: number) => `${done}/${total} confirmed`,
+    confirmedOf: (done: number, total: number) => `${done}/${total} parts resolved`,
     nextBadge: 'next pending',
     jumpToNext: (name: string) => `Next pending: ${name}`,
     stepNumber: (n: number) => `step #${n}`,
@@ -245,14 +263,14 @@ export const en = {
     generatingExplain: 'Generating detailed explanation…',
     closeExplain: 'Close detailed explanation',
     viewExplain: 'View detailed explanation',
-    viewInGraph: 'View in graph',
+    viewInGraph: 'View on the map',
     resourcesLeftWarning: 'Heads up',
     resourcesLeftBody: (remaining: number) =>
       `${remaining} resource${remaining === 1 ? '' : 's'} still unconfirmed. You can move on, but ideally gather everything before starting execution.`,
-    projectDoneTitle: 'Project complete',
+    projectDoneTitle: 'Parts resolved',
     projectWalkedTitle: 'Plan walked through',
     projectWalkedBody: (n: number) =>
-      `You confirmed ${n} ${n === 1 ? 'node' : 'nodes'} without an anchor. Revisit them to lock a criterion or verify a real anchor.`,
+      `${n} ${n === 1 ? 'part was' : 'parts were'} confirmed without recorded proof. Reopen them to document a criterion or check a real reference.`,
     confirmedNoAnchor: (n: number) => `${n} confirmed without anchor`,
     decomposeFork: 'Can’t confirm yet → break it into parts',
     decomposeForkConcept: 'Don’t understand it yet → break it into parts',
@@ -265,14 +283,15 @@ export const en = {
     acceptOne: '✓ Accept',
     acceptAll: '✓ Accept all',
     projectDoneBody: (name: string) =>
-      `Every part of ${name} has been confirmed against reality. Check the graph to see the full history.`,
-    emptyTree: 'Nothing actionable yet. Decompose the objective in the graph.',
-    mobileStepsBtn: (done: number, total: number) => `Tree ${done}/${total}`,
-    sheetTitle: 'Project tree',
-    viewGraphShort: 'View graph',
+      `You have worked through every part of ${name}, using your criteria, references or what you marked as already known. Review the records on the map.`,
+    emptyTree: 'No parts to explore yet. Open the map and divide the objective into smaller parts.',
+    mobileStepsBtn: (done: number, total: number) => `Parts ${done}/${total}`,
+    mobileStepsAria: (done: number, total: number) => `Open the map of the parts: ${done} of ${total} resolved`,
+    sheetTitle: 'Map of the parts',
+    viewGraphShort: 'View map',
     ariaConfirm: 'Confirm',
     ariaUnconfirm: 'Undo confirmation',
-    ariaFocus: 'Open this part in the tutor',
+    ariaFocus: 'Explore this part',
     referencesHeader: 'REFERENCES',
     // --- D1: loop do tutor ---
     pendingBanner: (n: number, name: string) =>
@@ -281,7 +300,7 @@ export const en = {
     decomposeBlockedPending: (name: string) => `Review the suggestions in “${name}” first.`,
     decomposeBlockedRunning: (name: string) => `Another breakdown is running in “${name}”.`,
     goThere: 'Go there',
-    decomposeShort: 'Break into parts',
+    decomposeShort: 'Divide into smaller parts',
     decomposingFor: (s: number) => `Breaking down… ${s}s`,
     writingExplain: (s: number) => `Writing the explanation… ${s}s`,
     rejectAll: 'Discard all',
@@ -313,7 +332,7 @@ export const en = {
     knownConcept: 'I already know this',
     knownStep: 'No need to detail (I know how to do it)',
     knownResource: 'No need to detail (I know where to get it)',
-    knownNoProofSub: '“Already know” counts as done, but without proof.',
+    knownNoProofSub: '“Already know” closes this part as known; proof is recorded separately.',
     knownBadge: 'already known',
     reopenKnown: 'Reopen',
     undoConfirm: 'Undo confirmation',
@@ -323,7 +342,7 @@ export const en = {
     proveNow: 'Prove now',
     writeCriterionBtn: 'Write my criterion',
     planReplaced: 'Replanned after the failure: the text below is from the old plan — the new plan is in the sub-parts.',
-    attestBtn: 'Say if it was met',
+    attestBtn: 'Record observed result',
     resolvedBySubparts: 'This part is resolved by its sub-parts — the criterion and the proof live in each of them.',
     breadcrumbAria: 'Where this part sits',
     failedInPractice: 'Did it fail in practice?',
@@ -331,10 +350,10 @@ export const en = {
     toastDone: (name: string) => `${name} done (with proof)`,
     toastNoProof: (name: string) => `${name} confirmed without proof. You can come back later`,
     toastKnown: (name: string) => `${name} marked as already known`,
-    toastKnownNoProof: (name: string) => `${name}: counts as done, but without proof`,
+    toastKnownNoProof: (name: string) => `${name} marked as already known, without proof`,
     toastPicked: (label: string) => `Picked “${label}” (with proof)`,
     toastPickedNoProof: (label: string) => `Picked “${label}” without proof. You can come back later`,
-    withoutProofTitle: 'Done without proof — open one to prove it:',
+    withoutProofTitle: 'Resolved without proof — open one to record it:',
     aiBusy: 'AI working on this part',
     readingMode: 'Open reading mode — full screen',
     blockedRow: 'blocked',
@@ -397,7 +416,7 @@ export const en = {
     blockedHint: 'Confirm the previous step before this one.',
     markKnown: '⊢ Mark as axiom / already known',
     knownUndo: '⊢ Known — reopen to decompose',
-    decompose: 'Break into parts',
+    decompose: 'Divide into smaller parts',
     decomposing: 'Decomposing…',
     pendingHint: 'Resolve pending suggestions first',
     deleteNode: 'Delete part',
@@ -443,8 +462,8 @@ export const en = {
     confirmedNoProofToast: (name: string) => `“${name}” confirmed without proof.`,
     markedKnownToast: (name: string) => `“${name}” marked as already known.`,
     notesAndHistory: (n: number) => `Notes and history (${n})`,
-    workInTutor: 'Work on this in the tutor',
-    workInTutorShort: 'Open in tutor',
+    workInTutor: 'Explore this part step by step',
+    workInTutorShort: 'Explore this part',
     summaryProgress: (done: number, total: number) => `${done} of ${total} parts resolved`,
     summaryNoProof: (n: number) => `${n} resolved without proof`,
     summaryNext: 'Next',
@@ -456,6 +475,12 @@ export const en = {
   },
   graph: {
     tidy: 'Tidy tree',
+    layoutMode: 'Graph orientation',
+    layoutAuto: 'Automatic',
+    layoutHorizontal: 'Horizontal',
+    layoutVertical: 'Vertical',
+    layoutManual: 'Manual',
+    layoutHint: 'Automatically arrange and fit the graph to the available space. Drag a card to switch to Manual.',
     tidyTitle: 'Recompute positions as a clean tree (you can still drag after)',
     legend: 'Legend',
     legendDecomposition: 'decomposition (parent → part)',
@@ -497,6 +522,8 @@ export const en = {
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
     fitAll: 'Show the whole graph',
+    maximizeCanvas: 'Maximize canvas',
+    restoreCanvas: 'Restore canvas (Esc)',
     zoomGroup: 'Zoom',
     // correção rodada 1
     flowResources: 'Resources and concepts',
@@ -530,19 +557,23 @@ export const en = {
       `AI estimate: ${level === 'high' ? 'high' : level === 'mid' ? 'medium' : 'low'} confidence`,
   },
   groundTruth: {
-    sectionTitle: 'How to know it worked',
-    howToConfirm: 'How you will know it worked',
-    yourCriterion: 'Your criterion',
+    sectionTitle: 'Check and revise',
+    checkCycle: 'Prediction and criterion → test and observation → review any divergence.',
+    howToConfirm: 'How you will check this part',
+    yourCriterion: 'Prediction and criterion',
+    testFocus: (name: string) => `Part to check: “${name}”.`,
+    criterionHelp: 'Before testing, identify the assumption or step you want to check. State the expected result, the test conditions and how you will compare the observation with your criterion.',
     locked: 'Locked',
     criterionPlaceholder:
-      'How would you know this part is done? Write yours before seeing the AI’s.',
+      'I expect… Under these conditions… I will compare… Write yours before seeing the AI’s.',
     criterionPlaceholderUnderstand:
-      'How would you know you truly understood this? (e.g. "I can re-derive it without the source"). Write yours before seeing the AI’s.',
+      'I expect to explain or apply… Without consulting… I will compare with… Write yours before seeing the AI’s.',
     lockBtn: 'Lock criterion',
-    criterionMet: 'Met',
-    criterionMetPrompt: 'Prove it: what did you observe?',
-    criterionMetPlaceholder: 'e.g. measured 178g, matches the spec',
-    criterionMetBtn: 'Yes, it was met',
+    criterionMet: 'Observed result (reported as met)',
+    criterionMetPrompt: 'Observed result',
+    observationHelp: 'After the test or demonstration, record the actual result, conditions and measurements, and compare them with your criterion. If they differ, use “Report divergence and revise” below.',
+    criterionMetPlaceholder: 'e.g. under the recorded conditions, measured 178 g against the specification; or explained the parts without consulting and checked the explanation',
+    criterionMetBtn: 'Record as meeting my criterion',
     revealAI: 'reveal AI',
     revealAITitle: 'View without locking (not recommended)',
     aiCriterion: 'AI criterion',
@@ -587,11 +618,11 @@ export const en = {
     },
     anchorAIBadge: 'AI',
     anchorRemoveTitle: 'Remove proof',
-    reality: 'Did it fail in practice?',
+    reality: 'Report divergence and revise',
     failed: 'Failed',
-    failedInPractice: 'This went wrong in practice',
+    failedInPractice: 'Report an unexpected result',
     failurePlaceholder:
-      'What happened? Be specific: what broke, the real measurement, symptom, etc.',
+      'What did you expect, and what actually happened? Record the test conditions, measurements or symptoms, and which assumption or step needs review.',
     recordFailure: 'record failure',
     failureContextLabel: 'Failure context',
     replanWithFailure: 'Replan knowing what failed',
@@ -677,7 +708,7 @@ export const en = {
   },
   beta: {
     banner:
-      '⚠ Beta — Cellproject is under active development. Expect rough edges and breaking changes between versions.',
+      '⚠ Beta — dynamic_diary is under active development. Expect rough edges and breaking changes between versions.',
   },
   // Strings the graph store writes into persisted data (node fields, history
   // audit trail). Resolved through t() at write time so the project speaks the
@@ -736,7 +767,7 @@ export const en = {
     fieldLabels: { oQue: 'What it is', porQue: 'Why it is needed' },
     undone: (name: string) => `Undone: last action on "${name}"`,
     importInvalid:
-      'This file is not a Cellproject export (missing rootId, nodes or edges).',
+      'This file is not a dynamic_diary export (missing rootId, nodes or edges).',
     stateLabels: {
       concept: 'concept',
       validated: 'validated',
@@ -925,6 +956,7 @@ export const en = {
 export type Messages = typeof en;
 
 export const ptBR: Messages = {
+  workspace: workspacePtBR,
   common: {
     cancel: 'Cancelar',
     save: 'Salvar',
@@ -949,10 +981,10 @@ export const ptBR: Messages = {
     label: 'Idioma',
   },
   apiKey: {
-    kicker: 'Cellproject',
+    kicker: 'dynamic_diary',
     title: 'Traga sua própria chave (BYOK).',
     subtitle:
-      'Cellproject é local-first. Sua chave fica salva apenas no IndexedDB deste navegador — nunca passa por nenhum servidor além do provider que você escolheu.',
+      'dynamic_diary é local-first. Sua chave fica salva apenas no IndexedDB deste navegador — nunca passa por nenhum servidor além do provider que você escolheu.',
     statusConfigured: 'Configurado',
     statusConfigure: 'Não configurado',
     statusActive: 'Em uso',
@@ -998,8 +1030,10 @@ export const ptBR: Messages = {
     removeKeyYes: 'Sim, remover',
   },
   topBar: {
-    viewTutor: 'Tutor',
-    viewGraph: 'Grafo',
+    viewTutor: 'Explorar',
+    viewGraph: 'Mapa',
+    viewTutorAria: 'Explorar uma parte por vez',
+    viewGraphAria: 'Mapa das partes',
     lensStructure: 'Estrutura',
     lensFlow: 'Fluxo',
     lensRisk: 'Risco',
@@ -1043,8 +1077,10 @@ export const ptBR: Messages = {
     reopenArchivedHint: 'arquivado',
     reopenedArchived: (name: string) => `“${name}” reaberto.`,
     // design Mac: anel de progresso da toolbar
-    progressLabel: (done: number, total: number, withProof: number) =>
-      `${done} de ${total} partes resolvidas, ${withProof} com prova`,
+    progressLabel: (done: number, total: number, withProof: number, assumedKnown = 0) =>
+      `${done} de ${total} partes resolvidas, ${withProof} com prova registrada${assumedKnown ? `, ${assumedKnown} marcadas como já conhecidas` : ''}. Esses números não medem conhecimento.`,
+    progressCompact: (done: number, total: number, withProof: number) =>
+      `${done}/${total} partes · ${withProof} com prova`,
   },
   statusBar: {
     progress: 'Progresso',
@@ -1057,36 +1093,47 @@ export const ptBR: Messages = {
     reviewPendingTitle: 'Abrir o nó com sugestões para revisar',
   },
   objective: {
-    kicker: 'Planejamento guiado',
-    title: 'Comece pelo objetivo.',
-    lead: 'A IA propõe caminhos completos. Você escolhe um e vai seguindo passo a passo.',
-    projectNameLabel: 'Nome do projeto (opcional)',
+    approachLabel: 'De onde parte este plano?',
+    newCreation: 'Criação nova',
+    newCreationHint: 'Parta de um objetivo, compare alternativas e defina requisitos.',
+    reverseEngineering: 'Engenharia reversa',
+    reverseEngineeringHint: 'Parta de um sistema de referência e examine suas partes e conexões.',
+    referenceTargetLabel: 'Qual produto ou sistema você quer examinar?',
+    referenceOptionalLabel: 'Referência para comparar (opcional)',
+    referenceTargetPlaceholder: 'Produto, modelo e variante, ou descreva o que ainda não sabe',
+    referenceTargetHint: 'Anexe fotos, manuais, especificações ou código abaixo. Variantes e interfaces indefinidas viram perguntas a investigar.',
+    referenceOptionalHint: 'As referências ajudam a pensar o projeto; suas especificações não se tornam automaticamente as do seu projeto novo.',
+    approachChanged: 'O ponto de partida ou a referência mudou. Gere alternativas novamente antes de usar o plano anterior.',
+    kicker: 'Construtor de planos',
+    title: 'O que você quer aprender, compreender ou construir?',
+    lead: 'Explore as partes de um plano, explicite premissas e confronte o que espera com o que observa. Revise o que não se sustentar.',
+    projectNameLabel: 'Nome do plano (opcional)',
     projectNamePlaceholder: 'se deixar vazio, usamos o título do plano escolhido',
-    objectiveLabel: 'O que você quer construir ou entender?',
-    objectiveHint: 'Seja concreto: o quê, quanto, até quando.',
+    objectiveLabel: 'Seu objetivo',
+    objectiveHint: 'Descreva o que quer descobrir ou fazer e onde quer chegar. Contexto e limites ajudam.',
     objectivePlaceholder:
-      'ex: montar uma composteira caseira para o lixo orgânico de 2 pessoas, sem cheiro, gastando até R$ 200',
+      'ex.: compreender como uma impressora 3D funciona, das peças ao caminho do material, para identificar falhas',
     examplesLabel: 'Exemplos',
     examples: [
       {
-        label: 'horta de temperos na varanda',
+        label: 'aprender lógica de programação',
         objective:
-          'montar uma horta de temperos na varanda (manjericão, hortelã, salsinha) que continue viva por 3 meses, gastando até R$ 150',
+          'aprender lógica de programação do zero, compreender variáveis, condições e repetições e aplicar isso em um programa simples feito por mim',
       },
       {
-        label: 'mini estufa automatizada',
+        label: 'compreender como um avião voa',
         objective:
-          'construir uma mini estufa 50×30cm com sensor DHT22 de umidade, ESP32 e bomba peristáltica — irriga sozinha quando a umidade cai abaixo de 60%',
+          'compreender por que um avião consegue voar — a ponto de explicar para outra pessoa sem decorar fórmulas',
       },
       {
-        label: 'servidor Linux em casa',
+        label: 'engenharia reversa de uma cafeteira',
         objective:
-          'subir um Ubuntu Server 24.04 com SSH só por chave pública, firewall UFW e Nextcloud rodando em Docker, acessível na rede de casa',
+          'fazer engenharia reversa do funcionamento de uma cafeteira: identificar suas partes, o papel de cada uma e como água e calor percorrem o sistema',
       },
       {
-        label: 'entender como um avião voa',
+        label: 'construir uma irrigação automática',
         objective:
-          'entender por que um avião consegue voar — a ponto de explicar para outra pessoa sem decorar fórmulas',
+          'construir uma irrigação automática para três vasos, compreender a função de cada parte e testar por uma semana com orçamento de até R$ 300',
       },
     ],
     exampleReplaced: 'Exemplo aplicado no lugar do seu texto.',
@@ -1155,13 +1202,13 @@ export const ptBR: Messages = {
     reopenArchivedTitle: 'Seu projeto anterior foi arquivado — reabrir',
   },
   tutor: {
-    modeKicker: 'Tutor',
+    modeKicker: 'Explorar',
     focusHint:
-      'Uma parte por vez: confirme, ou decomponha até conseguir confirmar.',
+      'Uma parte por vez: explore, divida e registre como verificar.',
     rulesLabel: 'Regras',
     rulesTitle: 'Regra do desafio — toda parte precisa respeitar',
     confirmedOf: (done: number, total: number) =>
-      `${done}/${total} confirmados`,
+      `${done}/${total} partes resolvidas`,
     nextBadge: 'próximo pendente',
     jumpToNext: (name: string) => `Próximo pendente: ${name}`,
     stepNumber: (n: number) => `passo #${n}`,
@@ -1171,16 +1218,16 @@ export const ptBR: Messages = {
     generatingExplain: 'Gerando explicação detalhada…',
     closeExplain: 'Fechar explicação detalhada',
     viewExplain: 'Ver explicação detalhada',
-    viewInGraph: 'Ver no grafo',
+    viewInGraph: 'Ver no mapa',
     resourcesLeftWarning: 'Atenção',
     resourcesLeftBody: (remaining: number) =>
       remaining === 1
         ? 'Ainda falta 1 recurso por confirmar. Você pode seguir mesmo assim, mas o ideal é ter tudo em mãos antes de começar a execução.'
         : `Ainda faltam ${remaining} recursos por confirmar. Você pode seguir mesmo assim, mas o ideal é ter tudo em mãos antes de começar a execução.`,
-    projectDoneTitle: 'Projeto concluído',
+    projectDoneTitle: 'Partes resolvidas',
     projectWalkedTitle: 'Plano percorrido',
     projectWalkedBody: (n: number) =>
-      `Você confirmou ${n} nó${n === 1 ? '' : 's'} sem prova. Volte neles pra travar um critério ou verificar uma prova real.`,
+      `${n} parte${n === 1 ? ' foi confirmada' : 's foram confirmadas'} sem prova registrada. Reabra para documentar um critério ou conferir uma referência real.`,
     confirmedNoAnchor: (n: number) => `${n} confirmado${n === 1 ? '' : 's'} sem prova`,
     decomposeFork: 'Não dá pra confirmar ainda → decompor em partes',
     decomposeForkConcept: 'Ainda não entendi → decompor em partes',
@@ -1193,14 +1240,15 @@ export const ptBR: Messages = {
     acceptOne: '✓ Aceitar',
     acceptAll: '✓ Aceitar todas',
     projectDoneBody: (name: string) =>
-      `Cada parte de ${name} foi confirmada contra a realidade. Olha o grafo pra ver o histórico completo.`,
-    emptyTree: 'Nada acionável ainda. Decomponha o objetivo no grafo.',
-    mobileStepsBtn: (done: number, total: number) => `Árvore ${done}/${total}`,
-    sheetTitle: 'Árvore do projeto',
-    viewGraphShort: 'Ver grafo',
+      `Você percorreu todas as partes de ${name}, usando seus critérios, referências ou o que marcou como já conhecido. Revise os registros no mapa.`,
+    emptyTree: 'Ainda não há partes para explorar. Abra o mapa e divida o objetivo em partes menores.',
+    mobileStepsBtn: (done: number, total: number) => `Partes ${done}/${total}`,
+    mobileStepsAria: (done: number, total: number) => `Abrir mapa das partes: ${done} de ${total} resolvidas`,
+    sheetTitle: 'Mapa das partes',
+    viewGraphShort: 'Ver mapa',
     ariaConfirm: 'Confirmar',
     ariaUnconfirm: 'Desfazer confirmação',
-    ariaFocus: 'Abrir esta parte no tutor',
+    ariaFocus: 'Explorar esta parte',
     referencesHeader: 'REFERÊNCIAS',
     // --- D1: loop do tutor ---
     pendingBanner: (n: number, name: string) =>
@@ -1209,7 +1257,7 @@ export const ptBR: Messages = {
     decomposeBlockedPending: (name: string) => `Revise antes as sugestões em “${name}”.`,
     decomposeBlockedRunning: (name: string) => `Outra quebra está em andamento em “${name}”.`,
     goThere: 'Ir pra lá',
-    decomposeShort: 'Quebrar em partes',
+    decomposeShort: 'Dividir em partes menores',
     decomposingFor: (s: number) => `Quebrando… ${s}s`,
     writingExplain: (s: number) => `Escrevendo a explicação… ${s}s`,
     rejectAll: 'Descartar todas',
@@ -1241,7 +1289,7 @@ export const ptBR: Messages = {
     knownConcept: 'Já sei isso',
     knownStep: 'Não preciso detalhar (já sei fazer)',
     knownResource: 'Não preciso detalhar (sei onde conseguir)',
-    knownNoProofSub: '“Já sei” conta como feito, mas sem prova.',
+    knownNoProofSub: '“Já sei” encerra esta parte como conhecida; a prova é registrada à parte.',
     knownBadge: 'já sei',
     reopenKnown: 'Reabrir',
     undoConfirm: 'Desfazer confirmação',
@@ -1251,7 +1299,7 @@ export const ptBR: Messages = {
     proveNow: 'Comprovar agora',
     writeCriterionBtn: 'Escrever meu critério',
     planReplaced: 'Replanejada depois da falha: o texto abaixo é do plano antigo — o plano novo está nas sub-partes.',
-    attestBtn: 'Dizer se foi atendido',
+    attestBtn: 'Registrar resultado observado',
     resolvedBySubparts: 'Esta parte se resolve pelas sub-partes — o critério e a prova ficam em cada uma delas.',
     breadcrumbAria: 'Onde esta parte fica',
     failedInPractice: 'Deu errado na prática?',
@@ -1259,10 +1307,10 @@ export const ptBR: Messages = {
     toastDone: (name: string) => `${name} concluído (com prova)`,
     toastNoProof: (name: string) => `${name} confirmado sem prova. Você pode voltar depois`,
     toastKnown: (name: string) => `${name} marcado como “já sei”`,
-    toastKnownNoProof: (name: string) => `${name}: conta como feito, mas sem prova`,
+    toastKnownNoProof: (name: string) => `${name} marcado como “já sei”, sem prova`,
     toastPicked: (label: string) => `Escolhido “${label}” (com prova)`,
     toastPickedNoProof: (label: string) => `Escolhido “${label}” sem prova. Você pode voltar depois`,
-    withoutProofTitle: 'Concluídos sem prova — abra um para comprovar:',
+    withoutProofTitle: 'Resolvidas sem prova — abra uma para registrar:',
     aiBusy: 'IA trabalhando nesta parte',
     readingMode: 'Abrir modo leitura — tela cheia',
     blockedRow: 'bloqueado',
@@ -1325,7 +1373,7 @@ export const ptBR: Messages = {
     blockedHint: 'Confirme o passo anterior antes deste.',
     markKnown: '⊢ Marcar como axioma / já sei',
     knownUndo: '⊢ Sabido — reabrir pra decompor',
-    decompose: 'Quebrar em partes',
+    decompose: 'Dividir em partes menores',
     decomposing: 'Decompondo…',
     pendingHint: 'Resolva sugestões pendentes',
     deleteNode: 'Excluir parte',
@@ -1371,8 +1419,8 @@ export const ptBR: Messages = {
     confirmedNoProofToast: (name: string) => `“${name}” confirmado sem prova.`,
     markedKnownToast: (name: string) => `“${name}” marcado como já sei.`,
     notesAndHistory: (n: number) => `Notas e histórico (${n})`,
-    workInTutor: 'Trabalhar isto no tutor',
-    workInTutorShort: 'Abrir no tutor',
+    workInTutor: 'Explorar esta parte passo a passo',
+    workInTutorShort: 'Explorar esta parte',
     summaryProgress: (done: number, total: number) => `${done} de ${total} partes resolvidas`,
     summaryNoProof: (n: number) => `${n} resolvida${n === 1 ? '' : 's'} sem prova`,
     summaryNext: 'Próximo',
@@ -1384,6 +1432,12 @@ export const ptBR: Messages = {
   },
   graph: {
     tidy: 'Organizar árvore',
+    layoutMode: 'Orientação do grafo',
+    layoutAuto: 'Automático',
+    layoutHorizontal: 'Horizontal',
+    layoutVertical: 'Vertical',
+    layoutManual: 'Manual',
+    layoutHint: 'Organiza e enquadra o grafo conforme o espaço disponível. Arraste um bloco para entrar no modo Manual.',
     tidyTitle: 'Recalcula as posições como uma árvore limpa (dá pra arrastar depois)',
     legend: 'Legenda',
     legendDecomposition: 'decomposição (pai → parte)',
@@ -1425,6 +1479,8 @@ export const ptBR: Messages = {
     zoomIn: 'Aproximar',
     zoomOut: 'Afastar',
     fitAll: 'Ver o grafo inteiro',
+    maximizeCanvas: 'Maximizar canvas',
+    restoreCanvas: 'Restaurar canvas (Esc)',
     zoomGroup: 'Zoom',
     // correção rodada 1
     flowResources: 'Recursos e conceitos',
@@ -1458,19 +1514,23 @@ export const ptBR: Messages = {
       `Estimativa da IA: confiança ${level === 'high' ? 'alta' : level === 'mid' ? 'média' : 'baixa'}`,
   },
   groundTruth: {
-    sectionTitle: 'Como saber que deu certo',
-    howToConfirm: 'Como você vai saber que deu certo',
-    yourCriterion: 'Seu critério',
+    sectionTitle: 'Verificar e revisar',
+    checkCycle: 'Previsão e critério → ensaio e observação → revisão das divergências.',
+    howToConfirm: 'Como você vai verificar esta parte',
+    yourCriterion: 'Previsão e critério',
+    testFocus: (name: string) => `Parte a verificar: “${name}”.`,
+    criterionHelp: 'Antes de testar, delimite a premissa ou etapa que quer verificar. Indique o resultado esperado, as condições do teste e como vai comparar o observado com seu critério.',
     locked: 'Travado',
     criterionPlaceholder:
-      'Como você saberia que esta parte está concluída? Escreva antes de ver o da IA.',
+      'Espero que… Nestas condições… Vou comparar… Escreva antes de ver o da IA.',
     criterionPlaceholderUnderstand:
-      'Como você saberia que entendeu isso de verdade? (ex: "consigo rederivar sem olhar a fonte"). Escreva antes de ver o da IA.',
+      'Espero conseguir explicar ou aplicar… Sem consultar… Vou comparar com… Escreva antes de ver o da IA.',
     lockBtn: 'Travar critério',
-    criterionMet: 'Atendido',
-    criterionMetPrompt: 'Comprove: o que você observou?',
-    criterionMetPlaceholder: 'ex: medi 178g, bate com a especificação',
-    criterionMetBtn: 'Sim, foi atendido',
+    criterionMet: 'Resultado observado (declarado como atendido)',
+    criterionMetPrompt: 'Resultado observado',
+    observationHelp: 'Após o teste ou demonstração, registre o resultado real, as condições e as medidas, e compare com seu critério. Se houver divergência, use “Relatar divergência e revisar” abaixo.',
+    criterionMetPlaceholder: 'ex.: nas condições registradas, medi 178 g e comparei com a especificação; ou expliquei as partes sem consultar e conferi a explicação',
+    criterionMetBtn: 'Registrar como atendido',
     revealAI: 'revelar IA',
     revealAITitle: 'Ver sem travar (não recomendado)',
     aiCriterion: 'Critério da IA',
@@ -1515,11 +1575,11 @@ export const ptBR: Messages = {
     },
     anchorAIBadge: 'IA',
     anchorRemoveTitle: 'Remover prova',
-    reality: 'Deu errado na prática?',
+    reality: 'Relatar divergência e revisar',
     failed: 'Falhou',
-    failedInPractice: 'Isto deu errado na prática',
+    failedInPractice: 'Relatar resultado diferente do esperado',
     failurePlaceholder:
-      'O que aconteceu? Seja específico: o que quebrou, medida real, sintoma, etc.',
+      'O que você esperava e o que aconteceu de fato? Registre as condições do teste, medidas ou sintomas e qual premissa ou etapa precisa ser revista.',
     recordFailure: 'registrar falha',
     failureContextLabel: 'Contexto da falha',
     replanWithFailure: 'Replanejar sabendo do que falhou',
@@ -1605,7 +1665,7 @@ export const ptBR: Messages = {
   },
   beta: {
     banner:
-      '⚠ Beta — Cellproject está em desenvolvimento ativo. Espere arestas brutas e mudanças quebradoras entre versões.',
+      '⚠ Beta — dynamic_diary está em desenvolvimento ativo. Espere arestas brutas e mudanças quebradoras entre versões.',
   },
   store: {
     projectFallbackName: 'Projeto',
@@ -1662,7 +1722,7 @@ export const ptBR: Messages = {
     fieldLabels: { oQue: 'O que é', porQue: 'Por que precisa' },
     undone: (name: string) => `Desfeito: última ação em "${name}"`,
     importInvalid:
-      'Este arquivo não é uma exportação do Cellproject (faltam rootId, nodes ou edges).',
+      'Este arquivo não é uma exportação do dynamic_diary (faltam rootId, nodes ou edges).',
     stateLabels: {
       concept: 'conceito',
       validated: 'validado',

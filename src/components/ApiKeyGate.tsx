@@ -12,7 +12,6 @@ import {
 import { useT, type Messages } from '@/i18n';
 import { useGraphStore } from '@/store';
 import { Modal } from './ui/Modal';
-import { Logo } from './Logo';
 import { LanguageToggle } from './LanguageToggle';
 
 const PROVIDERS: Provider[] = ['openrouter', 'openai', 'anthropic'];
@@ -42,15 +41,18 @@ interface Props {
   onClose?: () => void;
   // Abre já com "Avançado" expandido (ex.: vindo de "Trocar modelo").
   initialAdvanced?: boolean;
+  title?: ReactNode;
+  preferences?: ReactNode;
 }
 
-export function ApiKeyGate({ onClose, initialAdvanced = false }: Props) {
+export function ApiKeyGate({ onClose, initialAdvanced = false, title, preferences }: Props) {
   const tr = useT();
 
   // Aberto por cima de outra tela (TopBar, tela de objetivo): sheet de Ajustes.
   if (onClose) {
     return (
-      <Modal open onClose={onClose} title={tr.apiKey.modalTitle} className="max-w-xl">
+      <Modal open onClose={onClose} title={title ?? tr.apiKey.modalTitle} className="max-w-xl">
+        {preferences}
         <ConfigForm onClose={onClose} initialAdvanced={initialAdvanced} />
       </Modal>
     );
@@ -72,7 +74,6 @@ function FullScreenGate() {
           {/* Utility row — language picker stays out of the brand line */}
           <div className="flex items-center justify-between gap-3 mb-8">
             <div className="flex items-center gap-2 min-w-0">
-              <Logo size={20} className="text-text-primary shrink-0" />
               <span className="text-control font-semibold text-text-primary truncate">
                 {tr.apiKey.kicker}
               </span>

@@ -4,6 +4,7 @@ import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
 import { nanoid } from 'nanoid';
 import { t } from '@/i18n';
 import { classifyAIError, type AIErrorInfo } from '@/ai/service';
+import { readRateLimit } from '@/ai/rateLimit';
 import type {
   KBContextEntry,
   KBContextResult,
@@ -13,7 +14,7 @@ import type {
   KBPickMode,
   KBUsedDoc,
 } from './types';
-import { pickRelevantDocs, summarizeDocument, toContextEntries, type PickContext } from './service';
+import { pickRelevantDocs, summarizeDocument, toContextEntries, type PickContext, type KBRequestOptions } from './service';
 
 type IngestPhase = 'extracting' | 'summarizing' | 'done' | 'error';
 
@@ -50,6 +51,12 @@ interface PickCacheEntry {
   at: number;
 }
 
+interface KBContextOptions extends KBRequestOptions {
+  // Chat must stop the entire run after a provider limit instead of continuing
+  // into another planning request with empty knowledge context.
+  throwOnRateLimit?: boolean;
+}
+
 interface KBState {
   docs: Record<string, KBDocument>;
   // Escolhas do juiz de relevância por contexto (objetivo, ou nó com base
@@ -70,13 +77,13 @@ interface KBState {
   // Contexto + quais docs entraram e por quê.
   getContext: (
     ctx: PickContext,
-    opts?: { max?: number; signal?: AbortSignal },
+    opts?: KBContextOptions & { max?: number },
   ) => Promise<KBContextResult>;
   // Wrapper compatível: só as entradas (cada uma com docId/titulo/reason).
   getContextFor: (
     ctx: PickContext,
     max?: number,
-    opts?: { signal?: AbortSignal },
+    opts?: KBContextOptions,
   ) => Promise<KBContextEntry[]>;
 }
 
@@ -337,7 +344,8 @@ export const useKBStore = create<KBState>()(
 
         getContext: async (ctx, opts = {}) => {
           const max = opts.max ?? 2;
-          const docs = Object.values(get().docs).sort((a, b) => b.extractedAt - a.extractedAt);
+          const docsMap = get().docs;
+          const docs = Object.values(docsMap).sort((a, b) => b.extractedAt - a.extractedAt);
           if (docs.length === 0 || max <= 0) return EMPTY_RESULT;
           if (opts.signal?.aborted) throw abortError();
 
@@ -371,30 +379,37 @@ export const useKBStore = create<KBState>()(
             }
           }
 
-          let pending = inflight.get(key);
+          // A controlled chat request owns its cancellation/retry policy; it
+          // cannot inherit an unrelated UI request already retrying in the SDK.
+          const controlled = !!opts.beforeRequest || opts.maxRetries !== undefined || opts.throwOnRateLimit === true;
+          let pending = controlled ? undefined : inflight.get(key);
           if (!pending) {
             // No modo projeto o juiz vê só o objetivo — a escolha vale pra
             // todos os nós; no modo nó vê também o detalhe.
             const judgeCtx: PickContext =
               mode === 'project' ? { label: ctx.label } : { label: ctx.label, extra: ctx.extra };
-            pending = pickRelevantDocs(judgeCtx, docs, max).then((picks) => {
+            pending = pickRelevantDocs(judgeCtx, docs, max, controlled ? {
+              signal: opts.signal, maxRetries: opts.maxRetries, beforeRequest: opts.beforeRequest,
+            } : undefined).then((picks) => {
               const entry: PickCacheEntry = {
                 ids: picks.map((p) => p.docId),
                 reasons: Object.fromEntries(picks.map((p) => [p.docId, p.reason])),
                 at: Date.now(),
               };
               // Só cacheia se a base não mudou no meio do caminho.
-              if (inflight.get(key) === pending) {
+              if (controlled ? get().docs === docsMap && !opts.signal?.aborted : inflight.get(key) === pending) {
                 set((state) => ({ pickCache: trimCache({ ...state.pickCache, [key]: entry }) }));
               }
               return entry;
             });
-            const mine = pending;
-            inflight.set(key, mine);
-            const cleanup = () => {
-              if (inflight.get(key) === mine) inflight.delete(key);
-            };
-            mine.then(cleanup, cleanup);
+            if (!controlled) {
+              const mine = pending;
+              inflight.set(key, mine);
+              const cleanup = () => {
+                if (inflight.get(key) === mine) inflight.delete(key);
+              };
+              mine.then(cleanup, cleanup);
+            }
           }
 
           let picked: PickCacheEntry;
@@ -402,6 +417,7 @@ export const useKBStore = create<KBState>()(
             picked = await raceAbort(pending, opts.signal);
           } catch (e) {
             if (isAbort(e) || opts.signal?.aborted) throw e;
+            if (opts.throwOnRateLimit && readRateLimit(e)) throw e;
             // A seleção é um extra: se falhar, a ação segue sem a base.
             console.warn('[kb] seleção de docs falhou; seguindo sem a base', e);
             return { entries: [], docs: [], mode: 'none', cached: false };
@@ -415,7 +431,7 @@ export const useKBStore = create<KBState>()(
         },
 
         getContextFor: async (ctx, max = 2, opts = {}) =>
-          (await get().getContext(ctx, { max, signal: opts.signal })).entries,
+          (await get().getContext(ctx, { ...opts, max })).entries,
       };
     },
     {

@@ -1,0 +1,20 @@
+{
+  "id": "typesafe-1",
+  "request": "Adicione ao plano uma etapa de medir a alimentação sob carga.",
+  "classification": {
+    "choice": "extend",
+    "confidence": 0.99,
+    "probabilities": {
+      "reference": 0,
+      "extend": 0.99,
+      "revise": 0.01,
+      "reorganize": 0,
+      "clarify": 0
+    },
+    "model": "jev-1.13.0",
+    "assessedAt": 1791605092822,
+    "rubricVersion": "plan-intake-v1"
+  },
+  "status": "classified",
+  "durationMs": 278
+}

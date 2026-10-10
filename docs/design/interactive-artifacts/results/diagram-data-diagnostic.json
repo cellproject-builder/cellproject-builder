@@ -1,0 +1,9 @@
+{
+  "attempt": 2,
+  "reason": "Diagnose first structured-schema rejection; original sample retained.",
+  "status": "failed",
+  "errorName": "AI_APICallError",
+  "httpStatus": 400,
+  "message": "[Azure] Invalid schema for response_format 'response': [{'type': 'number', 'const': 0}, {'type': 'number', 'const': 0}, {'type': 'number', 'minimum': 100, 'maximum': 1200}, {'type': 'number', 'minimum': 100, 'maximum': 800}] is not of type 'object', 'boolean'.",
+  "durationMs": 805
+}

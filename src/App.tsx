@@ -1,6 +1,6 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
-import { useGraphStore, isDemoProject } from '@/store';
+import { useGraphStore } from '@/store';
 import { setAIUnavailableHandler } from '@/ai/availability';
 import { useConfigStore } from '@/config/store';
 import { useLocaleStore, useT } from '@/i18n';
@@ -11,8 +11,13 @@ import { GraphCanvas } from '@/components/GraphCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
 import { TutorMode } from '@/components/TutorMode';
 import { ApiKeyGate } from '@/components/ApiKeyGate';
-import { Logo } from '@/components/Logo';
+import { PRODUCT_NAME } from '@/brand';
 import { Toaster, toast } from '@/components/ui/Toast';
+import { Workspace } from '@/workspace/Workspace';
+import { useWorkspaceStore } from '@/workspace/store';
+import { PlannerChatDock } from '@/chat/AssistantChatDock';
+import { useChatStore } from '@/chat/store';
+import { useChatReferenceHandoff } from '@/references/chatHandoff';
 // Route-split: the marketing page is only shown on /landing, so app users
 // never download it and /landing visitors don't pull the whole app.
 const LandingPage = lazy(() =>
@@ -21,7 +26,7 @@ const LandingPage = lazy(() =>
 
 // Os stores persistidos hidratam do IndexedDB de forma assíncrona. Antes disso
 // `providers` está vazio e o app piscaria o ApiKeyGate para quem já tem chave.
-const persistedStores = [useGraphStore, useConfigStore, useLocaleStore] as const;
+const persistedStores = [useGraphStore, useConfigStore, useLocaleStore, useWorkspaceStore] as const;
 
 function useStoresHydrated(): boolean {
   const [hydrated, setHydrated] = useState(() =>
@@ -60,6 +65,7 @@ const LENS_KEYS = {
 export function handleAppShortcut(
   e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'target'>,
 ): void {
+  if (useWorkspaceStore.getState().surface !== 'planner') return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (isTypingTarget(e.target)) return;
   // Superfície modal aberta (modo leitura, sheet mobile): atalhos de uma
@@ -83,7 +89,7 @@ function Splash() {
       aria-busy="true"
       aria-label={tr.app.loading}
     >
-      <Logo size={28} className="text-text-muted animate-pulse-subtle" />
+      <span className="text-text-muted animate-pulse-subtle">{PRODUCT_NAME}</span>
     </div>
   );
 }
@@ -92,11 +98,17 @@ export default function App() {
   const hydrated = useStoresHydrated();
   const project = useGraphStore((s) => s.project);
   const viewMode = useGraphStore((s) => s.viewMode);
-  const activeProvider = useConfigStore((s) => s.activeProvider);
-  const providers = useConfigStore((s) => s.providers);
-  const hasKey = activeProvider ? Boolean(providers[activeProvider]?.apiKey) : false;
+  const chatOpen = useChatStore((s) => s.open);
+  const surface = useWorkspaceStore((s) => s.surface);
+  const referenceHandoff = useChatReferenceHandoff((s) => s.pending);
   const tr = useT();
   const [keyModalOpen, setKeyModalOpen] = useState(false);
+  const [maximized, setMaximized] = useState(false);
+  const canvasMaximized = maximized && Boolean(project) && viewMode === 'graph' && surface === 'planner';
+
+  useEffect(() => { setMaximized(false); }, [project?.id, viewMode, surface]);
+  // Explicitly bringing canvas references to chat restores its surrounding UI.
+  useEffect(() => { if (referenceHandoff) setMaximized(false); }, [referenceHandoff?.id]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleAppShortcut);
@@ -104,7 +116,7 @@ export default function App() {
   }, []);
 
   // IA indisponível (demo ou sem chave): toast com CTA em vez do alert()
-  // nativo. Na demo o CTA sai dela (cai na tela de chave); sem chave, abre
+  // nativo. Na demo o CTA volta à entrada do objetivo; sem chave, abre
   // as configurações por cima do projeto.
   useEffect(
     () =>
@@ -134,33 +146,28 @@ export default function App() {
 
   if (!hydrated) return <Splash />;
 
-  // Demo projects bypass the API key gate — user explicitly chose "try without a key".
-  // AI actions are blocked separately at the call sites.
-  const inDemo = isDemoProject(project);
-
   let screen;
-  if (!hasKey && !inDemo) {
-    screen = <ApiKeyGate />;
-  } else if (!project) {
+  if (!project) {
     // As configurações abrem como modal local da ObjectiveScreen, para não
     // desmontar uma geração em andamento.
     screen = <ObjectiveScreen />;
   } else {
     screen = (
       <ReactFlowProvider>
-        <div className="h-[100dvh] w-full flex flex-col overflow-hidden bg-bg-primary">
-          <TopBar />
-          <div className="flex-1 flex min-h-0">
+        <div className="h-full w-full flex flex-col overflow-hidden bg-bg-primary">
+          <div className="planner-chrome"><TopBar /></div>
+          <div className="planner-work-area flex-1 flex min-h-0 min-w-0">
             {viewMode === 'tutor' ? (
               <TutorMode />
             ) : (
               <>
-                <GraphCanvas />
-                <DetailPanel />
+                <GraphCanvas maximized={canvasMaximized} onToggleMaximized={() => setMaximized(value => !value)} />
+                <DetailPanel suspended={chatOpen || canvasMaximized} />
+                <PlannerChatDock />
               </>
             )}
           </div>
-          <StatusBar />
+          <div className="planner-chrome"><StatusBar /></div>
         </div>
       </ReactFlowProvider>
     );
@@ -168,10 +175,10 @@ export default function App() {
 
   return (
     <>
-      {screen}
+      <Workspace planner={screen} canvasMaximized={canvasMaximized} />
       {keyModalOpen && <ApiKeyGate onClose={() => setKeyModalOpen(false)} />}
       {/* No tutor a barra de ações é fixa embaixo: o toast sobe pra não cobri-la. */}
-      <Toaster raised={Boolean(project) && viewMode === 'tutor'} />
+      <Toaster raised={useWorkspaceStore.getState().surface === 'planner' && Boolean(project) && viewMode === 'tutor'} />
     </>
   );
 }

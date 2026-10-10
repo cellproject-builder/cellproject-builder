@@ -1,6 +1,8 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
+import { createVisualHandler } from './server/handler.mjs';
+import { pwaBuildPlugin } from './src/pwa/buildPlugin';
 
 export default defineConfig(({ command, mode }) => {
   // Dev-only: OPENROUTER do .env pré-popula a chave no IndexedDB pra quem
@@ -13,7 +15,15 @@ export default defineConfig(({ command, mode }) => {
       : '';
 
   return {
-    plugins: [react()],
+    plugins: [react(), pwaBuildPlugin(), {
+      name: 'local-visual-gateway',
+      configureServer(server) {
+        server.middlewares.use(createVisualHandler({
+          local: true,
+          typesafeKey: env.TYPESAFE_API_KEY || env.TYPESAFE || '',
+        }));
+      },
+    }],
     define: {
       __DEV_OPENROUTER_KEY__: JSON.stringify(devKey),
     },
@@ -24,6 +34,8 @@ export default defineConfig(({ command, mode }) => {
     },
     server: {
       port: 5173,
+      // Saved design reference pages are not app inputs and can be locked by Windows.
+      watch: { ignored: (filePath) => /\/docs\/design(?:\/|$)/.test(filePath.replaceAll('\\', '/')) },
     },
     build: {
       rollupOptions: {
@@ -35,6 +47,7 @@ export default defineConfig(({ command, mode }) => {
             if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'react';
             if (id.includes('@xyflow')) return 'xyflow';
             if (id.includes('pdfjs-dist')) return 'pdf';
+            if (/[\\/]node_modules[\\/]three[\\/]/.test(id)) return 'three';
             if (/[\\/]node_modules[\\/](ai|@ai-sdk|@openrouter)[\\/]/.test(id)) return 'ai-sdk';
             if (/[\\/]node_modules[\\/]zod[\\/]/.test(id)) return 'zod';
           },

@@ -37,6 +37,9 @@ import {
   GroundTruthRefsList,
   FailureSection,
 } from './GroundTruth';
+import './DetailPanel.css';
+import { NodeFileSources } from '@/attachments/NodeFileSources';
+import { normalizePlanningIntent } from '@/planningIntent';
 
 // Até 15 nomes que o usuário já sabe/fez — a IA não repete esses passos.
 const knownElsewhereFor = (project: Project, nodeId: string): string[] =>
@@ -73,7 +76,7 @@ const undoToast = (message: string, tr: Messages) =>
     },
   });
 
-export function DetailPanel() {
+export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
   const tr = useT();
   const project = useGraphStore((s) => s.project);
   const selectedId = useGraphStore((s) => s.selectedNodeId);
@@ -135,7 +138,7 @@ export function DetailPanel() {
 
   // O grafo precisa saber se o sheet cobre a metade de baixo (enquadramento).
   const setMobileSheetOpen = useGraphStore((s) => s.setMobileSheetOpen);
-  const sheetOpen = isMobile && !!node && !drawerDismissed;
+  const sheetOpen = isMobile && !!node && !drawerDismissed && !suspended;
   useEffect(() => {
     setMobileSheetOpen(sheetOpen);
   }, [sheetOpen, setMobileSheetOpen]);
@@ -156,6 +159,7 @@ export function DetailPanel() {
         {
           projectName: p.name,
           projectObjective: p.objective,
+          ...normalizePlanningIntent(p),
           breadcrumb: breadcrumbFor(p, n.id).map((c) => c.name),
           nodeName: n.name,
           nodeKind: n.kind,
@@ -194,6 +198,7 @@ export function DetailPanel() {
         {
           projectName: p.name,
           projectObjective: p.objective,
+          ...normalizePlanningIntent(p),
           breadcrumb: breadcrumbFor(p, n.id).map((c) => c.name),
           nodeName: n.name,
           nodeKind: n.kind,
@@ -230,13 +235,15 @@ export function DetailPanel() {
       return <CollapsedRail onExpand={() => setPanelOpen(true)} label={tr.detail.expandPanel} />;
     }
     return (
-      <aside className="hidden md:flex md:w-[280px] lg:w-[380px] shrink-0 border-l border-border-base/70 bg-bg-secondary flex-col">
+      <aside className="planner-detail-panel hidden md:flex shrink-0 border-l border-border-base/70 bg-bg-secondary flex-col">
         <PanelTopBar onCollapse={() => setPanelOpen(false)} label={tr.detail.collapsePanel} />
-        {project ? (
-          <ProjectSummary project={project} tr={tr} />
-        ) : (
-          <div className="px-4 py-3 text-text-muted text-control">{tr.detail.noSelection}</div>
-        )}
+        <div className="planner-detail-content planner-detail-scroll flex-1 min-h-0 overflow-y-auto scroll-stable">
+          {project ? (
+            <ProjectSummary project={project} tr={tr} />
+          ) : (
+            <div className="px-4 py-3 text-text-muted text-control">{tr.detail.noSelection}</div>
+          )}
+        </div>
       </aside>
     );
   }
@@ -424,8 +431,8 @@ export function DetailPanel() {
   // -------------------------------------------------------------------------
 
   const header = (
-    <div className="px-4 pt-3 pb-3.5 border-b border-border-base/70">
-      <div className="flex items-center gap-2 mb-1.5 min-h-[24px]">
+    <div className="planner-detail-header shrink-0 px-4 pt-3 pb-3.5 border-b border-border-base/70">
+      <div className="flex flex-wrap items-center gap-2 mb-1.5 min-h-[24px]">
         <span className="inline-flex items-center gap-1.5 text-footnote text-text-muted">
           <span aria-hidden className="text-text-faint">
             {KIND_ICON[node.kind]}
@@ -433,7 +440,7 @@ export function DetailPanel() {
           {tr.conceptNode[node.kind]}
         </span>
         {stepNo !== null && <span className="text-footnote tabular-nums text-text-faint">#{stepNo}</span>}
-        <span className="ml-auto flex items-center gap-1.5">
+        <span className="planner-detail-status ml-auto flex min-w-0 flex-wrap justify-end items-center gap-1.5">
           {blocked && !node.confirmado && <span className="chip">{tr.detail.blocked}</span>}
           {node.state === 'done' ? (
             <span className="chip bg-state-done/12 text-state-done">{tr.detail.confirmed}</span>
@@ -652,12 +659,12 @@ export function DetailPanel() {
               {project.rules!.map((r) => (
                 <span
                   key={r}
-                  className="chip !h-6 !pr-0.5 !text-footnote !font-normal"
+                  className="planner-detail-rule chip !pr-0.5 !text-footnote !font-normal"
                 >
-                  {r}
+                  <span className="planner-detail-rule-text">{r}</span>
                   <button
                     onClick={() => removeRule(r)}
-                    className="tap w-5 h-5 inline-flex items-center justify-center rounded-[4px] text-text-faint hover:text-state-problem hover:bg-bg-secondary transition-colors duration-120 ease-mac"
+                    className="tap w-5 h-5 shrink-0 inline-flex items-center justify-center rounded-[4px] text-text-faint hover:text-state-problem hover:bg-bg-secondary transition-colors duration-120 ease-mac"
                     aria-label={tr.common.remove}
                   >
                     ×
@@ -766,7 +773,7 @@ export function DetailPanel() {
           edited. Raiz/categoria têm 100 fixo — não mostramos. */}
       {!structural && (
         <section className="px-4 py-3.5 border-b border-border-base/70">
-          <div className="flex items-baseline gap-2 mb-1.5">
+          <div className="flex flex-wrap items-baseline gap-2 mb-1.5">
             <span className="label">{tr.detail.confidence}</span>
             {node.confidenceSource && (
               <span className="chip !h-[18px]">{tr.detail.confidenceSourceLabel[node.confidenceSource]}</span>
@@ -809,6 +816,7 @@ export function DetailPanel() {
         <div className="px-4 pb-4 space-y-4">
           <div>
             <div className="label mb-1.5">{tr.detail.notes}</div>
+            <NodeFileSources ids={node.sourceAttachmentIds} />
             <NotesField
               key={node.id}
               value={node.notes}
@@ -893,7 +901,7 @@ export function DetailPanel() {
           <div className="text-footnote text-conf-mid text-center">
             {tr.detail.confirmHintNoSignal}
           </div>
-          <div className="flex gap-2">
+          <div className="planner-detail-actions">
             <button
               onClick={doConfirm}
               className="tap btn btn-secondary !h-8 flex-1 !text-conf-mid"
@@ -909,7 +917,7 @@ export function DetailPanel() {
           </div>
         </div>
       ) : (
-        <div className="flex gap-2">
+        <div className="planner-detail-actions">
           {primaryIsConfirm && confirmGate === 'failure' ? (
             <button
               onClick={goToFailure}
@@ -937,7 +945,7 @@ export function DetailPanel() {
               // Mesmo rótulo do tutor: sem prova, o rodapé leva ao critério;
               // "Confirmar sem prova…" fica no menu "…" do painel.
               <button onClick={goToCriterion} className="tap btn btn-secondary !h-8 flex-1 min-w-0">
-                <span className="truncate">
+                <span>
                   {conclude.missingKeys.includes('criterionNotLocked')
                     ? tr.tutor.writeCriterionBtn
                     : tr.tutor.attestBtn}
@@ -955,7 +963,7 @@ export function DetailPanel() {
   if (isMobile) {
     return (
       <MobileSheet
-        open={!drawerDismissed}
+        open={sheetOpen}
         onOpenChange={(o) => {
           if (!o) {
             setDrawerDismissed(true);
@@ -966,11 +974,13 @@ export function DetailPanel() {
           }
         }}
         title={node.name || tr.detail.sheetFallbackTitle}
-        footer={footer}
+        footer={<div className="planner-detail-footer">{footer}</div>}
         titleHidden
       >
-        {header}
-        {body}
+        <div className="planner-detail-content planner-detail-sheet">
+          {header}
+          {body}
+        </div>
       </MobileSheet>
     );
   }
@@ -982,11 +992,11 @@ export function DetailPanel() {
   }
 
   return (
-    <aside className="hidden md:flex md:w-[280px] lg:w-[380px] shrink-0 border-l border-border-base/70 bg-bg-secondary flex-col overflow-hidden">
+    <aside className="planner-detail-panel hidden md:flex shrink-0 border-l border-border-base/70 bg-bg-secondary flex-col">
       <PanelTopBar onCollapse={() => setPanelOpen(false)} label={tr.detail.collapsePanel} />
       {header}
-      <div className="flex-1 min-h-0 overflow-y-auto scroll-stable">{body}</div>
-      <div className="shrink-0 px-4 py-3 border-t border-border-base/70 bg-bg-secondary">{footer}</div>
+      <div className="planner-detail-content planner-detail-scroll flex-1 min-h-0 overflow-y-auto scroll-stable">{body}</div>
+      <div className="planner-detail-footer shrink-0 px-4 py-3 border-t border-border-base/70 bg-bg-secondary">{footer}</div>
     </aside>
   );
 }
@@ -1339,7 +1349,7 @@ function PanelTopBar({ onCollapse, label }: { onCollapse: () => void; label: str
 function CollapsedRail({ onExpand, label }: { onExpand: () => void; label: string }) {
   const tr = useT();
   return (
-    <aside className="hidden md:flex w-10 shrink-0 border-l border-border-base/70 bg-bg-secondary flex-col items-center py-1.5">
+    <aside className="planner-detail-rail hidden md:flex w-10 shrink-0 border-l border-border-base/70 bg-bg-secondary flex-col items-center py-1.5">
       <button onClick={onExpand} title={label} aria-label={label} className="tap btn btn-ghost btn-icon btn-sm">
         <SidebarIcon />
       </button>

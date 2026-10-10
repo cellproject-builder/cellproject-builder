@@ -1,0 +1,23 @@
+import React, { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { DiagramView } from './viewer';
+import { evaluateDiagram, parseDiagram, sampleContext } from './model';
+(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+it('renders the real generated diagram and updates torque and geometry from an input event', async () => {
+  const sample = JSON.parse(readFileSync('docs/design/interactive-artifacts/results/diagram-data-text.json', 'utf8'));
+  expect(sample.status).toBe('valid');
+  const diagram = parseDiagram(sample.output, sampleContext.nodes.map(n => n.id));
+  const values = evaluateDiagram(diagram, { massa: .4, distancia: .2 });
+  expect(values.torque).toBeCloseTo(.7848);
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  await act(async () => root.render(React.createElement(DiagramView, { diagram })));
+  expect(host.querySelector('[data-shape="braco"]')?.getAttribute('x1')).toBe('100');
+  expect(host.textContent).toContain('0.1962 N·m');
+  const input = host.querySelector('input[aria-label="Massa da carga"]') as HTMLInputElement;
+  const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+  await act(async () => { setValue.call(input, '.4'); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); });
+  expect(host.textContent).toContain('0.3924 N·m');
+  await act(async () => root.unmount()); host.remove();
+});

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
-  <title>Cellproject — planeja por decomposição</title>
+  <title>dynamic_diary — do escopo à execução</title>
 
   <defs>
     <radialGradient id="bgGrad" cx="80%" cy="30%" r="60%">
@@ -28,10 +28,10 @@
   <!-- Wordmark -->
   <text x="96" y="468"
         font-family="Fraunces, Georgia, serif"
-        font-size="120"
+        font-size="108"
         font-weight="380"
         letter-spacing="-3"
-        fill="#fafafa">cellproject</text>
+        fill="#fafafa">dynamic_diary</text>
 
   <!-- Tagline -->
   <text x="96" y="528"
@@ -39,12 +39,12 @@
         font-size="22"
         font-weight="400"
         letter-spacing="2"
-        fill="#a1a1aa">planeja · ensina · valida — por decomposição.</text>
+        fill="#a1a1aa">planos · projetos · execução · diário.</text>
 
   <!-- Meta corner -->
   <g transform="translate(1104, 80)" text-anchor="end">
     <text font-family="JetBrains Mono, monospace" font-size="16" letter-spacing="3" fill="#71717a">
-      <tspan x="0" dy="0">CELLPROJECT</tspan>
+      <tspan x="0" dy="0">dynamic_diary</tspan>
       <tspan x="0" dy="24" fill="#8b5cf6">f(X) = ?</tspan>
     </text>
   </g>

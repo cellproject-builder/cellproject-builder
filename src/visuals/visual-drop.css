@@ -1,0 +1,27 @@
+.visual-drop-feedback {
+  position: absolute;
+  inset: 8px;
+  z-index: 14;
+  pointer-events: none;
+  border: 2px dashed rgb(var(--ai-accent) / .75);
+  border-radius: 14px;
+  background: rgb(var(--ai-accent) / .035);
+}
+
+.visual-drop-feedback span {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border-radius: 10px;
+  background: rgb(var(--bg-elevated) / .97);
+  color: rgb(var(--text-primary));
+  border: 1px solid rgb(var(--ai-accent) / .65);
+  box-shadow: 0 5px 20px #0003;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.visual-drop-feedback b { color: rgb(var(--ai-accent)); font-size: 17px; font-weight: 400; }

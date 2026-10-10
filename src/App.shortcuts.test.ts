@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { handleAppShortcut } from './App';
 import { useGraphStore } from './store';
+import { useWorkspaceStore } from './workspace/store';
 import { fallbackClassifyAIError } from './hooks/useAIAction';
 import type { AIPlan } from './types';
 
@@ -23,6 +24,7 @@ describe('global shortcuts', () => {
   beforeEach(() => {
     useGraphStore.getState().resetProject();
     useGraphStore.getState().createProjectFromPlan('obj', 'Atalhos', plan);
+    useWorkspaceStore.getState().navigate('planner');
   });
   afterEach(() => {
     document.body.innerHTML = '';
@@ -32,6 +34,12 @@ describe('global shortcuts', () => {
     key('g');
     expect(useGraphStore.getState().viewMode).toBe('graph');
     key('t');
+    expect(useGraphStore.getState().viewMode).toBe('tutor');
+  });
+
+  it('does not change the hidden planner while the user is managing a project', () => {
+    useWorkspaceStore.getState().navigate('kanban');
+    key('g');
     expect(useGraphStore.getState().viewMode).toBe('tutor');
   });
 
