@@ -177,7 +177,7 @@ describe('GroundTruthInlineTutor', () => {
     });
     render();
     const field = container.querySelector<HTMLTextAreaElement>('#gt-attest textarea')!;
-    const submit = container.querySelector<HTMLButtonElement>('#gt-attest button')!;
+    const submit = container.querySelector<HTMLButtonElement>('#gt-attest > .flex > button')!;
     expect(submit.disabled).toBe(true);
     act(() => field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true })));
     expect(useGraphStore.getState().project!.nodes[nodeId].comoConfirmarAtendido).toBeUndefined();

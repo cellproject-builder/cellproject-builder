@@ -1,3 +1,4 @@
+import { AudioTextarea } from '@/audio/AudioField';
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type KeyboardEvent, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { nanoid } from 'nanoid';
@@ -35,10 +36,10 @@ function rebaseDocument(from: NoteCanvasDocument, to: NoteCanvasDocument, latest
   };
   return { ...latest, ...(from.paper !== to.paper ? { paper: to.paper } : {}), strokes: collection(from.strokes, to.strokes, latest.strokes), items: collection(from.items, to.items, latest.items) };
 }
-function EditableText({ item, scale, readOnly, onCommit, onEnd }: { item: Extract<NoteCanvasItem, { kind: 'text' }>; scale: number; readOnly: boolean; onCommit(text: string): void; onEnd(): void }) {
+function EditableText({ item, scale, readOnly, onCommit, onEnd, audioScope, english }: { audioScope: string; english: boolean; item: Extract<NoteCanvasItem, { kind: 'text' }>; scale: number; readOnly: boolean; onCommit(text: string): void; onEnd(): void }) {
   const [value, setValue] = useState(item.text);
   useEffect(() => setValue(item.text), [item.text]);
-  return <textarea autoFocus aria-label="Texto do objeto" value={value} readOnly={readOnly} maxLength={20000} onChange={event => { setValue(event.target.value); onCommit(event.target.value); }} onBlur={onEnd} onPointerDown={event => event.stopPropagation()} style={{ color: item.color, fontSize: Math.max(10, item.fontSize * scale) }} />;
+  return <AudioTextarea audioScope={audioScope} audioLanguage={english ? 'en' : 'pt'} audioWrapperClassName="note-canvas-audio-text" autoFocus aria-label={english ? 'Object text' : 'Texto do objeto'} value={value} readOnly={readOnly} maxLength={20000} onChange={event => { setValue(event.target.value); onCommit(event.target.value); }} onBlur={onEnd} onPointerDown={event => event.stopPropagation()} style={{ color: item.color, fontSize: Math.max(10, item.fontSize * scale) }} />;
 }
 
 /** Logical notebook coordinates stay stable as the editor resizes or enters fullscreen. */
@@ -117,7 +118,7 @@ export function NoteCanvas({ document: doc, onChange, drawing, onDrawingChange, 
     gesture.current = { kind: 'pen', pointer: event.pointerId, start, base, preview: next, stroke }; setPreview(next); if (liveDocumentId) live.preview(stroke.id, stroke);
   };
   const beginItem = (event: PointerEvent, item: NoteCanvasItem, kind: 'move' | 'resize' = 'move') => {
-    if (readOnly || !toolsVisible || tool !== 'select' || event.button !== 0 || event.isPrimary === false || gesture.current || (event.target as Element).closest('textarea,input,select,summary,a')) return;
+    if (readOnly || !toolsVisible || tool !== 'select' || event.button !== 0 || event.isPrimary === false || gesture.current || (event.target as Element).closest('textarea,input,select,summary,a,.audio-field')) return;
     event.preventDefault(); event.stopPropagation(); capture(event); setSelected({ kind: 'item', id: item.id });
     const base = current.current;
     releaseActivity.current = registerDataIngestion(); gesture.current = { kind, pointer: event.pointerId, start: point(event), item, base, preview: base };
@@ -175,7 +176,7 @@ export function NoteCanvas({ document: doc, onChange, drawing, onDrawingChange, 
     commit({ ...doc, ...(selected.kind === 'item' ? { items: doc.items.filter(item => item.id !== selected.id) } : { strokes: doc.strokes.filter(stroke => stroke.id !== selected.id) }) }); setSelected(null);
   };
   const keyboard = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (readOnly || (event.target as Element).closest('input,textarea,select,[contenteditable="true"]')) return;
+    if (readOnly || (event.target as Element).closest('input,textarea,select,[contenteditable="true"],.audio-field')) return;
     if ((event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase())) { event.preventDefault(); navigate(event.key.toLowerCase() === 'y' || event.shiftKey ? 'future' : 'past'); }
     else if (['Backspace', 'Delete'].includes(event.key) && selected) { event.preventDefault(); remove(); }
     else if (event.key === 'Escape') { cancel(); setSelected(null); selectTool('select'); }
@@ -225,7 +226,7 @@ export function NoteCanvas({ document: doc, onChange, drawing, onDrawingChange, 
       }} />)}{liveDocumentId && live.remote.filter(value => !view.strokes.some(stroke => stroke.id === (value.stroke.id ?? value.gestureId))).map(value => <InkStroke key={`${value.sender}:${value.gestureId}`} data-remote-ink={value.gestureId} stroke={value.stroke} legacyMode="note" />)}</svg>
       {view.items.map(item => <div key={item.id} data-note-item={item.id} className={`note-canvas-item kind-${item.kind} ${selected?.id === item.id ? 'is-selected' : ''}`} style={{ left: `${item.x / doc.width * 100}%`, top: `${item.y / doc.height * 100}%`, width: `${item.width / doc.width * 100}%`, height: `${item.height / doc.height * 100}%` }} tabIndex={!readOnly && tool === 'select' ? 0 : undefined} role="group" aria-label={item.kind === 'image' ? item.label : item.kind === 'diagram' ? item.diagram.title : item.text.slice(0, 80) || t('Texto', 'Text')} onFocus={event => { if (event.target === event.currentTarget && !readOnly && tool === 'select') setSelected({ kind: 'item', id: item.id }); }} onPointerDown={event => beginItem(event, item)}>
         {item.kind === 'image' ? <img src={item.src} alt={item.label} draggable={false} /> : item.kind === 'text' ? selected?.id === item.id && !readOnly
-          ? <EditableText item={item} scale={scale} readOnly={readOnly} onEnd={() => { history.current.group = null; }} onCommit={text => { const latest = current.current; commit({ ...latest, items: latest.items.map(value => value.id === item.id && value.kind === 'text' ? { ...value, text } : value) }, latest, `text:${item.id}`); }} />
+          ? <EditableText audioScope={`note:${liveDocumentId ?? 'notebook'}:${item.id}:text`} english={english} item={item} scale={scale} readOnly={readOnly} onEnd={() => { history.current.group = null; }} onCommit={text => { const latest = current.current; commit({ ...latest, items: latest.items.map(value => value.id === item.id && value.kind === 'text' ? { ...value, text } : value) }, latest, `text:${item.id}`); }} />
           : <div className="note-canvas-text" style={{ color: item.color, fontSize: Math.max(10, item.fontSize * scale) }}>{item.text || t('Texto…', 'Text…')}</div>
           : <DiagramView diagram={item.diagram} values={item.values} english={english} onParameter={readOnly ? undefined : (id, value) => commit({ ...doc, items: doc.items.map(candidate => candidate.id === item.id ? { ...item, values: { ...item.values, [id]: value } } : candidate) })} />}
         {selected?.id === item.id && !readOnly && <>

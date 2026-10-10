@@ -1,3 +1,4 @@
+import { AudioTextarea } from '@/audio/AudioField';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { getActiveConfig, useConfigStore } from '@/config/store';
 import { useWorkspaceStore } from '@/workspace/store';
@@ -127,7 +128,7 @@ export function BoardComposer({ boardId, kind, itemId, onInsert, onClose, englis
         <form onSubmit={event => { event.preventDefault(); void submit(); }}>
           <div className="board-composer-input">
             {!!references.length && <div className="board-reference-chips">{references.map(id => { const item = board?.document.items.find(item => item.id === id); return <span key={id}>{item ? itemLabel(item) : tr.missing}<button type="button" aria-label={`${tr.remove}: ${item ? itemLabel(item) : id}`} disabled={busy} onClick={() => { clear(); setReferences(current => current.filter(reference => reference !== id)); }}>×</button></span>; })}</div>}
-            <textarea ref={textarea} autoFocus rows={kind === 'image' ? 2 : 3} maxLength={4000} value={prompt} disabled={busy} aria-label={title}
+            <AudioTextarea audioScope={`board:${boardId}:${itemId ?? kind}:prompt`} audioLanguage={english ? 'en' : 'pt'} ref={textarea} autoFocus rows={kind === 'image' ? 2 : 3} maxLength={4000} value={prompt} disabled={busy} aria-label={title}
               placeholder={kind === 'image' ? tr.searchPrompt : kind === 'refine' ? tr.refinePrompt : tr.prompt}
               onChange={event => { const text = event.target.value; clear(); setPrompt(text); const tail = text.slice(0, event.target.selectionStart); const match = /(?:^|\s)@([^@\n]*)$/.exec(tail); setMention(match?.[1] ?? null); }}
               onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && mention === null) { event.preventDefault(); void submit(); } if (event.key === 'Escape' && mention !== null) { event.preventDefault(); event.stopPropagation(); setMention(null); } }} />

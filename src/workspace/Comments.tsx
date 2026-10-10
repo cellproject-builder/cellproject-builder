@@ -1,3 +1,4 @@
+import { AudioTextarea } from '@/audio/AudioField';
 import { useEffect, useId, useState } from 'react';
 import { useLocaleStore, useT } from '@/i18n';
 import { flushWorkspacePersistence, useWorkspaceStore } from './store';
@@ -43,7 +44,7 @@ export function Comments({ taskId }: { taskId: string }) {
         event.preventDefault();
         attempt(() => { useWorkspaceStore.getState().updateComment(comment.id, editBody); setEditingId(null); });
       }}>
-        <label>{tr.editComment}<textarea aria-label={tr.editComment} autoFocus rows={3} required value={editBody} onChange={(event) => setEditBody(event.target.value)} /></label>
+        <label>{tr.editComment}<AudioTextarea audioScope={`task:${taskId}:comment:${comment.id}:edit`} audioLanguage={locale === 'en' ? 'en' : 'pt'} aria-label={tr.editComment} autoFocus rows={3} required value={editBody} onChange={(event) => setEditBody(event.target.value)} /></label>
         <div className="ws-comment-form-actions"><button type="button" className="ws-button small" onClick={() => setEditingId(null)}>{tr.cancel}</button><button type="submit" className="ws-button small primary" disabled={!editBody.trim()}>{tr.save}</button></div>
       </form> : <p className="ws-comment-body">{comment.body}</p>}
     </article>)}</div> : <p className="ws-comments-empty">{tr.noComments}</p>}
@@ -51,7 +52,7 @@ export function Comments({ taskId }: { taskId: string }) {
       event.preventDefault();
       attempt(() => { useWorkspaceStore.getState().addComment(taskId, body); setBody(''); });
     }}>
-      <label>{tr.addComment}<textarea aria-label={tr.addComment} rows={3} required value={body} placeholder={tr.commentPlaceholder} onChange={(event) => setBody(event.target.value)} /></label>
+      <label>{tr.addComment}<AudioTextarea audioScope={`task:${taskId}:new-comment`} audioLanguage={locale === 'en' ? 'en' : 'pt'} aria-label={tr.addComment} rows={3} required value={body} placeholder={tr.commentPlaceholder} onChange={(event) => setBody(event.target.value)} /></label>
       <div className="ws-comment-form-actions"><button type="submit" className="ws-button small primary" disabled={!body.trim()}><Icon name="plus" size={15} />{tr.postComment}</button></div>
     </form>
   </section>;

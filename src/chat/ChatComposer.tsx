@@ -1,3 +1,4 @@
+import { AudioTextarea } from '@/audio/AudioField';
 import { useId, useRef, useState, type RefObject } from 'react';
 import { useGraphStore } from '@/store';
 import { useWorkspaceStore } from '@/workspace/store';
@@ -41,7 +42,7 @@ export function ChatComposer(props: Props) {
         <small>{kind(ref.kind)}</small><span title={ref.label}>{ref.label}</span><button type="button" aria-label={`${english ? 'Remove reference' : 'Remover referência'} ${ref.label}`} onClick={() => onReferences(references.filter(item => item !== ref))}>×</button>
       </span>)}
     </div>}
-      <textarea ref={inputRef} value={text} placeholder={props.placeholder} aria-label={props.placeholder} aria-describedby={hintId} rows={2} maxLength={16000} disabled={props.disabled}
+      <AudioTextarea audioScope={`chat:${projectId ?? 'personal'}:${props.scopeKey ?? 'composer'}`} audioLanguage={english ? 'en' : 'pt'} ref={inputRef} value={text} placeholder={props.placeholder} aria-label={props.placeholder} aria-describedby={hintId} rows={2} maxLength={16000} disabled={props.disabled}
         aria-autocomplete="list" aria-expanded={!!mention} aria-controls={mention ? menuId : undefined}
         aria-activedescendant={mention && candidates.length ? `${menuId}-${Math.min(selected, candidates.length - 1)}` : undefined}
         onChange={event => { onText(event.target.value); findMention(event.target.value, event.target.selectionStart ?? event.target.value.length); }}

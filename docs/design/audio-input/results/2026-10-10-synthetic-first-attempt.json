@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "createdAt": "2026-10-10T23:08:32.183Z",
+  "protocol": "First attempts, synthetic pt-BR Microsoft Maria Desktop speech, same bytes, actual local HTTP proxy with fixture auth, real OpenRouter STT. No main LLM/context. Sequential requests, no retries. Not a physical microphone or general Portuguese quality benchmark.",
+  "requests": [
+    {
+      "file": "daily.wav",
+      "synthetic": true,
+      "expected": "Amanhã quero revisar o plano do projeto e criar uma nota com os próximos passos.",
+      "bytes": 305364,
+      "audioSha256": "b7cb9d521caef4aa53be64f464d77e1351e8b32b82291ef7a375010a46dba91c",
+      "requestSha256": "ada157068247380a25978bada865ddbfb6a9e1b191a5f6fb8266ae10555bfb57",
+      "model": "openai/gpt-4o-mini-transcribe",
+      "status": 404,
+      "elapsedMs": 479,
+      "response": {
+        "error": {
+          "code": "provider_request_failed",
+          "message": "The AI provider rejected this model or request.",
+          "requestId": "857e908c-4b2e-46e6-b908-04126cca1fa4"
+        }
+      }
+    },
+    {
+      "file": "daily.wav",
+      "synthetic": true,
+      "expected": "Amanhã quero revisar o plano do projeto e criar uma nota com os próximos passos.",
+      "bytes": 305364,
+      "audioSha256": "b7cb9d521caef4aa53be64f464d77e1351e8b32b82291ef7a375010a46dba91c",
+      "requestSha256": "cca36ab30010d5034bce2b877b558dad1ed2e2caa01a2bd7bc51b2403d829b64",
+      "model": "openai/whisper-large-v3-turbo",
+      "status": 200,
+      "elapsedMs": 4234,
+      "response": {
+        "text": " Amanhã quero revisar o plano do projeto e criar uma nota com os próximos passos.",
+        "usage": {
+          "seconds": 6.923,
+          "cost": 0.00002305359
+        }
+      }
+    },
+    {
+      "file": "engineering.wav",
+      "synthetic": true,
+      "expected": "O Arduino Uno usa um cabo USB tipo A para tipo B. Vamos comparar um ESP32 com dois servomotores MG90S.",
+      "bytes": 534282,
+      "audioSha256": "903e883792ba2f774d98da326428b97d1eb49827fcd10fd81fab731d73864cac",
+      "requestSha256": "0a6f21cc0cfd451faac19e9d2a1b0917dfbc04636c04c58f228bd12a65b6d35f",
+      "model": "openai/gpt-4o-mini-transcribe",
+      "status": 404,
+      "elapsedMs": 288,
+      "response": {
+        "error": {
+          "code": "provider_request_failed",
+          "message": "The AI provider rejected this model or request.",
+          "requestId": "9d740196-8fc4-4072-8cca-ca1e98f9ed45"
+        }
+      }
+    },
+    {
+      "file": "engineering.wav",
+      "synthetic": true,
+      "expected": "O Arduino Uno usa um cabo USB tipo A para tipo B. Vamos comparar um ESP32 com dois servomotores MG90S.",
+      "bytes": 534282,
+      "audioSha256": "903e883792ba2f774d98da326428b97d1eb49827fcd10fd81fab731d73864cac",
+      "requestSha256": "b266afac76a2059cdcfcccb649fb89ba41939cd98ce0afc1d28fa1a91d3e5d00",
+      "model": "openai/whisper-large-v3-turbo",
+      "status": 200,
+      "elapsedMs": 2372,
+      "response": {
+        "text": " O Arduino Uno usa um cabo USB tipo A para tipo B.  Vamos comparar um ESP32 com dois servomotores MG90S.",
+        "usage": {
+          "seconds": 12.114,
+          "cost": 0.00004033962
+        }
+      }
+    },
+    {
+      "file": "review.wav",
+      "synthetic": true,
+      "expected": "Não aplique a alteração ainda. Pesquise as referências e me mostre três opções antes de continuar.",
+      "bytes": 405224,
+      "audioSha256": "025330e580dd0eaf0c9e0da76055edcb9d063be5d62b7dbef5b58fdc195a4add",
+      "requestSha256": "83539e7cbf63280b7b03e2c4f0b9b2ab542871e33126368c2076349aef8e81be",
+      "model": "openai/gpt-4o-mini-transcribe",
+      "status": 404,
+      "elapsedMs": 305,
+      "response": {
+        "error": {
+          "code": "provider_request_failed",
+          "message": "The AI provider rejected this model or request.",
+          "requestId": "873d74c9-b43a-4da2-b463-721852b5d403"
+        }
+      }
+    },
+    {
+      "file": "review.wav",
+      "synthetic": true,
+      "expected": "Não aplique a alteração ainda. Pesquise as referências e me mostre três opções antes de continuar.",
+      "bytes": 405224,
+      "audioSha256": "025330e580dd0eaf0c9e0da76055edcb9d063be5d62b7dbef5b58fdc195a4add",
+      "requestSha256": "e290890d55d7049609b6eab9ade65eb27455decaed023ec5481e916d4c7a4e29",
+      "model": "openai/whisper-large-v3-turbo",
+      "status": 200,
+      "elapsedMs": 1321,
+      "response": {
+        "text": " Não aplique a alteração ainda.  Pesquise as referências e me mostre três opções antes de continuar.",
+        "usage": {
+          "seconds": 9.187,
+          "cost": 0.00003059271
+        }
+      }
+    }
+  ]
+}

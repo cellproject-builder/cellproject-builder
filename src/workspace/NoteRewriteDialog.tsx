@@ -1,3 +1,4 @@
+import { AudioTextarea } from '@/audio/AudioField';
 import { useEffect, useRef, useState } from 'react';
 import { useLocaleStore } from '@/i18n';
 import { Modal } from '@/components/ui/Modal';
@@ -65,12 +66,12 @@ export function NoteRewriteDialog({ target, onClose }: { target: NoteTextTarget;
   return <Modal open title={tr.title} onClose={close} className="max-w-xl ws-note-ai-dialog">
     <form className="ws-form ws-note-ai-form" onSubmit={(e) => { e.preventDefault(); void generate(); }}>
       <div className="ws-note-ai-context"><span>{target.start === 0 && target.end === target.original.length ? tr.paragraph : tr.selection}</span><p className="ws-note-ai-source">{source}</p><small>{tr.hint}</small></div>
-      <label>{tr.instruction}<textarea aria-label={tr.instruction} value={instruction} placeholder={tr.placeholder} rows={3} maxLength={4000} disabled={action.running} onChange={(e) => { setInstruction(e.target.value); setResult(null); action.reset(); }} /></label>
+      <label>{tr.instruction}<AudioTextarea audioScope={`note:${target.noteId}:${target.blockId}:${target.start}:${target.end}:rewrite-instruction`} aria-label={tr.instruction} value={instruction} placeholder={tr.placeholder} rows={3} maxLength={4000} disabled={action.running} onChange={(e) => { setInstruction(e.target.value); setResult(null); action.reset(); }} /></label>
       {!ready && <div className="ws-note-ai-error"><p>{tr.noKey}</p><button type="button" className="ws-button" onClick={() => { close(); requestWorkspaceUI({ settings: true }); }}>{tr.configure}</button></div>}
       {action.error && <p className="ws-note-ai-error" role="alert">{action.error.detail?.includes('incompleteAIRewrite') ? tr.incomplete : action.error.detail?.includes('emptyAIRewrite') ? tr.empty : `${action.error.title}. ${action.error.hint}`}</p>}
       {conflict && <p className="ws-note-ai-error" role="alert">{tr.conflict}</p>}
       {action.running && <p className="ws-note-ai-working" role="status">{tr.generating}</p>}
-      {result !== null && <label>{tr.result}<textarea className="ws-note-ai-result" aria-label={tr.result} value={result} rows={5} onChange={(e) => setResult(e.target.value)} /></label>}
+      {result !== null && <label>{tr.result}<AudioTextarea audioScope={`note:${target.noteId}:${target.blockId}:rewrite-result`} className="ws-note-ai-result" aria-label={tr.result} value={result} rows={5} onChange={(e) => setResult(e.target.value)} /></label>}
       <div className="ws-form-actions">
         <button type="button" className="ws-button" onClick={close}>{result !== null ? tr.discard : tr.cancel}</button>
         {!action.running && <button className={`ws-button ${result === null ? 'primary' : ''}`} disabled={!ready || !instruction.trim() || !source.trim() || conflict}>{result === null ? tr.generate : tr.again}</button>}

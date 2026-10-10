@@ -25,7 +25,7 @@ function pathname(req) {
 }
 function publicHeaders(res) {
   res.setHeader('x-content-type-options', 'nosniff'); res.setHeader('referrer-policy', 'same-origin'); res.setHeader('x-frame-options', 'DENY');
-  res.setHeader('permissions-policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('permissions-policy', 'camera=(), microphone=(self), geolocation=()');
 }
 
 export function productionConfig(env = process.env) {
@@ -58,7 +58,7 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
     if (relative.startsWith('..') || path.isAbsolute(relative) || !info.isFile()) throw notFound();
     res.setHeader('cache-control', ext === '.html' || route === '/service-worker.js' || route === '/sw.js' || ext === '.webmanifest' ? 'no-cache' : route.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'public, max-age=3600');
     res.setHeader('content-type', PUBLIC_TYPES[ext]); res.setHeader('content-length', info.size);
-    if (ext === '.html') res.setHeader('content-security-policy', `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'${passwordProvider ? ` ${passwordProvider.url}` : ''}; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`);
+    if (ext === '.html') res.setHeader('content-security-policy', `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self'; connect-src 'self'${passwordProvider ? ` ${passwordProvider.url}` : ''}; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`);
     if (req.method === 'HEAD') { res.end(); return; }
     await pipeline(createReadStream(resolved), res);
   };

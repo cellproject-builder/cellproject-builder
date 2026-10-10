@@ -16,7 +16,7 @@
 .ws-comment-form { gap:10px; margin-top:10px; }
 .ws-comment-compose { margin-top:18px; }
 .ws-comment-form-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
-.ws-comment-form textarea { min-height:76px; }
+.ws-comment-form textarea[data-audio-input="true"] { min-height:76px; }
 :root:is([data-theme=dark],[data-theme=oled]) .ws-comment { background-image:none; }
 @media (max-width:450px) { .ws-comment { padding:10px; } .ws-comment-heading { gap:6px; } .ws-comment-heading time { flex-basis:calc(100% - 70px); order:2; } .ws-comment-edited { order:3; } .ws-comment-actions { margin-left:auto; } }
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) { .ws-comment { background:rgb(var(--bg-secondary)); } }

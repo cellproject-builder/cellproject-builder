@@ -1,3 +1,4 @@
+import { AudioTextarea, AudioTextInput } from '@/audio/AudioField';
 import { useRef, useState } from 'react';
 import { useT } from '@/i18n';
 import { Modal } from '@/components/ui/Modal';
@@ -16,8 +17,8 @@ function SprintForm({ projectId, onClose }: { projectId: string; onClose: () => 
   const [draft, setDraft] = useState<SprintInput>({ name: '', goal: '', startDate: localISO(0), endDate: localISO(14) });
   const patch = (value: Partial<SprintInput>) => setDraft((d) => ({ ...d, ...value }));
   return <Modal open onClose={onClose} title={tr.newSprint}><form className="ws-form" onSubmit={(e) => { e.preventDefault(); attempt(() => { useWorkspaceStore.getState().createSprint(projectId, draft); onClose(); }); }}>
-    <label>{tr.sprintName}<input autoFocus required value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder="Sprint 1" /></label>
-    <label>{tr.sprintGoal}<textarea rows={3} value={draft.goal} onChange={(e) => patch({ goal: e.target.value })} placeholder={tr.sprintGoalPlaceholder} /></label>
+    <label>{tr.sprintName}<AudioTextInput audioScope={`project:${projectId}:new-sprint:name`} autoFocus required value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder="Sprint 1" /></label>
+    <label>{tr.sprintGoal}<AudioTextarea audioScope={`project:${projectId}:new-sprint:goal`} rows={3} value={draft.goal} onChange={(e) => patch({ goal: e.target.value })} placeholder={tr.sprintGoalPlaceholder} /></label>
     <div className="ws-form-grid"><label>{tr.startDate}<input type="date" required value={draft.startDate} onChange={(e) => patch({ startDate: e.target.value })} /></label><label>{tr.endDate}<input type="date" required min={draft.startDate} value={draft.endDate} onChange={(e) => patch({ endDate: e.target.value })} /></label></div>
     <div className="ws-form-actions"><button type="button" className="ws-button" onClick={onClose}>{tr.cancel}</button><button className="ws-button primary" disabled={!draft.name.trim()}>{tr.create}</button></div>
   </form></Modal>;

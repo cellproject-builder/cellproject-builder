@@ -28,5 +28,7 @@ São geradores distintos, com saídas diferentes. Executá-los regrava os assets
 | [compare-visual-models.ts](compare-visual-models.ts) | Comparação inicial com/sem guia; `--run` faz duas chamadas pagas e grava amostras. Recusa sobrescrever saídas existentes |
 | [compare-visual-matrix.ts](compare-visual-matrix.ts) | `--prepare` prepara matriz; `--run` retoma células pendentes com chamadas pagas, lock e preservação das primeiras tentativas |
 | [visual-matrix-runner.ts](visual-matrix-runner.ts) | Helpers de orçamento/coordenação/integridade usados pela matriz, não outro produto |
+| [compare-audio-transcription.mjs](compare-audio-transcription.mjs) | Sem `--live` não chama APIs. Com `--live --fixtures manifest.json --env-file arquivo-privado --output novo.json`, faz até seis primeiras tentativas STT em áudio sintético, sem retries; recusa sobrescrever relatório |
+| [generate-audio-fixtures.ps1](generate-audio-fixtures.ps1) | Gera três WAVs pt-BR localmente com Microsoft Maria Desktop no Windows, em pasta de auditoria ignorada; nenhuma voz do usuário |
 
 Ler [proveniência da comparação](../docs/visual-modeling-skills.md) e [matriz](../docs/design/three-skills-comparison/matrix/README.md) antes de executar. As credenciais são lidas do ambiente local; não copiá-las para saídas, logs ou documentação. Guia de skill e referência de imagem/texto são fatores diferentes. Navegar pelas páginas salvas não gera novas amostras.

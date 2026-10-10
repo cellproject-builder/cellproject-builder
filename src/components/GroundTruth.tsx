@@ -1,3 +1,4 @@
+import { AudioTextarea, AudioTextInput } from '@/audio/AudioField';
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { ConceptNodeData, GroundTruthKind, GroundTruthRef, Project } from '@/types';
 import { normalizePlanningIntent } from '@/planningIntent';
@@ -432,7 +433,7 @@ function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
                 <p id={`gt-met-help-${node.id}`} className="text-footnote text-text-muted">
                   {tr.groundTruth.observationHelp}
                 </p>
-                <textarea
+                <AudioTextarea audioScope={`node:${node.id}:criterion-met`}
                   id={`gt-met-${node.id}`}
                   aria-describedby={`gt-met-help-${node.id}`}
                   ref={metRef}
@@ -462,7 +463,7 @@ function UserCriterionBody({ node, domIds, inGroup }: CriterionProps) {
             <p id={`${criterionId}-help`} className="text-footnote text-text-muted">
               {tr.groundTruth.criterionHelp}
             </p>
-            <textarea name="user-criterion"
+            <AudioTextarea audioScope={`node:${node.id}:criterion`} name="user-criterion"
               value={draft}
               onChange={(e) => setDraft(node.id, 'criterion', e.target.value)}
               onKeyDown={submitOnModEnter(handleLock)}
@@ -933,7 +934,7 @@ function RefsBody({ node, project, collapsible }: SectionProps) {
               className="field min-w-0 flex-1"
             />
           </div>
-          <input name="proof-label"
+          <AudioTextInput audioScope={`node:${node.id}:proof-label`} name="proof-label"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             onKeyDown={onFormKey}
@@ -1203,7 +1204,7 @@ function RefRow({
                 {tr.groundTruth.verifyPrompt}
               </label>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <input
+                <AudioTextInput audioScope={`node:${nodeId}:proof:${refData.id}:observation`} audioWrapperClassName="flex-1 min-w-0"
                   id={`gt-verify-${refData.id}`}
                   autoFocus
                   value={obs}
@@ -1381,7 +1382,7 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
 
       {!failed && opening && (
         <div className="space-y-2">
-          <textarea name="failure-context"
+          <AudioTextarea audioScope={`node:${node.id}:failure-context`} name="failure-context"
             autoFocus
             value={draft}
             onChange={(e) => setDraft(node.id, 'failure', e.target.value)}

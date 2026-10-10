@@ -1,3 +1,4 @@
+import { AudioTextarea, AudioTextInput } from '@/audio/AudioField';
 import { safeHref } from '@/safeHref';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -880,7 +881,7 @@ export function ObjectiveScreen() {
                   </button>)}
                 </div>
                 <label htmlFor="cp-reference-target" className="label block mt-3 mb-1.5">{planApproach === 'reverse_engineering' ? tr.objective.referenceTargetLabel : tr.objective.referenceOptionalLabel}</label>
-                <input id="cp-reference-target" className="field" maxLength={2000} value={referenceTarget} onChange={event => setReferenceTarget(event.target.value)}
+                <AudioTextInput audioScope={`objective:${attachmentProjectId ?? 'draft'}:reference`} id="cp-reference-target" className="field" maxLength={2000} value={referenceTarget} onChange={event => setReferenceTarget(event.target.value)}
                   placeholder={tr.objective.referenceTargetPlaceholder} aria-describedby="cp-reference-target-hint" />
                 <p id="cp-reference-target-hint" className="text-footnote text-text-muted mt-1.5">{planApproach === 'reverse_engineering' ? tr.objective.referenceTargetHint : tr.objective.referenceOptionalHint}</p>
               </fieldset>
@@ -893,7 +894,7 @@ export function ObjectiveScreen() {
               <p id="cp-objective-hint" className="text-footnote text-text-muted mt-0.5 mb-3">
                 {tr.objective.objectiveHint}
               </p>
-              <textarea
+              <AudioTextarea audioScope={`objective:${attachmentProjectId ?? 'draft'}:text`}
                 id="cp-objective"
                 aria-describedby="cp-objective-hint"
                 value={objective}
@@ -934,7 +935,7 @@ export function ObjectiveScreen() {
                 <label htmlFor="cp-name" className="label block mb-1.5">
                   {tr.objective.projectNameLabel}
                 </label>
-                <input
+                <AudioTextInput audioScope={`objective:${attachmentProjectId ?? 'draft'}:name`}
                   id="cp-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -951,7 +952,7 @@ export function ObjectiveScreen() {
                   {tr.objective.rulesLabel}
                 </label>
                 <div className="flex gap-2">
-                  <input
+                  <AudioTextInput audioScope={`objective:${attachmentProjectId ?? 'draft'}:rule`} audioWrapperClassName="flex-1 min-w-0"
                     id="cp-rule"
                     value={ruleDraft}
                     onChange={(e) => setRuleDraft(e.target.value)}

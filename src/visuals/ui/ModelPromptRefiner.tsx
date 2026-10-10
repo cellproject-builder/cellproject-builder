@@ -9,6 +9,7 @@ import './model-editing.css';
 
 export interface ModelPromptRefinerProps {
   input: VisualPromptInput;
+  audioScope?: string;
   workspace: VisualWorkspace;
   listMentions: (query: string) => MentionTarget[];
   onAttach: (file: File, signal?: AbortSignal) => Promise<VisualAttachment>;
@@ -68,7 +69,7 @@ export function ModelPromptRefiner(props: ModelPromptRefinerProps) {
     <div className="visual-segmented visual-refinement-intent" aria-label={s.understoodObject}>{(['existing', 'concept'] as const).map(value => <button type="button" key={value} aria-pressed={kind === value} disabled={busy} onClick={() => { if (kind !== value) { reset(); setKind(value); } }}>{value === 'existing' ? s.existingObject : s.originalConcept}</button>)}</div>
     <ModelReferencePreview input={props.input} workspace={props.workspace} onMedia={props.onMedia}/>
     {result && <div className="visual-refinement-answer"><strong>{result.subject}</strong><p>{result.interpretation.length > 300 ? result.interpretation.slice(0, 300) + '…' : result.interpretation}</p>{result.questions.length > 0 && <ul className="visual-refinement-questions">{result.questions.map((q, i) => <li key={i}>{q}</li>)}</ul>}<details><summary>{en ? 'Request, references and limits' : 'Pedido, referências e limites'}</summary><p>{result.suggestedPrompt}</p><ul>{[...result.referenceSummary, ...result.assumptions].map((text, i) => <li key={i}>{text}</li>)}</ul></details></div>}
-    <PromptComposer kind="model" value={result ? { ...props.input, text: feedback } : props.input} onChange={change} listMentions={props.listMentions} onAttach={props.onAttach} busy={busy} onSubmit={submit} onCancel={cancel} rows={2} canSubmit={canSubmit} submitLabel={needsUpdate ? updateLabel : s.generate} inputLabel={result ? (en ? 'Reply or adjust' : 'Responda ou ajuste') : s.generate} placeholder={result ? (en ? 'Answer the question or describe an adjustment… use @ for references' : 'Responda ou descreva um ajuste… use @ para referências') : s.modelPlaceholder}/>
+    <PromptComposer audioScope={`${props.audioScope ?? 'model-refiner'}:${result ? 'feedback' : 'request'}`} kind="model" value={result ? { ...props.input, text: feedback } : props.input} onChange={change} listMentions={props.listMentions} onAttach={props.onAttach} busy={busy} onSubmit={submit} onCancel={cancel} rows={2} canSubmit={canSubmit} submitLabel={needsUpdate ? updateLabel : s.generate} inputLabel={result ? (en ? 'Reply or adjust' : 'Responda ou ajuste') : s.generate} placeholder={result ? (en ? 'Answer the question or describe an adjustment… use @ for references' : 'Responda ou descreva um ajuste… use @ para referências') : s.modelPlaceholder}/>
     {busy && <p className="visual-progress" role="status"><span className="visual-spinner" aria-hidden="true"/>{s.refining}</p>}
     {error && <p className="visual-error" role="alert">{error}</p>}
     {result && !fresh && <p className="visual-error" role="alert">{s.refinementOutdated}</p>}

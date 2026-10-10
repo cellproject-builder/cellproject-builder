@@ -1,3 +1,4 @@
+import { AudioTextarea } from '@/audio/AudioField';
 import { useEffect, useRef, useState } from 'react';
 import { getActiveConfig, useConfigStore } from '@/config/store';
 import { DiagramView } from '@/visuals/diagram/DiagramView';
@@ -82,11 +83,11 @@ export function NoteDiagramComposer({ noteId, onInsert, onClose, english = false
   };
 
   return <section className="ws-note-diagram-composer" aria-label={tr.title} onKeyDownCapture={event => {
-    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }
+    if (event.key === 'Escape' && !(event.target as Element).closest('.audio-field-popup')) { event.preventDefault(); event.stopPropagation(); close(); }
   }}>
     <form onSubmit={event => { event.preventDefault(); void generate(); }}>
       <div className="ws-note-diagram-prompt">
-        <textarea autoFocus aria-label={tr.title} placeholder={tr.prompt} rows={1} maxLength={4000} value={prompt} disabled={running}
+        <AudioTextarea audioScope={`note:${noteId}:diagram-prompt`} audioLanguage={english ? 'en' : 'pt'} autoFocus aria-label={tr.title} placeholder={tr.prompt} rows={1} maxLength={4000} value={prompt} disabled={running}
           onChange={event => { setPrompt(event.target.value); clearResult(); }}
           onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void generate(); } }} />
         <button type="button" className="ws-icon-button" aria-label={tr.close} title={tr.close} onClick={close}><Icon name="close" size={15} /></button>

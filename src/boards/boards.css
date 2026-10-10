@@ -30,10 +30,11 @@
 .db-canvas-shell.is-maximized { position:fixed; inset:0; z-index:40; height:100dvh; border:0; border-radius:0; }
 .db-canvas-header { display:flex; align-items:center; gap:9px; flex-shrink:0; height:48px; padding:5px 10px; background:rgb(var(--bg-secondary)); border-bottom:1px solid rgb(var(--border-base)/.35); }
 .db-canvas-header>.ws-icon-button { flex-shrink:0; }
+.db-canvas-header>.db-title-audio-field { flex:1; min-width:30px; }
 .db-header-brand { display:flex; gap:12px; align-items:center; white-space:nowrap; font-size:11px; color:rgb(var(--text-muted)); }
 .db-header-brand span { color:rgb(var(--text-faint)); }
-.db-canvas-header>input { flex:1; min-width:30px; padding:5px 6px; outline:0; border-radius:5px; background:none; font-size:12px; font-weight:550; color:rgb(var(--text-primary)); }
-.db-canvas-header>input:focus { background:rgb(var(--bg-primary)); box-shadow:0 0 0 1px rgb(var(--ai-accent)/.45); }
+.db-canvas-header>.db-title-audio-field>input[data-audio-input="true"] { flex:1; min-width:30px; padding:5px 6px; outline:0; border-radius:5px; background:none; font-size:12px; font-weight:550; color:rgb(var(--text-primary)); }
+.db-canvas-header>.db-title-audio-field>input[data-audio-input="true"]:focus { background:rgb(var(--bg-primary)); box-shadow:0 0 0 1px rgb(var(--ai-accent)/.45); }
 .db-canvas { flex:1; position:relative; min-height:0; min-width:0; outline:none; isolation:isolate; }
 .db-canvas .react-flow { position:absolute; inset:0; }
 .db-canvas .react-flow__node-board { background:transparent; border:0; border-radius:var(--ws-radius-panel); outline:none; }

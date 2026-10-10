@@ -13,6 +13,7 @@ As fichas abaixo foram revisadas contra código e testes disponíveis em 10/10/2
 | Tinta e sincronização entre dispositivos | Implementado localmente: cinco instrumentos compartilhados, prévias cifradas por SSE e atualização de documentos com revisão CAS; depende da mesma conta/cofre aberto | [Tinta e sincronização](ink-live-sync.md) |
 | Chat e Dairo | Chat de ações implementado; Dairo com memória estratégica e resumos diários proposto | [Chat e Dairo](chat-and-dairo.md) |
 | Orquestração de IA | Implementado: contexto delimitado, provedores, ferramentas e classificação consultiva | [IA](ai-orchestration.md) |
+| Entrada por áudio | Em integração: gravar/importar, ouvir, transcrever e inserir texto; gravação efêmera | [Áudio](audio-input.md) |
 | Dados e privacidade | Implementado: stores, adaptadores, cloud/cofre e backup; limites de conta/recuperação explícitos | [Dados](data-and-privacy.md) |
 | Plataforma e entrega | Implementado: Node, Auth, Railway e PWA; offline completo e escala horizontal não entregues | [Plataforma](platform-and-delivery.md) |
 

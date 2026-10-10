@@ -1,3 +1,4 @@
+import { AudioTextarea } from '@/audio/AudioField';
 import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 /** A deliberately small Markdown subset. User content only becomes React text nodes. */
@@ -50,8 +51,8 @@ export function BoardRichText({ text }: { text: string }) {
 }
 
 const tones = ['#e5e7eb', '#a78bfa', '#60a5fa', '#2dd4bf', '#fbbf24'];
-export function BoardTextEditor({ text, color, fontSize, english, onCommit, onCancel }: {
-  text: string; color: string; fontSize: number; english: boolean;
+export function BoardTextEditor({ text, color, fontSize, english, onCommit, onCancel, audioScope }: {
+  text: string; color: string; fontSize: number; english: boolean; audioScope?: string;
   onCommit(value: { text: string; color: string; fontSize: number }): void; onCancel(): void;
 }) {
   const [draft, setDraft] = useState(text), [tone, setTone] = useState(color), [size, setSize] = useState(fontSize);
@@ -91,7 +92,7 @@ export function BoardTextEditor({ text, color, fontSize, english, onCommit, onCa
       <div className="board-text-tones">{tones.map(value => <button key={value} type="button" aria-label={`${english ? 'Color' : 'Cor'} ${value}`} aria-pressed={tone === value} style={{ backgroundColor: value }} onMouseDown={event => event.preventDefault()} onClick={() => setTone(value)} />)}</div>
       <button type="button" className="board-text-done" aria-label={english ? 'Finish editing' : 'Concluir edição'} title={english ? 'Finish editing · Ctrl+Enter' : 'Concluir edição · Ctrl+Enter'} onMouseDown={event => event.preventDefault()} onClick={commit}>✓</button>
     </div>
-    <textarea ref={textarea} value={draft} maxLength={20000} aria-label={english ? 'Board text' : 'Texto do quadro'} style={{ color: tone, fontSize: size }} placeholder={english ? 'Your idea…' : 'Sua ideia…'}
+    <AudioTextarea audioScope={audioScope} audioLanguage={english ? 'en' : 'pt'} audioWrapperClassName="board-text-audio-field" ref={textarea} value={draft} maxLength={20000} aria-label={english ? 'Board text' : 'Texto do quadro'} style={{ color: tone, fontSize: size }} placeholder={english ? 'Your idea…' : 'Sua ideia…'}
       onChange={event => setDraft(event.target.value.slice(0, 20_000))} onKeyDown={event => {
         event.stopPropagation();
         if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); commit(); }

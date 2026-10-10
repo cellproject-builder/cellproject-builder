@@ -10,12 +10,12 @@ import { BoardRichText, BoardTextEditor } from './BoardText';
 import './board-item.css';
 
 export type BoardNodeData = {
-  item: BoardItem; english: boolean; webglAvailable: boolean;
+  item: BoardItem; boardId?: string; english: boolean; webglAvailable: boolean;
   onUpdate(item: BoardItem): void; onRemove(id: string): void; onRefine(id: string): void;
 } & Record<string, unknown>;
 
 export const BoardItemNode = memo(function BoardItemNode({ data, selected, dragging, width, height }: NodeProps<Node<BoardNodeData>>) {
-  const { item, english: en, onUpdate, onRemove, onRefine, webglAvailable } = data;
+  const { item, boardId, english: en, onUpdate, onRemove, onRefine, webglAvailable } = data;
   const [editing, setEditing] = useState(false), [rotating, setRotating] = useState(false), [controlHeld, setControlHeld] = useState(false), [resizing, setResizing] = useState(false);
   const surface = useRef<HTMLDivElement>(null);
   const gesture = useRef<{ pointerId: number; x: number; y: number; shortcut: boolean } | null>(null);
@@ -120,7 +120,7 @@ export const BoardItemNode = memo(function BoardItemNode({ data, selected, dragg
       onDoubleClickCapture={event => { if (suppressClick.current || orbitActive || item.kind === 'model' && event.ctrlKey) { event.preventDefault(); event.stopPropagation(); } }}
       onDoubleClick={event => { if (isText) { event.stopPropagation(); setEditing(true); } }}
       onTouchStart={orbitActive ? event => event.stopPropagation() : undefined}>
-      {isText && (editing ? <BoardTextEditor key={item.id} text={item.text} color={item.color} fontSize={item.fontSize} english={en}
+      {isText && (editing ? <BoardTextEditor key={item.id} audioScope={`board:${boardId ?? 'unbound'}:item:${item.id}:text`} text={item.text} color={item.color} fontSize={item.fontSize} english={en}
         onCancel={() => setEditing(false)} onCommit={value => { onUpdate({ ...item, ...value }); setEditing(false); }} />
         : <div className="board-text-preview" style={{ color: item.kind === 'text' ? item.color : undefined, fontSize: item.fontSize }}>
           {item.text ? <BoardRichText text={item.text} /> : <span className="board-text-placeholder">{en ? 'Double-click to write…' : 'Dois cliques para escrever…'}</span>}

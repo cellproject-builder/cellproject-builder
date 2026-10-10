@@ -1,3 +1,4 @@
+import { AudioTextarea } from '@/audio/AudioField';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { MentionTarget, VisualAttachment, VisualPromptInput } from '../types';
 import { useVisualStrings, visualError } from './strings';
@@ -16,8 +17,9 @@ export interface PromptComposerProps {
   inputLabel?: string;
   placeholder?: string;
   rows?: number;
+  audioScope?: string;
 }
-export function PromptComposer({ value, onChange, listMentions, onAttach, onSubmit, onCancel, busy, kind, submitLabel, canSubmit, inputLabel, placeholder, rows }: PromptComposerProps) {
+export function PromptComposer({ value, onChange, listMentions, onAttach, onSubmit, onCancel, busy, kind, submitLabel, canSubmit, inputLabel, placeholder, rows, audioScope }: PromptComposerProps) {
   const s = useVisualStrings();
   const textarea = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -67,7 +69,7 @@ export function PromptComposer({ value, onChange, listMentions, onAttach, onSubm
       </span>)}
     </div>}
     <div className="visual-input-wrap">
-      <textarea ref={textarea} value={value.text} maxLength={12000} placeholder={placeholder ?? (kind === 'search' ? s.searchPlaceholder : s.modelPlaceholder)}
+      <AudioTextarea audioScope={audioScope ?? `visual:${kind}`} audioLanguage={s.generate === 'Generate model' ? 'en' : 'pt'} ref={textarea} value={value.text} maxLength={12000} placeholder={placeholder ?? (kind === 'search' ? s.searchPlaceholder : s.modelPlaceholder)}
         aria-label={inputLabel ?? (kind === 'search' ? s.search : s.generate)} rows={rows ?? (kind === 'search' ? 2 : 3)}
         aria-expanded={Boolean(mention)} aria-controls={mention ? menuId : undefined} aria-autocomplete="list"
         aria-activedescendant={mention && candidates.length ? `${menuId}-${Math.min(selected, candidates.length - 1)}` : undefined}

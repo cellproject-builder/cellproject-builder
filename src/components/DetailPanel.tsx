@@ -1,3 +1,4 @@
+import { AudioTextarea, AudioTextInput } from '@/audio/AudioField';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import {
   useGraphStore,
@@ -511,6 +512,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
         </span>
       </div>
       <NameInput
+        audioScope={`node:${node.id}:name`}
         key={node.id}
         value={node.name}
         ariaLabel={tr.detail.nameAria}
@@ -631,6 +633,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
           </p>
         )}
         <EduField
+          audioScope={`node:${node.id}:what`}
           key={`${node.id}:oQue`}
           label={tr.detail.whatIs}
           value={node.oQue}
@@ -638,6 +641,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
           onCommit={(v) => updateNode(node.id, { oQue: v }, { commit: true })}
         />
         <EduField
+          audioScope={`node:${node.id}:why`}
           key={`${node.id}:porQue`}
           label={tr.detail.whyNeeded}
           value={node.porQue}
@@ -674,7 +678,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
             </div>
           )}
           <div className="flex gap-1.5">
-            <input name="rule"
+            <AudioTextInput audioScope={`node:${node.id}:rule`} audioWrapperClassName="flex-1 min-w-0" name="rule"
               value={ruleDraft}
               onChange={(e) => setRuleDraft(e.target.value)}
               onKeyDown={(e) => {
@@ -818,6 +822,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
             <div className="label mb-1.5">{tr.detail.notes}</div>
             <NodeFileSources ids={node.sourceAttachmentIds} />
             <NotesField
+              audioScope={`node:${node.id}:notes`}
               key={node.id}
               value={node.notes}
               placeholder={tr.detail.notesPlaceholder}
@@ -842,7 +847,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
               ))}
             </ul>
             <div className="flex gap-1.5 mt-2.5">
-              <input name="decision-note"
+              <AudioTextInput audioScope={`node:${node.id}:decision-note`} audioWrapperClassName="flex-1 min-w-0" name="decision-note"
                 value={noteDraft}
                 onChange={(e) => setNoteDraft(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && recordNote()}
@@ -1150,6 +1155,7 @@ function NodeMenu({
 // ---------------------------------------------------------------------------
 
 function NameInput({
+  audioScope,
   value,
   onCommit,
   ariaLabel,
@@ -1157,6 +1163,7 @@ function NameInput({
   value: string;
   onCommit: (v: string) => void;
   ariaLabel: string;
+  audioScope: string;
 }) {
   const [draft, setDraft] = useState(value);
   const focusedRef = useRef(false);
@@ -1183,7 +1190,7 @@ function NameInput({
   };
 
   return (
-    <input
+    <AudioTextInput audioScope={audioScope}
       value={draft}
       aria-label={ariaLabel}
       onFocus={() => (focusedRef.current = true)}
@@ -1216,12 +1223,14 @@ function useAutosize(ref: RefObject<HTMLTextAreaElement>, value: string, active:
 }
 
 function NotesField({
+  audioScope,
   value,
   placeholder,
   onCommit,
 }: {
   value: string;
   placeholder: string;
+  audioScope: string;
   onCommit: (v: string) => void;
 }) {
   const [draft, setDraft] = useState(value);
@@ -1232,7 +1241,7 @@ function NotesField({
     if (!focusedRef.current) setDraft(value);
   }, [value]);
   return (
-    <textarea name="node-text"
+    <AudioTextarea audioScope={audioScope} name="node-text"
       ref={ref}
       value={draft}
       onFocus={() => (focusedRef.current = true)}
@@ -1249,6 +1258,7 @@ function NotesField({
 }
 
 interface EduFieldProps {
+  audioScope: string;
   label: string;
   value: string;
   onCommit: (v: string) => void;
@@ -1257,7 +1267,7 @@ interface EduFieldProps {
 
 // Texto lido por padrão; ✎ abre a edição (textarea que cresce com o texto,
 // salva no blur, Esc desfaz).
-function EduField({ label, value, onCommit, tr }: EduFieldProps) {
+function EduField({ label, value, onCommit, tr, audioScope }: EduFieldProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -1290,7 +1300,7 @@ function EduField({ label, value, onCommit, tr }: EduFieldProps) {
   let content: ReactNode;
   if (editing) {
     content = (
-      <textarea name="node-field"
+      <AudioTextarea audioScope={audioScope} name="node-field"
         ref={ref}
         value={draft}
         aria-label={label}

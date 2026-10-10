@@ -1,4 +1,5 @@
-import { useContext, useEffect, useLayoutEffect, useRef, useState, type TextareaHTMLAttributes } from 'react';
+import { AudioTextarea, AudioTextInput } from '@/audio/AudioField';
+import { useContext, useEffect, useLayoutEffect, useRef, useState, type ComponentPropsWithoutRef } from 'react';
 import { nanoid } from 'nanoid';
 import { EnterFullScreenIcon, ExitFullScreenIcon, Pencil1Icon, ImageIcon, MagicWandIcon } from '@/components/ui/SoftIcons';
 import { useLocaleStore, useT } from '@/i18n';
@@ -15,7 +16,7 @@ import { NoteNotebook, type NoteNotebookTools } from './NoteNotebook';
 import { NoteInkOverlay } from './NoteInkOverlay';
 import './NotesNotebook.css';
 
-function AutoText(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+function AutoText(props: ComponentPropsWithoutRef<typeof AudioTextarea>) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const resize = () => {
     const input = ref.current;
@@ -36,7 +37,7 @@ function AutoText(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
     observer.observe(input);
     return () => observer.disconnect();
   }, []);
-  return <textarea {...props} ref={ref} rows={1} />;
+  return <AudioTextarea {...props} ref={ref} rows={1} />;
 }
 
 function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: { note: Note; onTrash: () => void; onRestore: () => void; maximized: boolean; onToggleMaximized: () => void }) {
@@ -108,13 +109,13 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
     <div className="ws-note-paper">
       <div className="ws-note-document" ref={bodyRef} data-note-document>
       <p className="ws-note-date">{new Intl.DateTimeFormat(document.documentElement.lang || 'pt-BR', { dateStyle: 'long', timeStyle: 'short' }).format(note.updatedAt)}</p>
-      <AutoText className="ws-note-title" data-ink-anchor="title" aria-label={tr.noteTitle} placeholder={tr.untitled} value={note.title} readOnly={trashed} onChange={(e) => patch({ title: e.target.value })} />
+      <AutoText audioScope={`note:${note.id}:title`} audioLanguage={english ? 'en' : 'pt'} className="ws-note-title" data-ink-anchor="title" aria-label={tr.noteTitle} placeholder={tr.untitled} value={note.title} readOnly={trashed} onChange={(e) => patch({ title: e.target.value })} />
       {note.projectId && <span className="ws-note-project-label"><Icon name="projects" size={13} />{projects[note.projectId]?.name}{note.taskId && ` / ${tasks[note.taskId]?.title ?? ''}`}</span>}
       <div className="ws-note-blocks">{note.blocks.map((block) => <div className={`ws-note-block type-${block.type} ${block.checked ? 'is-checked' : ''} ${block.bold ? 'is-bold' : ''} ${block.italic ? 'is-italic' : ''}`} key={block.id} data-ink-anchor={`block:${block.id}`}>
         {!trashed && <NoteTextActions noteId={note.id} block={block} input={() => editorRef.current?.querySelector<HTMLTextAreaElement>(`[data-block="${block.id}"]`)} onFormat={(value) => updateBlock(block.id, value)} />}
         {block.type === 'check' && <input type="checkbox" disabled={trashed} aria-label={block.text || tr.checklist} checked={!!block.checked} onChange={(e) => updateBlock(block.id, { checked: e.target.checked })} />}
         {block.type === 'bullet' && <span className="ws-bullet" aria-hidden>•</span>}
-        <AutoText data-block={block.id} aria-label={block.type === 'check' ? tr.checklist : tr[block.type]} value={block.text} placeholder={tr.notePlaceholder} readOnly={trashed} onFocus={() => setActiveBlock(block.id)} onChange={(e) => updateBlock(block.id, { text: e.target.value })} onKeyDown={(e) => {
+        <AutoText audioScope={`note:${note.id}:${block.id}:text`} audioLanguage={english ? 'en' : 'pt'} data-block={block.id} aria-label={block.type === 'check' ? tr.checklist : tr[block.type]} value={block.text} placeholder={tr.notePlaceholder} readOnly={trashed} onFocus={() => setActiveBlock(block.id)} onChange={(e) => updateBlock(block.id, { text: e.target.value })} onKeyDown={(e) => {
           if (trashed) return;
           if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); addBlock(block.type === 'heading' ? 'text' : block.type, block.id); }
           if (e.key === 'Backspace' && !block.text && note.blocks.length > 1) { e.preventDefault(); removeBlock(block.id); }
@@ -171,6 +172,6 @@ export function Notes({ projectId = null, initialNoteId = null, onMaximizedChang
       useWorkspaceStore.getState().trashNote(selected.id); setSelectedId(null); setMobileEditor(false);
       toast.show({ message: tr.noteTrashed, action: { label: tr.undo, onClick: () => { useWorkspaceStore.getState().restoreNote(selected.id); setSelectedId(selected.id); } } });
     }} onRestore={() => { useWorkspaceStore.getState().restoreNote(selected.id); setFilter('all'); setSelectedId(selected.id); }} /> : <Empty icon="notes" title={filter === 'trash' ? tr.emptyTrash : tr.noNotes} hint={filter === 'trash' ? tr.emptyTrashHint : tr.noNotesHint}>{filter !== 'trash' && <button className="ws-button notes-primary" onClick={() => create()}><Icon name="plus" />{tr.newNote}</button>}</Empty>}</div>
-    {folderOpen && <Modal open title={tr.newFolder} onClose={() => setFolderOpen(false)}><form className="ws-form" onSubmit={(e) => { e.preventDefault(); attempt(() => { useWorkspaceStore.getState().createFolder(folderName); changeFilter('all'); setQuery(''); setFolderName(''); setFolderOpen(false); }); }}><label>{tr.folderName}<input autoFocus required value={folderName} onChange={(e) => setFolderName(e.target.value)} /></label><div className="ws-form-actions"><button type="button" className="ws-button" onClick={() => setFolderOpen(false)}>{tr.cancel}</button><button className="ws-button notes-primary" disabled={!folderName.trim()}>{tr.create}</button></div></form></Modal>}
+    {folderOpen && <Modal open title={tr.newFolder} onClose={() => setFolderOpen(false)}><form className="ws-form" onSubmit={(e) => { e.preventDefault(); attempt(() => { useWorkspaceStore.getState().createFolder(folderName); changeFilter('all'); setQuery(''); setFolderName(''); setFolderOpen(false); }); }}><label>{tr.folderName}<AudioTextInput audioScope="notes:new-folder:name" autoFocus required value={folderName} onChange={(e) => setFolderName(e.target.value)} /></label><div className="ws-form-actions"><button type="button" className="ws-button" onClick={() => setFolderOpen(false)}>{tr.cancel}</button><button className="ws-button notes-primary" disabled={!folderName.trim()}>{tr.create}</button></div></form></Modal>}
   </div>;
 }

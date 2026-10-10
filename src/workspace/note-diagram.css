@@ -1,7 +1,8 @@
 .ws-note-diagram-composer { width:min(100%,680px); margin:8px auto 16px; padding:10px 12px; border:1px solid rgb(var(--ai-accent)/.2); border-radius:14px; background:rgb(var(--bg-secondary)/.5); color:rgb(var(--text-secondary)); }
 .ws-note-diagram-prompt { display:flex; align-items:flex-start; gap:6px; }
-.ws-note-diagram-prompt textarea { flex:1; min-width:0; min-height:34px; max-height:120px; resize:vertical; border:0; background:transparent; padding:6px 2px; font:inherit; font-size:13px; line-height:1.5; color:inherit; }
-.ws-note-diagram-prompt textarea:focus { outline:none; }
+.ws-note-diagram-prompt > .audio-field { flex:1; min-width:0; }
+.ws-note-diagram-prompt textarea[data-audio-input="true"] { flex:1; min-width:0; min-height:34px; max-height:120px; resize:vertical; border:0; background:transparent; padding:6px 2px; font:inherit; font-size:13px; line-height:1.5; color:inherit; }
+.ws-note-diagram-prompt textarea[data-audio-input="true"]:focus { outline:none; }
 .ws-note-diagram-prompt:focus-within { border-radius:6px; outline:1px solid rgb(var(--ai-accent)/.25); outline-offset:2px; }
 .ws-note-diagram-prompt>.ws-icon-button { width:28px; height:28px; flex-shrink:0; color:rgb(var(--text-muted)); }
 .ws-note-diagram-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin-top:6px; font-size:11px; color:rgb(var(--text-muted)); }

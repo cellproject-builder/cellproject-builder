@@ -35,10 +35,11 @@
   transition:border-color 150ms ease,box-shadow 150ms ease;
 }
 .dd-chat-composer:focus-within { border-color:rgb(var(--ai-accent)/.4); box-shadow:0 0 0 2px rgb(var(--ai-accent)/.05); }
-.dd-chat-composer textarea { grid-area:input; display:block; width:100%; min-width:0; padding:4px 5px 10px; resize:none; border:0; outline:none; color:rgb(var(--text-primary)); background:transparent; font-size:13px; line-height:1.7; max-height:130px; }
+.dd-chat-composer > .audio-field { grid-area:input; }
+.dd-chat-composer textarea[data-audio-input="true"] { grid-area:input; display:block; width:100%; min-width:0; padding:4px 5px 10px; resize:none; border:0; outline:none; color:rgb(var(--text-primary)); background:transparent; font-size:13px; line-height:1.7; max-height:130px; }
 /* The rounded composer owns the text field's focus indicator. */
-.dd-chat-composer textarea:focus-visible { outline:none; }
-.dd-chat-composer textarea::placeholder { color:rgb(var(--text-faint)); }
+.dd-chat-composer textarea[data-audio-input="true"]:focus-visible { outline:none; }
+.dd-chat-composer textarea[data-audio-input="true"]::placeholder { color:rgb(var(--text-faint)); }
 .dd-chat-composer :is(button,summary):focus-visible { outline:2px solid rgb(var(--ai-accent)/.5); outline-offset:2px; }
 .dd-chat-composer>.plan-attachments.is-compact { display:contents; }
 .dd-chat-composer .plan-attachment-icon { grid-area:attach; }
@@ -128,7 +129,8 @@
   .dd-chat-welcome p,.dd-chat-welcome button,.dd-chat-message,.dd-chat-message .prose { font-size:15px; line-height:1.7; }
   .dd-chat-message.user { margin-left:20px; }
   .dd-chat-composer { grid-template-columns:44px 44px minmax(0,1fr) 44px; margin:8px 10px 10px; padding:8px; }
-  .dd-chat-composer textarea { font-size:16px; }
+  .dd-chat-composer > .audio-field { grid-area:input; }
+.dd-chat-composer textarea[data-audio-input="true"] { font-size:16px; }
   .dd-chat-composer .plan-attachment-icon { width:44px; height:44px; }
   .dd-chat-reference-chip { font-size:13px; }
   .dd-chat-reference-chip>button { min-width:36px; min-height:36px; }

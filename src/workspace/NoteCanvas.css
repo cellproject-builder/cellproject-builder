@@ -26,7 +26,8 @@
 .note-canvas-item.is-selected{outline-color:#b69be56e;z-index:3}
 .note-canvas-item img{display:block;width:100%;height:100%;object-fit:contain;border-radius:inherit;pointer-events:none;-webkit-user-drag:none}
 .note-canvas-item .note-canvas-text{height:100%;white-space:pre-wrap;overflow-wrap:anywhere;overflow:hidden;line-height:1.45;cursor:inherit}
-.note-canvas-item textarea{width:100%;height:100%;padding:0;border:0;outline:none;resize:none;background:transparent;line-height:1.45;overflow:auto;font:inherit;user-select:text;cursor:text}
+.note-canvas-item>.note-canvas-audio-text{height:100%}
+.note-canvas-item textarea[data-audio-input="true"]{width:100%;height:100%;padding:0;border:0;outline:none;resize:none;background:transparent;line-height:1.45;overflow:auto;font:inherit;user-select:text;cursor:text}
 .note-canvas-item.kind-diagram{overflow:visible}
 .note-canvas-item.kind-diagram .visual-diagram{width:100%;height:100%;max-height:100%;overflow:auto;cursor:default}
 .note-canvas-item.kind-diagram .visual-diagram>svg{min-height:0;flex:1 1 auto;max-height:70%}

@@ -30,7 +30,8 @@
 .board-rich-text pre { margin: .6em 0; padding: .65em; background: #0003; border: 1px solid #8882; border-radius: 7px; overflow: auto; white-space: pre; }
 .board-rich-text pre code { padding: 0; background: none; }
 .board-text-editor { height: 100%; display: flex; flex-direction: column; border-radius: inherit; }
-.board-text-editor textarea { display: block; flex: 1; width: 100%; min-height: 40px; padding: 14px; border: 0; outline: 0; resize: none; background: transparent; font: inherit; line-height: 1.5; box-sizing: border-box; }
+.board-text-editor > .board-text-audio-field { flex:1; min-height:0; }
+.board-text-editor textarea[data-audio-input="true"] { height:100%; display: block; flex: 1; width: 100%; min-height: 40px; padding: 14px; border: 0; outline: 0; resize: none; background: transparent; font: inherit; line-height: 1.5; box-sizing: border-box; }
 .board-format-toolbar { display: flex; flex-shrink: 0; align-items: center; gap: 2px; padding: 5px; background: rgb(var(--bg-secondary)); border: 1px solid rgb(var(--border-base) / .4); border-radius: 8px; overflow-x: auto; scrollbar-width: none; position: absolute; bottom: calc(100% + 7px); left: 0; width: max-content; max-width: 450px; z-index: 5; }
 .board-format-toolbar button, .board-item-actions button { display: grid; place-items: center; flex-shrink: 0; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 5px; color: rgb(var(--text-secondary)); background: transparent; cursor: pointer; }
 .board-format-toolbar button:hover, .board-item-actions button:hover, .board-item-actions button[aria-pressed=true] { color: rgb(var(--text-primary)); background: #ffffff0b; }

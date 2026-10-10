@@ -16,7 +16,7 @@ import type {
   KBPickMode,
   KBUsedDoc,
 } from './types';
-import { pickRelevantDocs, summarizeDocument, toContextEntries, type PickContext, type KBRequestOptions } from './service';
+import { MAX_CHARS, pickRelevantDocs, summarizeDocument, toContextEntries, type PickContext, type KBRequestOptions } from './service';
 
 type IngestPhase = 'extracting' | 'summarizing' | 'done' | 'error';
 
@@ -105,6 +105,8 @@ export const DIRECT_INJECT_MAX = 2;
 // por objetivo vale pro projeto inteiro.
 export const NODE_RELEVANCE_MIN_DOCS = 6;
 const PICK_CACHE_LIMIT = 60;
+const PDF_BYTE_LIMIT = 8 * 1024 * 1024;
+const PDF_PAGE_LIMIT = 100;
 
 function hash(base: string): string {
   let h = 2166136261;
@@ -191,6 +193,7 @@ const EMPTY_RESULT: KBContextResult = { entries: [], docs: [], mode: 'none', cac
 export const useKBStore = create<KBState>()(
   persist(
     (set, get) => {
+      let ingestionGeneration = 0;
       // Registra o uso (contagem por doc + último contexto pra UI).
       const recordUse = (label: string, result: KBContextResult) => {
         if (result.docs.length === 0) return;
@@ -230,25 +233,39 @@ export const useKBStore = create<KBState>()(
 
         addFromPdf: async (file, onProgress, opts = {}) => {
           const finish = registerDataIngestion();
+          const generation = ingestionGeneration;
+          const current = () => generation === ingestionGeneration && !opts.signal?.aborted;
+          const progress = (value: IngestProgress) => { if (current()) onProgress?.(value); };
           try {
+          if (!current()) return null;
           const base = { filename: file.name };
           if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-            onProgress?.({ ...base, phase: 'error', errorKind: 'notPdf', error: 'not a PDF' });
+            progress({ ...base, phase: 'error', errorKind: 'notPdf', error: 'not a PDF' });
             return null;
           }
-          onProgress?.({ ...base, phase: 'extracting' });
+          if (file.size > PDF_BYTE_LIMIT) {
+            progress({ ...base, phase: 'error', errorKind: 'extract', error: 'PDF exceeds the 8 MiB file limit.' });
+            return null;
+          }
+          progress({ ...base, phase: 'extracting' });
           // Lazy-load pdfjs (~1 MB) only when a PDF is actually ingested, so it
           // never lands in the eager main bundle for the common visitor.
           let extracted;
           let fingerprint: string;
           try {
             const { extractPdfText, fingerprintText } = await import('./extract');
+            if (!current()) return null;
             extracted = await extractPdfText(file, (done, total) => {
-              onProgress?.({ ...base, phase: 'extracting', pagesDone: done, totalPages: total });
-            });
+              progress({ ...base, phase: 'extracting', pagesDone: done, totalPages: total });
+            }, { signal: opts.signal, maxPages: PDF_PAGE_LIMIT, maxChars: MAX_CHARS + 1 });
+            if (!current()) return null;
+            // Stored knowledge text is complete. Do not silently archive an
+            // excerpt as the full source or pay to summarize an oversized PDF.
+            if (extracted.truncated || extracted.text.length > MAX_CHARS) throw new Error('PDF exceeds the 40,000-character reading limit. Split the document before adding it.');
             fingerprint = fingerprintText(extracted.text);
           } catch (e) {
-            onProgress?.({
+            if (!current()) return null;
+            progress({
               ...base,
               phase: 'error',
               errorKind: 'extract',
@@ -259,18 +276,18 @@ export const useKBStore = create<KBState>()(
 
           if (!extracted.text.trim()) {
             // PDF escaneado (só imagens): a mensagem traduzida sugere OCR.
-            onProgress?.({ ...base, phase: 'error', errorKind: 'noText', error: 'no text' });
+            progress({ ...base, phase: 'error', errorKind: 'noText', error: 'no text' });
             return null;
           }
 
           // Dedup: mesmo texto já na base → devolve o id existente, sem IA.
           const existing = Object.values(get().docs).find((d) => d.fingerprint === fingerprint);
           if (existing) {
-            onProgress?.({ ...base, phase: 'done', duplicate: true, docId: existing.id });
+            progress({ ...base, phase: 'done', duplicate: true, docId: existing.id });
             return existing.id;
           }
 
-          onProgress?.({
+          progress({
             ...base,
             phase: 'summarizing',
             pagesDone: extracted.pageCount,
@@ -278,10 +295,13 @@ export const useKBStore = create<KBState>()(
           });
           let summary;
           try {
+            if (!current()) return null;
             summary = await summarizeDocument(extracted.text, { signal: opts.signal });
+            if (!current()) return null;
           } catch (e) {
+            if (!current()) return null;
             const info = classifyAIError(e);
-            onProgress?.({
+            progress({
               ...base,
               phase: 'error',
               errorKind: 'summary',
@@ -309,7 +329,7 @@ export const useKBStore = create<KBState>()(
             pickCache: {},
           }));
           inflight.clear();
-          onProgress?.({ ...base, phase: 'done', docId: id });
+          progress({ ...base, phase: 'done', docId: id });
           return id;
           } finally { finish(); }
         },
@@ -327,6 +347,7 @@ export const useKBStore = create<KBState>()(
         },
 
         clearAll: () => {
+          ingestionGeneration++;
           set({ docs: {}, pickCache: {}, usage: {}, lastContext: null });
           inflight.clear();
         },

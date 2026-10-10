@@ -1,3 +1,4 @@
+import { AudioTextarea, AudioTextInput } from '@/audio/AudioField';
 import { useState } from 'react';
 import { useT, useLocaleStore } from '@/i18n';
 import { Modal } from '@/components/ui/Modal';
@@ -42,9 +43,9 @@ export function ProjectForm({ project, initialObjective = '', initialRules = [],
       onClose();
     }); }}>
       {!project && <p className="ws-form-intro">{initialRules.length ? tr.research.draftHint : tr.projectsHint}</p>}
-      <label>{tr.objective}<textarea autoFocus={!project} required={!project} value={objective} onChange={(e) => setObjective(e.target.value)} placeholder={tr.objectivePlaceholder} rows={4} /></label>
+      <label>{tr.objective}<AudioTextarea audioScope={`project:${project?.id ?? 'new'}:objective`} audioLanguage={english ? 'en' : 'pt'} autoFocus={!project} required={!project} value={objective} onChange={(e) => setObjective(e.target.value)} placeholder={tr.objectivePlaceholder} rows={4} /></label>
       {!project && initialRules.length > 0 && <section className="ws-study-rules" aria-label={tr.research.rulesLabel}><h3>{tr.research.rulesLabel}</h3><ul>{initialRules.map((rule) => <li key={rule}>{rule}</li>)}</ul><p>{tr.research.rulesHint}</p></section>}
-      <label>{project ? tr.projectName : tr.optionalProjectName}<input autoFocus={Boolean(project)} required={Boolean(project)} value={name} onChange={(e) => setName(e.target.value)} placeholder={tr.namePlaceholder} maxLength={160} /></label>
+      <label>{project ? tr.projectName : tr.optionalProjectName}<AudioTextInput audioScope={`project:${project?.id ?? 'new'}:name`} audioLanguage={english ? 'en' : 'pt'} autoFocus={Boolean(project)} required={Boolean(project)} value={name} onChange={(e) => setName(e.target.value)} placeholder={tr.namePlaceholder} maxLength={160} /></label>
       <ProjectIconPicker value={appearance} onChange={setAppearance} english={english}/>
       <div className="ws-form-actions">{project && <button type="button" className="ws-button ws-push-left" onClick={() => { useWorkspaceStore.getState().updateProject(project.id, { archived: !project.archived }); onClose(); }}>{project.archived ? tr.unarchive : tr.archive}</button>}<button type="button" className="ws-button" onClick={onClose}>{tr.cancel}</button><button className="ws-button primary" disabled={project ? !name.trim() : !objective.trim()}>{project ? tr.save : tr.continueToPlan}</button></div>
     </form>

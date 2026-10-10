@@ -124,6 +124,35 @@ test('CSP allows only the configured fixed Supabase project for direct password 
   });
 });
 
+test('audio recording is same-origin only and previews allow blob media without external connections', async () => {
+  await setup(async ({ origin }) => {
+    const shell = await fetch(origin);
+    assert.equal(shell.headers.get('permissions-policy'), 'camera=(), microphone=(self), geolocation=()');
+    const policy = shell.headers.get('content-security-policy');
+    assert.match(policy, /media-src 'self' blob:;/);
+    assert.match(policy, /connect-src 'self' https:\/\/wxfootrnfiqpzhmjwgck\.supabase\.co;/);
+    assert.doesNotMatch(policy, /connect-src[^;]*(openrouter|blob:|\*)/);
+  });
+});
+
+test('transcription keeps the production authentication and CSRF guards', async () => {
+  let calls = 0;
+  await setup(async ({ origin, mutationHeaders }) => {
+    const body = JSON.stringify({ model: 'openai/gpt-4o-mini-transcribe', input_audio: { data: Buffer.from('RIFF0000WAVE').toString('base64'), format: 'wav' } });
+    const route = `${origin}/api/ai/openrouter/audio/transcriptions`;
+    for (const [headers, status] of [
+      [{ ...mutationHeaders, cookie: '' }, 401],
+      [{ ...mutationHeaders, origin: 'https://evil.test' }, 403],
+      [{ ...mutationHeaders, 'x-cellproject-request': '' }, 403],
+      [{ ...mutationHeaders, 'sec-fetch-site': 'cross-site' }, 403],
+    ]) assert.equal((await fetch(route, { method: 'POST', headers, body })).status, status);
+    assert.equal(calls, 0);
+    const response = await fetch(route, { method: 'POST', headers: mutationHeaders, body });
+    assert.equal(response.status, 200); assert.deepEqual(await response.json(), { text: 'Nota.' });
+  }, { fetchImpl: async (url, init) => { calls++; assert.equal(url, 'https://openrouter.ai/api/v1/audio/transcriptions'); assert.equal(init.headers.authorization, 'Bearer PROVIDER_SECRET'); return Response.json({ text: 'Nota.' }); } });
+  assert.equal(calls, 1);
+});
+
 test('public config never serializes a secret or malformed publishable credential', async () => {
   for (const publishableKey of ['sb_secret_PRIVATE', 'invalid', `header.${Buffer.from(JSON.stringify({ role: 'service_role' })).toString('base64url')}.signature`]) {
     await setup(async ({ origin }) => {

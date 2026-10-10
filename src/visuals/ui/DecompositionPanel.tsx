@@ -1,3 +1,4 @@
+import { AudioTextInput } from '@/audio/AudioField';
 import { useEffect, useRef, useState } from 'react';
 import { useLocaleStore } from '@/i18n';
 import { useGraphStore } from '@/store';
@@ -200,7 +201,7 @@ export function DecompositionPanel({ artifactId, onActivity }: { artifactId: str
     {modelAssemblyCurrent(artifact) && <button type="button" className="visual-refinement-back" disabled={!!busy} onClick={() => setShowDocumentaryResearch(false)}>{useLocaleStore.getState().locale === 'en' ? 'Back to modular assembly' : 'Voltar ao conjunto modular'}</button>}
     <div className="visual-decomposition-heading"><span aria-hidden="true">⊞</span><div><h3>{s.title}</h3><p>{isChild ? s.childIntro : s.intro}</p></div></div>
     {isChild ? <div className="visual-decomposition-origin"><span title={dossier?.identity ?? original?.label}>{dossier?.identity ?? original?.label}</span><button type="button" className="visual-button" disabled={!original} onClick={() => { if (original) useVisualPopupStore.getState().inspectArtifact(original.id); }}>{s.original}</button></div> : <>
-    <label className="visual-decomposition-identity"><span>{s.identity}</span><input aria-label={s.identity} value={identity} maxLength={200} disabled={!!busy}
+    <label className="visual-decomposition-identity"><span>{s.identity}</span><AudioTextInput audioScope={`artifact:${artifactId}:product-identity`} audioLanguage={useLocaleStore.getState().locale === 'en' ? 'en' : 'pt'} aria-label={s.identity} value={identity} maxLength={200} disabled={!!busy}
       onChange={event => { setIdentity(event.target.value); setConfirmed(false); setPending(null); setError(''); }} /></label>
     <label className="visual-decomposition-confirm"><input type="checkbox" aria-label={s.confirm} checked={confirmed} disabled={!!busy} onChange={event => setConfirmed(event.target.checked)} /><span>{s.confirm}<small>{s.confirmHint}</small></span></label>
     <div className="visual-decomposition-research"><button className="visual-button" type="button" disabled={!!busy || !confirmed || !identity.trim()} onClick={() => void run('research')}>{s.research}</button>{dossier && <button className="visual-button" type="button" disabled={!fresh || !!busy} onClick={download}>{s.download}</button>}</div>

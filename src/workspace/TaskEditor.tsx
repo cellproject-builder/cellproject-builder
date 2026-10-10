@@ -1,3 +1,4 @@
+import { AudioTextarea, AudioTextInput } from '@/audio/AudioField';
 import { useState } from 'react';
 import { useT } from '@/i18n';
 import { Modal } from '@/components/ui/Modal';
@@ -18,8 +19,8 @@ export function TaskEditor({ projectId, task, initialStatus = 'todo', onClose, o
       if (task) store.updateTask(task.id, draft); else store.createTask(projectId, draft);
       onClose();
     }); }}>
-      <label>{tr.taskTitle}<input required autoFocus value={draft.title} placeholder={tr.taskPlaceholder} onChange={(e) => patch({ title: e.target.value })} maxLength={240} /></label>
-      <label>{tr.description}<textarea rows={5} value={draft.description} placeholder={tr.descriptionPlaceholder} onChange={(e) => patch({ description: e.target.value })} /></label>
+      <label>{tr.taskTitle}<AudioTextInput audioScope={`task:${task?.id ?? `${projectId}:new`}:title`} required autoFocus value={draft.title} placeholder={tr.taskPlaceholder} onChange={(e) => patch({ title: e.target.value })} maxLength={240} /></label>
+      <label>{tr.description}<AudioTextarea audioScope={`task:${task?.id ?? `${projectId}:new`}:description`} rows={5} value={draft.description} placeholder={tr.descriptionPlaceholder} onChange={(e) => patch({ description: e.target.value })} /></label>
       <div className="ws-form-grid"><label>{tr.status}<select value={draft.status} onChange={(e) => patch({ status: e.target.value as TaskStatus })}>{TASK_STATUSES.map((s) => <option key={s} value={s}>{tr[s]}</option>)}</select></label>
         <label>{tr.priority}<select value={draft.priority} onChange={(e) => patch({ priority: e.target.value as Priority })}>{(['low', 'medium', 'high'] as const).map((p) => <option key={p} value={p}>{tr[p]}</option>)}</select></label>
         <label>{tr.dueDate}<input type="date" value={draft.dueDate} onChange={(e) => patch({ dueDate: e.target.value })} /></label>
