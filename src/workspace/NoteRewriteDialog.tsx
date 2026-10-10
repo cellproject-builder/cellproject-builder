@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocaleStore } from '@/i18n';
 import { Modal } from '@/components/ui/Modal';
 import { toast } from '@/components/ui/Toast';
-import { useConfigStore } from '@/config/store';
+import { getActiveConfig, useConfigStore } from '@/config/store';
 import { useAIAction } from '@/hooks/useAIAction';
 import { rewriteNoteText } from '@/ai/noteRewrite';
 import { useWorkspaceStore } from './store';
@@ -20,9 +20,7 @@ export interface NoteTextTarget {
 
 export function NoteRewriteDialog({ target, onClose }: { target: NoteTextTarget; onClose: () => void }) {
   const tr = useLocaleStore((s) => s.locale) === 'en' ? noteTextEn : noteTextPt;
-  const provider = useConfigStore((s) => s.activeProvider);
-  const providers = useConfigStore((s) => s.providers);
-  const ready = !!(provider && providers[provider]?.apiKey);
+  const ready = useConfigStore(() => Boolean(getActiveConfig()?.config.apiKey.trim()));
   const [instruction, setInstruction] = useState('');
   const [result, setResult] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);

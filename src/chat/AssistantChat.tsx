@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocaleStore } from '@/i18n';
-import { useConfigStore } from '@/config/store';
+import { getActiveConfig, useConfigStore } from '@/config/store';
 import { useWorkspaceStore } from '@/workspace/store';
 import { useGraphStore } from '@/store';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -44,8 +44,8 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   const dockTarget = useChatDockTarget();
   const mobile = useIsMobile();
   const docked = !!dockTarget && !mobile;
-  const provider = useConfigStore((s) => s.activeProvider), providers = useConfigStore((s) => s.providers);
-  const ready = !!(provider && providers[provider]?.apiKey);
+  const ready = useConfigStore(() => Boolean(getActiveConfig()?.config.apiKey.trim()));
+  const model = useConfigStore(() => getActiveConfig()?.config.mainModel ?? null);
   const projectId = useWorkspaceStore((s) => s.activeProjectId), projects = useWorkspaceStore((s) => s.projects);
   useWorkspaceStore(s => s.notes); useWorkspaceStore(s => s.tasks); // Re-evaluate documentary context when project records change.
   const planId = useGraphStore(state => state.project?.id);
@@ -155,7 +155,7 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
     }
   }}>
       <header className="dd-chat-header"><div className="dd-chat-symbol"><ChatIcon /></div><div><h2 id={titleId}>{tr.title}</h2><p>{state.running ? tr.working : ready ? tr.ready : tr.noKey}</p></div><button className="ws-icon-button" disabled={state.running} aria-label={tr.newChat} title={tr.newChat} onClick={state.newConversation}><Icon name="plus" /></button><button className="ws-icon-button" aria-label={tr.close} onClick={close}><Icon name="close" /></button></header>
-      <div className="dd-chat-context"><span>{tr.context}: {contextProjectId ? projects[contextProjectId]?.name ?? (english ? 'Removed project' : 'Projeto removido') : tr.personal}</span><button onClick={() => requestWorkspaceUI({ settings: true })}>{ready ? providers[provider!]?.mainModel : tr.settings}</button></div>
+      <div className="dd-chat-context"><span>{tr.context}: {contextProjectId ? projects[contextProjectId]?.name ?? (english ? 'Removed project' : 'Projeto removido') : tr.personal}</span><button onClick={() => requestWorkspaceUI({ settings: true })}>{ready ? model : tr.settings}</button></div>
       {(state.loadFailed || state.saveFailed) && <div className="dd-chat-storage-error" role="alert"><span>{state.loadFailed ? tr.loadError : tr.saveError}</span><button onClick={() => void retryChatPersistence()}>{tr.retry}</button></div>}
       {state.archivedSessions.length > 0 && <select className="dd-chat-history" aria-label={tr.conversations} value={state.sessionId} disabled={state.running} onChange={(e) => state.selectConversation(e.target.value)}><option value={state.sessionId}>{tr.current}</option>{state.archivedSessions.map((s) => <option key={s.sessionId} value={s.sessionId}>{s.messages.find((m) => m.role === 'user')?.text.slice(0, 55) || tr.newChat}</option>)}</select>}
       <div className="dd-chat-messages" aria-busy={state.running}>

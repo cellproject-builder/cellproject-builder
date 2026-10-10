@@ -10,6 +10,8 @@ Variáveis somente do servidor: `CELLPROJECT_CLOUD_ENABLED=true`, `APP_ORIGIN=ht
 
 Provedores disponíveis vêm de `OPENROUTER_API_KEY` (alternativa local legada `OPENROUTER`), `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `TYPESAFE_API_KEY` (alternativa `TYPESAFE`). Nenhuma chave recebe prefixo `VITE_`, entra no bundle ou é devolvida por `/api/cloud/config`.
 
+Com a allowlist atual, a conta do criador usa essas credenciais automaticamente após entrar. Chat, construção de planos, reescrita de notas e ferramentas visuais consultam a configuração efetiva do servidor; a interface salva somente as preferências de modelo. O acesso exclusivo é garantido pela allowlist do e-mail, sem conceder privilégios administrativos do Supabase ou distribuir chaves aos clientes.
+
 `npm start` carrega `.env` se existir. Para o arquivo privado preparado pelo coordenador, usar `node --env-file=.env.cloud.local server/production.mjs`. Railway recebe as variáveis pelo ambiente. Nunca publicar os arquivos privados; `.env.*.local` é ignorado pelo Git.
 
 ## Sessão e rotas

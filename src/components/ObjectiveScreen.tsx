@@ -11,7 +11,7 @@ import {
 } from '@/ai/service';
 import { useGraphStore } from '@/store';
 import { useKBStore } from '@/kb/store';
-import { useConfigStore, type Provider } from '@/config/store';
+import { getActiveConfig, useConfigStore, type Provider } from '@/config/store';
 import { useLocaleStore, useT, type Messages } from '@/i18n';
 import type { AIPlan, AIPlanOutline, ConstructionStrategy, WebResearchDigest, PlanApproach, PlanningIntent } from '@/types';
 import { useAIAction } from '@/hooks/useAIAction';
@@ -244,12 +244,10 @@ export function ObjectiveScreen() {
   const getContextFor = useKBStore((s) => s.getContextFor);
   const webResearch = useConfigStore((s) => s.webResearchEnabled);
   const setWebResearch = useConfigStore((s) => s.setWebResearchEnabled);
-  const activeProvider = useConfigStore((s) => s.activeProvider);
-  const activeConfig = useConfigStore((s) =>
-    s.activeProvider ? s.providers[s.activeProvider] : undefined,
-  );
+  const activeProvider = useConfigStore(() => getActiveConfig()?.provider ?? null);
+  const activeModel = useConfigStore(() => getActiveConfig()?.config.mainModel ?? null);
   const ensureConfigured = () => {
-    if (activeProvider && activeConfig?.apiKey.trim()) return true;
+    if (getActiveConfig()?.config.apiKey.trim()) return true;
     setSettings({ advanced: false });
     return false;
   };
@@ -665,8 +663,8 @@ export function ObjectiveScreen() {
     return undefined;
   };
 
-  const model = activeProvider && activeConfig
-    ? modelDisplay(activeProvider, activeConfig.mainModel, tr)
+  const model = activeProvider && activeModel
+    ? modelDisplay(activeProvider, activeModel, tr)
     : null;
 
   const formatTime = (ts: number) => {

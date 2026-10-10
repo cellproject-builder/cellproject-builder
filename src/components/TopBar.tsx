@@ -9,7 +9,7 @@ import {
   type ViewMode,
 } from '@/store';
 import { useKBStore } from '@/kb/store';
-import { useConfigStore, PROVIDER_LABELS, KNOWN_MODELS } from '@/config/store';
+import { getActiveConfig, useConfigStore, PROVIDER_LABELS, KNOWN_MODELS } from '@/config/store';
 import { useT } from '@/i18n';
 import { useReviewingParents } from '@/hooks/useReviewingParents';
 import { toast } from '@/components/ui/Toast';
@@ -39,10 +39,8 @@ export function TopBar() {
   const importProject = useGraphStore((s) => s.importProject);
   const archivedProject = useGraphStore((s) => s.archivedProject);
   const kbCount = useKBStore((s) => Object.keys(s.docs).length);
-  const activeProvider = useConfigStore((s) => s.activeProvider);
-  const activeModel = useConfigStore((s) =>
-    s.activeProvider ? s.providers[s.activeProvider]?.mainModel ?? null : null,
-  );
+  const activeProvider = useConfigStore(() => getActiveConfig()?.provider ?? null);
+  const activeModel = useConfigStore(() => getActiveConfig()?.config.mainModel ?? null);
   const [kbOpen, setKbOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
