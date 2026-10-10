@@ -201,6 +201,23 @@ describe('advanced modular generation', () => {
     expect(visualError(failure, { generate: 'Generate model', assemblyInvalid: 'GENERIC' } as never)).toContain('Assembly plan');
     expect(generateObject).toHaveBeenCalledTimes(2);
   });
+  it('reports safe local scene issues after a previous module succeeded, without saving a partial assembly', async () => {
+    const generated = moduleResult('PRIVATE LABEL', 1);
+    generated.scene.objects[0].id = 'PRIVATE-OBJECT-ID';
+    generated.scene.objects[0].scale = [2, 0, 2];
+    vi.mocked(generateObject).mockResolvedValueOnce({ object: selection, finishReason: 'stop' } as never)
+      .mockResolvedValueOnce({ object: modulePlan, finishReason: 'stop' } as never)
+      .mockResolvedValueOnce({ object: moduleResult('Servo', -1), finishReason: 'stop' } as never)
+      .mockResolvedValueOnce({ object: generated, finishReason: 'stop' } as never);
+    const failure = await generateVisualModel(input(), options()).catch(error => error);
+    expect(failure).toMatchObject({ stage: 'module', code: 'scene', moduleName: 'Support', sceneDiagnostics: {
+      objectCount: 1, issueCount: 1, issues: [{ path: ['objects', 0, 'scale', 1], code: 'too_small', reason: 'minimum' }],
+    } });
+    expect(JSON.stringify(failure)).not.toContain('PRIVATE');
+    expect(generateObject).toHaveBeenCalledTimes(4);
+    expect(getVisualWorkspace(useGraphStore.getState().project).proposals).toHaveLength(0);
+    expect(getVisualWorkspace(useGraphStore.getState().project).artifacts).toHaveLength(0);
+  });
   it('stops subsequent module requests on cancellation', async () => {
     const controller = new AbortController();
     vi.mocked(generateObject).mockResolvedValueOnce({ object: selection, finishReason: 'stop' } as never).mockResolvedValueOnce({ object: modulePlan, finishReason: 'stop' } as never)

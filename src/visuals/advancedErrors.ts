@@ -1,13 +1,54 @@
 type Stage = 'selection' | 'plan' | 'module' | 'assembly';
 type Code = 'format' | 'references' | 'anchors' | 'scene' | 'budget' | 'bounds' | 'contacts';
 
+const sceneFields = new Set(['version', 'label', 'objects', 'id', 'type', 'position', 'rotation', 'scale', 'color', 'geometry',
+  'kind', 'points', 'holes', 'depth', 'bevel', 'segments', 'radius', 'radialSegments', 'closed', 'vertices', 'indices']);
+const issueReasons = { invalid_type: 'type', too_big: 'maximum', too_small: 'minimum', invalid_format: 'format',
+  invalid_value: 'enum', invalid_union: 'union', unrecognized_keys: 'unknown-fields', not_multiple_of: 'multiple',
+  invalid_key: 'key', invalid_element: 'element', custom: 'validation' } as const;
+const knownReasons = { visualGeometryInvalid: 'invalid-geometry', duplicateObjectId: 'duplicate-id',
+  visualGeometryBudgetExceeded: 'triangle-budget' } as const;
+type SafeIssueCode = keyof typeof issueReasons | 'validation';
+type SafeIssueReason = typeof issueReasons[keyof typeof issueReasons] | typeof knownReasons[keyof typeof knownReasons];
+export interface SceneValidationFailure {
+  scene: unknown;
+  issues: readonly { code: string; path: readonly PropertyKey[]; message?: string }[];
+}
+export interface AssemblySceneDiagnostics {
+  readonly objectCount: number;
+  readonly inspectedObjectCount: number;
+  readonly customObjectCount: number;
+  readonly issueCount: number;
+  readonly omittedIssueCount: number;
+  readonly issues: readonly { readonly path: readonly (string | number)[]; readonly code: SafeIssueCode; readonly reason: SafeIssueReason }[];
+}
+
+/** No raw Zod messages/values: unexpected paths and codes become fixed tokens. */
+function sceneDiagnostics(failure: SceneValidationFailure): AssemblySceneDiagnostics {
+  const raw = failure.scene && typeof failure.scene === 'object' ? (failure.scene as { objects?: unknown }).objects : undefined;
+  const objects: unknown[] = Array.isArray(raw) ? raw : [], inspected = objects.slice(0, 512);
+  const issues = failure.issues.slice(0, 12).map(issue => {
+    const code: SafeIssueCode = Object.hasOwn(issueReasons, issue.code) ? issue.code as keyof typeof issueReasons : 'validation';
+    const reason: SafeIssueReason = issue.message && Object.hasOwn(knownReasons, issue.message)
+      ? knownReasons[issue.message as keyof typeof knownReasons] : code === 'validation' ? 'validation' : issueReasons[code];
+    const path = issue.path.slice(0, 8).map(part => typeof part === 'string' && sceneFields.has(part) ? part
+      : typeof part === 'number' && Number.isSafeInteger(part) && part >= 0 && part <= 1_000_000 ? part : '?');
+    return Object.freeze({ path: Object.freeze(path), code, reason });
+  });
+  return Object.freeze({ objectCount: objects.length, inspectedObjectCount: inspected.length,
+    customObjectCount: inspected.filter(object => object && typeof object === 'object' && (object as { type?: unknown }).type === 'custom').length,
+    issueCount: failure.issues.length, omittedIssueCount: Math.max(0, failure.issues.length - issues.length), issues: Object.freeze(issues) });
+}
+
 /** Safe diagnostics only: never attach provider bodies, image bytes or reference text. */
 export class VisualAssemblyError extends Error {
   readonly moduleName?: string;
-  constructor(readonly stage: Stage, readonly code: Code, moduleName?: string) {
+  readonly sceneDiagnostics?: AssemblySceneDiagnostics;
+  constructor(readonly stage: Stage, readonly code: Code, moduleName?: string, sceneFailure?: SceneValidationFailure) {
     super('visualAssemblyInvalid');
     this.name = 'VisualAssemblyError';
     this.moduleName = moduleName?.replace(/[\u0000-\u001f]/g, ' ').slice(0, 160);
+    this.sceneDiagnostics = sceneFailure ? sceneDiagnostics(sceneFailure) : undefined;
   }
 }
 

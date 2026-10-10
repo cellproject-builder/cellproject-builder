@@ -6,7 +6,7 @@ import { groundedText } from '@/ai/research';
 import { useGraphStore } from '@/store';
 import { useLocaleStore } from '@/i18n';
 import { advancedContextScope } from './advancedContext';
-import { VisualAssemblyError } from './advancedErrors';
+import { VisualAssemblyError, type SceneValidationFailure } from './advancedErrors';
 import { withAssemblyStage } from './advancedRequest';
 import { getVisualWorkspace, visualContextSources } from './domain';
 import { generationSceneSchema, sceneSchema } from './normalize';
@@ -34,7 +34,7 @@ const scopedPlanSchema = (nodeIds: string[], sourceIds: string[]) => planGenerat
 });
 const moduleSchema = z.object({ scene: generationSceneSchema, interfaceObjects: z.array(z.object({ interfaceId: z.string(), objectId: z.string() }).strict()) }).strict();
 type Options = { signal: AbortSignal; contextText: string; assertCurrent: () => void; beforeRequest?: () => Promise<void>; onProgress?: (message: string) => void };
-const invalid = (stage: VisualAssemblyError['stage'], code: VisualAssemblyError['code'], moduleName?: string): never => { throw new VisualAssemblyError(stage, code, moduleName); };
+const invalid = (stage: VisualAssemblyError['stage'], code: VisualAssemblyError['code'], moduleName?: string, sceneFailure?: SceneValidationFailure): never => { throw new VisualAssemblyError(stage, code, moduleName, sceneFailure); };
 
 /** Separate calls build modules against one frozen coordinate and interface contract. */
 export async function generateAdvancedScene(input: VisualPromptInput, options: Options): Promise<{ scene: SceneV1; assembly: VisualModelAssembly; referencedMediaIds: string[] }> {
@@ -126,11 +126,14 @@ MODULAR CONTRACT. Output exactly {scene,interfaceObjects}. scene follows SceneV1
     await check(); if (generated.finishReason === 'length') throw new Error('visualGenerationIncomplete');
     const result = moduleSchema.safeParse(generated.object); if (!result.success) invalid('module', 'format', module.name);
     const subscene = sceneSchema.safeParse(result.data!.scene);
-    if (!subscene.success) invalid('module', subscene.error.issues.some(issue => issue.message === 'visualGeometryBudgetExceeded') ? 'budget' : 'scene', module.name);
+    if (!subscene.success) invalid('module', subscene.error.issues.some(issue => issue.message === 'visualGeometryBudgetExceeded') ? 'budget' : 'scene', module.name,
+      { scene: result.data!.scene, issues: subscene.error.issues });
     if (subscene.data!.objects.length > module.primitiveBudget) invalid('module', 'budget', module.name);
     const partObjects = subscene.data!.objects;
     const tolerance = Math.max(...module.size) * .03, envelope = envelopes.get(module.id)!.clone().expandByScalar(tolerance);
-    if (partObjects.some(object => object.id.length > 50)) invalid('module', 'scene', module.name);
+    const longId = partObjects.findIndex(object => object.id.length > 50);
+    if (longId >= 0) invalid('module', 'scene', module.name, { scene: subscene.data,
+      issues: [{ code: 'too_big', path: ['objects', longId, 'id'] }] });
     if (partObjects.some(object => !envelope.containsBox(decompositionObjectBounds(object)))) invalid('module', 'bounds', module.name);
     const contacts = result.data!.interfaceObjects;
     if (contacts.length !== interfaces.length || new Set(contacts.map(contact => contact.interfaceId)).size !== interfaces.length
@@ -144,7 +147,7 @@ MODULAR CONTRACT. Output exactly {scene,interfaceObjects}. scene follows SceneV1
   progress('Conferindo o conjunto e preparando a visão explodida…', 'Checking the assembly and preparing the exploded view…');
   await check();
   const sceneResult = sceneSchema.safeParse({ version: 1, label: `${selection.subject.slice(0, 135)} · ${en ? 'illustrative assembly' : 'conjunto ilustrativo'}`, objects });
-  if (!sceneResult.success) invalid('assembly', 'budget');
+  if (!sceneResult.success) invalid('assembly', 'budget', undefined, { scene: { objects }, issues: sceneResult.error.issues });
   const scene = sceneResult.data!;
   const assemblyResult = modelAssemblySchema.safeParse({ version: 1, sceneFingerprint: modelSceneFingerprint(scene), summary: selection.summary,
     plan, groups, selectedNodeIds, selectedImageIds, sources, unknowns: [...new Set([...notices, ...plan.unknowns])].slice(0, 32) });
