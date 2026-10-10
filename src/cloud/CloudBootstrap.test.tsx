@@ -7,6 +7,7 @@ import { webcrypto } from 'node:crypto';
 import * as migration from './migration';
 import { createVault } from './vault/crypto';
 import { configureVault } from './vault/privacy';
+import * as deviceKeys from './vault/deviceKeys';
 let host: HTMLDivElement, root: Root;
 beforeEach(() => { (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.append(host); root = createRoot(host); });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); configureCloud(null); configureVault(null, false); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -16,7 +17,7 @@ it('does not import application stores before an encrypted-vault unlock or expli
   const load = vi.fn(async () => ({ default: () => <div>Workspace</div> }));
   const fetcher = vi.fn<typeof fetch>(async path => String(path).endsWith('/config') ? Response.json({ enabled: true, authenticated: true, vaultAvailable: true, user: { id: 'owner', email: 'wylgnerbossman@gmail.com' } }) : String(path).endsWith('/vault') ? Response.json({ vault: null }) : Response.json({ documents: [{ key: 'dynamic_diary-theme', value: 'dark', revision: 1 }], media: [] }));
   await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={fetcher}/>));
-  expect(host.textContent).toContain('Ativar cofre privado'); expect(load).not.toHaveBeenCalled();
+  expect(host.textContent).toContain('Proteja seus dados'); expect(load).not.toHaveBeenCalled();
   await act(async () => Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'Continuar sem ativar agora')!.click());
   expect(load).toHaveBeenCalledOnce();
 });
@@ -28,13 +29,40 @@ it('unlocks a remote cofre locally before importing stores and never sends the p
   const load = vi.fn(async () => ({ default: () => <div>Private workspace</div> }));
   const fetcher = vi.fn<typeof fetch>(async path => String(path).endsWith('/config') ? Response.json({ enabled: true, authenticated: true, vaultAvailable: true, user: { id: 'owner', email: 'wylgnerbossman@gmail.com' } }) : Response.json(head));
   await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={fetcher}/>));
-  expect(host.textContent).toContain('Desbloquear seu cofre'); expect(load).not.toHaveBeenCalled();
+  for (let index = 0; index < 200 && !host.textContent?.includes('Abrir seus dados neste navegador'); index++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  expect(host.textContent).toContain('Abrir seus dados neste navegador'); expect(load).not.toHaveBeenCalled();
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Usar minha frase antiga do cofre')!.click());
   await fill(host.querySelector('input[type=password]')!, phrase); await submit();
   await act(async () => { await vi.waitFor(() => expect(load).toHaveBeenCalledOnce(), { timeout: 10000 }); });
   expect(load).toHaveBeenCalledOnce(); expect(host.textContent).toContain('Private workspace');
   expect(fetcher.mock.calls.map(call => String(call[1]?.body ?? '')).join()).not.toContain(phrase);
   expect(fetcher.mock.calls.some(call => call[0] === '/api/cloud/snapshot')).toBe(false);
 }, 15000);
+it('opens a remembered device key only after the authenticated owner and remote header are verified', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const owner = crypto.randomUUID(), vault = await createVault(owner, 'synthetic remembered-device phrase');
+  await deviceKeys.rememberDeviceVault(vault.session, { recoveryKey: vault.recoveryKey });
+  const snapshot = { documents: [{ key: 'dynamic_diary-theme', value: 'dark', revision: 1 }], media: [] };
+  const head = { header: vault.header, revision: 1, manifest: await vault.session.seal(JSON.stringify({ snapshot, files: {} }), 'manifest:1') };
+  const load = vi.fn(async () => ({ default: () => <div>Remembered workspace</div> })), events: string[] = [];
+  const read = vi.spyOn(deviceKeys, 'readDeviceVault');
+  const fetcher = vi.fn<typeof fetch>(async path => { events.push(String(path)); return Response.json(String(path).endsWith('/config') ? { enabled: true, authenticated: true, vaultAvailable: true, user: { id: owner, email: 'wylgnerbossman@gmail.com' } } : head); });
+  await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={fetcher}/>));
+  for (let index = 0; index < 100 && !load.mock.calls.length; index++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+  expect(load).toHaveBeenCalledOnce(); expect(read).toHaveBeenCalledWith(owner, vault.header);
+  expect(events.slice(0, 2)).toEqual(['/api/cloud/config', '/api/cloud/vault']); expect(host.textContent).toContain('Remembered workspace');
+  expect(fetcher.mock.calls.every(call => !call[1]?.body)).toBe(true); vault.session.dispose();
+}, 15000);
+it.each([
+  { enabled: true, authenticated: false, vaultAvailable: true },
+  { enabled: true, authenticated: true, vaultAvailable: true, passwordSetup: true, user: { id: 'owner', email: 'wylgnerbossman@gmail.com' } },
+  { enabled: true, authenticated: true, vaultAvailable: true, user: { id: 'owner', email: 'unauthorized@example.test' } },
+])('never reads device keys or imports stores before account authorization: %j', async config => {
+  const read = vi.spyOn(deviceKeys, 'readDeviceVault'), load = vi.fn(), fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(config));
+  await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={fetcher}/>));
+  expect(read).not.toHaveBeenCalled(); expect(load).not.toHaveBeenCalled();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
 it('uses a password login when enabled and clears the password before opening the authenticated workspace', async () => {
   const load = vi.fn(async () => ({ default: () => <div>Workspace</div> })); let authenticated = false;
   const fetcher = vi.fn<typeof fetch>(async path => {

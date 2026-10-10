@@ -4,6 +4,8 @@ export interface VaultHead { header: VaultHeader; revision: number; manifest: Ci
 interface PrivateFile { blobId: string; sha256: string; size: number }
 interface Manifest { snapshot: CloudSnapshot; files: Record<string, PrivateFile> }
 interface Pending { body: string; next: Manifest; operationId: string; reply: unknown }
+interface Receipt { response: string | null; bytes: number; pinned: boolean }
+const RESPONSE_COUNT_LIMIT = 128, RESPONSE_BYTE_LIMIT = 512 * 1024;
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 function validateManifest(value: unknown): Manifest {
   const data = value as Manifest;
@@ -18,8 +20,10 @@ function validateManifest(value: unknown): Manifest {
 export class VaultTransport {
   private chain: Promise<unknown> = Promise.resolve();
   private pending: Pending | null = null;
-  private completed = new Map<string, unknown>();
+  private completed = new Map<string, Receipt>();
   private requests = new Map<string, string>();
+  private responses = new Map<string, number>();
+  private responseBytes = 0;
   private disposed = false;
   private uploads = new Map<string, { blobId: string; cipherBytes: ArrayBuffer; cipherHash: string }>();
   private constructor(readonly session: VaultSession, private state: Manifest, private revision: number, private remote: typeof fetch) {}
@@ -30,19 +34,41 @@ export class VaultTransport {
   }
   snapshot(): CloudSnapshot { this.available(); return clone(this.state.snapshot); }
   private available() { if (this.disposed) throw new Error('Cofre bloqueado.'); }
-  private async settle() {
+  private cacheResponse(operationId: string, receipt: Receipt) {
+    this.responses.set(operationId, receipt.bytes); this.responseBytes += receipt.bytes;
+    while (this.responses.size > RESPONSE_COUNT_LIMIT || this.responseBytes > RESPONSE_BYTE_LIMIT) {
+      const oldest = this.responses.keys().next().value!;
+      this.responseBytes -= this.responses.get(oldest)!; this.responses.delete(oldest);
+      // Keep the fingerprint/tombstone: replay must not generate fresh ciphertext for an old ID.
+      const expired = this.completed.get(oldest)!; expired.response = null; expired.bytes = 0;
+    }
+  }
+  private rememberReply(operationId: string, reply: unknown, pinned: boolean) {
+    const response = JSON.stringify(reply), receipt = { response, bytes: new TextEncoder().encode(response).byteLength, pinned };
+    this.completed.set(operationId, receipt);
+    if (!pinned) this.cacheResponse(operationId, receipt);
+  }
+  private replay(operationId: string) {
+    const receipt = this.completed.get(operationId)!;
+    if (receipt.response === null) throw new CloudConflictError();
+    const response = receipt.response;
+    // A commit recovered by another request keeps its reply until its original caller retries.
+    if (receipt.pinned) { receipt.pinned = false; this.cacheResponse(operationId, receipt); }
+    return new Response(response, { headers: { 'Content-Type': 'application/json' } });
+  }
+  private async settle(deliverTo?: string) {
     if (!this.pending) return;
     const op = this.pending;
     const reply = await cloudJson<{ revision: number }>('/api/cloud/vault', { method: 'PUT', headers: mutationHeaders, body: op.body }, this.remote);
     this.available(); if (reply.revision !== this.revision + 1) throw new Error('Revisão do cofre inválida.');
-    this.state = op.next; this.revision = reply.revision; this.completed.set(op.operationId, op.reply); this.pending = null;
+    this.state = op.next; this.revision = reply.revision; this.rememberReply(op.operationId, op.reply, op.operationId !== deliverTo); this.pending = null;
     for (const [key, upload] of this.uploads) if (Object.values(this.state.files).some(file => file.blobId === upload.blobId)) this.uploads.delete(key);
   }
   private async commit(next: Manifest, operationId: string, reply: unknown) {
     validateManifest(next);
     const manifest = await this.session.seal(JSON.stringify(next), `manifest:${this.revision + 1}`); this.available();
     this.pending = { body: JSON.stringify({ manifest, baseRevision: this.revision, operationId }), next, operationId, reply };
-    await this.settle(); return Response.json(reply);
+    await this.settle(operationId); return Response.json(reply);
   }
   fetch: typeof fetch = (async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const path = String(input);
@@ -59,10 +85,11 @@ export class VaultTransport {
       }
       const body = JSON.parse(String(init.body));
       if (!body || typeof body.operationId !== 'string') throw new Error('Operação inválida.');
-      const request = String(init.body), prior = this.requests.get(body.operationId);
+      const request = await sha256(new TextEncoder().encode(JSON.stringify([(init.method ?? 'GET').toUpperCase(), path, String(init.body)])).buffer), prior = this.requests.get(body.operationId);
+      this.available();
       if (prior !== undefined && prior !== request) throw new CloudConflictError();
       this.requests.set(body.operationId, request);
-      if (this.completed.has(body.operationId)) return Response.json(this.completed.get(body.operationId));
+      if (this.completed.has(body.operationId)) return this.replay(body.operationId);
       const next = clone(this.state);
       if (path.startsWith('/api/cloud/documents/') && init.method === 'PUT') {
         const key = decodeURIComponent(path.slice('/api/cloud/documents/'.length)), old = next.snapshot.documents.find(doc => doc.key === key);
@@ -113,20 +140,35 @@ export class VaultTransport {
     this.chain = task; return task;
   }) as typeof fetch;
   async flush() { await this.chain.catch(() => {}); await this.settle(); }
-  dispose() { this.disposed = true; this.session.dispose(); this.state = { snapshot: { documents: [], media: [] }, files: {} }; this.pending = null; this.completed.clear(); this.requests.clear(); this.uploads.clear(); }
+  dispose() { this.disposed = true; this.session.dispose(); this.state = { snapshot: { documents: [], media: [] }, files: {} }; this.pending = null; this.completed.clear(); this.requests.clear(); this.responses.clear(); this.responseBytes = 0; this.uploads.clear(); }
 }
-const activations = new WeakMap<VaultSession, { body: string; head: VaultHead; snapshot: string }>();
-export async function activateVault(session: VaultSession, snapshot: CloudSnapshot, remote: typeof fetch = fetch): Promise<VaultHead> {
+export interface PreparedVaultActivation { body: string; head: VaultHead; snapshotFingerprint: string }
+const activations = new WeakMap<VaultSession, PreparedVaultActivation>();
+const snapshotFingerprint = (snapshot: CloudSnapshot) => sha256(new TextEncoder().encode(JSON.stringify({ documents: [...snapshot.documents].sort((a, b) => a.key.localeCompare(b.key)), media: snapshot.media })).buffer);
+export async function prepareVaultActivation(session: VaultSession, snapshot: CloudSnapshot, restored?: PreparedVaultActivation): Promise<PreparedVaultActivation> {
+  session.deviceKeyForStorage();
   const check = new CloudRuntime(snapshot); check.dispose();
   if (snapshot.media.length) throw new Error('A ativação com arquivos antigos exige migração assistida. O conteúdo atual foi preservado.');
-  let activation = activations.get(session);
-  if (activation && activation.snapshot !== JSON.stringify(snapshot)) throw new Error('O conteúdo remoto mudou. Reabra a preparação do cofre.');
+  const fingerprint = await snapshotFingerprint(snapshot);
+  let activation = activations.get(session) ?? restored;
+  if (activation && activation.snapshotFingerprint !== fingerprint) throw new Error('O conteúdo remoto mudou. A preparação deste navegador foi preservada.');
+  if (restored) {
+    const body = JSON.parse(restored.body);
+    if (JSON.stringify(validateHeader(body.header)) !== JSON.stringify(session.header) || JSON.stringify(validateHeader(restored.head.header)) !== JSON.stringify(session.header) || JSON.stringify(body.manifest) !== JSON.stringify(restored.head.manifest) || restored.head.revision !== 1 || typeof body.operationId !== 'string' || JSON.stringify([...body.expectedDocuments].sort((a, b) => a.key.localeCompare(b.key))) !== JSON.stringify(snapshot.documents.map(({ key, revision }) => ({ key, revision })).sort((a, b) => a.key.localeCompare(b.key)))) throw new Error('Preparação local inválida.');
+    const plain = validateManifest(JSON.parse(await session.openText(validateCipher(body.manifest), 'manifest:1')));
+    if (await snapshotFingerprint(plain.snapshot) !== fingerprint) throw new Error('Preparação local inválida.');
+  }
   const manifest = activation?.head.manifest ?? await session.seal(JSON.stringify({ snapshot, files: {} }), 'manifest:1');
-  // Body is kept unchanged by the setup UI when an activation response is lost.
   const body = activation?.body ?? JSON.stringify({ header: session.header, manifest, expectedDocuments: snapshot.documents.map(({ key, revision }) => ({ key, revision })), operationId: crypto.randomUUID() });
-  if (!activation) { activation = { body, head: { header: session.header, manifest, revision: 1 }, snapshot: JSON.stringify(snapshot) }; activations.set(session, activation); }
-  const reply = await cloudJson<{ revision: number }>('/api/cloud/vault/activate', { method: 'POST', headers: mutationHeaders, body }, remote);
-  if (reply.revision !== 1) throw new Error('Ativação do cofre não confirmada.'); return { header: session.header, manifest, revision: 1 };
+  if (!activation) activation = { body, head: { header: session.header, manifest, revision: 1 }, snapshotFingerprint: fingerprint };
+  session.deviceKeyForStorage(); activations.set(session, activation); return activation;
+}
+export async function activateVault(session: VaultSession, snapshot: CloudSnapshot, remote: typeof fetch = fetch, restored?: PreparedVaultActivation): Promise<VaultHead> {
+  const activation = await prepareVaultActivation(session, snapshot, restored);
+  session.deviceKeyForStorage();
+  const reply = await cloudJson<{ revision: number }>('/api/cloud/vault/activate', { method: 'POST', headers: mutationHeaders, body: activation.body }, remote);
+  session.deviceKeyForStorage();
+  if (reply.revision !== 1) throw new Error('Ativação do cofre não confirmada.'); return activation.head;
 }
 
 

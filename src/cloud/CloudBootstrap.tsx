@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentType } from 'react';
-import { CloudHttpError, CloudRuntime, cloudJson, configureCloud, mutationHeaders, type CloudConfig, type CloudSnapshot } from './runtime';
+import { CloudHttpError, CloudRuntime, cloudJson, configureCloud, getCloudRuntime, mutationHeaders, type CloudConfig, type CloudSnapshot } from './runtime';
 import { captureLegacyBackup, type MigrationBackup } from './migration';
 import { CloudMigration } from './CloudMigration';
 import { CloudStatus } from './CloudStatus';
@@ -7,6 +7,7 @@ import { PasswordSetup } from './PasswordSetup';
 import { VaultGate } from './VaultGate';
 import { VaultTransport, type VaultHead } from './vault/transport';
 import { configureVault } from './vault/privacy';
+import { readDeviceVault } from './vault/deviceKeys';
 import './cloud.css';
 
 interface Props { loadApplication: () => Promise<{ default: ComponentType }>; fetcher?: typeof fetch }
@@ -18,13 +19,24 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
   const [loginMethod, setLoginMethod] = useState<'password' | 'link' | 'setup'>('password');
   const [password, setPassword] = useState('');
   const [vaultGate, setVaultGate] = useState(false), [vaultHead, setVaultHead] = useState<VaultHead | null>(null);
+  const [deviceError, setDeviceError] = useState('');
   const emailLink = config?.authMethod === 'email_link';
   const passwordLogin = config?.passwordAuth && loginMethod === 'password', passwordLink = config?.passwordAuth && loginMethod === 'setup';
   const generation = useRef(0);
+  const activeRuntime = useRef<CloudRuntime | null>(null);
   const invalidLink = useRef(new URLSearchParams(window.location.search).get('auth_error') === 'link_invalid');
   async function load(selected: CloudSnapshot | null, next: CloudConfig, vault?: VaultTransport) {
-    const cloud = selected ? new CloudRuntime(selected, vault?.fetch ?? fetcher, vault ? () => vault.dispose() : undefined) : null; configureCloud(cloud, next.providers); configureVault(vault?.session ?? null, !!vault); setRuntime(cloud); setMigration(false); setVaultGate(false);
-    const application = await loadApplication(); setApp(() => application.default);
+    const id = generation.current;
+    const cloud = selected ? new CloudRuntime(selected, vault?.fetch ?? fetcher, vault ? () => vault.dispose() : undefined) : null;
+    activeRuntime.current = cloud;
+    configureCloud(cloud, next.providers); configureVault(vault?.session ?? null, !!vault);
+    try { const application = await loadApplication(); if (id !== generation.current) { cloud?.dispose(); return; } setRuntime(cloud); setMigration(false); setVaultGate(false); setApp(() => application.default); }
+    catch (reason) { if (getCloudRuntime() === cloud) { configureCloud(null); configureVault(null, !!vault); } throw reason; }
+  }
+  async function verifyAccount(ownerId: string) {
+    const latest = await cloudJson<CloudConfig>('/api/cloud/config', {}, fetcher);
+    if (!latest.enabled || !latest.authenticated || latest.passwordSetup || latest.user?.id !== ownerId || latest.user.email.toLowerCase() !== 'wylgnerbossman@gmail.com') throw new CloudHttpError(401, 'Sua sessão mudou. Entre novamente para abrir os dados.');
+    return latest;
   }
   async function refresh(id = ++generation.current) {
     setBusy(true); setError('');
@@ -37,11 +49,29 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
       if (!next.user?.id || next.user.email.toLowerCase() !== 'wylgnerbossman@gmail.com') throw new Error('Esta conta não tem acesso ao workspace.');
       if (next.passwordSetup) return;
       if (next.vaultAvailable) {
+        setDeviceError('');
         const head = await cloudJson<VaultHead | { vault: null }>('/api/cloud/vault', {}, fetcher); if (id !== generation.current) return;
         if ('vault' in head && head.vault === null) {
           const original = await cloudJson<CloudSnapshot>('/api/cloud/snapshot', {}, fetcher); if (id !== generation.current) return;
           const validation = new CloudRuntime(original, fetcher); validation.dispose(); setSnapshot(original); setVaultHead(null);
-        } else { setVaultHead(head as VaultHead); setSnapshot(null); }
+        } else {
+          const current = head as VaultHead; setVaultHead(current); setSnapshot(null); configureVault(null, true);
+          let session;
+          try {
+            session = await readDeviceVault(next.user.id, current.header);
+            if (id !== generation.current) { session?.dispose(); return; }
+            if (session) {
+              const vault = await VaultTransport.open(session, current, fetcher);
+              const latest = await verifyAccount(next.user.id);
+              if (id !== generation.current) { vault.dispose(); return; }
+              await load(vault.snapshot(), latest, vault); return;
+            }
+          } catch (reason) {
+            session?.dispose();
+            if (reason instanceof CloudHttpError && [401, 403].includes(reason.status)) throw reason;
+            setDeviceError(reason instanceof Error ? reason.message : 'Use sua recuperação para abrir este navegador.');
+          }
+        }
         setVaultGate(true); return;
       }
       const remote = await cloudJson<CloudSnapshot>('/api/cloud/snapshot', {}, fetcher); if (id !== generation.current) return;
@@ -58,7 +88,12 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
   }
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has('auth_error')) { const clean = new URL(window.location.href); clean.searchParams.delete('auth_error'); window.history.replaceState(window.history.state, '', clean.pathname + clean.search + clean.hash); }
-    const id = ++generation.current; void refresh(id); return () => { generation.current++; };
+    const id = ++generation.current; void refresh(id); return () => {
+      generation.current++;
+      const cloud = activeRuntime.current; activeRuntime.current = null; cloud?.dispose();
+      // Clear the global adapter after child cleanup, so unmounting stores cannot write to local persistence.
+      queueMicrotask(() => { if (cloud && getCloudRuntime() === cloud) configureCloud(null); });
+    };
   }, []);
   async function auth(verify: boolean) {
     if (busy) return;
@@ -82,7 +117,11 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
   function switchMethod(method: typeof loginMethod) { setLoginMethod(method); setPassword(''); setCodeSent(false); setShowCode(false); setToken(''); setError(''); }
   if (App) return <><App/>{runtime && <CloudStatus runtime={runtime} userId={config?.user?.id ?? ''} email={config?.user?.email ?? email} onLogout={() => { runtime.dispose(); window.location.reload(); }}/>}</>;
   return <main className="cloud-entry">
-    {vaultGate && config?.user ? <VaultGate ownerId={config.user.id} head={vaultHead} snapshot={snapshot} fetcher={fetcher} onUnlocked={vault => load(vault.snapshot(), config, vault)} onSkip={() => {
+    {vaultGate && config?.user ? <VaultGate key={`${config.user.id}:${vaultHead?.header.id ?? 'new'}`} ownerId={config.user.id} head={vaultHead} snapshot={snapshot} fetcher={fetcher} deviceError={deviceError} onUnlocked={async vault => {
+      const id = generation.current;
+      try { const latest = await verifyAccount(config.user!.id); if (id !== generation.current) { vault.dispose(); return; } await load(vault.snapshot(), latest, vault); }
+      catch (reason) { vault.dispose(); throw reason; }
+    }} onSkip={() => {
       if (!snapshot) return; setVaultGate(false);
       if (snapshot.documents.length) void load(snapshot, config).catch(reason => setError(reason.message));
       else void captureLegacyBackup().then(backup => { setLegacy(backup.documents.length || backup.media.length ? backup : null); setMigration(true); }).catch(reason => setError(reason.message));

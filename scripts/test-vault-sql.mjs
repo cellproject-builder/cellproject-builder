@@ -30,6 +30,7 @@ const header = { format: 'dynamic-diary-vault', version: 1, id: headerId,
   kdf: { name: 'PBKDF2', hash: 'SHA-256', iterations: 600000, salt: Buffer.alloc(16, 3).toString('base64') },
   password: cipher(48), recovery: cipher(48) };
 const manifest = cipher(32);
+const legacyDocuments = [{ key: 'cellproject-workspace', revision: 2 }, { key: 'cellproject-graph', revision: 1 }];
 let passed = 0;
 const failed = [];
 async function check(name, fn) {
@@ -53,6 +54,10 @@ try {
     create role anon nologin;
     create role authenticated nologin;
     create role service_role nologin bypassrls;
+    -- Managed Supabase grants these defaults before application migrations run.
+    -- Narrow grants must first revoke inherited privileges, not merely add more.
+    alter default privileges in schema public grant all on tables to anon,authenticated,service_role;
+    alter default privileges in schema public grant execute on functions to anon,authenticated,service_role;
     create schema auth; create schema storage;
     create table auth.users(id uuid primary key,email text,is_anonymous boolean not null default false,email_confirmed_at timestamptz,banned_until timestamptz);
     create table auth.sessions(id uuid primary key,user_id uuid references auth.users(id),not_after timestamptz);
@@ -70,11 +75,36 @@ try {
     insert into auth.users(id,email,email_confirmed_at) values('${owner}','wylgnerbossman@gmail.com',now()),('${foreign}','other@example.invalid',now());
     insert into auth.sessions(id,user_id) values('${ownerSession}','${owner}'),('${foreignSession}','${foreign}');
   `);
-  for (const name of ['20261010043955_cellproject_cloud_persistence.sql','20261010044015_cellproject_harden_default_permissions.sql','20261010130012_dynamic_diary_encrypted_vault.sql']) {
+  for (const name of ['20261010043955_cellproject_cloud_persistence.sql','20261010044015_cellproject_harden_default_permissions.sql','20261010130012_dynamic_diary_encrypted_vault.sql','20261010131431_dynamic_diary_vault_safe_writes.sql']) {
     await db.exec(await readFile(new URL(`../supabase/migrations/${name}`, import.meta.url), 'utf8'));
     console.log(`APPLIED ${name}`);
   }
   await db.query('insert into cellproject_private.allowed_users(user_id) values($1)', [owner]);
+
+  await check('vault tables strip managed default privileges before granting the minimum', async () => {
+    for (const table of ['dynamic_diary_vaults','dynamic_diary_vault_operations','dynamic_diary_vault_blobs']) {
+      for (const privilege of ['DELETE','TRUNCATE','REFERENCES','TRIGGER']) {
+        assert.equal(await scalar('select has_table_privilege($1,$2,$3)', ['authenticated', `public.${table}`, privilege]), false, `authenticated must not have ${privilege} on ${table}`);
+      }
+      for (const privilege of ['INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) {
+        assert.equal(await scalar('select has_table_privilege($1,$2,$3)', ['service_role', `public.${table}`, privilege]), false, `service_role must not have ${privilege} on ${table}`);
+      }
+    }
+    for (const table of ['dynamic_diary_vault_operations','dynamic_diary_vault_blobs']) {
+      assert.equal(await scalar('select has_table_privilege($1,$2,$3)', ['authenticated', `public.${table}`, 'UPDATE']), false);
+      assert.equal(await scalar('select has_table_privilege($1,$2,$3)', ['service_role', `public.${table}`, 'SELECT']), false);
+    }
+    assert.equal(await scalar("select has_table_privilege('service_role','public.dynamic_diary_vaults','SELECT')"), true);
+  });
+  await check('vault mutation SQL always identifies the owner for managed safe-update checks', async () => {
+    // PGlite does not load the managed safeupdate library. Inspect the actual SQL
+    // definitions as a separate guard; behavior is exercised below with RLS.
+    const activation = await scalar("select prosrc from pg_proc where oid='public.dynamic_diary_activate_vault(jsonb,jsonb,jsonb,text)'::regprocedure");
+    const writing = await scalar("select prosrc from pg_proc where oid='public.dynamic_diary_write_vault(jsonb,bigint,text)'::regprocedure");
+    assert.match(activation, /delete\s+from\s+public\.cellproject_documents\s+where\s+owner_id\s*=\s*auth\.uid\(\)/i);
+    assert.match(activation, /delete\s+from\s+public\.cellproject_operations\s+where\s+owner_id\s*=\s*auth\.uid\(\)/i);
+    assert.match(writing, /update\s+public\.dynamic_diary_vaults\s+set[^;]+where\s+owner_id\s*=\s*auth\.uid\(\)/i);
+  });
 
   await check('advisory transaction lock exists and executes', () => db.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [owner]));
   await check('authenticated admission with confirmed active session', async () => assert.equal(await user(() => scalar('select public.cellproject_authorized()')), true));
@@ -82,6 +112,8 @@ try {
   await check('legacy write succeeds before activation', async () => {
     const result = await user(() => db.query('select public.cellproject_write_document($1,$2,0,$3) as result', ['cellproject-workspace', '{"state":{"projects":{}},"version":1}', 'legacy-seed']));
     assert.equal(result.rows[0].result.revision, 1);
+    await user(() => db.query('select public.cellproject_write_document($1,$2,0,$3)', ['cellproject-graph', '{}', 'legacy-seed-2']));
+    await user(() => db.query('select public.cellproject_write_document($1,$2,1,$3)', ['cellproject-workspace', '{"state":{},"version":1}', 'legacy-seed-3']));
   });
   await check('strict cipher validator rejects empty objects', async () => {
     await assert.rejects(user(() => db.query("select cellproject_private.validate_cipher('{}'::jsonb)")), /Invalid ciphertext/);
@@ -94,24 +126,27 @@ try {
   await db.query('delete from public.dynamic_diary_vaults where owner_id=$1', [owner]);
   await check('CAS mismatch leaves plaintext and vault unchanged', async () => {
     await assert.rejects(user(() => activate([{ key: 'cellproject-workspace', revision: 2 }], 'activate-stale')), /Revision conflict/);
-    assert.equal(await scalar('select count(*)::int from public.cellproject_documents'), 1);
+    assert.equal(await scalar('select count(*)::int from public.cellproject_documents'), 2);
     assert.equal(await scalar('select count(*)::int from public.dynamic_diary_vaults'), 0);
   });
   await check('legacy media blocks activation without data loss', async () => {
     await db.query('insert into public.cellproject_media(owner_id,id,mime,name,sha256,size,path) values($1,$2,$3,$4,$5,$6,$7)', [owner, 'fixture-media', 'text/plain', 'fixture.txt', 'a'.repeat(64), 1, `${owner}/${'b'.repeat(64)}/${'a'.repeat(64)}`]);
-    await assert.rejects(user(() => activate([{ key: 'cellproject-workspace', revision: 1 }], 'activate-media')), /Legacy_media/);
-    assert.equal(await scalar('select count(*)::int from public.cellproject_documents'), 1);
+    await assert.rejects(user(() => activate(legacyDocuments, 'activate-media')), /Legacy_media/);
+    assert.equal(await scalar('select count(*)::int from public.cellproject_documents'), 2);
     await db.query('delete from public.cellproject_media where id=$1', ['fixture-media']);
   });
   await check('activation atomically installs ciphertext and removes plaintext', async () => {
-    const result = await user(() => activate([{ key: 'cellproject-workspace', revision: 1 }]));
+    await db.query('insert into public.cellproject_documents(owner_id,key,value) values($1,$2,$3)', [foreign, 'cellproject-workspace', '{}']);
+    const result = await user(() => activate(legacyDocuments));
     assert.equal(result.rows[0].result.revision, 1);
+    assert.equal(await scalar('select count(*)::int from public.cellproject_documents where owner_id=$1', [foreign]), 1, 'Activation must preserve another owner\'s documents');
+    await db.query('delete from public.cellproject_documents where owner_id=$1', [foreign]);
     assert.equal(await scalar('select count(*)::int from public.cellproject_documents'), 0);
     assert.equal(await scalar('select count(*)::int from public.cellproject_operations'), 0);
     assert.equal(await scalar('select count(*)::int from public.dynamic_diary_vaults'), 1);
   });
   await check('activation replay is idempotent after plaintext removal', async () => {
-    const result = await user(() => activate([{ key: 'cellproject-workspace', revision: 1 }]));
+    const result = await user(() => activate(legacyDocuments));
     assert.equal(result.rows[0].result.revision, 1);
   });
   await check('activation reused operation ID with changed request conflicts', async () => {
@@ -152,6 +187,7 @@ try {
     await assert.rejects(user(() => db.query('select public.dynamic_diary_vault_snapshot()'), { role: 'anon' }), /permission denied/);
   });
   await check('authenticated principal cannot delete vault to disable encryption', async () => {
+    assert.equal(await scalar("select has_table_privilege('authenticated','public.dynamic_diary_vaults','DELETE')"), false);
     await assert.rejects(user(() => db.query('delete from public.dynamic_diary_vaults')), /permission denied/);
   });
   await check('opaque vault storage insert accepts allowed owner and bucket', async () => {

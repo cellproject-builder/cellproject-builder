@@ -139,6 +139,8 @@ In **local development**:
 
 Storage keys retain the `cellproject-` prefix for compatibility with existing data. In cloud mode, the backend stores provider credentials, the browser uses an opaque HttpOnly session cookie, and Supabase stores private documents/media. The service worker caches only the public application shell, never private API responses. Unsaved/conflicting changes remain visible and can be exported. See [security and deployment limits](docs/cloud-production.md).
 
+When the private vault is activated, documents and new attachments are encrypted in the browser before storage. This browser remembers a non-extractable WebCrypto key and opens the vault after login; recovery downloads are optional. Another browser or cleared site storage requires a recovery key (or an existing vault's original phrase). Browser-profile access, malicious client code and authorized AI processing are outside this storage protection. See [vault behavior and recovery limits](docs/encrypted-vault.md).
+
 ---
 
 ## Deploy

@@ -1,8 +1,8 @@
 import { webcrypto } from 'node:crypto';
 import { beforeAll, expect, it, vi } from 'vitest';
 import { CloudRuntime, encodeBytes, sha256 } from '../runtime';
-import { createVault } from './crypto';
-import { activateVault, VaultTransport } from './transport';
+import { createVault, sessionFromDeviceKey } from './crypto';
+import { activateVault, prepareVaultActivation, VaultTransport } from './transport';
 beforeAll(() => vi.stubGlobal('crypto', webcrypto));
 const snapshot = { documents: [{ key: 'dynamic_diary-chat', value: '{"version":1,"state":{"private":"private chat"}}', revision: 1 }], media: [] };
 async function fixture() {
@@ -63,4 +63,62 @@ it('settles an ambiguous media commit before another mutation, and fails closed 
   await f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body: JSON.stringify({ value: 'dark', baseRevision: 0, operationId: 'doc-operation' }) });
   expect(f.bodies[0]).toBe(f.bodies[1]); expect(f.transport.snapshot().media).toHaveLength(1);
   f.transport.dispose(); await expect(f.transport.fetch('/api/cloud/snapshot')).rejects.toThrow('bloqueado');
+});
+
+type ReceiptMemory = { requests: Map<string, string>; completed: Map<string, { response: string | null; bytes: number; pinned: boolean }> };
+const memory = (transport: VaultTransport) => transport as unknown as ReceiptMemory;
+it('keeps fingerprints rather than full autosaves and bounds confirmed response count and bytes', async () => {
+  const f = await fixture();
+  for (let index = 0; index < 140; index++) {
+    await f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body: JSON.stringify({ value: `private-autosave-${index}`, baseRevision: index, operationId: `autosave-${index}` }) });
+  }
+  const retained = memory(f.transport), responses = [...retained.completed.values()].filter(receipt => receipt.response !== null);
+  expect([...retained.requests.values()].every(value => /^[a-f0-9]{64}$/.test(value))).toBe(true);
+  expect(JSON.stringify([...retained.requests])).not.toContain('private-autosave');
+  expect(responses.length).toBeLessThanOrEqual(128);
+  expect(responses.reduce((sum, receipt) => sum + receipt.bytes, 0)).toBeLessThanOrEqual(512 * 1024);
+  expect(retained.completed.get('autosave-0')?.response).toBeNull();
+}, 15000);
+it('preserves an ambiguous large import receipt until its own retry consumes it', async () => {
+  const f = await fixture(), body = JSON.stringify({ documents: [{ key: 'dynamic_diary-sidebar-collapsed', value: 'private'.repeat(80000) }], operationId: 'large-ambiguous-import' });
+  f.loseNext(); await expect(f.transport.fetch('/api/cloud/import', { method: 'POST', body })).rejects.toThrow('response lost');
+  for (let index = 0; index < 3; index++) await f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body: JSON.stringify({ value: String(index), baseRevision: index, operationId: `after-ambiguous-${index}` }) });
+  expect(f.bodies[0]).toBe(f.bodies[1]);
+  const writes = f.bodies.length;
+  const reply = await (await f.transport.fetch('/api/cloud/import', { method: 'POST', body })).json();
+  expect(reply.documents[0].value).toBe('private'.repeat(80000)); expect(f.bodies).toHaveLength(writes);
+  expect(memory(f.transport).completed.get('large-ambiguous-import')?.response).toBeNull();
+  await expect(f.transport.fetch('/api/cloud/import', { method: 'POST', body })).rejects.toThrow('conflito');
+  expect(f.bodies).toHaveLength(writes);
+}, 15000);
+it('rejects an expired oversized import replay before another encryption or commit', async () => {
+  const f = await fixture(), body = JSON.stringify({ documents: [{ key: 'dynamic_diary-sidebar-collapsed', value: 'private'.repeat(80000) }], operationId: 'expired-import' });
+  await f.transport.fetch('/api/cloud/import', { method: 'POST', body });
+  const writes = f.bodies.length, seal = vi.spyOn(f.vault.session, 'seal');
+  await expect(f.transport.fetch('/api/cloud/import', { method: 'POST', body })).rejects.toThrow('conflito');
+  expect(f.bodies).toHaveLength(writes); expect(seal).not.toHaveBeenCalled();
+});
+it('binds an operation fingerprint to method, route and body', async () => {
+  const f = await fixture(), body = JSON.stringify({ value: 'dark', baseRevision: 0, operationId: 'bound-operation' });
+  await f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body });
+  expect(await (await f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body })).json()).toEqual({ revision: 1 });
+  await expect(f.transport.fetch('/api/cloud/documents/dynamic_diary-sidebar-collapsed', { method: 'PUT', body })).rejects.toThrow('conflito');
+  await expect(f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'DELETE', body })).rejects.toThrow('conflito');
+  await expect(f.transport.fetch('/api/cloud/documents/dynamic_diary-theme', { method: 'PUT', body: body.replace('dark', 'light') })).rejects.toThrow('conflito');
+  expect(f.bodies).toHaveLength(1);
+  f.transport.dispose(); expect(memory(f.transport).requests.size).toBe(0); expect(memory(f.transport).completed.size).toBe(0);
+});
+it('refuses a restored activation with a changed head or changed snapshot before posting', async () => {
+  const f = await fixture(), prepared = await prepareVaultActivation(f.vault.session, snapshot);
+  const restored = sessionFromDeviceKey('owner', f.vault.header, f.vault.session.deviceKeyForStorage()), remote = vi.fn<typeof fetch>();
+  await expect(activateVault(restored, snapshot, remote, { ...prepared, head: { ...prepared.head, header: { ...prepared.head.header, id: crypto.randomUUID() } } })).rejects.toThrow();
+  await expect(activateVault(restored, { ...snapshot, documents: [{ ...snapshot.documents[0], revision: 2 }] }, remote, prepared)).rejects.toThrow('mudou');
+  expect(remote).not.toHaveBeenCalled(); restored.dispose(); f.vault.session.dispose();
+});
+it('never posts a cached activation after the session is locked', async () => {
+  const f = await fixture(), remote = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ revision: 1 }));
+  await prepareVaultActivation(f.vault.session, snapshot);
+  f.vault.session.dispose();
+  await expect(activateVault(f.vault.session, snapshot, remote)).rejects.toThrow('bloqueado');
+  expect(remote).not.toHaveBeenCalled();
 });

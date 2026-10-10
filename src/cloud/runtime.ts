@@ -108,7 +108,7 @@ export class CloudRuntime {
     this.publish({ issue: null }); await this.drain();
   }
   requestFetch(): typeof fetch { return this.fetcher; }
-  dispose() { this.vaultDisposer?.(); if (this.vaultDisposer) configureVault(null); this.disposed = true; this.mediaBytes.clear(); this.mediaMetadata.clear(); this.confirmed.clear(); this.drafts.clear(); this.queue = []; this.publish({ issue: null }); }
+  dispose() { if (this.disposed) return; this.disposed = true; this.vaultDisposer?.(); if (this.vaultDisposer) configureVault(null); this.mediaBytes.clear(); this.mediaMetadata.clear(); this.confirmed.clear(); this.drafts.clear(); this.queue = []; this.publish({ issue: null }); }
   media(): CloudMedia[] { return [...this.mediaMetadata.values()]; }
   cachedMedia(id: string): ArrayBuffer | null { return this.mediaBytes.get(id)?.slice(0) ?? null; }
   async readMedia(id: string): Promise<ArrayBuffer | null> {

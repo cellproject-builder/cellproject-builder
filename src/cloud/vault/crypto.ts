@@ -1,4 +1,4 @@
-/** WebCrypto envelope encryption. No secret is sent to an API or browser storage. */
+/** WebCrypto envelope encryption. Raw keys and recovery secrets never go to an API. */
 export interface CipherEnvelope { v: 1; iv: string; data: string }
 export interface VaultHeader {
   format: 'dynamic-diary-vault'; version: 1; id: string;
@@ -55,7 +55,17 @@ export class VaultSession {
     const value = await decrypt(this.available(), envelope, aad(this.ownerId, this.header.id, purpose)); this.available(); return value.buffer;
   }
   async openText(envelope: CipherEnvelope, purpose: string) { return decoder.decode(await this.openBytes(envelope, purpose)); }
+  /** Structured-clone this non-extractable handle into IndexedDB; never export raw key bytes. */
+  deviceKeyForStorage() { return validateDeviceKey(this.available()); }
   dispose() { this.key = null; }
+}
+function validateDeviceKey(key: CryptoKey) {
+  if (!key || key.type !== 'secret' || key.extractable !== false || key.algorithm.name !== 'AES-GCM' || (key.algorithm as AesKeyAlgorithm).length !== 256 || [...key.usages].sort().join(',') !== 'decrypt,encrypt') throw new Error('Chave deste navegador inválida.');
+  return key;
+}
+export function sessionFromDeviceKey(ownerId: string, header: VaultHeader, key: CryptoKey) {
+  if (!ownerId) throw new Error('Conta inválida.');
+  return new VaultSession(ownerId, validateHeader(header), validateDeviceKey(key));
 }
 export async function createVault(ownerId: string, secret: string): Promise<{ header: VaultHeader; session: VaultSession; recoveryKey: string }> {
   phrase(secret); if (!ownerId) throw new Error('Conta inválida.');
