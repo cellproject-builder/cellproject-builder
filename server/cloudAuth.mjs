@@ -69,11 +69,26 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = 
     if (typeof value !== 'string' || value.length > 254 || value.trim().toLowerCase() !== config.allowedEmail) throw new CloudError(403, 'account_not_allowed', 'This account is not permitted.');
     return config.allowedEmail;
   };
-  const call = async (path, { token, body, method = body ? 'POST' : 'GET', signal } = {}) => {
+  const call = async (path, { token, body, method = body ? 'POST' : 'GET', signal, passwordUpdate = false } = {}) => {
     let result;
     try { result = await fetchImpl(`${config.supabaseUrl}${path}`, { method, headers: { apikey: config.publishableKey, ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body ? { 'content-type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'error', signal: timeoutSignal(signal) }); }
     catch { throw unavailable(); }
-    if (!result.ok) { await result.body?.cancel(); if ([400, 401, 403, 422].includes(result.status)) throw deny(); if (result.status === 429) throw new CloudError(429, 'auth_rate_limited', 'Too many sign-in attempts. Please wait before trying again.'); throw unavailable(); }
+    if (!result.ok) {
+      if (passwordUpdate && [400, 401, 403, 422].includes(result.status)) {
+        let code;
+        try {
+          const detail = await remoteJson(result, 8192);
+          code = typeof detail?.error_code === 'string' ? detail.error_code : typeof detail?.code === 'string' ? detail.code : undefined;
+        } catch { /* Provider text is never exposed. */ }
+        if (['reauthentication_needed', 'reauthentication_not_valid', 'current_password_required', 'current_password_mismatch'].includes(code)) throw new CloudError(403, 'reauthentication_required', 'Confirme sua identidade por um novo link antes de salvar a senha.');
+        if ([400, 422].includes(result.status)) throw new CloudError(400, 'password_invalid', code === 'same_password' ? 'Escolha uma senha diferente da atual.' : 'Não foi possível salvar essa senha. Escolha outra senha com pelo menos 10 caracteres e no máximo 72 bytes em UTF-8.');
+        throw deny();
+      }
+      await result.body?.cancel();
+      if ([400, 401, 403, 422].includes(result.status)) throw deny();
+      if (result.status === 429) throw new CloudError(429, 'auth_rate_limited', 'Too many sign-in attempts. Please wait before trying again.');
+      throw unavailable();
+    }
     if (result.status === 204) return null;
     return remoteJson(result);
   };
@@ -96,7 +111,7 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = 
     if (await call('/rest/v1/rpc/cellproject_authorized', { token, body: {} }) !== true) throw deny();
     return { user, tokenExpiresAt };
   };
-  const issueSession = async (issued, req, res, assertActive = () => {}) => {
+  const issueSession = async (issued, req, res, assertActive = () => {}, passwordSetup = false) => {
     const user = validateUser(issued?.user); validateToken(issued?.access_token, user.id);
     if (typeof issued.refresh_token !== 'string' || !issued.refresh_token || issued.refresh_token.length > 16_384) throw deny();
     const checked = await identity(issued.access_token);
@@ -105,29 +120,46 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = 
     prune(); if (sessions.size >= 20) throw new CloudError(429, 'session_limit', 'Too many active sessions. Sign out of another session.');
     const prior = handle(req); if (prior) sessions.delete(prior);
     const sessionId = randomBytes(32).toString('base64url');
-    sessions.set(sessionId, { ...checked, accessToken: issued.access_token, refreshToken: issued.refresh_token, expiresAt: now() + (config.sessionLifetime ?? 28_800_000), refresh: null });
+    sessions.set(sessionId, { ...checked, accessToken: issued.access_token, refreshToken: issued.refresh_token, expiresAt: now() + (config.sessionLifetime ?? 28_800_000), refresh: null, passwordSetup, passwordConfirmedAt: passwordSetup ? now() : null, passwordUpdate: false });
     clearFlow(req, res);
     setCookie(res, sessionId, Math.floor((config.sessionLifetime ?? 28_800_000) / 1000));
     return checked.user;
   };
+  const requestLink = async (email, req, res, purpose) => {
+    throttle('request', req, 3); email = emailInput(email);
+    if (closed) throw deny();
+    if (!res?.setHeader) throw invalid('The sign-in response is unavailable.');
+    if (flows.size >= 100) throw new CloudError(429, 'auth_rate_limited', 'Too many sign-in attempts. Please wait before trying again.');
+    const flowId = randomBytes(32).toString('base64url'); const verifier = randomBytes(32).toString('base64url');
+    const challenge = createHash('sha256').update(verifier).digest('base64url');
+    const flow = { verifier, email, purpose, expiresAt: now() + FLOW_LIFETIME, cancelled: false }; flows.set(flowId, flow);
+    try {
+      // Both provider links bind to this initiating browser through server-owned PKCE.
+      // Recovery marks the provider session correctly for first-password setup and reset.
+      const setup = purpose === 'password_setup';
+      await call(`/auth/v1/${setup ? 'recover' : 'otp'}?redirect_to=${encodeURIComponent(`${config.origin}/api/auth/callback`)}`, { body: { email, ...(!setup ? { create_user: true } : {}), code_challenge: challenge, code_challenge_method: 's256' } });
+    } catch (error) { flows.delete(flowId); throw error; }
+    if (closed || flow.cancelled || flows.get(flowId) !== flow) throw deny();
+    const prior = handle(req, FLOW_COOKIE); if (prior) invalidateFlow(prior);
+    setCookie(res, flowId, FLOW_LIFETIME / 1000, FLOW_COOKIE, 'Lax');
+  };
   const api = {
     sameOrigin,
-    async requestCode(email, req, res) {
-      throttle('request', req, 3); email = emailInput(email);
+    requestCode(email, req, res) { return requestLink(email, req, res, 'sign_in'); },
+    requestPasswordSetup(email, req, res) { return requestLink(email, req, res, 'password_setup'); },
+    async signInPassword(email, password, req, res) {
+      throttle('password', req, 10); email = emailInput(email);
+      const invalidCredentials = () => new CloudError(401, 'invalid_credentials', 'E-mail ou senha incorretos.');
+      if (typeof password !== 'string' || password.length < 1 || password.length > 128) throw invalidCredentials();
       if (closed) throw deny();
-      if (!res?.setHeader) throw invalid('The sign-in response is unavailable.');
-      if (flows.size >= 100) throw new CloudError(429, 'auth_rate_limited', 'Too many sign-in attempts. Please wait before trying again.');
-      const flowId = randomBytes(32).toString('base64url'); const verifier = randomBytes(32).toString('base64url');
-      const challenge = createHash('sha256').update(verifier).digest('base64url');
-      const flow = { verifier, email, expiresAt: now() + FLOW_LIFETIME, cancelled: false }; flows.set(flowId, flow);
+      const priorId = handle(req); const prior = sessions.get(priorId);
+      const flowId = handle(req, FLOW_COOKIE); const flow = flows.get(flowId) ?? inFlightFlows.get(flowId);
+      const assertActive = () => { if (closed || req.aborted || res.destroyed || (prior && sessions.get(priorId) !== prior) || flow?.cancelled) throw deny(); };
       try {
-        // auth-js uses redirect_to in the OTP URL and the lower-case s256 method.
-        // The verifier and provider tokens never leave this server.
-        await call(`/auth/v1/otp?redirect_to=${encodeURIComponent(`${config.origin}/api/auth/callback`)}`, { body: { email, create_user: true, code_challenge: challenge, code_challenge_method: 's256' } });
-      } catch (error) { flows.delete(flowId); throw error; }
-      if (closed || flow.cancelled || flows.get(flowId) !== flow) throw deny();
-      const prior = handle(req, FLOW_COOKIE); if (prior) invalidateFlow(prior);
-      setCookie(res, flowId, FLOW_LIFETIME / 1000, FLOW_COOKIE, 'Lax');
+        const issued = await call('/auth/v1/token?grant_type=password', { body: { email, password } });
+        assertActive();
+        return await issueSession(issued, req, res, assertActive);
+      } catch (error) { if (error instanceof CloudError && error.status === 401) throw invalidCredentials(); throw error; }
     },
     async callback(req, res) {
       // Only this top-level email-return navigation may arrive cross-site.
@@ -144,7 +176,7 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = 
         if (target.pathname !== '/api/auth/callback' || codes.length !== 1 || !/^[A-Za-z0-9._~-]{8,2048}$/.test(codes[0])) throw deny();
         const issued = await call('/auth/v1/token?grant_type=pkce', { body: { auth_code: codes[0], code_verifier: flow.verifier } });
         assertActive(); if (issued?.user?.email?.toLowerCase() !== flow.email) throw deny();
-        return await issueSession(issued, req, res, assertActive);
+        return await issueSession(issued, req, res, assertActive, flow.purpose === 'password_setup');
       } finally { inFlightFlows.delete(id); }
     },
     async verifyCode(email, token, req, res) {
@@ -168,8 +200,30 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = 
         }
         const checked = await identity(session.accessToken);
         if (checked.user.id !== session.user.id || sessions.get(id) !== session || session.expiresAt <= now()) throw deny();
-        return { id, user: checked.user, accessToken: session.accessToken };
+        if (session.passwordSetup && session.passwordConfirmedAt + FLOW_LIFETIME < now()) session.passwordSetup = false;
+        return { id, user: checked.user, accessToken: session.accessToken, passwordSetup: session.passwordSetup };
       } catch (error) { sessions.delete(id); if (error instanceof CloudError && error.status >= 500) throw error; return null; }
+    },
+    async setPassword(password, authorization) {
+      const session = sessions.get(authorization?.id);
+      const assertActive = () => {
+        if (closed || !session || sessions.get(authorization?.id) !== session || session.expiresAt <= now() || session.user.id !== authorization?.user?.id) throw deny();
+        if (!session.passwordSetup || session.passwordConfirmedAt + FLOW_LIFETIME < now()) {
+          session.passwordSetup = false;
+          throw new CloudError(403, 'reauthentication_required', 'Confirme sua identidade por um novo link antes de salvar a senha.');
+        }
+      };
+      assertActive();
+      if (typeof password !== 'string' || Array.from(password).length < 10 || Buffer.byteLength(password, 'utf8') > 72) throw new CloudError(400, 'password_invalid', 'Use pelo menos 10 caracteres e no máximo 72 bytes em UTF-8.');
+      if (session.passwordUpdate) throw new CloudError(409, 'password_update_pending', 'Aguarde a atualização da senha em andamento.');
+      session.passwordUpdate = true;
+      try {
+        const checked = await identity(session.accessToken); if (checked.user.id !== session.user.id) throw deny();
+        assertActive();
+        const updated = validateUser(await call('/auth/v1/user', { token: session.accessToken, method: 'PUT', body: { password }, passwordUpdate: true }));
+        if (updated.id !== session.user.id) throw deny();
+        assertActive(); session.passwordSetup = false; session.passwordConfirmedAt = null;
+      } finally { session.passwordUpdate = false; }
     },
     async logout(req, res) {
       const id = handle(req); const session = sessions.get(id); sessions.delete(id); clearFlow(req, res); setCookie(res, '', 0);

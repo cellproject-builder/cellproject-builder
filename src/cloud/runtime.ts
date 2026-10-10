@@ -3,7 +3,7 @@ export type CloudProvider = 'openrouter' | 'openai' | 'anthropic';
 export interface CloudDocument { key: string; value: string; revision: number }
 export interface CloudMedia { id: string; mime: string; name: string; projectId?: string; createdAt?: number; sha256: string; size: number }
 export interface CloudSnapshot { documents: CloudDocument[]; media: CloudMedia[] }
-export interface CloudConfig { enabled: boolean; authenticated: boolean; authMethod?: 'email_link' | 'code'; user?: { id: string; email: string }; providers?: Partial<Record<CloudProvider, boolean>> }
+export interface CloudConfig { enabled: boolean; authenticated: boolean; authMethod?: 'email_link' | 'code'; passwordAuth?: boolean; passwordSetup?: boolean; user?: { id: string; email: string }; providers?: Partial<Record<CloudProvider, boolean>> }
 export interface CloudIssue { kind: 'conflict' | 'network' | 'session'; key: string; message: string }
 export interface CloudStatus { pending: number; issue: CloudIssue | null; saving: boolean }
 type Operation = { key: string; value: string; operationId: string; baseRevision?: number };

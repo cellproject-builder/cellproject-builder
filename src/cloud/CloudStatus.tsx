@@ -34,6 +34,7 @@ export function CloudStatus({ runtime, userId, email, onLogout }: { runtime: Clo
   const panelId = useId(), panelVisible = open || !!status.issue;
   const statusLabel = status.issue ? 'Alterações sem salvar' : status.pending ? `Salvando (${status.pending})` : 'Salvo na nuvem';
   const [rescued, setRescued] = useState(false), [missing, setMissing] = useState<number | null>(null);
+  const [passwordLinkSent, setPasswordLinkSent] = useState(false), [sendingPasswordLink, setSendingPasswordLink] = useState(false);
   const pendingGraph = useRef<() => boolean>(() => false);
   useEffect(() => { setSaved(false); setRescued(false); }, [status]);
   useEffect(() => { let live = true; void import('@/store').then(graph => { if (live) pendingGraph.current = graph.hasPendingGraphPersistence; }); const unload = (event: BeforeUnloadEvent) => { if (runtime.getSnapshot().pending || pendingGraph.current()) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', unload); return () => { live = false; window.removeEventListener('beforeunload', unload); }; }, [runtime]);
@@ -45,9 +46,14 @@ export function CloudStatus({ runtime, userId, email, onLogout }: { runtime: Clo
     {panelVisible && <div className="cloud-status-panel" id={panelId}><strong>{email}</strong>
       {status.issue && <><p role="alert">{status.issue.message} Seu trabalho atual continua nesta sessão.</p><small>{status.issue.key}</small></>}
       <p>Dados remotos são a fonte principal. Rascunhos sem confirmação ficam somente na memória desta aba.</p>
+      <button disabled={busy} onClick={() => {
+        setBusy(true); setSendingPasswordLink(true); setError(''); setPasswordLinkSent(false);
+        void cloudJson('/api/auth/password/setup-link', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ email }) }).then(() => setPasswordLinkSent(true)).catch(() => setError('Não foi possível enviar o link de senha. Tente novamente em instantes.')).finally(() => { setBusy(false); setSendingPasswordLink(false); });
+      }}>{sendingPasswordLink ? 'Enviando link de senha…' : 'Criar ou alterar senha'}</button>
+      {passwordLinkSent && <p role="status">Abra o link enviado para seu e-mail neste navegador para criar ou alterar a senha. Depois, entre diretamente com ela.</p>}
       {status.issue?.kind === 'network' && <button onClick={() => void runtime.retry()}>Tentar salvar novamente</button>}
       {status.issue?.kind === 'session' && <><a href="/" target="_blank" rel="noopener noreferrer">Entrar novamente em outra aba ↗</a><p>Mantenha esta aba aberta. Conclua o acesso na outra aba e depois retome aqui; seus rascunhos não serão substituídos.</p><button disabled={busy} onClick={() => { setBusy(true); setError(''); void runtime.resumeAfterAuthentication(userId).catch(reason => setError(reason instanceof Error ? reason.message : 'Não foi possível retomar.')).finally(() => setBusy(false)); }}>Retomar salvamento nesta aba</button></>}
-      <button disabled={busy} onClick={() => void backup()}>{busy ? 'Preparando backup…' : 'Baixar cópia completa desta sessão'}</button>
+      <button disabled={busy} onClick={() => void backup()}>{busy && !sendingPasswordLink ? 'Preparando backup…' : 'Baixar cópia completa desta sessão'}</button>
       {status.issue && <><button disabled={busy} onClick={() => {
         setBusy(true); setError('');
         void requireDataIdle().then(() => prepareCurrentData().catch(() => {})).then(requireDataIdle).then(() => downloadSessionRescue(runtime)).then(rescue => { setRescued(true); setMissing(rescue.missingMediaIds.length); }).catch(reason => setError(reason instanceof Error ? reason.message : 'Falha no resgate.')).finally(() => setBusy(false));

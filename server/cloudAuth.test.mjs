@@ -235,3 +235,182 @@ test('logout, replacement flow and shutdown cancel callbacks already awaiting ex
     assert.ok(!completed.cookies().some(value => /^__Host-cellproject_session=[A-Za-z0-9_-]{43};/.test(value)), `${action} during ${phase}`);
   }
 });
+
+function passwordFixture(overrides = {}) {
+  let clock = 1_800_000_000_000; const calls = [];
+  const auth = createCloudAuth({ config, now: () => clock, fetchImpl: async (target, init) => {
+    calls.push({ target, init });
+    const custom = await overrides.fetch?.(target, init); if (custom) return custom;
+    if (target.includes('/auth/v1/token?')) return response({ access_token: jwt(clock / 1000 + 3600), refresh_token: 'REFRESH_SECRET', user });
+    if (target.endsWith('/user')) return response(user);
+    if (target.endsWith('/cellproject_authorized')) return response(true);
+    return response({});
+  } });
+  return { auth, calls, advance(ms) { clock += ms; }, async setup() {
+    const start = headersResponse(); await auth.requestPasswordSetup(email, req(), start);
+    const completed = headersResponse(); await auth.callback(linkReq(start.cookies()[0].split(';')[0]), completed);
+    const cookie = completed.cookies().find(value => value.startsWith('__Host-cellproject_session=')).split(';')[0];
+    return { cookie, session: await auth.authorize(req(cookie)) };
+  } };
+}
+
+test('password sign-in preserves the exact password and issues only the validated opaque session', async () => {
+  const { auth, calls } = passwordFixture(); const result = headersResponse();
+  assert.deepEqual(await auth.signInPassword(email, '  existing password  ', req(), result), { id, email });
+  assert.deepEqual(JSON.parse(calls[0].init.body), { email, password: '  existing password  ' });
+  assert.equal(calls[0].target, `${url}/auth/v1/token?grant_type=password`);
+  const cookie = result.cookies().find(value => value.startsWith('__Host-cellproject_session='));
+  assert.match(cookie, /HttpOnly; Secure; SameSite=Strict/);
+  assert.doesNotMatch(cookie, /existing password|REFRESH_SECRET|signature/);
+  assert.equal((await auth.authorize(req(cookie.split(';')[0]))).passwordSetup, false);
+});
+
+test('password sign-in rejects non-allowlisted accounts and malformed credentials before any network request', async () => {
+  const { auth, calls } = passwordFixture();
+  await assert.rejects(auth.signInPassword('other@example.com', 'some password', req(), headersResponse()), error => error.status === 403);
+  for (const password of [undefined, null, 12, '', 'x'.repeat(129)]) await assert.rejects(auth.signInPassword(email, password, req(), headersResponse()), error => error.status === 401 && error.code === 'invalid_credentials');
+  assert.equal(calls.length, 0);
+});
+
+test('password sign-in hides provider errors and throttles repeated rejected credentials', async () => {
+  const { auth, calls } = passwordFixture({ fetch: async () => new Response('PRIVATE_PASSWORD PRIVATE_PROVIDER_TOKEN', { status: 400 }) });
+  for (let index = 0; index < 10; index++) await assert.rejects(auth.signInPassword(email, 'PRIVATE_PASSWORD', req(), headersResponse()), error => error.status === 401 && error.code === 'invalid_credentials' && !/PRIVATE_/.test(String(error)));
+  await assert.rejects(auth.signInPassword(email, 'PRIVATE_PASSWORD', req(), headersResponse()), error => error.status === 429);
+  assert.equal(calls.length, 10);
+});
+
+test('password sign-in performs live identity and database authorization before setting a session cookie', async () => {
+  for (const alteration of [{ user: { ...user, email: 'other@example.com' } }, { user: { ...user, email_confirmed_at: null } }, { access_token: 'forged' }, { denied: true }]) {
+    const { auth } = passwordFixture({ fetch: async target => target.includes('grant_type=password') ? response({ access_token: jwt(1_800_003_600), refresh_token: 'REFRESH_SECRET', user, ...alteration }) : target.endsWith('/cellproject_authorized') ? response(!alteration.denied) : undefined });
+    const result = headersResponse(); await assert.rejects(auth.signInPassword(email, 'existing password', req(), result), error => error.status === 401);
+    assert.ok(!result.cookies().some(value => /^__Host-cellproject_session=[A-Za-z0-9_-]{43};/.test(value)));
+  }
+});
+
+test('only a dedicated password-setup PKCE flow grants permission to save a password', async () => {
+  const fixture = passwordFixture(); const { auth, calls } = fixture;
+  const setup = await fixture.setup(); assert.equal(setup.session.passwordSetup, true);
+  const otp = calls.find(value => new URL(value.target).pathname === '/auth/v1/recover');
+  assert.equal(new URL(otp.target).searchParams.get('redirect_to'), `${origin}/api/auth/callback`);
+  assert.equal(JSON.parse(otp.init.body).code_challenge_method, 's256');
+  assert.equal(JSON.parse(otp.init.body).password, undefined);
+  assert.equal(JSON.parse(otp.init.body).create_user, undefined);
+  const ordinary = headersResponse(); await auth.requestCode(email, req(), ordinary);
+  const completed = headersResponse(); await auth.callback({ ...linkReq(ordinary.cookies()[0].split(';')[0]), url: '/api/auth/callback?code=auth-code-from-email&purpose=password_setup' }, completed);
+  const cookie = completed.cookies().find(value => value.startsWith('__Host-cellproject_session=')).split(';')[0];
+  const session = await auth.authorize(req(cookie)); assert.equal(session.passwordSetup, false);
+  const before = calls.length;
+  await assert.rejects(auth.setPassword('new password!', session), error => error.status === 403 && error.code === 'reauthentication_required');
+  assert.equal(calls.length, before);
+});
+
+test('password setup checks length without trimming and consumes its one-time permission only after a successful update', async () => {
+  const fixture = passwordFixture(); const { auth, calls } = fixture; const { cookie, session } = await fixture.setup();
+  const before = calls.length;
+  for (const value of [undefined, 12, 'short', 'x'.repeat(129)]) await assert.rejects(auth.setPassword(value, session), error => error.status === 400);
+  assert.equal(calls.length, before);
+  await auth.setPassword('  new password!  ', session);
+  const update = calls.find(value => value.init.method === 'PUT');
+  assert.equal(update.target, `${url}/auth/v1/user`);
+  assert.deepEqual(JSON.parse(update.init.body), { password: '  new password!  ' });
+  assert.match(update.init.headers.authorization, /^Bearer header\./);
+  assert.equal((await auth.authorize(req(cookie))).passwordSetup, false);
+  await assert.rejects(auth.setPassword('another password', session), error => error.status === 403 && error.code === 'reauthentication_required');
+  assert.equal(calls.filter(value => value.init.method === 'PUT').length, 1);
+});
+
+test('password setup expires fifteen minutes after confirmation and an ended session cannot update it', async () => {
+  for (const action of ['expire', 'logout', 'close']) {
+    const fixture = passwordFixture(); const { auth, calls } = fixture; const { cookie, session } = await fixture.setup();
+    if (action === 'expire') fixture.advance(900_001);
+    else if (action === 'logout') await auth.logout(req(cookie), headersResponse());
+    else auth.close();
+    const before = calls.length;
+    await assert.rejects(auth.setPassword('new password!', session), error => error.status === (action === 'expire' ? 403 : 401));
+    assert.equal(calls.length, before);
+  }
+});
+
+test('a failed password update exposes no provider detail and leaves the verified setup retryable', async () => {
+  let fail = true;
+  const fixture = passwordFixture({ fetch: async (_target, init) => init.method === 'PUT' && fail ? new Response('PRIVATE_PASSWORD PRIVATE_PROVIDER_TOKEN', { status: 422 }) : undefined });
+  const { auth } = fixture; const { cookie, session } = await fixture.setup();
+  await assert.rejects(auth.setPassword('PRIVATE_PASSWORD', session), error => !/PRIVATE_/.test(String(error)));
+  assert.equal((await auth.authorize(req(cookie))).passwordSetup, true);
+  fail = false; await auth.setPassword('new password!', session);
+  assert.equal((await auth.authorize(req(cookie))).passwordSetup, false);
+});
+
+test('password setup rejects concurrent updates and cannot report success or restore a session after logout', async () => {
+  let release; let started; const waiting = new Promise(resolve => { started = resolve; });
+  const fixture = passwordFixture({ fetch: async (_target, init) => { if (init.method === 'PUT') { started(); await new Promise(resolve => { release = resolve; }); return response(user); } } });
+  const { auth, calls } = fixture; const { cookie, session } = await fixture.setup();
+  const update = auth.setPassword('new password!', session); await waiting;
+  await assert.rejects(auth.setPassword('another password', session), error => error.status === 409);
+  await auth.logout(req(cookie), headersResponse()); release();
+  await assert.rejects(update, error => error.status === 401);
+  assert.equal(await auth.authorize(req(cookie)), null);
+  assert.equal(calls.filter(value => value.init.method === 'PUT').length, 1);
+});
+
+test('password sign-in cannot issue a session after disconnect or process shutdown', async () => {
+  for (const action of ['abort', 'close']) {
+    let release; let started; const waiting = new Promise(resolve => { started = resolve; });
+    const fixture = passwordFixture({ fetch: async target => { if (target.includes('grant_type=password')) { started(); await new Promise(resolve => { release = resolve; }); } } });
+    const input = req(); const result = headersResponse(); const login = fixture.auth.signInPassword(email, 'existing password', input, result); await waiting;
+    if (action === 'abort') input.aborted = true; else fixture.auth.close();
+    release(); await assert.rejects(login, error => error.status === 401);
+    assert.ok(!result.cookies().some(value => /^__Host-cellproject_session=[A-Za-z0-9_-]{43};/.test(value)));
+  }
+});
+
+test('new passwords respect Supabase UTF-8 byte limits while counting the minimum in Unicode characters', async () => {
+  const fixture = passwordFixture(); const { auth, calls } = fixture; const { session } = await fixture.setup();
+  for (const password of ['x'.repeat(73), 'é'.repeat(37), '😀'.repeat(5)]) {
+    const before = calls.length; await assert.rejects(auth.setPassword(password, session), error => error.status === 400 && error.code === 'password_invalid');
+    assert.equal(calls.length, before);
+  }
+  await auth.setPassword('é'.repeat(36), session);
+  assert.deepEqual(JSON.parse(calls.find(value => value.init.method === 'PUT').init.body), { password: 'é'.repeat(36) });
+});
+
+test('password policy errors use safe fixed responses and keep the verified setup retryable', async () => {
+  for (const [code, status] of [['weak_password', 400], ['same_password', 400], ['reauthentication_needed', 403], ['reauthentication_not_valid', 403], ['current_password_required', 403], ['current_password_mismatch', 403]]) {
+    const fixture = passwordFixture({ fetch: async (_target, init) => init.method === 'PUT' ? new Response(JSON.stringify({ code, message: 'PRIVATE_PASSWORD PRIVATE_PROVIDER_TOKEN' }), { status: 422, headers: { 'content-type': 'application/json' } }) : undefined });
+    const { auth } = fixture; const { cookie, session } = await fixture.setup();
+    await assert.rejects(auth.setPassword('new password!', session), error => error.status === status && !/PRIVATE_/.test(String(error)));
+    assert.equal((await auth.authorize(req(cookie))).passwordSetup, true);
+  }
+});
+
+test('legacy Supabase password errors normalize error_code instead of the numeric HTTP code', async () => {
+  for (const [providerCode, status, applicationCode] of [['reauthentication_needed', 403, 'reauthentication_required'], ['weak_password', 400, 'password_invalid'], ['same_password', 400, 'password_invalid']]) {
+    const fixture = passwordFixture({ fetch: async (_target, init) => init.method === 'PUT' ? new Response(JSON.stringify({ code: 400, error_code: providerCode, msg: 'PRIVATE_PASSWORD PRIVATE_PROVIDER_TOKEN' }), { status: 400, headers: { 'content-type': 'application/json' } }) : undefined });
+    const { auth } = fixture; const { cookie, session } = await fixture.setup();
+    await assert.rejects(auth.setPassword('new password!', session), error => {
+      assert.equal(error.status, status); assert.equal(error.code, applicationCode);
+      assert.doesNotMatch(String(error), /PRIVATE_/);
+      if (providerCode === 'same_password') assert.match(error.message, /diferente/);
+      return true;
+    });
+    assert.equal((await auth.authorize(req(cookie))).passwordSetup, true);
+  }
+});
+
+test('database revocation prevents a previously authorized setup session from updating a password', async () => {
+  let allowed = true;
+  const fixture = passwordFixture({ fetch: async target => target.endsWith('/cellproject_authorized') ? response(allowed) : undefined });
+  const { auth, calls } = fixture; const { session } = await fixture.setup(); allowed = false;
+  await assert.rejects(auth.setPassword('new password!', session), error => error.status === 401);
+  assert.equal(calls.filter(value => value.init.method === 'PUT').length, 0);
+});
+
+test('token refresh does not extend the fifteen-minute password-setup window exposed in config', async () => {
+  const fixture = passwordFixture({ fetch: async target => target.includes('grant_type=pkce') ? response({ access_token: jwt(1_800_000_120), refresh_token: 'REFRESH_SECRET', user }) : undefined });
+  const { auth, calls } = fixture; const { cookie, session } = await fixture.setup();
+  fixture.advance(850_000); assert.equal((await auth.authorize(req(cookie))).passwordSetup, true);
+  assert.equal(calls.filter(value => value.target.includes('grant_type=refresh_token')).length, 1);
+  fixture.advance(50_001); assert.equal((await auth.authorize(req(cookie))).passwordSetup, false);
+  await assert.rejects(auth.setPassword('new password!', session), error => error.status === 403 && error.code === 'reauthentication_required');
+  assert.equal(calls.filter(value => value.init.method === 'PUT').length, 0);
+});

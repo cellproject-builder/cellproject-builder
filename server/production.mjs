@@ -72,7 +72,7 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
       if (route === '/api/cloud/config' && req.method === 'GET') {
         if (config.enabled && !auth.sameOrigin(req)) throw new CloudError(403, 'origin_forbidden', 'This request origin is not permitted.');
         const session = config.enabled ? await auth.authorize(req) : null;
-        sendJson(res, 200, { enabled: config.enabled, authenticated: Boolean(session), ...(config.enabled ? { authMethod: 'email_link' } : {}), ...(session ? { user: session.user } : {}), providers: providers() }); return;
+        sendJson(res, 200, { enabled: config.enabled, authenticated: Boolean(session), ...(config.enabled ? { authMethod: 'email_link', passwordAuth: true } : {}), ...(session ? { user: session.user, passwordSetup: session.passwordSetup === true } : {}), providers: providers() }); return;
       }
       if (!config.enabled) throw new CloudError(503, 'cloud_not_configured', 'Cloud access is not configured.');
       if (route === '/api/auth/callback' && req.method === 'GET') {
@@ -85,9 +85,12 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
       if (!auth.sameOrigin(req)) throw new CloudError(403, 'origin_forbidden', 'This request origin is not permitted.');
       if (route === '/api/auth/request-code' && req.method === 'POST') { const body = await readJson(req); await auth.requestCode(body.email, req, res); sendJson(res, 200, { sent: true }); return; }
       if (route === '/api/auth/verify-code' && req.method === 'POST') { const body = await readJson(req); const user = await auth.verifyCode(body.email, body.token, req, res); sendJson(res, 200, { authenticated: true, user }); return; }
+      if (route === '/api/auth/password/sign-in' && req.method === 'POST') { const body = await readJson(req, 4096); const user = await auth.signInPassword(body.email, body.password, req, res); sendJson(res, 200, { authenticated: true, user }); return; }
+      if (route === '/api/auth/password/setup-link' && req.method === 'POST') { const body = await readJson(req, 4096); await auth.requestPasswordSetup(body.email, req, res); sendJson(res, 200, { sent: true }); return; }
       if (route === '/api/auth/logout' && req.method === 'POST') { await auth.logout(req, res); sendJson(res, 200, { authenticated: false }); return; }
       const session = await auth.authorize(req); if (!session) throw new CloudError(401, 'authentication_required', 'Sign in to continue.');
       if (req.aborted || res.destroyed) return;
+      if (route === '/api/auth/password' && req.method === 'POST') { const body = await readJson(req, 4096); await auth.setPassword(body.password, session); sendJson(res, 200, { saved: true }); return; }
       if (route.startsWith('/api/visuals/')) { authorized.set(req, session); await visuals(req, res); return; }
       if (route.startsWith('/api/ai/')) { await ai(req, res, session); return; }
       if (route === '/api/cloud/snapshot' && req.method === 'GET') { sendJson(res, 200, await repository.snapshot(session)); return; }

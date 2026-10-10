@@ -8,6 +8,69 @@ import * as migration from './migration';
 let host: HTMLDivElement, root: Root;
 beforeEach(() => { (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true; host = document.createElement('div'); document.body.append(host); root = createRoot(host); });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); configureCloud(null); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+async function fill(input: HTMLInputElement, value: string) { await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); }); }
+async function submit() { await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))); }
+it('uses a password login when enabled and clears the password before opening the authenticated workspace', async () => {
+  const load = vi.fn(async () => ({ default: () => <div>Workspace</div> })); let authenticated = false;
+  const fetcher = vi.fn<typeof fetch>(async path => {
+    if (String(path).endsWith('/config')) return Response.json({ enabled: true, authenticated, passwordAuth: true, authMethod: 'email_link', ...(authenticated ? { user: { id: 'allowed', email: 'wylgnerbossman@gmail.com' } } : {}) });
+    if (String(path).endsWith('/sign-in')) { authenticated = true; return Response.json({ authenticated: true }); }
+    return Response.json({ documents: [{ key: 'dynamic_diary-theme', value: 'dark', revision: 1 }], media: [] });
+  });
+  await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={fetcher}/>));
+  const password = host.querySelector<HTMLInputElement>('input[autocomplete="current-password"]'); expect(password).not.toBeNull();
+  await fill(password!, 'visual-test-password'); await submit();
+  const call = fetcher.mock.calls.find(([path]) => path === '/api/auth/password/sign-in')!;
+  expect(JSON.parse(call[1]!.body as string)).toEqual({ email: 'wylgnerbossman@gmail.com', password: 'visual-test-password' });
+  expect(load).toHaveBeenCalledOnce(); expect(host.textContent).toContain('Workspace'); expect(host.querySelector('input[type="password"]')).toBeNull();
+});
+it('offers a one-time setup link and clears the password when switching login methods', async () => {
+  const load = vi.fn(async () => ({ default: () => <div>Workspace</div> }));
+  const fetcher = vi.fn<typeof fetch>(async path => String(path).endsWith('/config') ? Response.json({ enabled: true, authenticated: false, passwordAuth: true, authMethod: 'email_link' }) : Response.json({ sent: true }));
+  await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={fetcher}/>));
+  await fill(host.querySelector<HTMLInputElement>('input[autocomplete="current-password"]')!, 'visual-test-password');
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Criar ou recuperar senha')!.click());
+  expect(host.querySelector('input[type="password"]')).toBeNull();
+  await submit();
+  expect(fetcher.mock.calls.at(-1)?.[0]).toBe('/api/auth/password/setup-link');
+  expect(host.textContent).toContain('neste navegador'); expect(load).not.toHaveBeenCalled();
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Voltar para entrar com senha')!.click());
+  expect(host.querySelector<HTMLInputElement>('input[autocomplete="current-password"]')!.value).toBe('');
+});
+it('keeps password sign-in errors generic without opening stores or retaining the submitted secret', async () => {
+  const load = vi.fn(async () => ({ default: () => <div>Workspace</div> }));
+  const fetcher = vi.fn<typeof fetch>(async path => String(path).endsWith('/config') ? Response.json({ enabled: true, authenticated: false, passwordAuth: true }) : Response.json({ error: 'Account details should not render' }, { status: 401 }));
+  await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={fetcher}/>));
+  await fill(host.querySelector<HTMLInputElement>('input[autocomplete="current-password"]')!, 'visual-test-password'); await submit();
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain('Confira seu e-mail e senha');
+  expect(host.textContent).not.toContain('Account details'); expect(load).not.toHaveBeenCalled();
+  expect(host.querySelector<HTMLInputElement>('input[autocomplete="current-password"]')!.value).toBe('');
+});
+it('finishes verified password setup before reading the snapshot or importing application stores', async () => {
+  const load = vi.fn(async () => ({ default: () => <div>Workspace</div> })); let passwordSetup = true;
+  const fetcher = vi.fn<typeof fetch>(async path => {
+    if (String(path).endsWith('/config')) return Response.json({ enabled: true, authenticated: true, passwordAuth: true, passwordSetup, user: { id: 'allowed', email: 'wylgnerbossman@gmail.com' } });
+    if (String(path) === '/api/auth/password') { passwordSetup = false; return Response.json({ saved: true }); }
+    return Response.json({ documents: [{ key: 'dynamic_diary-theme', value: 'dark', revision: 1 }], media: [] });
+  });
+  await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={fetcher}/>));
+  expect(host.textContent).toContain('Criar nova senha'); expect(load).not.toHaveBeenCalled(); expect(fetcher).toHaveBeenCalledTimes(1);
+  const fields = host.querySelectorAll<HTMLInputElement>('input[autocomplete="new-password"]'); expect(fields.length).toBe(2);
+  await fill(fields[0], 'visual-test-password'); await fill(fields[1], 'visual-test-password'); await submit();
+  const call = fetcher.mock.calls.find(([path]) => path === '/api/auth/password')!;
+  expect(JSON.parse(call[1]!.body as string)).toEqual({ password: 'visual-test-password' });
+  expect(load).toHaveBeenCalledOnce(); expect(host.textContent).toContain('Workspace');
+});
+it('blocks mismatched or short passwords during setup without a remote mutation', async () => {
+  const load = vi.fn(async () => ({ default: () => <div>Workspace</div> }));
+  const fetcher = vi.fn<typeof fetch>(async () => Response.json({ enabled: true, authenticated: true, passwordAuth: true, passwordSetup: true, user: { id: 'allowed', email: 'wylgnerbossman@gmail.com' } }));
+  await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={fetcher}/>));
+  const fields = host.querySelectorAll<HTMLInputElement>('input[autocomplete="new-password"]'); expect(fields.length).toBe(2);
+  await fill(fields[0], 'visual-test-password'); await fill(fields[1], 'other-test-password'); await submit();
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain('As senhas precisam ser iguais'); expect(fetcher).toHaveBeenCalledTimes(1);
+  await fill(fields[0], 'short'); await fill(fields[1], 'short'); await submit();
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain('pelo menos 10'); expect(fetcher).toHaveBeenCalledTimes(1); expect(load).not.toHaveBeenCalled();
+});
 it('does not load application stores before authentication and snapshot selection', async () => {
   const load = vi.fn(async () => ({ default: () => <div>Workspace</div> }));
   const fetcher = vi.fn(async () => Response.json({ enabled: true, authenticated: false, providers: {} }));

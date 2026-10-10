@@ -29,6 +29,23 @@ it('keeps the saved indicator quiet while its button still opens synchronization
   } finally { await act(async () => root.unmount()); host.remove(); cloud.dispose(); }
 });
 
+it('requests a verified password setup link for the signed-in identity from the cloud menu', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const cloud = new CloudRuntime({ documents: [], media: [] });
+  const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ sent: true }));
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId="original-user" email="wylgnerbossman@gmail.com" onLogout={() => {}}/>));
+    await act(async () => host.querySelector('button')!.click());
+    const button = [...host.querySelectorAll('button')].find(button => button.textContent === 'Criar ou alterar senha'); expect(button).toBeDefined();
+    await act(async () => button!.click());
+    expect(fetcher.mock.calls[0][0]).toBe('/api/auth/password/setup-link');
+    expect(JSON.parse(fetcher.mock.calls[0][1]!.body as string)).toEqual({ email: 'wylgnerbossman@gmail.com' });
+    expect(host.querySelector('[role="status"]')?.textContent).toContain('neste navegador');
+    expect(host.querySelector('.cloud-status-indicator')?.textContent).toBe('');
+  } finally { await act(async () => root.unmount()); host.remove(); cloud.dispose(); vi.restoreAllMocks(); }
+});
+
 it('exposes an expired-session warning and its recovery actions without needing to open the indicator', async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   const cloud = new CloudRuntime({ documents: [], media: [] }); cloud.notifySessionExpired('api');

@@ -53,12 +53,57 @@ test('only an explicitly allowed alternate host redirects public GET/HEAD, while
 test('public config never contains provider keys or tokens and private cloud/gateway/AI routes require a session', async () => {
   await setup(async ({ origin }) => {
     const response = await fetch(`${origin}/api/cloud/config`); const config = await response.json();
-    assert.deepEqual(config, { enabled: true, authenticated: false, authMethod: 'email_link', providers: { openrouter: true, openai: false, anthropic: false } });
+    assert.deepEqual(config, { enabled: true, authenticated: false, authMethod: 'email_link', passwordAuth: true, providers: { openrouter: true, openai: false, anthropic: false } });
     for (const route of ['/api/cloud/snapshot', '/api/cloud/media/m1', '/api/visuals/capabilities', '/api/ai/openrouter/chat/completions']) {
       const result = await fetch(`${origin}${route}`, route.includes('/ai/') ? { method: 'POST', headers: { origin, 'x-cellproject-request': '1', 'content-type': 'application/json' }, body: '{}' } : {});
       assert.equal(result.status, 401, route); assert.doesNotMatch(await result.text(), /SECRET|APP SHELL/);
     }
     const authed = await fetch(`${origin}/api/cloud/config`, { headers: { cookie: 'test=valid' } }); assert.equal((await authed.json()).authenticated, true);
+  });
+});
+
+test('password endpoints retain CSRF/session guards and serialize no credentials or provider tokens', async () => {
+  let signIns = 0; let setupLinks = 0; let updates = 0;
+  await setup(async ({ origin, mutationHeaders, auth }) => {
+    auth.signInPassword = async (email, password, _req, res) => { signIns++; assert.equal(email, 'wylgnerbossman@gmail.com'); assert.equal(password, 'PRIVATE_PASSWORD'); res.setHeader('set-cookie', 'opaque=handle'); return { id: 'user-1', email }; };
+    auth.requestPasswordSetup = async (email, _req, res) => { setupLinks++; assert.equal(email, 'wylgnerbossman@gmail.com'); assert.ok(res.setHeader); };
+    auth.setPassword = async (password, session) => { updates++; assert.equal(password, 'PRIVATE_PASSWORD'); assert.equal(session.id, 'session-1'); };
+    for (const route of ['/api/auth/password/sign-in', '/api/auth/password/setup-link', '/api/auth/password']) {
+      for (const extra of [{ origin: 'https://evil.test' }, { 'x-cellproject-request': '' }]) {
+        const rejected = await fetch(`${origin}${route}`, { method: 'POST', headers: { ...mutationHeaders, ...extra }, body: JSON.stringify({ email: 'wylgnerbossman@gmail.com', password: 'PRIVATE_PASSWORD' }) });
+        assert.equal(rejected.status, 403, route);
+      }
+    }
+    assert.deepEqual([signIns, setupLinks, updates], [0, 0, 0]);
+    const denied = await fetch(`${origin}/api/auth/password`, { method: 'POST', headers: { ...mutationHeaders, cookie: '' }, body: JSON.stringify({ password: 'PRIVATE_PASSWORD' }) });
+    assert.equal(denied.status, 401); assert.equal(updates, 0);
+    const login = await fetch(`${origin}/api/auth/password/sign-in`, { method: 'POST', headers: { ...mutationHeaders, cookie: '' }, body: JSON.stringify({ email: 'wylgnerbossman@gmail.com', password: 'PRIVATE_PASSWORD' }) });
+    assert.equal(login.status, 200); assert.deepEqual(await login.json(), { authenticated: true, user: { id: 'user-1', email: 'wylgnerbossman@gmail.com' } });
+    const link = await fetch(`${origin}/api/auth/password/setup-link`, { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ email: 'wylgnerbossman@gmail.com' }) });
+    assert.equal(link.status, 200); assert.deepEqual(await link.json(), { sent: true });
+    const save = await fetch(`${origin}/api/auth/password`, { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ password: 'PRIVATE_PASSWORD' }) });
+    assert.equal(save.status, 200); assert.deepEqual(await save.json(), { saved: true });
+    assert.deepEqual([signIns, setupLinks, updates], [1, 1, 1]);
+  });
+});
+
+test('public config exposes password-setup state only for an authenticated session', async () => {
+  await setup(async ({ origin, auth }) => {
+    const baseAuthorize = auth.authorize;
+    auth.authorize = async req => { const session = await baseAuthorize(req); return session ? { ...session, passwordSetup: true } : null; };
+    const anonymous = await (await fetch(`${origin}/api/cloud/config`)).json();
+    assert.equal(anonymous.passwordAuth, true); assert.equal(anonymous.passwordSetup, undefined);
+    const authenticated = await (await fetch(`${origin}/api/cloud/config`, { headers: { cookie: 'test=valid' } })).json();
+    assert.equal(authenticated.passwordSetup, true);
+    assert.doesNotMatch(JSON.stringify(authenticated), /SERVER_SECRET|PROVIDER_SECRET/);
+  });
+});
+
+test('password updates return a safe reauthentication error from the auth policy', async () => {
+  await setup(async ({ origin, mutationHeaders, auth }) => {
+    auth.setPassword = async () => { throw new CloudError(403, 'reauthentication_required', 'Confirme sua identidade por um novo link antes de salvar a senha.'); };
+    const result = await fetch(`${origin}/api/auth/password`, { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ password: 'PRIVATE_PASSWORD' }) });
+    assert.equal(result.status, 403); assert.equal((await result.json()).error.code, 'reauthentication_required');
   });
 });
 
