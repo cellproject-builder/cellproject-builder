@@ -29,6 +29,14 @@ flowchart LR
 | Pesquisa visual/documental | [handler.mjs](../../server/handler.mjs), [referenceRegistry.mjs](../../server/referenceRegistry.mjs), [specDocuments.mjs](../../server/specDocuments.mjs) | Capacidades, sessões de referência, mídia, especificações e TypeSafe |
 | Instalação/cache público | [pwa/install.ts](../../src/pwa/install.ts), [service-worker.js](../../public/service-worker.js) | Instalação opcional, shell público offline e atualização explícita |
 
+## Superfícies expandidas
+
+Board, notas e mapa do plano usam [ExpandedChrome.tsx](../../src/components/ui/ExpandedChrome.tsx) para ocultar cabeçalhos e controles de navegação ao maximizar. Um botão discreto revela as informações por hover, foco de teclado ou toque. Os controles aparecem sobre o conteúdo, sem faixa reservada nem deslocamento ao abrir. Escape fecha primeiro esse painel; outro Escape no botão restaura a superfície. Campos com tratamento próprio e diálogos conservam a prioridade do atalho.
+
+O wrapper permanece no DOM nos dois modos, mantendo editor, ferramentas portadas, seleção e canvas montados. Conteúdo oculto usa `hidden`, saindo da navegação por Tab. Board e notas ocupam a viewport e permanecem abaixo dos modais; o chat é suspenso durante a expansão. No planejador, o enquadramento deixa de reservar a toolbar oculta, e revelar controles não reenquadra o grafo. Em modo normal, os cabeçalhos conservam o fluxo original.
+
+Regressões: [ExpandedChrome.test.tsx](../../src/components/ui/ExpandedChrome.test.tsx), [BoardCanvas.test.tsx](../../src/boards/BoardCanvas.test.tsx), [Notes.test.tsx](../../src/workspace/Notes.test.tsx) e [GraphCanvas.autoLayout.test.tsx](../../src/components/GraphCanvas.autoLayout.test.tsx). Medidas visuais são verificadas no navegador, pois JSDOM não calcula o layout real.
+
 ## Desenvolvimento local e produção são modos distintos
 
 `npm run dev` usa Vite, porta padrão 5173 e HMR. Seu `GET /api/cloud/config` retorna `enabled: false`, selecionando persistência local e BYOK. O gateway visual local continua no processo Vite, com [access.mjs](../../server/access.mjs): endereço remoto loopback, Host/porta locais, Origin/Fetch Metadata compatíveis e cookie de acesso visual de 30 minutos estabelecido pela leitura de capacidades. Abrir um localhost não equivale a autenticar uma conta cloud.

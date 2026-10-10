@@ -83,6 +83,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
   const [settings, setSettings] = useState(false);
   const [editingProject, setEditingProject] = useState(false);
   const [boardMaximized, setBoardMaximized] = useState(false);
+  const [noteMaximized, setNoteMaximized] = useState(false);
   const [taskEditor, setTaskEditor] = useState<{ task?: Task; status?: TaskStatus } | null>(null);
   const project = activeProjectId ? projects[activeProjectId] : undefined;
   useEffect(() => { initializeWorkspace(); return connectPlanner(); }, []);
@@ -143,7 +144,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
       <PageHeaderContext.Provider value={headerShell}>
       <Suspense fallback={<div role="status" aria-busy="true" className="ws-page">{english ? 'Loading…' : 'Carregando…'}</div>}>
       <main className={`ws-content ${surface === 'boards' ? 'is-boards' : ''} ${surface === 'notes' ? 'is-notes' : ''} ${surface === 'planner' && project ? 'is-planner' : ''}`} key={`${surface}-${surface === 'notes' ? noteScope : surface === 'boards' ? 'boards' : activeProjectId}`}>
-        {surface === 'boards' ? <DynamicBoards english={english} onMaximizedChange={setBoardMaximized}/> : surface === 'projects' ? <Projects /> : surface === 'notes' ? <Notes key={`${noteScope}-${noteId}`} projectId={noteScope} initialNoteId={noteId} /> : !project ? <Projects /> : surface === 'overview' ? <Overview project={project} onAdd={() => setTaskEditor({})} onPlan={() => go('planner')} onNotes={openNotes} onEditProject={() => setEditingProject(true)} /> : surface === 'kanban' ? <Board projectId={project.id} onEdit={(task) => setTaskEditor({ task })} onAdd={(status) => setTaskEditor({ status })} /> : surface === 'scrum' ? <Scrum projectId={project.id} onEdit={(task) => setTaskEditor({ task })} onAdd={() => setTaskEditor({})} /> : planner}
+        {surface === 'boards' ? <DynamicBoards english={english} onMaximizedChange={setBoardMaximized}/> : surface === 'projects' ? <Projects /> : surface === 'notes' ? <Notes key={`${noteScope}-${noteId}`} projectId={noteScope} initialNoteId={noteId} onMaximizedChange={setNoteMaximized} /> : !project ? <Projects /> : surface === 'overview' ? <Overview project={project} onAdd={() => setTaskEditor({})} onPlan={() => go('planner')} onNotes={openNotes} onEditProject={() => setEditingProject(true)} /> : surface === 'kanban' ? <Board projectId={project.id} onEdit={(task) => setTaskEditor({ task })} onAdd={(status) => setTaskEditor({ status })} /> : surface === 'scrum' ? <Scrum projectId={project.id} onEdit={(task) => setTaskEditor({ task })} onAdd={() => setTaskEditor({})} /> : planner}
       </main>
       </Suspense>
       </PageHeaderContext.Provider>
@@ -161,7 +162,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
         <div className="border-t border-border-base/70 pt-4"><h3 className="text-control font-semibold text-text-primary">{tr.settings}</h3></div>
       </div>
     } />}
-    <AssistantChat suspended={canvasMaximized || boardMaximized || surface === 'boards'} />
+    <AssistantChat suspended={canvasMaximized || boardMaximized || noteMaximized || surface === 'boards'} />
     {editingProject && project && <ProjectForm project={project} onClose={() => setEditingProject(false)} />}
     {taskEditor && project && <TaskEditor key={taskEditor.task?.id ?? 'new'} projectId={project.id} task={taskEditor.task} initialStatus={taskEditor.status} onClose={() => setTaskEditor(null)} onSource={source} />}
   </div></AssistantChatDockProvider>;

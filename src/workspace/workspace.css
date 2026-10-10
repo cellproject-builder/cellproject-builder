@@ -146,7 +146,9 @@
 .ws-app:has(.ws-notes.is-maximized)>.ws-sidebar,
 .ws-notes.is-maximized>.ws-note-library,
 .ws-notes.is-maximized .ws-note-mobile-navigation { display:none; }
-.ws-notes.is-maximized>.ws-editor-container { display:flex; flex-direction:column; }
+.ws-notes.is-maximized { position:fixed; inset:0; z-index:40; background:rgb(var(--bg-primary)); }
+.ws-notes.is-maximized>.ws-editor-container { display:flex; flex-direction:column; border:0; border-radius:0; box-shadow:none; }
+.ws-note-editor { position:relative; }
 .ws-note-format { min-width:0; }
 .ws-notes-back { margin-left:4px; }
 @media (max-width:900px) {

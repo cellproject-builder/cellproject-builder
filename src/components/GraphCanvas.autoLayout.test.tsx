@@ -47,7 +47,7 @@ vi.mock('@xyflow/react', async () => {
   const api = { getNodes, getNode, getNodesBounds, setViewport: flow.setViewport, zoomIn: flow.zoomIn, zoomOut: flow.zoomOut };
   return {
     ReactFlow: (props: FlowProps) => { flow.props = props; return createElement('div', { 'data-react-flow': true }, props.children); },
-    Panel: forwardRef<HTMLDivElement, { children?: ReactNode }>(({ children }, ref) => createElement('div', { ref }, children)),
+    Panel: forwardRef<HTMLDivElement, { children?: ReactNode; className?: string }>(({ children, className }, ref) => createElement('div', { ref, className }, children)),
     Controls: ({ children }: { children?: ReactNode }) => createElement('div', null, children),
     ControlButton: ({ children }: { children?: ReactNode }) => createElement('button', null, children),
     Background: () => null,
@@ -171,6 +171,14 @@ describe('GraphCanvas automatic layout integration', () => {
     resize(1600, 1000);
     expect(canvas()).toBe(element);
     expect(canvas().dataset.canvasMaximized).toBe('true');
+    expect(host.querySelector('.planner-canvas-toolbar')?.closest('[hidden]')).not.toBeNull();
+    const controls = host.querySelector<HTMLButtonElement>('[aria-label="Show controls"]');
+    expect(controls).not.toBeNull();
+    act(() => controls!.click());
+    expect(host.querySelector('.planner-canvas-toolbar')?.closest('[hidden]')).toBeNull();
+    act(() => controls!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })));
+    expect(canvas().dataset.canvasMaximized).toBe('true');
+    expect(host.querySelector('.planner-canvas-toolbar')?.closest('[hidden]')).not.toBeNull();
     expect(savedPositions()).toEqual(original);
     act(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })));
     expect(canvas()).toBe(element);

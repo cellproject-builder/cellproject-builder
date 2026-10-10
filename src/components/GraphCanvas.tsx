@@ -32,7 +32,8 @@ import { childrenByParent } from '@/graph/treeIndex';
 import { isLeafGridParent, LAYOUT_Y_GAP } from '@/graph/treeLayout';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useReviewingParents } from '@/hooks/useReviewingParents';
-import { useT } from '@/i18n';
+import { useT, useLocaleStore } from '@/i18n';
+import { ExpandedChrome } from '@/components/ui/ExpandedChrome';
 import type { Messages } from '@/i18n';
 import { ConceptNode, SIDE_HANDLE } from './ConceptNode';
 import { discardSuggestionsWithUndo, acceptSuggestionsWithUndo } from './suggestionActions';
@@ -534,10 +535,10 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       H,
       left: isMobile ? MOBILE_CONTROLS_W : pad,
       right: pad,
-      top: pad + (toolbarRef.current?.offsetHeight || (isMobile ? CHROME_TOP_MOBILE : CHROME_TOP)) + 12 + banner,
+      top: pad + (maximized ? 0 : (toolbarRef.current?.offsetHeight || (isMobile ? CHROME_TOP_MOBILE : CHROME_TOP)) + 12) + banner,
       bottom,
     };
-  }, [isMobile]);
+  }, [isMobile, maximized]);
 
   // Enquadra `ids` (num zoom legível) dentro da área livre, com `focusId` no
   // centro: o recorte é simétrico em volta dele, então o nó em foco nunca
@@ -1306,6 +1307,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
             ))}
           </Controls>
         )}
+        <ExpandedChrome expanded={maximized} label={project?.name ?? 'Canvas'} english={useLocaleStore.getState().locale === 'en'} onRestore={() => onToggleMaximized?.()}>
         <Panel
           ref={toolbarRef}
           position="top-left"
@@ -1358,6 +1360,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
           </button>}
           <div className="planner-legend ml-auto"><EdgeLegend key={lens} tr={tr} inBar={isMobile} /></div>
         </Panel>
+        </ExpandedChrome>
         {pending && pending.nodes.length > 0 && (
           <Panel position="top-center" className="planner-staging-panel !mt-16 md:!mt-3 max-w-[calc(100vw-24px)]">
             <div
@@ -1538,7 +1541,7 @@ function EdgeLegend({ tr, inBar = false }: { tr: Messages; inBar?: boolean }) {
         </svg>
       </button>
       {open && (
-        <div className="glass border rounded-card shadow-mac-lg animate-sheet-in origin-top-right absolute right-0 top-full mt-1.5 w-[260px] max-w-[calc(100vw-24px)] p-3">
+        <div className="planner-legend-details glass border rounded-card shadow-mac-lg animate-sheet-in origin-top-right absolute right-0 top-full mt-1.5 w-[260px] max-w-[calc(100vw-24px)] p-3">
           <ul className="space-y-1.5">
             {rows.map((r) => (
               <li key={r.label} className="flex items-center gap-2.5 text-footnote text-text-secondary">

@@ -164,7 +164,15 @@ it('preserves measured node dimensions after selection and live resize updates',
   expect(flow.props.nodes[0].style).toMatchObject({width:420,height:250});
 });
 it('maximizes the board and restores with Escape',()=>{
+  const canvas=host.querySelector('[data-board-canvas]');
   click('Maximizar quadro');expect(host.querySelector('.db-canvas-shell')?.classList.contains('is-maximized')).toBe(true);
+  expect(host.querySelector('.db-canvas-header')?.closest('[hidden]')).not.toBeNull();
+  click('Mostrar controles');
+  expect(host.querySelector('.db-canvas-header')?.closest('[hidden]')).toBeNull();
+  act(()=>host.querySelector('[aria-label="Mostrar controles"]')!.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true})));
+  expect(host.querySelector('.db-canvas-header')?.closest('[hidden]')).not.toBeNull();
+  expect(host.querySelector('.db-canvas-shell')?.classList.contains('is-maximized')).toBe(true);
+  expect(host.querySelector('[data-board-canvas]')).toBe(canvas);
   key('Escape');expect(host.querySelector('.db-canvas-shell')?.classList.contains('is-maximized')).toBe(false);
 });
 it('keeps title spaces while typing and commits on blur',()=>{

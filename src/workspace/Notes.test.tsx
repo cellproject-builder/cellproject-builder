@@ -34,9 +34,12 @@ describe('note editing', () => {
     act(() => Simulate.click(maximize!));
     const restore = host.querySelector<HTMLButtonElement>('[aria-label="Restaurar editor"]');
     expect(restore?.getAttribute('aria-pressed')).toBe('true');
+    expect(restore?.closest('[hidden]')).not.toBeNull();
     expect(host.querySelector('.ws-note-editor')).toBe(editor);
     expect(paragraph.value).toBe('Um parágrafo em edição.');
     expect([paragraph.selectionStart, paragraph.selectionEnd]).toEqual([3, 12]);
+    act(() => Simulate.click(host.querySelector('[aria-label="Mostrar controles"]')!));
+    expect(restore?.closest('[hidden]')).toBeNull();
     act(() => Simulate.click(restore!));
     expect(host.querySelector('.ws-note-editor')).toBe(editor);
     expect(search.value).toBe('Reunião');

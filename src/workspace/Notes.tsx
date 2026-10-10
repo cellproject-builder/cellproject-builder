@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 import { EnterFullScreenIcon, ExitFullScreenIcon, Pencil1Icon, ImageIcon, MagicWandIcon } from '@/components/ui/SoftIcons';
 import { useLocaleStore, useT } from '@/i18n';
 import { Modal } from '@/components/ui/Modal';
+import { ExpandedChrome } from '@/components/ui/ExpandedChrome';
 import { toast } from '@/components/ui/Toast';
 import { flushWorkspacePersistence, useWorkspaceStore } from './store';
 import type { BlockType, Note, NoteBlock } from './types';
@@ -75,6 +76,7 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
     return () => { current = false; };
   }, [note]);
   return <section className={`ws-note-editor${drawing ? ' is-drawing' : ''}`} ref={editorRef}>
+    <ExpandedChrome expanded={maximized} label={note.title || tr.untitled} english={english} onRestore={onToggleMaximized}>
     <div className="ws-note-toolbar">
       <div className="ws-note-format" hidden={drawing}>{!trashed && <>
         <select aria-label={tr.text} value={selectedBlock?.type ?? 'text'} onChange={(e) => selectedBlock && updateBlock(selectedBlock.id, { type: e.target.value as BlockType })}>{(['text', 'heading', 'bullet', 'check'] as const).map((type) => <option key={type} value={type}>{type === 'check' ? tr.checklist : tr[type]}</option>)}</select>
@@ -102,6 +104,7 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
       <label>{tr.linkedTask}<select disabled={!note.projectId} value={note.taskId ?? ''} onChange={(e) => patch({ taskId: e.target.value || null })}><option value="">{tr.noTask}</option>{Object.values(tasks).filter((t) => t.projectId === note.projectId).map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
       <label>{tr.folder}<select value={note.folderId ?? ''} onChange={(e) => patch({ folderId: e.target.value || null })}><option value="">{tr.noFolder}</option>{Object.values(folders).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select></label>
     </div>}
+    </ExpandedChrome>
     <div className="ws-note-paper">
       <div className="ws-note-document" ref={bodyRef} data-note-document>
       <p className="ws-note-date">{new Intl.DateTimeFormat(document.documentElement.lang || 'pt-BR', { dateStyle: 'long', timeStyle: 'short' }).format(note.updatedAt)}</p>
@@ -126,7 +129,7 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
   </section>;
 }
 
-export function Notes({ projectId = null, initialNoteId = null }: { projectId?: string | null; initialNoteId?: string | null }) {
+export function Notes({ projectId = null, initialNoteId = null, onMaximizedChange }: { projectId?: string | null; initialNoteId?: string | null; onMaximizedChange?: (maximized: boolean) => void }) {
   const tr = useT().workspace;
   const shell = useContext(PageHeaderContext);
   const notes = useWorkspaceStore((s) => s.notes);
@@ -138,6 +141,7 @@ export function Notes({ projectId = null, initialNoteId = null }: { projectId?: 
   const [folderName, setFolderName] = useState('');
   const [mobileEditor, setMobileEditor] = useState(!!initialNoteId);
   const [maximized, setMaximized] = useState(false);
+  useEffect(() => { onMaximizedChange?.(maximized); return () => onMaximizedChange?.(false); }, [maximized, onMaximizedChange]);
   useEffect(() => {
     if (!maximized) return;
     const restoreOnEscape = (event: KeyboardEvent) => {

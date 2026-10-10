@@ -27,7 +27,7 @@
 .db-empty-sketch span+span { left:140px; top:42px; transform:rotate(7deg); width:38px; height:42px; }
 .db-empty-sketch svg { position:absolute; inset:0; fill:none; stroke:currentColor; stroke-width:1px; stroke-dasharray:4 4; }
 .db-canvas-shell { display:flex; flex-direction:column; height:100%; min-height:0; min-width:0; border-radius:var(--ws-radius-island); background:rgb(var(--bg-primary)); overflow:hidden; border:1px solid rgb(var(--border-base)/.45); }
-.db-canvas-shell.is-maximized { position:fixed; inset:0; z-index:80; height:100dvh; border:0; border-radius:0; }
+.db-canvas-shell.is-maximized { position:fixed; inset:0; z-index:40; height:100dvh; border:0; border-radius:0; }
 .db-canvas-header { display:flex; align-items:center; gap:9px; flex-shrink:0; height:48px; padding:5px 10px; background:rgb(var(--bg-secondary)); border-bottom:1px solid rgb(var(--border-base)/.35); }
 .db-canvas-header>.ws-icon-button { flex-shrink:0; }
 .db-header-brand { display:flex; gap:12px; align-items:center; white-space:nowrap; font-size:11px; color:rgb(var(--text-muted)); }
