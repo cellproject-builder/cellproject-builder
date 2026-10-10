@@ -1,0 +1,117 @@
+{
+  "projectName": "Recuperar um patinete doador",
+  "projectObjective": "Quero construir um patinete elétrico caseiro; ainda não tenho arquitetura, peças ou desempenho selecionados.",
+  "breadcrumb": [
+    "Recuperar um patinete doador",
+    "Recursos",
+    "Bateria protegida e carregador compatível"
+  ],
+  "nodeName": "Bateria protegida e carregador compatível",
+  "nodeKind": "recurso",
+  "nodeFx": "Sistema sem energia segura → alimentação e recarga compatíveis",
+  "oQue": "Bateria com BMS (placa de proteção das células) e carregador originais, incluídos se presentes. Conjunto substituto: ~R$ 400–900. Peça avaliação técnica; não abra nem reconstrua células.",
+  "porQue": "Tensão, proteção, comunicação e carregamento precisam corresponder ao sistema original.",
+  "comoConfirmar": "Relatório técnico identifica o conjunto bateria/carregador como apto para essa variante.",
+  "siblings": [
+    {
+      "name": "Chassi, direção e freios doadores",
+      "fx": "Necessidades sem veículo → base mecânica recuperável"
+    },
+    {
+      "name": "Rodas e motor originais",
+      "fx": "Base sem propulsão verificada → conjunto rodante aproveitável"
+    },
+    {
+      "name": "Controlador e programa originais",
+      "fx": "Motor sem comando → acionamento eletrônico identificável"
+    },
+    {
+      "name": "Acelerador e corte pelo freio",
+      "fx": "Propulsão sem comando seguro → aceleração e interrupção disponíveis"
+    },
+    {
+      "name": "Ferramentas, cabos, fusível e proteção",
+      "fx": "Peças disponíveis → reparo, medição e teste possíveis"
+    }
+  ],
+  "strategy": "reaproveitar",
+  "archetype": "construir",
+  "planApproach": "new_creation",
+  "planOverview": [
+    {
+      "category": "Recursos",
+      "name": "Chassi, direção e freios doadores",
+      "oQue": "Patinete elétrico usado completo, estimado em R$ 1.000–1.800, com procedência e manual. Modelo e variante ainda desconhecidos; não compre antes de inspecionar estrutura e freios."
+    },
+    {
+      "category": "Recursos",
+      "name": "Rodas e motor originais",
+      "oQue": "Rodas, pneus e motor do próprio doador, incluídos no preço dele. Pneus e rolamentos: ~R$ 100–250 se necessários. Registre medidas, eixo e identificação antes de encomendar reposições."
+    },
+    {
+      "category": "Recursos",
+      "name": "Controlador e programa originais",
+      "oQue": "Controlador (placa que aciona o motor), painel e firmware (programa interno da placa), incluídos no doador. Reposição: ~R$ 150–300. Exija manual e acesso ao aplicativo original, quando necessário."
+    },
+    {
+      "category": "Recursos",
+      "name": "Acelerador e corte pelo freio",
+      "oQue": "Acelerador e sensor de freio originais, incluídos no doador. Reposição: ~R$ 50–150. Identifique código, conector e função de cada contato no manual; não escolha pela aparência."
+    },
+    {
+      "category": "Recursos",
+      "name": "Ferramentas, cabos, fusível e proteção",
+      "oQue": "Kit comprado ou emprestado: ~R$ 200–400. Chaves, torquímetro, multímetro, suporte firme, cabos e fusível conforme manual, isolação e capacete. Reaproveite luzes e tampas originais."
+    },
+    {
+      "category": "Execução",
+      "name": "Definir requisitos e selecionar doador",
+      "oQue": "Responda às quatro decisões abaixo. Compare doadores completos com manual, peças disponíveis e procedência; peça modelo e variante exatos. Confira regras locais se pretende circular em via pública."
+    },
+    {
+      "category": "Execução",
+      "name": "Diagnosticar estrutura, bateria e interfaces",
+      "oQue": "Desligue e desconecte a bateria conforme manual. Fotografe etiquetas e conectores; registre tensão, polaridade, contatos e comunicação. Oficina avalia bateria suspeita. Some compra, ferramentas e reparos."
+    },
+    {
+      "category": "Execução",
+      "name": "Reparar direção, rodas e freios",
+      "oQue": "Troque apenas peças condenadas. Ajuste direção e mecanismo de dobra; instale pneus e pastilhas compatíveis. Aperte fixações com torque do manual. Trinca estrutural exige rejeitar o chassi."
+    },
+    {
+      "category": "Execução",
+      "name": "Conectar bateria, motor e comandos",
+      "oQue": "Sem energia, encaixe motor no controlador, painel no chicote, acelerador e freio nas portas identificadas. Reponha fusível conforme manual; ligue bateria por último. Não solde fios de função desconhecida."
+    },
+    {
+      "category": "Execução",
+      "name": "Configurar limites e calibrar acelerador",
+      "oQue": "Mantenha o programa original. Pelo painel ou aplicativo previsto no manual, ajuste o limite escolhido sem exceder o permitido. Faça a calibração indicada; se não houver ajuste, não invente um."
+    },
+    {
+      "category": "Execução",
+      "name": "Testar corte, frenagem e rodagem",
+      "oQue": "No suporte, confirme corte do motor ao frear. Recarregue sob supervisão conforme manual. Com capacete, teste frenagem, luzes e rodagem lenta em área privada plana; pare diante de falha ou aquecimento anormal."
+    },
+    {
+      "category": "Decisões",
+      "name": "Qual orçamento total disponível?",
+      "oQue": "Quanto pode gastar no total? A estimativa é R$ 1.500–3.500, incluindo ferramentas e reparos. Confirme o teto antes da compra; preços dos recursos são alternativas, não uma lista obrigatória de trocas."
+    },
+    {
+      "category": "Decisões",
+      "name": "Qual peso total transportado?",
+      "oQue": "Qual é seu peso somado a mochila e demais cargas, em kg? Use esse valor para comparar a capacidade documentada. Não presuma que reforçar o chassi aumenta a capacidade do conjunto."
+    },
+    {
+      "category": "Decisões",
+      "name": "Qual terreno e maior subida?",
+      "oQue": "O caminho é plano, irregular ou tem subidas? Informe superfície, maior inclinação e extensão da subida. Compare relatos documentados e teste com sua carga; potência anunciada sozinha não comprova capacidade."
+    },
+    {
+      "category": "Decisões",
+      "name": "Qual velocidade e autonomia desejadas?",
+      "oQue": "Qual velocidade em km/h e distância por carga em km você precisa? Informe também onde pretende circular. Não desbloqueie velocidade nem aumente tensão para compensar um doador inadequado."
+    }
+  ]
+}

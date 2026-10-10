@@ -12,12 +12,16 @@ Os comandos abaixo não exigem inferência paga no modo padrão. As suítes live
 | `npm run check:bundle` — [audit-client-bundle.mjs](audit-client-bundle.mjs) | Compila em memória, mede fechamento transitivo inicial e recusa módulos pesados específicos. `--output caminho` salva JSON explicitamente |
 | `npm run check:gateway` — [check-visual-gateway.mjs](check-visual-gateway.mjs) | `node --check` em `server/*.mjs`; sintaxe, sem provar integração |
 | `npm test` / `npm run test:gateway` | Suítes cliente e Node; provedores/serviços simulados onde indicado |
+| `npm run test:planning-quality` | Testa captura e limites do [laboratório de planos](../docs/design/plan-quality/README.md) com transporte roteirizado; não faz inferência paga |
+| `npm run bench:planner` | CPU em árvores sintéticas de 100 a 12.000 nós, abertas/resolvidas; salva JSON em `.codex-audit-planning-performance`, falha se qualquer operação/invariante falhar. Não mede FPS nem carga de servidor |
+| `npm run bench:gateway` / `npm run test:planner-load` | 11 cenários HTTP locais com rajadas de 20/50; handlers reais, autenticação/provedores/RPC simulados. Mede limites/isolamento/recuperação, sem chamadas externas ou prova de capacidade Railway/Supabase. O benchmark salva somente `gateway-load-latest.json` local; preserva a evidência datada |
 | [test-vault-sql.mjs](test-vault-sql.mjs) | Postgres WASM isolado com fixtures fabricadas, runtime temporário PGlite 0.5.8. Ler instruções no cabeçalho; não instala dependência no projeto nem valida Supabase gerenciado |
 
 ## Geração de identidade
 
 - `npm run icons` usa [generate-icons.mjs](generate-icons.mjs) para assets de identidade na raiz de `public`.
 - `npm run icons:pwa` usa [pwa/generate-icons.mjs](pwa/generate-icons.mjs) para ícones dedicados em `public/pwa`.
+- [generate-project-icon-ids.mjs](generate-project-icon-ids.mjs) atualiza somente os nomes pesquisáveis do catálogo de ícones; o catálogo SVG completo é carregado quando usado. Testes detectam diferenças contra a dependência instalada.
 
 São geradores distintos, com saídas diferentes. Executá-los regrava os assets correspondentes; conferir o diff antes de versionar. A fonte do gerador PWA saiu de `src/pwa` porque é ferramenta de autoria, não runtime do cliente.
 
@@ -28,5 +32,6 @@ São geradores distintos, com saídas diferentes. Executá-los regrava os assets
 | [compare-visual-models.ts](compare-visual-models.ts) | Comparação inicial com/sem guia; `--run` faz duas chamadas pagas e grava amostras. Recusa sobrescrever saídas existentes |
 | [compare-visual-matrix.ts](compare-visual-matrix.ts) | `--prepare` prepara matriz; `--run` retoma células pendentes com chamadas pagas, lock e preservação das primeiras tentativas |
 | [visual-matrix-runner.ts](visual-matrix-runner.ts) | Helpers de orçamento/coordenação/integridade usados pela matriz, não outro produto |
+| [planning-quality.mjs](planning-quality.mjs) | Padrão sem rede; `--live` executa o serviço real esboço→expansão→decomposição, com tetos de chamadas/custo e primeira tentativa preservada. Ler [protocolo](../docs/design/plan-quality/README.md) antes de executar |
 
 Ler [proveniência da comparação](../docs/visual-modeling-skills.md) e [matriz](../docs/design/three-skills-comparison/matrix/README.md) antes de executar. As credenciais são lidas do ambiente local; não copiá-las para saídas, logs ou documentação. Guia de skill e referência de imagem/texto são fatores diferentes. Navegar pelas páginas salvas não gera novas amostras.

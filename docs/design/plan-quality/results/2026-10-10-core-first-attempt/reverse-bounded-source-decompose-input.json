@@ -1,0 +1,98 @@
+{
+  "projectName": "Restaurar um Patinete Doador",
+  "projectObjective": "Quero construir um patinete elétrico caseiro; ainda não tenho arquitetura, peças ou desempenho selecionados.",
+  "breadcrumb": [
+    "Restaurar um Patinete Doador",
+    "Recursos",
+    "Controle e comandos originais"
+  ],
+  "nodeName": "Controle e comandos originais",
+  "nodeKind": "recurso",
+  "nodeFx": "Comandos sem identificação → cadeia de controle documentada",
+  "oQue": "Controlador (placa que aciona o motor), acelerador, painel, sensores de freio e programa originais; ~R$ 0 adicional se íntegros. Aplicativo e vínculo da conta, se exigidos, são desconhecidos.",
+  "porQue": "Mantém o caminho entre comando, freio e motor sem presumir compatibilidade de peças avulsas.",
+  "comoConfirmar": "Diagnóstico original do conjunto apresenta zero falhas de comunicação.",
+  "siblings": [
+    {
+      "name": "Doador e conjuntos mecânicos",
+      "fx": "Referência documental → patinete real identificado"
+    },
+    {
+      "name": "Motor original e fixações",
+      "fx": "Roda motriz desconhecida → conjunto original inspecionado"
+    },
+    {
+      "name": "Bateria protegida e carregador",
+      "fx": "Fonte desconhecida → alimentação compatível e avaliada"
+    },
+    {
+      "name": "Chicote e proteção elétrica",
+      "fx": "Ligações desconhecidas → conexões originais rastreadas"
+    },
+    {
+      "name": "Documentação, ferramentas e diagnóstico",
+      "fx": "Referência parcial → meios de reparo verificável"
+    }
+  ],
+  "strategy": "reaproveitar",
+  "archetype": "construir",
+  "planApproach": "reverse_engineering",
+  "referenceTarget": "Xiaomi Electric Scooter 4 global",
+  "planOverview": [
+    {
+      "category": "Recursos",
+      "name": "Doador e conjuntos mecânicos",
+      "oQue": "Patinete completo usado, com estrutura, direção, rodas e freios; ~R$ 1.800–3.000. Referência: Xiaomi Electric Scooter 4 global; pneus e freios descritos em [specs] não comprovam o estado do doador."
+    },
+    {
+      "category": "Recursos",
+      "name": "Motor original e fixações",
+      "oQue": "Motor da roda, eixo, arruelas e porcas originais; ~R$ 0 adicional se íntegros. A referência declara 300 W nominais [specs]; isso não identifica a peça do doador."
+    },
+    {
+      "category": "Recursos",
+      "name": "Bateria protegida e carregador",
+      "oQue": "Bateria original com BMS (placa de proteção da bateria) e carregador identificado; ~R$ 0 adicional se aprovados. Reposição do par: ~R$ 800–1.200, conforme variante. Proteções documentadas em [product]."
+    },
+    {
+      "category": "Recursos",
+      "name": "Chicote e proteção elétrica",
+      "oQue": "Chicote (conjunto de cabos), conectores originais, isolantes, vedações e proteção elétrica prevista pelo fabricante; ~R$ 50–150 em reposições. Tipo de fusível, se houver, permanece desconhecido."
+    },
+    {
+      "category": "Recursos",
+      "name": "Documentação, ferramentas e diagnóstico",
+      "oQue": "Manual da variante, fotos das conexões, multímetro, torquímetro emprestado e oficina para bateria; ~R$ 150–300. Inclua capacete e local privado de teste; serviço de solda apenas se necessário."
+    },
+    {
+      "category": "Execução",
+      "name": "Identificar necessidades e interfaces",
+      "oQue": "Qual seu peso com bagagem, distância, rampas, cidade e orçamento? Fotografe etiqueta e códigos das peças; registre encaixes, tensões, polaridade e conectores. Separe dados de [specs][product] das observações."
+    },
+    {
+      "category": "Execução",
+      "name": "Inspecionar estrutura, bateria e freios",
+      "oQue": "Desligue e retire o carregador da tomada. Examine trincas, dobra, direção, pneus e freios; encaminhe bateria à oficina. Não carregue bateria inchada, molhada ou danificada; não abra o pacote."
+    },
+    {
+      "category": "Execução",
+      "name": "Reparar e fixar a mecânica",
+      "oQue": "Troque itens condenados por peças da variante confirmada. Monte eixo e arruelas na ordem registrada; aperte conforme manual. Ajuste direção, dobra, pneus e freio mecânico; não solde estrutura trincada."
+    },
+    {
+      "category": "Execução",
+      "name": "Reconectar os conjuntos originais",
+      "oQue": "Com bateria isolada conforme manual, encaixe motor no controlador, painel/comandos e sensores nas portas identificadas. Reconecte bateria por último; confira polaridade pelo esquema. Solda fica com a oficina."
+    },
+    {
+      "category": "Execução",
+      "name": "Configurar e verificar comandos",
+      "oQue": "Mantenha o programa original; vincule o aplicativo se exigido. Selecione o modo mais lento disponível. Execute calibração apenas se prevista no manual; em suporte firme, teste acelerador e corte pelo freio."
+    },
+    {
+      "category": "Execução",
+      "name": "Testar carga e percurso",
+      "oQue": "Carregue supervisionado conforme manual, longe de combustíveis. Com capacete, teste freios em área privada plana e avance gradualmente; registre distância, carga e temperatura conforme limites do fabricante."
+    }
+  ]
+}

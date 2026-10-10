@@ -1,0 +1,68 @@
+[
+  {
+    "case": "reverse-bounded-source",
+    "stage": "outline",
+    "status": "success",
+    "startedAt": "2026-10-10T22:53:35.093Z",
+    "firstAttempt": true,
+    "elapsedMs": 26679,
+    "attempts": [
+      1
+    ]
+  },
+  {
+    "case": "reverse-bounded-source",
+    "stage": "expand",
+    "status": "success",
+    "startedAt": "2026-10-10T22:54:01.778Z",
+    "firstAttempt": true,
+    "elapsedMs": 40646,
+    "attempts": [
+      2
+    ]
+  },
+  {
+    "case": "reverse-bounded-source",
+    "stage": "decompose",
+    "status": "success",
+    "startedAt": "2026-10-10T22:54:42.427Z",
+    "firstAttempt": true,
+    "elapsedMs": 30387,
+    "attempts": [
+      3
+    ]
+  },
+  {
+    "case": "reverse-variant-conflict",
+    "stage": "outline",
+    "status": "success",
+    "startedAt": "2026-10-10T22:55:12.815Z",
+    "firstAttempt": true,
+    "elapsedMs": 25807,
+    "attempts": [
+      4
+    ]
+  },
+  {
+    "case": "reverse-variant-conflict",
+    "stage": "expand",
+    "status": "success",
+    "startedAt": "2026-10-10T22:55:38.624Z",
+    "firstAttempt": true,
+    "elapsedMs": 42562,
+    "attempts": [
+      5
+    ]
+  },
+  {
+    "case": "reverse-variant-conflict",
+    "stage": "decompose",
+    "status": "success",
+    "startedAt": "2026-10-10T22:56:21.190Z",
+    "firstAttempt": true,
+    "elapsedMs": 33455,
+    "attempts": [
+      6
+    ]
+  }
+]

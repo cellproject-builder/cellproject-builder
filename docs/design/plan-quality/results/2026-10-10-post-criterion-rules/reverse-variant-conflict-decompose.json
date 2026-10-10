@@ -1,0 +1,72 @@
+{
+  "case": "reverse-variant-conflict",
+  "stage": "decompose",
+  "status": "success",
+  "startedAt": "2026-10-10T22:56:21.190Z",
+  "firstAttempt": true,
+  "events": [],
+  "output": {
+    "nodes": [
+      {
+        "tempId": "Aj0Dc1",
+        "kind": "recurso",
+        "name": "Bateria fechada do doador",
+        "fx": "Bateria de origem incerta → pacote disponível e rastreável",
+        "problem": "",
+        "confidence": 70,
+        "confidenceReason": "Etiqueta pode estar danificada; identidade e estado ainda não foram verificados.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Bateria do próprio doador, sem abrir o pacote: ~R$ 0 adicional se aprovada. DOCUMENTADO: [product] descreve BMS (proteção eletrônica da bateria) do Scooter 4; código, tensão e proteção do 4 Pro são DESCONHECIDOS.",
+        "porQue": "Permite avaliar o conjunto existente sem comprar outra bateria nem presumir equivalência entre variantes.",
+        "comoConfirmar": "Etiqueta externa da bateria recebida: código de identificação integralmente legível."
+      },
+      {
+        "tempId": "0txfb1",
+        "kind": "recurso",
+        "name": "Carregador recebido com doador",
+        "fx": "Carregador sem identidade → unidade disponível e rastreável",
+        "problem": "",
+        "confidence": 75,
+        "confidenceReason": "Receber o acessório é simples; sua originalidade ainda precisa de confirmação.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Carregador recebido com o doador: ~R$ 0 adicional se aprovado. DOCUMENTADO: [specs] trata do Scooter 4, não Pro. DESCONHECIDO: qual código e saída elétrica constam na etiqueta desta unidade?",
+        "porQue": "Evita escolher um carregador apenas pelo encaixe ou pelas especificações de outro modelo.",
+        "comoConfirmar": "Etiqueta do carregador recebido: código de modelo integralmente legível."
+      },
+      {
+        "tempId": "OT3wGM",
+        "kind": "recurso",
+        "name": "Laudo técnico do conjunto",
+        "fx": "Unidades rastreáveis → aptidão conjunta formalmente avaliada",
+        "problem": "",
+        "confidence": 45,
+        "confidenceReason": "Depende de documentação da variante e do estado real das duas unidades.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Obtenha avaliação de bateria, BMS e carregador por assistência com documentação da variante, sem abrir o pacote; serviço a cotar. Pergunte quais tensão, polaridade, conector e protocolo correspondem aos códigos.",
+        "porQue": "A avaliação técnica verifica proteção e compatibilidade sem transformar etiquetas ou declarações comerciais em prova de funcionamento.",
+        "comoConfirmar": "Conclusão do laudo para os códigos recebidos e a variante identificada: aptos para uso conjunto."
+      }
+    ],
+    "edges": [
+      {
+        "sourceTempId": "Aj0Dc1",
+        "targetTempId": "OT3wGM",
+        "kind": "direct",
+        "note": "A assistência avalia o pacote recebido, preservando seu fechamento."
+      },
+      {
+        "sourceTempId": "0txfb1",
+        "targetTempId": "OT3wGM",
+        "kind": "direct",
+        "note": "O laudo deve avaliar este carregador com esta bateria, não unidades genéricas."
+      }
+    ]
+  },
+  "elapsedMs": 33455,
+  "attempts": [
+    6
+  ]
+}

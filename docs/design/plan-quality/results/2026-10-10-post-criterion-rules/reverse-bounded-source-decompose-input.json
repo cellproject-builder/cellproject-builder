@@ -1,0 +1,98 @@
+{
+  "projectName": "Adaptar um patinete doador",
+  "projectObjective": "Quero construir um patinete elétrico caseiro; ainda não tenho arquitetura, peças ou desempenho selecionados.",
+  "breadcrumb": [
+    "Adaptar um patinete doador",
+    "Recursos",
+    "Bateria protegida e carregador compatível"
+  ],
+  "nodeName": "Bateria protegida e carregador compatível",
+  "nodeKind": "recurso",
+  "nodeFx": "Fonte desconhecida → alimentação avaliada com segurança",
+  "oQue": "Bateria e carregador originais: R$ 0 extra se aprovados. BMS (circuito de proteção da bateria) é declarado em [product]. Reserve avaliação profissional; troca de conjunto: ~R$ 600–1.000, a cotar.",
+  "porQue": "Uma bateria danificada ou um carregador incompatível pode causar incêndio.",
+  "comoConfirmar": "O laudo de avaliação aprova a bateria para uso segundo os limites da variante identificada.",
+  "siblings": [
+    {
+      "name": "Documentos, medições e ferramentas",
+      "fx": "Referência parcial → meios de identificar, reparar e medir"
+    },
+    {
+      "name": "Chassi, direção, rodas e freios",
+      "fx": "Doador desconhecido → base mecânica identificada"
+    },
+    {
+      "name": "Motor e fixações originais",
+      "fx": "Propulsão sem histórico → conjunto original avaliável"
+    },
+    {
+      "name": "Controlador, comandos e configuração",
+      "fx": "Eletrônica desconhecida → caminho de comando identificado"
+    },
+    {
+      "name": "Chicote, conectores e isolação",
+      "fx": "Cabos sem identificação → ligações rastreáveis"
+    }
+  ],
+  "strategy": "reaproveitar",
+  "archetype": "construir",
+  "planApproach": "reverse_engineering",
+  "referenceTarget": "Xiaomi Electric Scooter 4 global",
+  "planOverview": [
+    {
+      "category": "Recursos",
+      "name": "Documentos, medições e ferramentas",
+      "oQue": "Manual da variante, multímetro, ferramentas, torquímetro e capacete: ~R$ 250–500. Obtenha assistência para diagnóstico elétrico. As fontes cobrem só parte do produto [specs][product]."
+    },
+    {
+      "category": "Recursos",
+      "name": "Chassi, direção, rodas e freios",
+      "oQue": "Procure Xiaomi Electric Scooter 4 global completo: ~R$ 1.400–3.000, estimativa a confirmar. Preserve chassi e freios. Pneus de 10 polegadas e disco traseiro são declarações da referência [specs]."
+    },
+    {
+      "category": "Recursos",
+      "name": "Motor e fixações originais",
+      "oQue": "Reaproveite motor, eixo e fixações do doador: R$ 0 extra se íntegros. A referência declara 300 W nominais, não medidos neste exemplar [specs]. Peça diagnóstico antes de comprar substituto."
+    },
+    {
+      "category": "Recursos",
+      "name": "Controlador, comandos e configuração",
+      "oQue": "Preserve controlador (placa que comanda o motor), acelerador, painel e firmware (programa interno): R$ 0 extra se íntegros. Obtenha acesso autorizado ao aplicativo exigido pela variante."
+    },
+    {
+      "category": "Recursos",
+      "name": "Chicote, conectores e isolação",
+      "oQue": "Preserve chicote (conjunto de cabos) e conectores originais. Termorretrátil, abraçadeiras e reposições: ~R$ 150–300. Confirme pinagem e proteção por fusível no esquema; não escolha pela aparência."
+    },
+    {
+      "category": "Execução",
+      "name": "Identificar variante, requisitos e interfaces",
+      "oQue": "Qual seu peso com bagagem, percurso, subidas, autonomia, orçamento e cidade? Fotografe etiquetas; obtenha esquema de potência, comandos e encaixes. [specs][product] não fornecem pinagem."
+    },
+    {
+      "category": "Execução",
+      "name": "Inspecionar doador e selecionar reparos",
+      "oQue": "Antes da compra, peça inspeção mecânica e diagnóstico de bateria e eletrônica. Recuse bateria inchada, molhada ou aquecendo. Cote os reparos; total provisório ~R$ 1.800–4.500, sem compra garantida."
+    },
+    {
+      "category": "Execução",
+      "name": "Reparar estrutura, propulsão e freios",
+      "oQue": "Com bateria isolada, substitua peças danificadas por equivalentes confirmadas. Aperte eixo, direção e dobra ao torque do manual; ajuste disco e pneus. Não solde chassi trincado como reparo improvisado."
+    },
+    {
+      "category": "Execução",
+      "name": "Conectar chicote por pinagem verificada",
+      "oQue": "Sem energia, encaixe motor→controlador e painel, acelerador e sensor de freio→portas documentadas. Confira polaridade da bateria; conecte-a por último. Não solde bateria nem force conectores."
+    },
+    {
+      "category": "Execução",
+      "name": "Configurar limites e calibrar comandos",
+      "oQue": "Use aplicativo e firmware oficiais compatíveis. Preserve limites originais; execute apenas calibrações previstas no manual. Com roda motriz suspensa e área livre, confira acelerador e corte pelo freio."
+    },
+    {
+      "category": "Execução",
+      "name": "Testar carga, frenagem e percurso",
+      "oQue": "Carregue sob supervisão conforme manual. Em área privada, com capacete, teste frenagem em baixa velocidade antes do percurso. Defina antes os limites com assistência; 35 km anunciados não são garantia [product]."
+    }
+  ]
+}

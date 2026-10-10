@@ -1,0 +1,1557 @@
+{
+  "case": "reverse-variant-conflict",
+  "stage": "outline",
+  "status": "success",
+  "startedAt": "2026-10-10T22:55:12.815Z",
+  "firstAttempt": true,
+  "events": [
+    {
+      "phase": "connecting",
+      "chunkCount": 0,
+      "elapsedMs": 0,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "thinking",
+      "chunkCount": 0,
+      "elapsedMs": 1213,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 1,
+      "elapsedMs": 9361,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 2,
+      "elapsedMs": 9361,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 3,
+      "elapsedMs": 9362,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 4,
+      "elapsedMs": 9365,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 5,
+      "elapsedMs": 9365,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 6,
+      "elapsedMs": 9365,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 7,
+      "elapsedMs": 9365,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 8,
+      "elapsedMs": 9365,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 9,
+      "elapsedMs": 9365,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 10,
+      "elapsedMs": 9368,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 11,
+      "elapsedMs": 9368,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 12,
+      "elapsedMs": 9370,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 13,
+      "elapsedMs": 9370,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 14,
+      "elapsedMs": 9370,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 15,
+      "elapsedMs": 9370,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 16,
+      "elapsedMs": 9370,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 17,
+      "elapsedMs": 9373,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 18,
+      "elapsedMs": 9373,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 19,
+      "elapsedMs": 9373,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 20,
+      "elapsedMs": 9373,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 21,
+      "elapsedMs": 9373,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 22,
+      "elapsedMs": 9373,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 23,
+      "elapsedMs": 9375,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 24,
+      "elapsedMs": 9375,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 25,
+      "elapsedMs": 9375,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 26,
+      "elapsedMs": 9375,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 27,
+      "elapsedMs": 9377,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 28,
+      "elapsedMs": 9377,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 29,
+      "elapsedMs": 9378,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 30,
+      "elapsedMs": 9378,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 31,
+      "elapsedMs": 9378,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 32,
+      "elapsedMs": 9378,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 33,
+      "elapsedMs": 9379,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 34,
+      "elapsedMs": 9379,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 35,
+      "elapsedMs": 9379,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 36,
+      "elapsedMs": 9532,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 37,
+      "elapsedMs": 9533,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 38,
+      "elapsedMs": 9533,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 39,
+      "elapsedMs": 9533,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 40,
+      "elapsedMs": 9533,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 41,
+      "elapsedMs": 9533,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 42,
+      "elapsedMs": 9535,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 43,
+      "elapsedMs": 9535,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 44,
+      "elapsedMs": 9536,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 45,
+      "elapsedMs": 9536,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 46,
+      "elapsedMs": 9536,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 47,
+      "elapsedMs": 9536,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 48,
+      "elapsedMs": 9538,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 49,
+      "elapsedMs": 9538,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 50,
+      "elapsedMs": 9538,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 51,
+      "elapsedMs": 9538,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 52,
+      "elapsedMs": 9539,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 53,
+      "elapsedMs": 9539,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 54,
+      "elapsedMs": 9540,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 55,
+      "elapsedMs": 9541,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 56,
+      "elapsedMs": 9542,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 57,
+      "elapsedMs": 9542,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 58,
+      "elapsedMs": 9837,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 59,
+      "elapsedMs": 9837,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 60,
+      "elapsedMs": 9837,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 61,
+      "elapsedMs": 9838,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 62,
+      "elapsedMs": 10146,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 63,
+      "elapsedMs": 10146,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 64,
+      "elapsedMs": 10146,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 65,
+      "elapsedMs": 10147,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 66,
+      "elapsedMs": 10147,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 67,
+      "elapsedMs": 10388,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 68,
+      "elapsedMs": 10388,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 69,
+      "elapsedMs": 10388,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 70,
+      "elapsedMs": 10632,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 71,
+      "elapsedMs": 10632,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 72,
+      "elapsedMs": 10632,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 73,
+      "elapsedMs": 10633,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 74,
+      "elapsedMs": 10862,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 75,
+      "elapsedMs": 10863,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 76,
+      "elapsedMs": 10864,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 77,
+      "elapsedMs": 11213,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 78,
+      "elapsedMs": 11214,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 79,
+      "elapsedMs": 11214,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 80,
+      "elapsedMs": 11271,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 81,
+      "elapsedMs": 11272,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 82,
+      "elapsedMs": 11383,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 83,
+      "elapsedMs": 11383,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 84,
+      "elapsedMs": 11556,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 85,
+      "elapsedMs": 11556,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 86,
+      "elapsedMs": 11728,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 87,
+      "elapsedMs": 11728,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 88,
+      "elapsedMs": 11905,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 89,
+      "elapsedMs": 11905,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 90,
+      "elapsedMs": 12026,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 91,
+      "elapsedMs": 12026,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 92,
+      "elapsedMs": 12138,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 93,
+      "elapsedMs": 12255,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 94,
+      "elapsedMs": 12370,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 95,
+      "elapsedMs": 12370,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 96,
+      "elapsedMs": 12552,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 97,
+      "elapsedMs": 12552,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 98,
+      "elapsedMs": 12669,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 99,
+      "elapsedMs": 12669,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 100,
+      "elapsedMs": 12781,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 101,
+      "elapsedMs": 12895,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 102,
+      "elapsedMs": 13077,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 103,
+      "elapsedMs": 13077,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 104,
+      "elapsedMs": 13189,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 105,
+      "elapsedMs": 13365,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 106,
+      "elapsedMs": 13366,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 107,
+      "elapsedMs": 13485,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 108,
+      "elapsedMs": 13603,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 109,
+      "elapsedMs": 13714,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 110,
+      "elapsedMs": 13833,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 111,
+      "elapsedMs": 13947,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 112,
+      "elapsedMs": 14123,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 113,
+      "elapsedMs": 14124,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 114,
+      "elapsedMs": 14242,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 115,
+      "elapsedMs": 14358,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 116,
+      "elapsedMs": 14475,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 117,
+      "elapsedMs": 14653,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 118,
+      "elapsedMs": 14653,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 119,
+      "elapsedMs": 14770,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 120,
+      "elapsedMs": 14895,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 121,
+      "elapsedMs": 15004,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 122,
+      "elapsedMs": 15178,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 123,
+      "elapsedMs": 15178,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 124,
+      "elapsedMs": 15297,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 125,
+      "elapsedMs": 15470,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 126,
+      "elapsedMs": 15470,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 127,
+      "elapsedMs": 15588,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 128,
+      "elapsedMs": 15705,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 129,
+      "elapsedMs": 15827,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 130,
+      "elapsedMs": 16001,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 131,
+      "elapsedMs": 16001,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 132,
+      "elapsedMs": 16112,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 133,
+      "elapsedMs": 16293,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 134,
+      "elapsedMs": 16294,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 135,
+      "elapsedMs": 16409,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 136,
+      "elapsedMs": 16522,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 137,
+      "elapsedMs": 16522,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 138,
+      "elapsedMs": 16640,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 139,
+      "elapsedMs": 16755,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 140,
+      "elapsedMs": 16875,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 141,
+      "elapsedMs": 17097,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 142,
+      "elapsedMs": 17097,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 143,
+      "elapsedMs": 17169,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 144,
+      "elapsedMs": 17303,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 145,
+      "elapsedMs": 17408,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 146,
+      "elapsedMs": 17409,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 147,
+      "elapsedMs": 17571,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 148,
+      "elapsedMs": 17656,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 149,
+      "elapsedMs": 17656,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 150,
+      "elapsedMs": 17770,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 151,
+      "elapsedMs": 17969,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 152,
+      "elapsedMs": 17970,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 153,
+      "elapsedMs": 18168,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 154,
+      "elapsedMs": 18168,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 155,
+      "elapsedMs": 18330,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 156,
+      "elapsedMs": 18409,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 157,
+      "elapsedMs": 18534,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 158,
+      "elapsedMs": 18739,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 159,
+      "elapsedMs": 18760,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 160,
+      "elapsedMs": 18943,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 161,
+      "elapsedMs": 18991,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 162,
+      "elapsedMs": 19147,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 163,
+      "elapsedMs": 19231,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 164,
+      "elapsedMs": 19352,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 165,
+      "elapsedMs": 19557,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 166,
+      "elapsedMs": 19583,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 167,
+      "elapsedMs": 19762,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 168,
+      "elapsedMs": 19814,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 169,
+      "elapsedMs": 19968,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 170,
+      "elapsedMs": 20177,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 171,
+      "elapsedMs": 20211,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 172,
+      "elapsedMs": 20384,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 173,
+      "elapsedMs": 20521,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 174,
+      "elapsedMs": 20679,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 175,
+      "elapsedMs": 20803,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 176,
+      "elapsedMs": 20927,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 177,
+      "elapsedMs": 21057,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 178,
+      "elapsedMs": 21181,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 179,
+      "elapsedMs": 21309,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 180,
+      "elapsedMs": 21433,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 181,
+      "elapsedMs": 21560,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 182,
+      "elapsedMs": 21680,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 183,
+      "elapsedMs": 21817,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 184,
+      "elapsedMs": 21948,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 185,
+      "elapsedMs": 22077,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 186,
+      "elapsedMs": 22209,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 187,
+      "elapsedMs": 22339,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 188,
+      "elapsedMs": 22465,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 189,
+      "elapsedMs": 22597,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 190,
+      "elapsedMs": 22723,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 191,
+      "elapsedMs": 22849,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 192,
+      "elapsedMs": 22976,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 193,
+      "elapsedMs": 23110,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 194,
+      "elapsedMs": 23238,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 195,
+      "elapsedMs": 23362,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 196,
+      "elapsedMs": 23497,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 197,
+      "elapsedMs": 23638,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 198,
+      "elapsedMs": 23770,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 199,
+      "elapsedMs": 23910,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 200,
+      "elapsedMs": 24045,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 201,
+      "elapsedMs": 24194,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 202,
+      "elapsedMs": 24302,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 203,
+      "elapsedMs": 24431,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 204,
+      "elapsedMs": 24555,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 205,
+      "elapsedMs": 24691,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 206,
+      "elapsedMs": 24816,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 207,
+      "elapsedMs": 24955,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 208,
+      "elapsedMs": 25095,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 209,
+      "elapsedMs": 25217,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 210,
+      "elapsedMs": 25354,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 211,
+      "elapsedMs": 25494,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 212,
+      "elapsedMs": 25767,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "finalizing",
+      "chunkCount": 212,
+      "elapsedMs": 25806,
+      "startedAt": 1791672912815
+    },
+    {
+      "phase": "done",
+      "chunkCount": 212,
+      "elapsedMs": 25806,
+      "startedAt": 1791672912815
+    }
+  ],
+  "output": [
+    {
+      "id": "gRL_-AK8",
+      "title": "Restaurar um doador completo",
+      "pitch": "Recupere um patinete completo, preservando o conjunto elétrico e mecânico originalmente compatível.",
+      "approach": "Comece identificando o 4 Pro global: os documentos fornecidos cobrem o Scooter 4 não Pro [specs][product]. Reaproveite um doador completo com interfaces verificadas, sem presumir equivalência entre variantes. Antes da compra: qual seu peso, autonomia desejada e velocidade pretendida? Estimativas dependem dessas respostas e do diagnóstico.",
+      "strategy": "reaproveitar",
+      "archetype": "construir",
+      "rank": 1,
+      "rankReason": "Preservar interfaces originais reduz tempo e risco de incompatibilidade, mas o custo depende do estado do doador.",
+      "estimates": {
+        "custo": "R$ 2.000–4.500",
+        "tempo": "3–6 fins de semana",
+        "dificuldade": "intermediario"
+      },
+      "rulesCheck": [],
+      "outline": {
+        "categorias": [
+          {
+            "name": "Recursos",
+            "kind": "recursos",
+            "nodes": [
+              {
+                "name": "Documentação, medições e ferramentas",
+                "kind": "recurso"
+              },
+              {
+                "name": "Chassi, direção, rodas e freios",
+                "kind": "recurso"
+              },
+              {
+                "name": "Motor original do doador",
+                "kind": "recurso"
+              },
+              {
+                "name": "Controlador, acelerador, painel e programa",
+                "kind": "recurso"
+              },
+              {
+                "name": "Bateria protegida e carregador compatível",
+                "kind": "recurso"
+              },
+              {
+                "name": "Chicote, conectores, fusível e isolação",
+                "kind": "recurso"
+              }
+            ]
+          },
+          {
+            "name": "Execução",
+            "kind": "execucao",
+            "nodes": [
+              {
+                "name": "Confirmar variante, fontes e metas",
+                "kind": "passo"
+              },
+              {
+                "name": "Inspecionar doador e mapear interfaces",
+                "kind": "passo"
+              },
+              {
+                "name": "Restaurar estrutura, direção e freios",
+                "kind": "passo"
+              },
+              {
+                "name": "Reconectar alimentação, motor e comandos",
+                "kind": "passo"
+              },
+              {
+                "name": "Configurar limites e calibrar comandos",
+                "kind": "passo"
+              },
+              {
+                "name": "Testar carga, frenagem e rodagem",
+                "kind": "passo"
+              }
+            ]
+          }
+        ]
+      },
+      "planApproach": "reverse_engineering",
+      "referenceTarget": "Xiaomi Electric Scooter 4 Pro global"
+    },
+    {
+      "id": "nT7H8BOW",
+      "title": "Base pronta, propulsão modular",
+      "pitch": "Adapte uma base mecânica robusta a um conjunto de propulsão comprado como sistema compatível.",
+      "approach": "Reconstrua primeiro as funções do 4 Pro global; [specs][product] descrevem apenas o não Pro e não comprovam encaixes. Reuse chassi e freios; adapte suportes e compre motor, controlador e comandos com interfaces documentadas. Qual seu peso, percurso e velocidade desejada? Não escolha tensão, roda ou conectores antes dessas verificações.",
+      "strategy": "hibrido",
+      "archetype": "construir",
+      "rank": 2,
+      "rankReason": "Um conjunto elétrico documentado facilita manutenção, mas adaptar roda, suportes e freios exige mais trabalho que restaurar um doador.",
+      "estimates": {
+        "custo": "R$ 3.000–6.000",
+        "tempo": "6–10 fins de semana",
+        "dificuldade": "avancado"
+      },
+      "rulesCheck": [],
+      "outline": {
+        "categorias": [
+          {
+            "name": "Recursos",
+            "kind": "recursos",
+            "nodes": [
+              {
+                "name": "Fontes, instrumentos e ferramentas",
+                "kind": "recurso"
+              },
+              {
+                "name": "Base, direção, freios e suportes",
+                "kind": "recurso"
+              },
+              {
+                "name": "Motor e roda com encaixes verificados",
+                "kind": "recurso"
+              },
+              {
+                "name": "Controlador, acelerador, painel e programa",
+                "kind": "recurso"
+              },
+              {
+                "name": "Bateria protegida e carregador compatível",
+                "kind": "recurso"
+              },
+              {
+                "name": "Cabos, conectores, fusível e isolação",
+                "kind": "recurso"
+              }
+            ]
+          },
+          {
+            "name": "Execução",
+            "kind": "execucao",
+            "nodes": [
+              {
+                "name": "Identificar referência e levantar metas",
+                "kind": "passo"
+              },
+              {
+                "name": "Dimensionar e verificar interfaces documentadas",
+                "kind": "passo"
+              },
+              {
+                "name": "Adaptar suportes, motor e freios",
+                "kind": "passo"
+              },
+              {
+                "name": "Conectar alimentação, motor e comandos",
+                "kind": "passo"
+              },
+              {
+                "name": "Configurar controlador e calibrar freios",
+                "kind": "passo"
+              },
+              {
+                "name": "Testar carga, frenagem e rodagem",
+                "kind": "passo"
+              }
+            ]
+          }
+        ]
+      },
+      "planApproach": "reverse_engineering",
+      "referenceTarget": "Xiaomi Electric Scooter 4 Pro global"
+    },
+    {
+      "id": "DQ4gBsUj",
+      "title": "Chassi próprio, projeto completo",
+      "pitch": "Projete a estrutura e a integração desde o início, usando componentes elétricos comerciais documentados.",
+      "approach": "Parta da investigação do 4 Pro global, sem transferir números do não Pro [specs][product]. Construa chassi, suportes e integração próprios; compre motor, eletrônica e bateria protegida. Esta rota serve à fabricação personalizada, não à economia: reaproveitar continua viável. Qual carga total, percurso e desempenho devem orientar o projeto?",
+      "strategy": "do_zero",
+      "archetype": "construir",
+      "rank": 3,
+      "rankReason": "A estrutura própria oferece liberdade dimensional, mas exige fabricação qualificada e validação estrutural mais caras e demoradas.",
+      "estimates": {
+        "custo": "R$ 5.000–10.000",
+        "tempo": "12–20 fins de semana",
+        "dificuldade": "avancado"
+      },
+      "rulesCheck": [],
+      "outline": {
+        "categorias": [
+          {
+            "name": "Recursos",
+            "kind": "recursos",
+            "nodes": [
+              {
+                "name": "Fontes, projeto e fabricação qualificada",
+                "kind": "recurso"
+              },
+              {
+                "name": "Materiais, direção, rodas e freios",
+                "kind": "recurso"
+              },
+              {
+                "name": "Motor e transmissão dimensionados",
+                "kind": "recurso"
+              },
+              {
+                "name": "Controlador, acelerador, painel e programa",
+                "kind": "recurso"
+              },
+              {
+                "name": "Bateria protegida e carregador compatível",
+                "kind": "recurso"
+              },
+              {
+                "name": "Cabos, proteção e instrumentos elétricos",
+                "kind": "recurso"
+              }
+            ]
+          },
+          {
+            "name": "Execução",
+            "kind": "execucao",
+            "nodes": [
+              {
+                "name": "Investigar variante, interfaces e metas",
+                "kind": "passo"
+              },
+              {
+                "name": "Dimensionar estrutura, frenagem e propulsão",
+                "kind": "passo"
+              },
+              {
+                "name": "Fabricar chassi e instalar mecânica",
+                "kind": "passo"
+              },
+              {
+                "name": "Conectar alimentação, motor e comandos",
+                "kind": "passo"
+              },
+              {
+                "name": "Configurar limites e calibrar comandos",
+                "kind": "passo"
+              },
+              {
+                "name": "Validar estrutura, frenagem e rodagem",
+                "kind": "passo"
+              }
+            ]
+          }
+        ]
+      },
+      "planApproach": "reverse_engineering",
+      "referenceTarget": "Xiaomi Electric Scooter 4 Pro global"
+    }
+  ],
+  "elapsedMs": 25807,
+  "attempts": [
+    4
+  ]
+}

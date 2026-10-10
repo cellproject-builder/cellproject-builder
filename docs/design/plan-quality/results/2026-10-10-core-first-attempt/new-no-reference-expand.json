@@ -1,0 +1,4221 @@
+{
+  "case": "new-no-reference",
+  "stage": "expand",
+  "status": "success",
+  "startedAt": "2026-10-10T22:40:05.306Z",
+  "firstAttempt": true,
+  "events": [
+    {
+      "phase": "connecting",
+      "chunkCount": 0,
+      "elapsedMs": 0,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "thinking",
+      "chunkCount": 0,
+      "elapsedMs": 1205,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 1,
+      "elapsedMs": 10234,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 2,
+      "elapsedMs": 10235,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 3,
+      "elapsedMs": 10236,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 4,
+      "elapsedMs": 10237,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 5,
+      "elapsedMs": 10237,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 6,
+      "elapsedMs": 10237,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 7,
+      "elapsedMs": 10431,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 8,
+      "elapsedMs": 10432,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 9,
+      "elapsedMs": 10432,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 10,
+      "elapsedMs": 10433,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 11,
+      "elapsedMs": 10433,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 12,
+      "elapsedMs": 10433,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 13,
+      "elapsedMs": 10434,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 14,
+      "elapsedMs": 10434,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 15,
+      "elapsedMs": 10434,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 16,
+      "elapsedMs": 10434,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 17,
+      "elapsedMs": 10434,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 18,
+      "elapsedMs": 10434,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 19,
+      "elapsedMs": 10434,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 20,
+      "elapsedMs": 10435,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 21,
+      "elapsedMs": 10435,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 22,
+      "elapsedMs": 10435,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 23,
+      "elapsedMs": 10438,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 24,
+      "elapsedMs": 10438,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 25,
+      "elapsedMs": 10438,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 26,
+      "elapsedMs": 10439,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 27,
+      "elapsedMs": 10439,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 28,
+      "elapsedMs": 10439,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 29,
+      "elapsedMs": 10439,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 30,
+      "elapsedMs": 10439,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 31,
+      "elapsedMs": 10441,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 32,
+      "elapsedMs": 10441,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 33,
+      "elapsedMs": 10442,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 34,
+      "elapsedMs": 10442,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 35,
+      "elapsedMs": 10442,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 36,
+      "elapsedMs": 10442,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 37,
+      "elapsedMs": 10443,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 38,
+      "elapsedMs": 10443,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 39,
+      "elapsedMs": 10443,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 40,
+      "elapsedMs": 10444,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 41,
+      "elapsedMs": 10444,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 42,
+      "elapsedMs": 10444,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 43,
+      "elapsedMs": 10444,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 44,
+      "elapsedMs": 10444,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 45,
+      "elapsedMs": 10445,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 46,
+      "elapsedMs": 10625,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 47,
+      "elapsedMs": 10626,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 48,
+      "elapsedMs": 10626,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 49,
+      "elapsedMs": 10627,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 50,
+      "elapsedMs": 10627,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 51,
+      "elapsedMs": 10627,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 52,
+      "elapsedMs": 10628,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 53,
+      "elapsedMs": 10628,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 54,
+      "elapsedMs": 10628,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 55,
+      "elapsedMs": 10628,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 56,
+      "elapsedMs": 10629,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 57,
+      "elapsedMs": 10629,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 58,
+      "elapsedMs": 10629,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 59,
+      "elapsedMs": 10629,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 60,
+      "elapsedMs": 10629,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 61,
+      "elapsedMs": 10629,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 62,
+      "elapsedMs": 10630,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 63,
+      "elapsedMs": 10630,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 64,
+      "elapsedMs": 10631,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 65,
+      "elapsedMs": 10631,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 66,
+      "elapsedMs": 10631,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 67,
+      "elapsedMs": 10631,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 68,
+      "elapsedMs": 10631,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 69,
+      "elapsedMs": 10631,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 70,
+      "elapsedMs": 10632,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 71,
+      "elapsedMs": 10781,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 72,
+      "elapsedMs": 10782,
+      "startedAt": 1791672005306,
+      "nodesReady": 0,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 73,
+      "elapsedMs": 10782,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 74,
+      "elapsedMs": 10782,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 75,
+      "elapsedMs": 10783,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 76,
+      "elapsedMs": 10783,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 77,
+      "elapsedMs": 10784,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 78,
+      "elapsedMs": 10784,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 79,
+      "elapsedMs": 10785,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 80,
+      "elapsedMs": 11025,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 81,
+      "elapsedMs": 11025,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 82,
+      "elapsedMs": 11025,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 83,
+      "elapsedMs": 11025,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 84,
+      "elapsedMs": 11367,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 85,
+      "elapsedMs": 11368,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 86,
+      "elapsedMs": 11368,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 87,
+      "elapsedMs": 11368,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 88,
+      "elapsedMs": 11738,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 89,
+      "elapsedMs": 11739,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 90,
+      "elapsedMs": 11740,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 91,
+      "elapsedMs": 11814,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 92,
+      "elapsedMs": 11935,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 93,
+      "elapsedMs": 12065,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 94,
+      "elapsedMs": 12188,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 95,
+      "elapsedMs": 12189,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 96,
+      "elapsedMs": 12316,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 97,
+      "elapsedMs": 12523,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 98,
+      "elapsedMs": 12524,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 99,
+      "elapsedMs": 12650,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 100,
+      "elapsedMs": 12650,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 101,
+      "elapsedMs": 12768,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 102,
+      "elapsedMs": 12768,
+      "startedAt": 1791672005306,
+      "nodesReady": 1,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 103,
+      "elapsedMs": 12919,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 104,
+      "elapsedMs": 13023,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 105,
+      "elapsedMs": 13023,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 106,
+      "elapsedMs": 13147,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 107,
+      "elapsedMs": 13277,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 108,
+      "elapsedMs": 13463,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 109,
+      "elapsedMs": 13463,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 110,
+      "elapsedMs": 13591,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 111,
+      "elapsedMs": 13734,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 112,
+      "elapsedMs": 13852,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 113,
+      "elapsedMs": 13852,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 114,
+      "elapsedMs": 13987,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 115,
+      "elapsedMs": 14171,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 116,
+      "elapsedMs": 14172,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 117,
+      "elapsedMs": 14301,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 118,
+      "elapsedMs": 14428,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 119,
+      "elapsedMs": 14555,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 120,
+      "elapsedMs": 14684,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 121,
+      "elapsedMs": 14875,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 122,
+      "elapsedMs": 14876,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 123,
+      "elapsedMs": 15004,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 124,
+      "elapsedMs": 15129,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 125,
+      "elapsedMs": 15323,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 126,
+      "elapsedMs": 15326,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 127,
+      "elapsedMs": 15456,
+      "startedAt": 1791672005306,
+      "nodesReady": 2,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 128,
+      "elapsedMs": 15576,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 129,
+      "elapsedMs": 15576,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 130,
+      "elapsedMs": 15705,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 131,
+      "elapsedMs": 15824,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 132,
+      "elapsedMs": 15825,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 133,
+      "elapsedMs": 15961,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 134,
+      "elapsedMs": 16084,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 135,
+      "elapsedMs": 16209,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 136,
+      "elapsedMs": 16209,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 137,
+      "elapsedMs": 16341,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 138,
+      "elapsedMs": 16531,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 139,
+      "elapsedMs": 16531,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 140,
+      "elapsedMs": 16653,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 141,
+      "elapsedMs": 16780,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 142,
+      "elapsedMs": 16909,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 143,
+      "elapsedMs": 17102,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 144,
+      "elapsedMs": 17102,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 145,
+      "elapsedMs": 17224,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 146,
+      "elapsedMs": 17347,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 147,
+      "elapsedMs": 17538,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 148,
+      "elapsedMs": 17539,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 149,
+      "elapsedMs": 17669,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 150,
+      "elapsedMs": 17805,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 151,
+      "elapsedMs": 17929,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 152,
+      "elapsedMs": 18057,
+      "startedAt": 1791672005306,
+      "nodesReady": 3,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 153,
+      "elapsedMs": 18184,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 154,
+      "elapsedMs": 18311,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 155,
+      "elapsedMs": 18506,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 156,
+      "elapsedMs": 18507,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 157,
+      "elapsedMs": 18745,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 158,
+      "elapsedMs": 18766,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 159,
+      "elapsedMs": 18960,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 160,
+      "elapsedMs": 18961,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 161,
+      "elapsedMs": 19090,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 162,
+      "elapsedMs": 19215,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 163,
+      "elapsedMs": 19339,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 164,
+      "elapsedMs": 19464,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 165,
+      "elapsedMs": 19593,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 166,
+      "elapsedMs": 19722,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 167,
+      "elapsedMs": 19852,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 168,
+      "elapsedMs": 19978,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 169,
+      "elapsedMs": 20109,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 170,
+      "elapsedMs": 20242,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 171,
+      "elapsedMs": 20389,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 172,
+      "elapsedMs": 20989,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 173,
+      "elapsedMs": 20990,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 174,
+      "elapsedMs": 20990,
+      "startedAt": 1791672005306,
+      "nodesReady": 4,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 175,
+      "elapsedMs": 20991,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 176,
+      "elapsedMs": 21036,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 177,
+      "elapsedMs": 21398,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 178,
+      "elapsedMs": 21399,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 179,
+      "elapsedMs": 21400,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 180,
+      "elapsedMs": 21532,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 181,
+      "elapsedMs": 21661,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 182,
+      "elapsedMs": 21791,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 183,
+      "elapsedMs": 21922,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 184,
+      "elapsedMs": 22060,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 185,
+      "elapsedMs": 22176,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 186,
+      "elapsedMs": 22303,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 187,
+      "elapsedMs": 22430,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 188,
+      "elapsedMs": 22562,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 189,
+      "elapsedMs": 22696,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 190,
+      "elapsedMs": 22814,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 191,
+      "elapsedMs": 22942,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 192,
+      "elapsedMs": 23138,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 193,
+      "elapsedMs": 23280,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 194,
+      "elapsedMs": 23390,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 195,
+      "elapsedMs": 23633,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 196,
+      "elapsedMs": 23736,
+      "startedAt": 1791672005306,
+      "nodesReady": 5,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 197,
+      "elapsedMs": 23861,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 198,
+      "elapsedMs": 23985,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 199,
+      "elapsedMs": 24116,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 200,
+      "elapsedMs": 24226,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 201,
+      "elapsedMs": 24365,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 202,
+      "elapsedMs": 24490,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 203,
+      "elapsedMs": 24624,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 204,
+      "elapsedMs": 24751,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 205,
+      "elapsedMs": 24887,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 206,
+      "elapsedMs": 25019,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 207,
+      "elapsedMs": 25278,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 208,
+      "elapsedMs": 25278,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 209,
+      "elapsedMs": 25392,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 210,
+      "elapsedMs": 25520,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 211,
+      "elapsedMs": 25651,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 212,
+      "elapsedMs": 25918,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 213,
+      "elapsedMs": 26099,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 214,
+      "elapsedMs": 26211,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 215,
+      "elapsedMs": 26211,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 216,
+      "elapsedMs": 26586,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 217,
+      "elapsedMs": 26671,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 218,
+      "elapsedMs": 26962,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 219,
+      "elapsedMs": 26989,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 220,
+      "elapsedMs": 27103,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 221,
+      "elapsedMs": 27244,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 222,
+      "elapsedMs": 27487,
+      "startedAt": 1791672005306,
+      "nodesReady": 6,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 223,
+      "elapsedMs": 27488,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 224,
+      "elapsedMs": 27586,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 225,
+      "elapsedMs": 27733,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 226,
+      "elapsedMs": 27836,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 227,
+      "elapsedMs": 28105,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 228,
+      "elapsedMs": 28195,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 229,
+      "elapsedMs": 28401,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 230,
+      "elapsedMs": 28515,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 231,
+      "elapsedMs": 28637,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 232,
+      "elapsedMs": 28755,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 233,
+      "elapsedMs": 28877,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 234,
+      "elapsedMs": 29004,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 235,
+      "elapsedMs": 29137,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 236,
+      "elapsedMs": 29261,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 237,
+      "elapsedMs": 29396,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 238,
+      "elapsedMs": 29519,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 239,
+      "elapsedMs": 29657,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 240,
+      "elapsedMs": 29789,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 241,
+      "elapsedMs": 29920,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 242,
+      "elapsedMs": 30051,
+      "startedAt": 1791672005306,
+      "nodesReady": 7,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 243,
+      "elapsedMs": 30183,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 244,
+      "elapsedMs": 30311,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 245,
+      "elapsedMs": 30447,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 246,
+      "elapsedMs": 30566,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 247,
+      "elapsedMs": 30767,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 248,
+      "elapsedMs": 30825,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 249,
+      "elapsedMs": 30974,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 250,
+      "elapsedMs": 31095,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 251,
+      "elapsedMs": 31228,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 252,
+      "elapsedMs": 31347,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 253,
+      "elapsedMs": 31481,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 254,
+      "elapsedMs": 31608,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 255,
+      "elapsedMs": 31733,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 256,
+      "elapsedMs": 31858,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 257,
+      "elapsedMs": 31991,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 258,
+      "elapsedMs": 32112,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 259,
+      "elapsedMs": 32250,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 260,
+      "elapsedMs": 32390,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 261,
+      "elapsedMs": 32499,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 262,
+      "elapsedMs": 32637,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 263,
+      "elapsedMs": 32769,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 264,
+      "elapsedMs": 32886,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 265,
+      "elapsedMs": 33016,
+      "startedAt": 1791672005306,
+      "nodesReady": 8,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 266,
+      "elapsedMs": 33151,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 267,
+      "elapsedMs": 33267,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 268,
+      "elapsedMs": 33400,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 269,
+      "elapsedMs": 33535,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 270,
+      "elapsedMs": 33666,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 271,
+      "elapsedMs": 33795,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 272,
+      "elapsedMs": 33936,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 273,
+      "elapsedMs": 34043,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 274,
+      "elapsedMs": 34193,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 275,
+      "elapsedMs": 34320,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 276,
+      "elapsedMs": 34449,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 277,
+      "elapsedMs": 34572,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 278,
+      "elapsedMs": 34726,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 279,
+      "elapsedMs": 34845,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 280,
+      "elapsedMs": 34964,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 281,
+      "elapsedMs": 35097,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 282,
+      "elapsedMs": 35217,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 283,
+      "elapsedMs": 35345,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 284,
+      "elapsedMs": 35493,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 285,
+      "elapsedMs": 35616,
+      "startedAt": 1791672005306,
+      "nodesReady": 9,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 286,
+      "elapsedMs": 35745,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 287,
+      "elapsedMs": 35978,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 288,
+      "elapsedMs": 36124,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 289,
+      "elapsedMs": 36124,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 290,
+      "elapsedMs": 36241,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 291,
+      "elapsedMs": 36474,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 292,
+      "elapsedMs": 36474,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 293,
+      "elapsedMs": 36596,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 294,
+      "elapsedMs": 36738,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 295,
+      "elapsedMs": 36869,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 296,
+      "elapsedMs": 37028,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 297,
+      "elapsedMs": 37125,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 298,
+      "elapsedMs": 37237,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 299,
+      "elapsedMs": 37376,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 300,
+      "elapsedMs": 37507,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 301,
+      "elapsedMs": 37653,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 302,
+      "elapsedMs": 37793,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 303,
+      "elapsedMs": 37977,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 304,
+      "elapsedMs": 38233,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 305,
+      "elapsedMs": 38233,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 306,
+      "elapsedMs": 38386,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 307,
+      "elapsedMs": 38494,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 308,
+      "elapsedMs": 38685,
+      "startedAt": 1791672005306,
+      "nodesReady": 10,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 309,
+      "elapsedMs": 38878,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 310,
+      "elapsedMs": 38878,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 311,
+      "elapsedMs": 39084,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 312,
+      "elapsedMs": 39325,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 313,
+      "elapsedMs": 39326,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 314,
+      "elapsedMs": 39535,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 315,
+      "elapsedMs": 39763,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 316,
+      "elapsedMs": 39764,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 317,
+      "elapsedMs": 39910,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 318,
+      "elapsedMs": 40100,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 319,
+      "elapsedMs": 40101,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 320,
+      "elapsedMs": 40207,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 321,
+      "elapsedMs": 40310,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 322,
+      "elapsedMs": 40428,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 323,
+      "elapsedMs": 40571,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 324,
+      "elapsedMs": 40679,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 325,
+      "elapsedMs": 40814,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 326,
+      "elapsedMs": 40940,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 327,
+      "elapsedMs": 41071,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 328,
+      "elapsedMs": 41209,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 329,
+      "elapsedMs": 41342,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 330,
+      "elapsedMs": 41478,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 331,
+      "elapsedMs": 41603,
+      "startedAt": 1791672005306,
+      "nodesReady": 11,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 332,
+      "elapsedMs": 41734,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 333,
+      "elapsedMs": 41862,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 334,
+      "elapsedMs": 41994,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 335,
+      "elapsedMs": 42136,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 336,
+      "elapsedMs": 42251,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 337,
+      "elapsedMs": 42386,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 338,
+      "elapsedMs": 42519,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 339,
+      "elapsedMs": 42640,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 340,
+      "elapsedMs": 42774,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 341,
+      "elapsedMs": 42891,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 342,
+      "elapsedMs": 43024,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 343,
+      "elapsedMs": 43161,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 344,
+      "elapsedMs": 43283,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 345,
+      "elapsedMs": 43441,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 346,
+      "elapsedMs": 43551,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 347,
+      "elapsedMs": 43680,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 348,
+      "elapsedMs": 43843,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 349,
+      "elapsedMs": 44016,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 350,
+      "elapsedMs": 44139,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 351,
+      "elapsedMs": 44270,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 352,
+      "elapsedMs": 44403,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 353,
+      "elapsedMs": 44539,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 354,
+      "elapsedMs": 44659,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 355,
+      "elapsedMs": 44805,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 356,
+      "elapsedMs": 44944,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 357,
+      "elapsedMs": 45172,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 358,
+      "elapsedMs": 45227,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 359,
+      "elapsedMs": 45368,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 360,
+      "elapsedMs": 45515,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 361,
+      "elapsedMs": 45653,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 362,
+      "elapsedMs": 45796,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 363,
+      "elapsedMs": 45978,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 364,
+      "elapsedMs": 46083,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 365,
+      "elapsedMs": 46308,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 366,
+      "elapsedMs": 46397,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 367,
+      "elapsedMs": 46546,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 368,
+      "elapsedMs": 46655,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 369,
+      "elapsedMs": 46776,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 370,
+      "elapsedMs": 46966,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 371,
+      "elapsedMs": 47038,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 372,
+      "elapsedMs": 47164,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 373,
+      "elapsedMs": 47284,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 374,
+      "elapsedMs": 47419,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 375,
+      "elapsedMs": 47551,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 376,
+      "elapsedMs": 47689,
+      "startedAt": 1791672005306,
+      "nodesReady": 12,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 377,
+      "elapsedMs": 47835,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 378,
+      "elapsedMs": 47972,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 379,
+      "elapsedMs": 48100,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 380,
+      "elapsedMs": 48239,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 381,
+      "elapsedMs": 48378,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 382,
+      "elapsedMs": 48543,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 383,
+      "elapsedMs": 48658,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 384,
+      "elapsedMs": 48794,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 385,
+      "elapsedMs": 48942,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 386,
+      "elapsedMs": 49048,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 387,
+      "elapsedMs": 49180,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 388,
+      "elapsedMs": 49305,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 389,
+      "elapsedMs": 49659,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 390,
+      "elapsedMs": 49881,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 391,
+      "elapsedMs": 49999,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 392,
+      "elapsedMs": 50179,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 393,
+      "elapsedMs": 50313,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 394,
+      "elapsedMs": 50511,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 395,
+      "elapsedMs": 50512,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 396,
+      "elapsedMs": 50764,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 397,
+      "elapsedMs": 50764,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 398,
+      "elapsedMs": 50847,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 399,
+      "elapsedMs": 50973,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 400,
+      "elapsedMs": 51087,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 401,
+      "elapsedMs": 51411,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 402,
+      "elapsedMs": 51411,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 403,
+      "elapsedMs": 51532,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 404,
+      "elapsedMs": 51702,
+      "startedAt": 1791672005306,
+      "nodesReady": 13,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 405,
+      "elapsedMs": 51834,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 406,
+      "elapsedMs": 52115,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 407,
+      "elapsedMs": 52307,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 408,
+      "elapsedMs": 52428,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 409,
+      "elapsedMs": 52565,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 410,
+      "elapsedMs": 52797,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 411,
+      "elapsedMs": 52798,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 412,
+      "elapsedMs": 53014,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 413,
+      "elapsedMs": 53165,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 414,
+      "elapsedMs": 53166,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 415,
+      "elapsedMs": 53335,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 416,
+      "elapsedMs": 53523,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 417,
+      "elapsedMs": 53524,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 418,
+      "elapsedMs": 53644,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 419,
+      "elapsedMs": 53773,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 420,
+      "elapsedMs": 53908,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 421,
+      "elapsedMs": 54002,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 422,
+      "elapsedMs": 54103,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 423,
+      "elapsedMs": 54230,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 424,
+      "elapsedMs": 54360,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 425,
+      "elapsedMs": 54481,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 426,
+      "elapsedMs": 54610,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 427,
+      "elapsedMs": 54717,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 428,
+      "elapsedMs": 54822,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 429,
+      "elapsedMs": 55077,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 430,
+      "elapsedMs": 55095,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 431,
+      "elapsedMs": 55333,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 432,
+      "elapsedMs": 55333,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 433,
+      "elapsedMs": 55556,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 434,
+      "elapsedMs": 55660,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 435,
+      "elapsedMs": 55869,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 436,
+      "elapsedMs": 55870,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 437,
+      "elapsedMs": 55972,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 438,
+      "elapsedMs": 56073,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 439,
+      "elapsedMs": 56270,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 440,
+      "elapsedMs": 56426,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 441,
+      "elapsedMs": 56698,
+      "startedAt": 1791672005306,
+      "nodesReady": 14,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 442,
+      "elapsedMs": 56699,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 443,
+      "elapsedMs": 56823,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 444,
+      "elapsedMs": 56936,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 445,
+      "elapsedMs": 57138,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 446,
+      "elapsedMs": 57414,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 447,
+      "elapsedMs": 57578,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 448,
+      "elapsedMs": 57578,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 449,
+      "elapsedMs": 57713,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 450,
+      "elapsedMs": 57937,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 451,
+      "elapsedMs": 57937,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 452,
+      "elapsedMs": 58082,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 453,
+      "elapsedMs": 58193,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 454,
+      "elapsedMs": 58328,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 455,
+      "elapsedMs": 58452,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 456,
+      "elapsedMs": 58584,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 457,
+      "elapsedMs": 58717,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 458,
+      "elapsedMs": 58854,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 459,
+      "elapsedMs": 58993,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 460,
+      "elapsedMs": 59116,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 461,
+      "elapsedMs": 59247,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 462,
+      "elapsedMs": 59380,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 463,
+      "elapsedMs": 59512,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 464,
+      "elapsedMs": 59649,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 465,
+      "elapsedMs": 59780,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 466,
+      "elapsedMs": 59909,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 467,
+      "elapsedMs": 60037,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 468,
+      "elapsedMs": 60172,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 469,
+      "elapsedMs": 60299,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 470,
+      "elapsedMs": 60437,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 471,
+      "elapsedMs": 60566,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 472,
+      "elapsedMs": 60702,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 473,
+      "elapsedMs": 60830,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 474,
+      "elapsedMs": 60962,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 475,
+      "elapsedMs": 61098,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 476,
+      "elapsedMs": 61226,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 477,
+      "elapsedMs": 61438,
+      "startedAt": 1791672005306,
+      "nodesReady": 15,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "streaming",
+      "chunkCount": 478,
+      "elapsedMs": 61438,
+      "startedAt": 1791672005306,
+      "nodesReady": 16,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "finalizing",
+      "chunkCount": 478,
+      "elapsedMs": 61463,
+      "startedAt": 1791672005306,
+      "nodesReady": 16,
+      "nodesTotal": 16
+    },
+    {
+      "phase": "done",
+      "chunkCount": 478,
+      "elapsedMs": 61464,
+      "startedAt": 1791672005306,
+      "nodesReady": 16,
+      "nodesTotal": 16
+    }
+  ],
+  "output": {
+    "id": "KspKABD3",
+    "title": "Recuperar um patinete doador",
+    "pitch": "Reforme um patinete elétrico usado, preservando os conjuntos mecânico e elétrico originalmente compatíveis.",
+    "approach": "Parta das suas necessidades para escolher o doador, não de um modelo presumido. Reaproveite chassi, direção, freios e propulsão; substitua componentes somente após diagnóstico e confirmação das interfaces. As estimativas incluem ferramentas básicas e reserva para reparos.",
+    "strategy": "reaproveitar",
+    "archetype": "construir",
+    "rank": 1,
+    "rankReason": "Preservar conjuntos compatíveis reduz tempo e risco, embora uma bateria condenada possa encarecer a recuperação.",
+    "estimates": {
+      "custo": "R$ 1.500–3.500",
+      "tempo": "2–4 fins de semana",
+      "dificuldade": "intermediario"
+    },
+    "rulesCheck": [],
+    "planApproach": "new_creation",
+    "tree": {
+      "categorias": [
+        {
+          "tempId": "NcCKsg",
+          "name": "Recursos",
+          "kind": "recursos",
+          "oQue": "Conjuntos originais de um patinete usado, escolhidos após definir suas necessidades.",
+          "porQue": "Preservar conjuntos compatíveis reduz adaptações caras e falhas perigosas.",
+          "children": [
+            {
+              "tempId": "NoIKRh",
+              "kind": "recurso",
+              "name": "Chassi, direção e freios doadores",
+              "fx": "Necessidades sem veículo → base mecânica recuperável",
+              "problem": "",
+              "confidence": 45,
+              "confidenceReason": "Modelo desconhecido; trincas e folgas podem inviabilizar a recuperação.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Patinete elétrico usado completo, estimado em R$ 1.000–1.800, com procedência e manual. Modelo e variante ainda desconhecidos; não compre antes de inspecionar estrutura e freios.",
+              "porQue": "A base original conserva geometria, fixações e freios projetados para trabalhar juntos.",
+              "comoConfirmar": "Inspeção da estrutura e direção por oficina: laudo sem defeito estrutural impeditivo."
+            },
+            {
+              "tempId": "JqsPVC",
+              "kind": "recurso",
+              "name": "Rodas e motor originais",
+              "fx": "Base sem propulsão verificada → conjunto rodante aproveitável",
+              "problem": "",
+              "confidence": 48,
+              "confidenceReason": "Desgaste e defeitos internos só aparecem durante a inspeção.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Rodas, pneus e motor do próprio doador, incluídos no preço dele. Pneus e rolamentos: ~R$ 100–250 se necessários. Registre medidas, eixo e identificação antes de encomendar reposições.",
+              "porQue": "Mantém o encaixe mecânico e a combinação original entre motor e controlador.",
+              "comoConfirmar": "Com alimentação desligada, cada roda completa uma volta manual sem travar."
+            },
+            {
+              "tempId": "NUh6kp",
+              "kind": "recurso",
+              "name": "Controlador e programa originais",
+              "fx": "Motor sem comando → acionamento eletrônico identificável",
+              "problem": "",
+              "confidence": 40,
+              "confidenceReason": "Versão, bloqueio de conta e comunicação ainda não foram verificados.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Controlador (placa que aciona o motor), painel e firmware (programa interno da placa), incluídos no doador. Reposição: ~R$ 150–300. Exija manual e acesso ao aplicativo original, quando necessário.",
+              "porQue": "A placa precisa reconhecer motor, bateria e comandos sem adaptações de protocolo.",
+              "comoConfirmar": "Identificação da placa corresponde a uma variante explicitamente coberta pelo manual de serviço."
+            },
+            {
+              "tempId": "N7NYb6",
+              "kind": "recurso",
+              "name": "Acelerador e corte pelo freio",
+              "fx": "Propulsão sem comando seguro → aceleração e interrupção disponíveis",
+              "problem": "",
+              "confidence": 48,
+              "confidenceReason": "Conectores iguais não garantem sinais elétricos compatíveis.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Acelerador e sensor de freio originais, incluídos no doador. Reposição: ~R$ 50–150. Identifique código, conector e função de cada contato no manual; não escolha pela aparência.",
+              "porQue": "Permitem dosar a velocidade e interromper a propulsão ao frear.",
+              "comoConfirmar": "Códigos das reposições constam na lista de peças compatíveis com a variante do doador."
+            },
+            {
+              "tempId": "DUCYcI",
+              "kind": "recurso",
+              "name": "Bateria protegida e carregador compatível",
+              "fx": "Sistema sem energia segura → alimentação e recarga compatíveis",
+              "problem": "",
+              "confidence": 35,
+              "confidenceReason": "Estado das células e compatibilidade do carregador são desconhecidos.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Bateria com BMS (placa de proteção das células) e carregador originais, incluídos se presentes. Conjunto substituto: ~R$ 400–900. Peça avaliação técnica; não abra nem reconstrua células.",
+              "porQue": "Tensão, proteção, comunicação e carregamento precisam corresponder ao sistema original.",
+              "comoConfirmar": "Relatório técnico identifica o conjunto bateria/carregador como apto para essa variante."
+            },
+            {
+              "tempId": "cjHKhp",
+              "kind": "recurso",
+              "name": "Ferramentas, cabos, fusível e proteção",
+              "fx": "Peças disponíveis → reparo, medição e teste possíveis",
+              "problem": "",
+              "confidence": 75,
+              "confidenceReason": "Ferramentas são comuns, mas torque e medições exigem cuidado.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Kit comprado ou emprestado: ~R$ 200–400. Chaves, torquímetro, multímetro, suporte firme, cabos e fusível conforme manual, isolação e capacete. Reaproveite luzes e tampas originais.",
+              "porQue": "Permite fixar, medir e proteger conexões sem improvisar itens críticos.",
+              "comoConfirmar": "Inventário comparado ao procedimento de serviço: nenhum item necessário faltando."
+            }
+          ]
+        },
+        {
+          "tempId": "9F4uOd",
+          "name": "Execução",
+          "kind": "execucao",
+          "oQue": "Recupere o doador seguindo seu manual, da seleção ao teste controlado.",
+          "porQue": "Cada etapa impede que um defeito desconhecido avance até a rodagem.",
+          "children": [
+            {
+              "tempId": "JJbMWK",
+              "kind": "passo",
+              "name": "Definir requisitos e selecionar doador",
+              "fx": "Objetivo aberto → doador escolhido com critérios explícitos",
+              "problem": "",
+              "confidence": 65,
+              "confidenceReason": "Exige comparar necessidades com documentação e anúncios reais.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Responda às quatro decisões abaixo. Compare doadores completos com manual, peças disponíveis e procedência; peça modelo e variante exatos. Confira regras locais se pretende circular em via pública.",
+              "porQue": "Evita comprar um veículo incapaz de transportar você ou cumprir seu percurso.",
+              "comoConfirmar": "Ficha do candidato apresenta zero requisito obrigatório sem comprovação.",
+              "order": 1
+            },
+            {
+              "tempId": "8HY4x8",
+              "kind": "passo",
+              "name": "Diagnosticar estrutura, bateria e interfaces",
+              "fx": "Doador desconhecido → reparos e compatibilidades documentados",
+              "problem": "",
+              "confidence": 40,
+              "confidenceReason": "Bateria e interfaces podem exigir diagnóstico profissional.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Desligue e desconecte a bateria conforme manual. Fotografe etiquetas e conectores; registre tensão, polaridade, contatos e comunicação. Oficina avalia bateria suspeita. Some compra, ferramentas e reparos.",
+              "porQue": "Detecta incompatibilidades e permite abandonar um doador economicamente inviável.",
+              "comoConfirmar": "Lista de reparos necessários apresenta zero interface elétrica ainda não identificada.",
+              "order": 2
+            },
+            {
+              "tempId": "AnSQwd",
+              "kind": "passo",
+              "name": "Reparar direção, rodas e freios",
+              "fx": "Mecânica desgastada → conjunto fixado e freios ajustados",
+              "problem": "",
+              "confidence": 60,
+              "confidenceReason": "Ajustar direção e freios é uma habilidade nova para iniciantes.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Troque apenas peças condenadas. Ajuste direção e mecanismo de dobra; instale pneus e pastilhas compatíveis. Aperte fixações com torque do manual. Trinca estrutural exige rejeitar o chassi.",
+              "porQue": "Propulsão funcional não compensa direção frouxa ou freios deficientes.",
+              "comoConfirmar": "Inspeção mecânica pós-reparo registra zero defeito impeditivo de rodagem.",
+              "order": 3
+            },
+            {
+              "tempId": "5H3YVW",
+              "kind": "passo",
+              "name": "Conectar bateria, motor e comandos",
+              "fx": "Conjuntos separados → circuito original reconectado",
+              "problem": "",
+              "confidence": 45,
+              "confidenceReason": "Uma ligação errada pode danificar placas ou provocar curto.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Sem energia, encaixe motor no controlador, painel no chicote, acelerador e freio nas portas identificadas. Reponha fusível conforme manual; ligue bateria por último. Não solde fios de função desconhecida.",
+              "porQue": "Restabelece os caminhos de energia e comando sem presumir contatos pelo formato.",
+              "comoConfirmar": "Comparação do chicote com o diagrama da variante: zero ligação divergente.",
+              "order": 4
+            },
+            {
+              "tempId": "tzD_So",
+              "kind": "passo",
+              "name": "Configurar limites e calibrar acelerador",
+              "fx": "Eletrônica conectada → comandos e limites originais ajustados",
+              "problem": "",
+              "confidence": 55,
+              "confidenceReason": "O procedimento depende do modelo e do acesso ao sistema original.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Mantenha o programa original. Pelo painel ou aplicativo previsto no manual, ajuste o limite escolhido sem exceder o permitido. Faça a calibração indicada; se não houver ajuste, não invente um.",
+              "porQue": "Evita aceleração inesperada e alterações que ultrapassem a capacidade do doador.",
+              "comoConfirmar": "Com roda motriz suspensa em suporte firme, acelerador solto não produz propulsão.",
+              "order": 5
+            },
+            {
+              "tempId": "b_4KMS",
+              "kind": "passo",
+              "name": "Testar corte, frenagem e rodagem",
+              "fx": "Patinete reparado → funcionamento validado em área controlada",
+              "problem": "",
+              "confidence": 65,
+              "confidenceReason": "Teste precisa de espaço seguro e interrupção ao primeiro defeito.",
+              "pros": [],
+              "cons": [],
+              "oQue": "No suporte, confirme corte do motor ao frear. Recarregue sob supervisão conforme manual. Com capacete, teste frenagem, luzes e rodagem lenta em área privada plana; pare diante de falha ou aquecimento anormal.",
+              "porQue": "Valida o conjunto antes de aumentar velocidade ou distância.",
+              "comoConfirmar": "Ficha dos ensaios previstos no manual e no percurso controlado registra zero falha.",
+              "order": 6
+            }
+          ]
+        },
+        {
+          "tempId": "egrq84",
+          "name": "Decisões",
+          "kind": "decisoes",
+          "oQue": "Defina os limites que determinarão qual doador vale recuperar.",
+          "porQue": "Preço, carga e percurso mudam a escolha do veículo e a viabilidade da recuperação.",
+          "children": [
+            {
+              "tempId": "WaxiIR",
+              "kind": "decisao",
+              "name": "Qual orçamento total disponível?",
+              "fx": "Verba desconhecida → teto de compra e recuperação definido",
+              "problem": "",
+              "confidence": 80,
+              "confidenceReason": "A escolha é simples, mas os reparos dependem do diagnóstico.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Quanto pode gastar no total? A estimativa é R$ 1.500–3.500, incluindo ferramentas e reparos. Confirme o teto antes da compra; preços dos recursos são alternativas, não uma lista obrigatória de trocas.",
+              "porQue": "Comprar barato com bateria ruim pode custar mais que um doador já funcional.",
+              "comoConfirmar": "Estimativa completa do candidato não ultrapassa o teto que você declarou.",
+              "decisionOptions": [
+                {
+                  "id": "UsnLJ6",
+                  "label": "R$ 1.500–2.000",
+                  "pitch": "Procure doador completo com bateria aprovada e reparos pequenos.",
+                  "consequences": "Rejeite candidatos que precisem trocar vários conjuntos."
+                },
+                {
+                  "id": "OjOmC9",
+                  "label": "R$ 2.000–3.500",
+                  "pitch": "Aceita um reparo maior documentado, mantendo os conjuntos originais compatíveis.",
+                  "consequences": "Compare o custo final com um usado já revisado."
+                },
+                {
+                  "id": "7EZb7A",
+                  "label": "Ainda não definido",
+                  "pitch": "Peça orçamentos de diagnóstico e reposição antes de assumir um compromisso.",
+                  "consequences": "A compra fica suspensa até definir o teto."
+                }
+              ]
+            },
+            {
+              "tempId": "IKI7Jt",
+              "kind": "decisao",
+              "name": "Qual peso total transportado?",
+              "fx": "Carga desconhecida → exigência de capacidade documentada",
+              "problem": "",
+              "confidence": 78,
+              "confidenceReason": "Pesar é fácil; capacidade confiável depende do manual do doador.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Qual é seu peso somado a mochila e demais cargas, em kg? Use esse valor para comparar a capacidade documentada. Não presuma que reforçar o chassi aumenta a capacidade do conjunto.",
+              "porQue": "Carga afeta estrutura, frenagem, subida e autonomia.",
+              "comoConfirmar": "Peso total medido não excede a capacidade indicada no manual do candidato.",
+              "decisionOptions": [
+                {
+                  "id": "auAAHo",
+                  "label": "Pessoa sem bagagem",
+                  "pitch": "Dimensione para seu peso com roupas e equipamento de proteção.",
+                  "consequences": "Menor exigência de carga, sem garantir autonomia."
+                },
+                {
+                  "id": "LsDIuw",
+                  "label": "Pessoa com bagagem",
+                  "pitch": "Pese o conjunto com a maior bagagem prevista.",
+                  "consequences": "Pode eliminar doadores leves e reduzir o alcance."
+                }
+              ]
+            },
+            {
+              "tempId": "clb4sJ",
+              "kind": "decisao",
+              "name": "Qual terreno e maior subida?",
+              "fx": "Percurso desconhecido → exigência de tração e frenagem definida",
+              "problem": "",
+              "confidence": 60,
+              "confidenceReason": "Inclinação e desempenho sob carga precisam de evidência real.",
+              "pros": [],
+              "cons": [],
+              "oQue": "O caminho é plano, irregular ou tem subidas? Informe superfície, maior inclinação e extensão da subida. Compare relatos documentados e teste com sua carga; potência anunciada sozinha não comprova capacidade.",
+              "porQue": "Subidas longas e piso ruim podem tornar um doador inadequado sem solução econômica.",
+              "comoConfirmar": "Teste do candidato no trecho mais exigente termina sem desligamento por proteção.",
+              "decisionOptions": [
+                {
+                  "id": "qcTUE6",
+                  "label": "Plano e pavimentado",
+                  "pitch": "Priorize estado geral, freios e disponibilidade de peças.",
+                  "consequences": "Maior chance de aproveitar um doador simples."
+                },
+                {
+                  "id": "zwxK7y",
+                  "label": "Subidas frequentes",
+                  "pitch": "Exija demonstração de subida com carga equivalente à sua.",
+                  "consequences": "Pode exigir doador mais caro ou reduzir autonomia."
+                },
+                {
+                  "id": "nS6BAP",
+                  "label": "Piso irregular",
+                  "pitch": "Busque um doador originalmente adequado ao piso e teste o percurso.",
+                  "consequences": "Não adapte rodas maiores sem verificar geometria e freios."
+                }
+              ]
+            },
+            {
+              "tempId": "IpzybC",
+              "kind": "decisao",
+              "name": "Qual velocidade e autonomia desejadas?",
+              "fx": "Desempenho aberto → metas compatíveis com doador e percurso",
+              "problem": "",
+              "confidence": 60,
+              "confidenceReason": "Autonomia anunciada raramente representa a carga e o percurso reais.",
+              "pros": [],
+              "cons": [],
+              "oQue": "Qual velocidade em km/h e distância por carga em km você precisa? Informe também onde pretende circular. Não desbloqueie velocidade nem aumente tensão para compensar um doador inadequado.",
+              "porQue": "Alcance e velocidade maiores aumentam exigências de bateria, freios e conformidade.",
+              "comoConfirmar": "Ensaio na velocidade escolhida cobre a distância declarada sem esgotar a bateria.",
+              "decisionOptions": [
+                {
+                  "id": "GV_DK7",
+                  "label": "Priorizar custo e simplicidade",
+                  "pitch": "Aceite desempenho original e trajetos menores, definidos por você.",
+                  "consequences": "Facilita manter todos os conjuntos do doador."
+                },
+                {
+                  "id": "Zz_2hI",
+                  "label": "Priorizar alcance",
+                  "pitch": "Escolha doador com bateria original saudável e alcance comprovado no seu uso.",
+                  "consequences": "Pode elevar preço e peso; evite bateria externa improvisada."
+                },
+                {
+                  "id": "yelq2K",
+                  "label": "Priorizar velocidade",
+                  "pitch": "Escolha um veículo originalmente projetado para a velocidade pretendida e verifique as regras locais.",
+                  "consequences": "Se nenhum candidato cumprir orçamento e segurança, revise a meta."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "elapsedMs": 61465,
+  "attempts": [
+    2
+  ]
+}

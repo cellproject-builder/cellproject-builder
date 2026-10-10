@@ -1,0 +1,98 @@
+{
+  "case": "new-no-reference",
+  "stage": "decompose",
+  "status": "success",
+  "startedAt": "2026-10-10T22:41:06.778Z",
+  "firstAttempt": true,
+  "events": [],
+  "output": {
+    "nodes": [
+      {
+        "tempId": "U2m0EA",
+        "kind": "recurso",
+        "name": "Ficha de compatibilidade da variante",
+        "fx": "Variante desconhecida → requisitos de alimentação documentados",
+        "problem": "",
+        "confidence": 45,
+        "confidenceReason": "Modelo e variante não informados; documentação pode faltar.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Ficha do fabricante ou oficina para o doador escolhido. DESCONHECIDO: qual modelo e variante? Obtenha tensão, química, corrente, conectores, polaridade, comunicação e requisitos de recarga.",
+        "porQue": "Define o que procurar sem presumir compatibilidade pela aparência.",
+        "comoConfirmar": "Ficha da variante: nenhum campo de alimentação ou recarga listado permanece sem especificação."
+      },
+      {
+        "tempId": "tlJXlG",
+        "kind": "recurso",
+        "name": "Bateria protegida do doador",
+        "fx": "Bateria ausente ou incerta → unidade protegida identificada",
+        "problem": "",
+        "confidence": 40,
+        "confidenceReason": "Estado das células e compatibilidade ainda não verificados.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Bateria original com BMS (placa de proteção das células), se presente. Alternativa: conjunto pronto de bateria e carregador para a variante, estimado em R$ 400–900. Não abra nem reconstrua células.",
+        "porQue": "Preserva as interfaces elétricas, a comunicação e o encaixe previstos para o doador.",
+        "comoConfirmar": "Parecer técnico da bateria recebida: nenhuma divergência em relação à ficha da variante."
+      },
+      {
+        "tempId": "3j6smh",
+        "kind": "recurso",
+        "name": "Carregador correspondente à bateria",
+        "fx": "Recarga sem equipamento definido → carregador correspondente disponível",
+        "problem": "",
+        "confidence": 48,
+        "confidenceReason": "Conector igual não comprova tensão, polaridade ou perfil de carga.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Carregador original do doador, se presente, ou o fornecido no conjunto substituto. Obtenha sua identificação e especificação de saída; a compatibilidade permanece DESCONHECIDA até avaliação.",
+        "porQue": "Evita usar uma fonte que encaixa, mas carrega a bateria de forma inadequada.",
+        "comoConfirmar": "Parecer técnico do carregador recebido: nenhuma divergência em relação aos requisitos da bateria selecionada."
+      },
+      {
+        "tempId": "mI9_uO",
+        "kind": "recurso",
+        "name": "Laudo técnico do conjunto",
+        "fx": "Peças apenas identificadas → aptidão conjunta registrada",
+        "problem": "",
+        "confidence": 70,
+        "confidenceReason": "Exige oficina capacitada e ensaios específicos da variante.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Relatório de oficina capacitada, identificando bateria, carregador e variante. Solicite avaliação de conservação, proteção, comunicação e recarga conforme documentação, sem intervenção caseira nas células.",
+        "porQue": "Especificações coincidentes não demonstram que o conjunto recebido está seguro e funcional.",
+        "comoConfirmar": "Conclusão do relatório para o conjunto identificado e a variante: apto, sem ressalvas pendentes."
+      }
+    ],
+    "edges": [
+      {
+        "sourceTempId": "U2m0EA",
+        "targetTempId": "tlJXlG",
+        "kind": "direct",
+        "note": "A ficha orienta a seleção da bateria."
+      },
+      {
+        "sourceTempId": "tlJXlG",
+        "targetTempId": "3j6smh",
+        "kind": "direct",
+        "note": "Selecione o carregador para a bateria identificada."
+      },
+      {
+        "sourceTempId": "tlJXlG",
+        "targetTempId": "mI9_uO",
+        "kind": "direct",
+        "note": "A bateria recebida deve constar no laudo."
+      },
+      {
+        "sourceTempId": "3j6smh",
+        "targetTempId": "mI9_uO",
+        "kind": "direct",
+        "note": "O carregador recebido deve ser avaliado com essa bateria."
+      }
+    ]
+  },
+  "elapsedMs": 17688,
+  "attempts": [
+    3
+  ]
+}

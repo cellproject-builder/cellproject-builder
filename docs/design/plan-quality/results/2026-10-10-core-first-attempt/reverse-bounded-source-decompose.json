@@ -1,0 +1,92 @@
+{
+  "case": "reverse-bounded-source",
+  "stage": "decompose",
+  "status": "success",
+  "startedAt": "2026-10-10T22:43:58.665Z",
+  "firstAttempt": true,
+  "events": [],
+  "output": {
+    "nodes": [
+      {
+        "tempId": "kQ5Nos",
+        "kind": "recurso",
+        "name": "Controlador original identificado",
+        "fx": "Placa desconhecida → controlador original identificado e diagnosticado",
+        "problem": "",
+        "confidence": 40,
+        "confidenceReason": "Código, interfaces e acesso ao diagnóstico ainda são desconhecidos.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Reaproveitar o controlador (placa que aciona o motor) do doador; ~R$ 0 adicional se íntegro. DESCONHECIDO: qual código e revisão da placa? Obter a identificação das portas na documentação dessa peça.",
+        "porQue": "Preserva o controle original do motor sem presumir que outra placa seja compatível.",
+        "comoConfirmar": "Relatório do diagnóstico original do controlador: 0 falhas de comunicação."
+      },
+      {
+        "tempId": "xLytvM",
+        "kind": "recurso",
+        "name": "Acelerador e sensores originais",
+        "fx": "Entradas desconhecidas → comandos originais identificados e aprovados",
+        "problem": "",
+        "confidence": 45,
+        "confidenceReason": "Tipo de sinal e critérios de diagnóstico não foram documentados.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Reaproveitar acelerador e sensores de freio do doador; ~R$ 0 adicional se íntegros. DESCONHECIDO: quais códigos, sinais e limites de leitura? Obter esses dados para as peças reais.",
+        "porQue": "Mantém os pedidos de aceleração e frenagem reconhecíveis pelo controlador original.",
+        "comoConfirmar": "Diagnóstico original das entradas de acelerador e freio: 0 falhas de interface registradas."
+      },
+      {
+        "tempId": "QH0fvz",
+        "kind": "recurso",
+        "name": "Painel original identificado",
+        "fx": "Painel sem referência → painel original com interface comprovada",
+        "problem": "",
+        "confidence": 45,
+        "confidenceReason": "A descrição comercial não identifica a eletrônica do painel real.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Reaproveitar o painel digital do doador; ~R$ 0 adicional se íntegro. DOCUMENTADO: [product] declara painel digital. DESCONHECIDO: qual código e protocolo (regras de troca de dados) da peça real?",
+        "porQue": "Preserva a indicação de estado e a comunicação original, sem escolher painel apenas pela aparência.",
+        "comoConfirmar": "Relatório do diagnóstico original do painel: 0 falhas de comunicação."
+      },
+      {
+        "tempId": "Ujtsrb",
+        "kind": "recurso",
+        "name": "Programa e acesso originais",
+        "fx": "Programa e acesso desconhecidos → controle original acessível e validado",
+        "problem": "",
+        "confidence": 35,
+        "confidenceReason": "Versão, aplicativo exigido e vínculo de conta não estão confirmados.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Preservar o programa original instalado; ~R$ 0 adicional se íntegro. DESCONHECIDO: qual versão e aplicativo exigido? Se houver vínculo, obter do proprietário a liberação oficial da conta antes da aquisição.",
+        "porQue": "Evita um conjunto bloqueado ou com programa incompatível com seus componentes originais.",
+        "comoConfirmar": "Relatório do diagnóstico original do programa instalado: 0 falhas de comunicação."
+      }
+    ],
+    "edges": [
+      {
+        "sourceTempId": "kQ5Nos",
+        "targetTempId": "xLytvM",
+        "kind": "direct",
+        "note": "A identificação do controlador orienta a conferência das interfaces dos comandos."
+      },
+      {
+        "sourceTempId": "kQ5Nos",
+        "targetTempId": "QH0fvz",
+        "kind": "direct",
+        "note": "Conferir a interface do painel contra a documentação do controlador real."
+      },
+      {
+        "sourceTempId": "QH0fvz",
+        "targetTempId": "Ujtsrb",
+        "kind": "direct",
+        "note": "A identificação da eletrônica permite verificar versão e requisitos oficiais de acesso."
+      }
+    ]
+  },
+  "elapsedMs": 25853,
+  "attempts": [
+    9
+  ]
+}

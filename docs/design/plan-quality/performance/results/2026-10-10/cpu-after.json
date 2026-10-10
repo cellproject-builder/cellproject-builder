@@ -1,0 +1,985 @@
+{
+  "version": 1,
+  "synthetic": true,
+  "measuredAt": "2026-10-10T22:41:59.607Z",
+  "environment": {
+    "node": "v24.18.1",
+    "os": "win32 10.0.26300",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-13650HX",
+    "runner": "Vitest/jsdom; CPU only; not browser FPS or server load"
+  },
+  "protocol": {
+    "warmupSamples": 1,
+    "measuredSamples": 5,
+    "concurrentBenchmarkWorkers": 1,
+    "sizes": [
+      100,
+      1000,
+      5000,
+      12000
+    ],
+    "note": "Timing includes only the operation. Invariants/input immutability checked outside timing; 12000 is a stress case, not a supported-size promise."
+  },
+  "rows": [
+    {
+      "shape": "balanced",
+      "nodes": 100,
+      "jsonBytes": 37682,
+      "operation": "persistedLayout",
+      "samples": 5,
+      "medianMs": 0.06,
+      "p95Ms": 0.082,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 100,
+      "jsonBytes": 37682,
+      "operation": "adaptiveLayout",
+      "samples": 5,
+      "medianMs": 0.166,
+      "p95Ms": 0.238,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 100,
+      "jsonBytes": 37682,
+      "operation": "progress",
+      "samples": 5,
+      "medianMs": 0.044,
+      "p95Ms": 0.063,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 100,
+      "jsonBytes": 37682,
+      "operation": "evidenceProgress",
+      "samples": 5,
+      "medianMs": 0.041,
+      "p95Ms": 0.049,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 100,
+      "jsonBytes": 37682,
+      "operation": "nextPending",
+      "samples": 5,
+      "medianMs": 0.032,
+      "p95Ms": 0.042,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 100,
+      "jsonBytes": 37682,
+      "operation": "resolved",
+      "samples": 5,
+      "medianMs": 0.016,
+      "p95Ms": 0.026,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 100,
+      "jsonBytes": 37682,
+      "operation": "importValidation",
+      "samples": 5,
+      "medianMs": 0.111,
+      "p95Ms": 0.121,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 100,
+      "jsonBytes": 37682,
+      "operation": "serialization",
+      "samples": 5,
+      "medianMs": 0.061,
+      "p95Ms": 0.063,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 1000,
+      "jsonBytes": 384280,
+      "operation": "persistedLayout",
+      "samples": 5,
+      "medianMs": 0.527,
+      "p95Ms": 0.587,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 1000,
+      "jsonBytes": 384280,
+      "operation": "adaptiveLayout",
+      "samples": 5,
+      "medianMs": 0.947,
+      "p95Ms": 1.63,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 1000,
+      "jsonBytes": 384280,
+      "operation": "progress",
+      "samples": 5,
+      "medianMs": 0.306,
+      "p95Ms": 0.424,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 1000,
+      "jsonBytes": 384280,
+      "operation": "evidenceProgress",
+      "samples": 5,
+      "medianMs": 0.297,
+      "p95Ms": 0.375,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 1000,
+      "jsonBytes": 384280,
+      "operation": "nextPending",
+      "samples": 5,
+      "medianMs": 0.2,
+      "p95Ms": 0.213,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 1000,
+      "jsonBytes": 384280,
+      "operation": "resolved",
+      "samples": 5,
+      "medianMs": 0.189,
+      "p95Ms": 0.204,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 1000,
+      "jsonBytes": 384280,
+      "operation": "importValidation",
+      "samples": 5,
+      "medianMs": 0.984,
+      "p95Ms": 1.427,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 1000,
+      "jsonBytes": 384280,
+      "operation": "serialization",
+      "samples": 5,
+      "medianMs": 1.082,
+      "p95Ms": 1.34,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 5000,
+      "jsonBytes": 1956280,
+      "operation": "persistedLayout",
+      "samples": 5,
+      "medianMs": 3.136,
+      "p95Ms": 5.145,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 5000,
+      "jsonBytes": 1956280,
+      "operation": "adaptiveLayout",
+      "samples": 5,
+      "medianMs": 5.77,
+      "p95Ms": 6.33,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 5000,
+      "jsonBytes": 1956280,
+      "operation": "progress",
+      "samples": 5,
+      "medianMs": 1.485,
+      "p95Ms": 4.767,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 5000,
+      "jsonBytes": 1956280,
+      "operation": "evidenceProgress",
+      "samples": 5,
+      "medianMs": 1.299,
+      "p95Ms": 1.57,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 5000,
+      "jsonBytes": 1956280,
+      "operation": "nextPending",
+      "samples": 5,
+      "medianMs": 0.889,
+      "p95Ms": 1.587,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 5000,
+      "jsonBytes": 1956280,
+      "operation": "resolved",
+      "samples": 5,
+      "medianMs": 0.997,
+      "p95Ms": 1.084,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 5000,
+      "jsonBytes": 1956280,
+      "operation": "importValidation",
+      "samples": 5,
+      "medianMs": 5.415,
+      "p95Ms": 8.316,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 5000,
+      "jsonBytes": 1956280,
+      "operation": "serialization",
+      "samples": 5,
+      "medianMs": 5.396,
+      "p95Ms": 5.697,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 12000,
+      "jsonBytes": 4735278,
+      "operation": "persistedLayout",
+      "samples": 5,
+      "medianMs": 7.506,
+      "p95Ms": 8.063,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 12000,
+      "jsonBytes": 4735278,
+      "operation": "adaptiveLayout",
+      "samples": 5,
+      "medianMs": 13.713,
+      "p95Ms": 16.959,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 12000,
+      "jsonBytes": 4735278,
+      "operation": "progress",
+      "samples": 5,
+      "medianMs": 3.471,
+      "p95Ms": 6.525,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 12000,
+      "jsonBytes": 4735278,
+      "operation": "evidenceProgress",
+      "samples": 5,
+      "medianMs": 3.514,
+      "p95Ms": 4.113,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 12000,
+      "jsonBytes": 4735278,
+      "operation": "nextPending",
+      "samples": 5,
+      "medianMs": 2.68,
+      "p95Ms": 2.797,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 12000,
+      "jsonBytes": 4735278,
+      "operation": "resolved",
+      "samples": 5,
+      "medianMs": 2.611,
+      "p95Ms": 4.169,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 12000,
+      "jsonBytes": 4735278,
+      "operation": "importValidation",
+      "samples": 5,
+      "medianMs": 14.125,
+      "p95Ms": 19.462,
+      "error": null
+    },
+    {
+      "shape": "balanced",
+      "nodes": 12000,
+      "jsonBytes": 4735278,
+      "operation": "serialization",
+      "samples": 5,
+      "medianMs": 14.896,
+      "p95Ms": 15.429,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 100,
+      "jsonBytes": 37960,
+      "operation": "persistedLayout",
+      "samples": 5,
+      "medianMs": 0.023,
+      "p95Ms": 0.025,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 100,
+      "jsonBytes": 37960,
+      "operation": "adaptiveLayout",
+      "samples": 5,
+      "medianMs": 0.038,
+      "p95Ms": 0.045,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 100,
+      "jsonBytes": 37960,
+      "operation": "progress",
+      "samples": 5,
+      "medianMs": 0.013,
+      "p95Ms": 0.013,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 100,
+      "jsonBytes": 37960,
+      "operation": "evidenceProgress",
+      "samples": 5,
+      "medianMs": 0.014,
+      "p95Ms": 0.015,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 100,
+      "jsonBytes": 37960,
+      "operation": "nextPending",
+      "samples": 5,
+      "medianMs": 0.01,
+      "p95Ms": 0.014,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 100,
+      "jsonBytes": 37960,
+      "operation": "resolved",
+      "samples": 5,
+      "medianMs": 0.012,
+      "p95Ms": 0.013,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 100,
+      "jsonBytes": 37960,
+      "operation": "importValidation",
+      "samples": 5,
+      "medianMs": 0.054,
+      "p95Ms": 0.057,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 100,
+      "jsonBytes": 37960,
+      "operation": "serialization",
+      "samples": 5,
+      "medianMs": 0.065,
+      "p95Ms": 0.069,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 1000,
+      "jsonBytes": 385360,
+      "operation": "persistedLayout",
+      "samples": 5,
+      "medianMs": 0.316,
+      "p95Ms": 0.381,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 1000,
+      "jsonBytes": 385360,
+      "operation": "adaptiveLayout",
+      "samples": 5,
+      "medianMs": 0.503,
+      "p95Ms": 0.556,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 1000,
+      "jsonBytes": 385360,
+      "operation": "progress",
+      "samples": 5,
+      "medianMs": 0.149,
+      "p95Ms": 0.164,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 1000,
+      "jsonBytes": 385360,
+      "operation": "evidenceProgress",
+      "samples": 5,
+      "medianMs": 0.145,
+      "p95Ms": 0.155,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 1000,
+      "jsonBytes": 385360,
+      "operation": "nextPending",
+      "samples": 5,
+      "medianMs": 0.148,
+      "p95Ms": 0.186,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 1000,
+      "jsonBytes": 385360,
+      "operation": "resolved",
+      "samples": 5,
+      "medianMs": 0.192,
+      "p95Ms": 0.213,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 1000,
+      "jsonBytes": 385360,
+      "operation": "importValidation",
+      "samples": 5,
+      "medianMs": 0.7,
+      "p95Ms": 0.753,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 1000,
+      "jsonBytes": 385360,
+      "operation": "serialization",
+      "samples": 5,
+      "medianMs": 0.914,
+      "p95Ms": 1.181,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 5000,
+      "jsonBytes": 1957360,
+      "operation": "persistedLayout",
+      "samples": 5,
+      "medianMs": 2.04,
+      "p95Ms": 2.489,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 5000,
+      "jsonBytes": 1957360,
+      "operation": "adaptiveLayout",
+      "samples": 5,
+      "medianMs": 4.352,
+      "p95Ms": 4.499,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 5000,
+      "jsonBytes": 1957360,
+      "operation": "progress",
+      "samples": 5,
+      "medianMs": 1.03,
+      "p95Ms": 1.107,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 5000,
+      "jsonBytes": 1957360,
+      "operation": "evidenceProgress",
+      "samples": 5,
+      "medianMs": 1.11,
+      "p95Ms": 1.166,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 5000,
+      "jsonBytes": 1957360,
+      "operation": "nextPending",
+      "samples": 5,
+      "medianMs": 0.975,
+      "p95Ms": 1.578,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 5000,
+      "jsonBytes": 1957360,
+      "operation": "resolved",
+      "samples": 5,
+      "medianMs": 0.988,
+      "p95Ms": 1.062,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 5000,
+      "jsonBytes": 1957360,
+      "operation": "importValidation",
+      "samples": 5,
+      "medianMs": 7.518,
+      "p95Ms": 10.28,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 5000,
+      "jsonBytes": 1957360,
+      "operation": "serialization",
+      "samples": 5,
+      "medianMs": 6.042,
+      "p95Ms": 6.479,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 12000,
+      "jsonBytes": 4722360,
+      "operation": "persistedLayout",
+      "samples": 5,
+      "medianMs": 7.29,
+      "p95Ms": 7.6,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 12000,
+      "jsonBytes": 4722360,
+      "operation": "adaptiveLayout",
+      "samples": 5,
+      "medianMs": 13.999,
+      "p95Ms": 19.381,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 12000,
+      "jsonBytes": 4722360,
+      "operation": "progress",
+      "samples": 5,
+      "medianMs": 3.649,
+      "p95Ms": 3.847,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 12000,
+      "jsonBytes": 4722360,
+      "operation": "evidenceProgress",
+      "samples": 5,
+      "medianMs": 3.331,
+      "p95Ms": 3.563,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 12000,
+      "jsonBytes": 4722360,
+      "operation": "nextPending",
+      "samples": 5,
+      "medianMs": 2.834,
+      "p95Ms": 2.947,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 12000,
+      "jsonBytes": 4722360,
+      "operation": "resolved",
+      "samples": 5,
+      "medianMs": 2.842,
+      "p95Ms": 3.179,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 12000,
+      "jsonBytes": 4722360,
+      "operation": "importValidation",
+      "samples": 5,
+      "medianMs": 16.474,
+      "p95Ms": 17.422,
+      "error": null
+    },
+    {
+      "shape": "wide",
+      "nodes": 12000,
+      "jsonBytes": 4722360,
+      "operation": "serialization",
+      "samples": 5,
+      "medianMs": 15.23,
+      "p95Ms": 15.853,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 100,
+      "jsonBytes": 37746,
+      "operation": "persistedLayout",
+      "samples": 5,
+      "medianMs": 0.051,
+      "p95Ms": 0.062,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 100,
+      "jsonBytes": 37746,
+      "operation": "adaptiveLayout",
+      "samples": 5,
+      "medianMs": 0.054,
+      "p95Ms": 0.076,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 100,
+      "jsonBytes": 37746,
+      "operation": "progress",
+      "samples": 5,
+      "medianMs": 0.023,
+      "p95Ms": 0.028,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 100,
+      "jsonBytes": 37746,
+      "operation": "evidenceProgress",
+      "samples": 5,
+      "medianMs": 0.024,
+      "p95Ms": 4.397,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 100,
+      "jsonBytes": 37746,
+      "operation": "nextPending",
+      "samples": 5,
+      "medianMs": 0.037,
+      "p95Ms": 0.074,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 100,
+      "jsonBytes": 37746,
+      "operation": "resolved",
+      "samples": 5,
+      "medianMs": 0.019,
+      "p95Ms": 0.021,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 100,
+      "jsonBytes": 37746,
+      "operation": "importValidation",
+      "samples": 5,
+      "medianMs": 0.061,
+      "p95Ms": 0.066,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 100,
+      "jsonBytes": 37746,
+      "operation": "serialization",
+      "samples": 5,
+      "medianMs": 0.071,
+      "p95Ms": 0.072,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 1000,
+      "jsonBytes": 385144,
+      "operation": "persistedLayout",
+      "samples": 5,
+      "medianMs": 0.579,
+      "p95Ms": 0.953,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 1000,
+      "jsonBytes": 385144,
+      "operation": "adaptiveLayout",
+      "samples": 5,
+      "medianMs": 0.584,
+      "p95Ms": 1.005,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 1000,
+      "jsonBytes": 385144,
+      "operation": "progress",
+      "samples": 5,
+      "medianMs": 0.285,
+      "p95Ms": 0.298,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 1000,
+      "jsonBytes": 385144,
+      "operation": "evidenceProgress",
+      "samples": 5,
+      "medianMs": 0.254,
+      "p95Ms": 0.259,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 1000,
+      "jsonBytes": 385144,
+      "operation": "nextPending",
+      "samples": 5,
+      "medianMs": 0.244,
+      "p95Ms": 0.388,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 1000,
+      "jsonBytes": 385144,
+      "operation": "resolved",
+      "samples": 5,
+      "medianMs": 0.272,
+      "p95Ms": 0.292,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 1000,
+      "jsonBytes": 385144,
+      "operation": "importValidation",
+      "samples": 5,
+      "medianMs": 0.93,
+      "p95Ms": 1.04,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 1000,
+      "jsonBytes": 385144,
+      "operation": "serialization",
+      "samples": 5,
+      "medianMs": 0.873,
+      "p95Ms": 0.956,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 5000,
+      "jsonBytes": 1965142,
+      "operation": "persistedLayout",
+      "samples": 5,
+      "medianMs": 4.008,
+      "p95Ms": 9.154,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 5000,
+      "jsonBytes": 1965142,
+      "operation": "adaptiveLayout",
+      "samples": 5,
+      "medianMs": 5.877,
+      "p95Ms": 5.965,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 5000,
+      "jsonBytes": 1965142,
+      "operation": "progress",
+      "samples": 5,
+      "medianMs": 2.57,
+      "p95Ms": 4.854,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 5000,
+      "jsonBytes": 1965142,
+      "operation": "evidenceProgress",
+      "samples": 5,
+      "medianMs": 1.918,
+      "p95Ms": 2.044,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 5000,
+      "jsonBytes": 1965142,
+      "operation": "nextPending",
+      "samples": 5,
+      "medianMs": 2.17,
+      "p95Ms": 2.694,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 5000,
+      "jsonBytes": 1965142,
+      "operation": "resolved",
+      "samples": 5,
+      "medianMs": 1.688,
+      "p95Ms": 1.73,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 5000,
+      "jsonBytes": 1965142,
+      "operation": "importValidation",
+      "samples": 5,
+      "medianMs": 5.777,
+      "p95Ms": 10.491,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 5000,
+      "jsonBytes": 1965142,
+      "operation": "serialization",
+      "samples": 5,
+      "medianMs": 5.629,
+      "p95Ms": 7.591,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 12000,
+      "jsonBytes": 4748140,
+      "operation": "persistedLayout",
+      "samples": 5,
+      "medianMs": 13.438,
+      "p95Ms": 21.07,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 12000,
+      "jsonBytes": 4748140,
+      "operation": "adaptiveLayout",
+      "samples": 5,
+      "medianMs": 18.285,
+      "p95Ms": 24.946,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 12000,
+      "jsonBytes": 4748140,
+      "operation": "progress",
+      "samples": 5,
+      "medianMs": 5.359,
+      "p95Ms": 6.725,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 12000,
+      "jsonBytes": 4748140,
+      "operation": "evidenceProgress",
+      "samples": 5,
+      "medianMs": 6.465,
+      "p95Ms": 7.285,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 12000,
+      "jsonBytes": 4748140,
+      "operation": "nextPending",
+      "samples": 5,
+      "medianMs": 8.275,
+      "p95Ms": 19.335,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 12000,
+      "jsonBytes": 4748140,
+      "operation": "resolved",
+      "samples": 5,
+      "medianMs": 9.889,
+      "p95Ms": 16.25,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 12000,
+      "jsonBytes": 4748140,
+      "operation": "importValidation",
+      "samples": 5,
+      "medianMs": 27.996,
+      "p95Ms": 35.282,
+      "error": null
+    },
+    {
+      "shape": "deep",
+      "nodes": 12000,
+      "jsonBytes": 4748140,
+      "operation": "serialization",
+      "samples": 5,
+      "medianMs": 18.76,
+      "p95Ms": 21.864,
+      "error": null
+    }
+  ]
+}

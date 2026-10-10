@@ -1,0 +1,134 @@
+[
+  {
+    "case": "new-no-reference",
+    "stage": "outline",
+    "status": "success",
+    "startedAt": "2026-10-10T22:39:37.631Z",
+    "firstAttempt": true,
+    "elapsedMs": 27668,
+    "attempts": [
+      1
+    ]
+  },
+  {
+    "case": "new-no-reference",
+    "stage": "expand",
+    "status": "success",
+    "startedAt": "2026-10-10T22:40:05.306Z",
+    "firstAttempt": true,
+    "elapsedMs": 61465,
+    "attempts": [
+      2
+    ]
+  },
+  {
+    "case": "new-no-reference",
+    "stage": "decompose",
+    "status": "success",
+    "startedAt": "2026-10-10T22:41:06.778Z",
+    "firstAttempt": true,
+    "elapsedMs": 17688,
+    "attempts": [
+      3
+    ]
+  },
+  {
+    "case": "reverse-no-target",
+    "stage": "outline",
+    "status": "success",
+    "startedAt": "2026-10-10T22:41:24.469Z",
+    "firstAttempt": true,
+    "elapsedMs": 25975,
+    "attempts": [
+      4
+    ]
+  },
+  {
+    "case": "reverse-no-target",
+    "stage": "expand",
+    "status": "success",
+    "startedAt": "2026-10-10T22:41:50.453Z",
+    "firstAttempt": true,
+    "elapsedMs": 38947,
+    "attempts": [
+      5
+    ]
+  },
+  {
+    "case": "reverse-no-target",
+    "stage": "decompose",
+    "status": "success",
+    "startedAt": "2026-10-10T22:42:29.412Z",
+    "firstAttempt": true,
+    "elapsedMs": 20737,
+    "attempts": [
+      6
+    ]
+  },
+  {
+    "case": "reverse-bounded-source",
+    "stage": "outline",
+    "status": "success",
+    "startedAt": "2026-10-10T22:42:50.152Z",
+    "firstAttempt": true,
+    "elapsedMs": 28875,
+    "attempts": [
+      7
+    ]
+  },
+  {
+    "case": "reverse-bounded-source",
+    "stage": "expand",
+    "status": "success",
+    "startedAt": "2026-10-10T22:43:19.035Z",
+    "firstAttempt": true,
+    "elapsedMs": 39609,
+    "attempts": [
+      8
+    ]
+  },
+  {
+    "case": "reverse-bounded-source",
+    "stage": "decompose",
+    "status": "success",
+    "startedAt": "2026-10-10T22:43:58.665Z",
+    "firstAttempt": true,
+    "elapsedMs": 25853,
+    "attempts": [
+      9
+    ]
+  },
+  {
+    "case": "reverse-variant-conflict",
+    "stage": "outline",
+    "status": "success",
+    "startedAt": "2026-10-10T22:44:24.523Z",
+    "firstAttempt": true,
+    "elapsedMs": 28143,
+    "attempts": [
+      10
+    ]
+  },
+  {
+    "case": "reverse-variant-conflict",
+    "stage": "expand",
+    "status": "success",
+    "startedAt": "2026-10-10T22:44:52.674Z",
+    "firstAttempt": true,
+    "elapsedMs": 40226,
+    "attempts": [
+      11
+    ]
+  },
+  {
+    "case": "reverse-variant-conflict",
+    "stage": "decompose",
+    "status": "success",
+    "startedAt": "2026-10-10T22:45:32.909Z",
+    "firstAttempt": true,
+    "elapsedMs": 22733,
+    "attempts": [
+      12
+    ]
+  }
+]

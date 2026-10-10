@@ -1,0 +1,78 @@
+{
+  "case": "reverse-variant-conflict",
+  "stage": "decompose",
+  "status": "success",
+  "startedAt": "2026-10-10T22:45:32.909Z",
+  "firstAttempt": true,
+  "events": [],
+  "output": {
+    "nodes": [
+      {
+        "tempId": "rlwKmv",
+        "kind": "recurso",
+        "name": "Bateria original fechada",
+        "fx": "Bateria de procedência incerta → conjunto original avaliado",
+        "problem": "",
+        "confidence": 40,
+        "confidenceReason": "Estado interno, proteção e compatibilidade ainda não foram comprovados.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Bateria fechada do doador, com BMS (circuito de proteção da bateria), sem reconstruir células; reposição original: ~R$ 700–1.100. UNKNOWN: qual código, tensão e comunicação constam na peça e na ficha da variante?",
+        "porQue": "Reaproveitar o conjunto original preserva suas proteções; bateria inchada, molhada ou aquecendo deve ser rejeitada.",
+        "comoConfirmar": "Laudo da bateria identificada: zero reprovações nos ensaios previstos pelo fabricante para esse conjunto."
+      },
+      {
+        "tempId": "t69-6K",
+        "kind": "recurso",
+        "name": "Carregador original correspondente",
+        "fx": "Carregador de compatibilidade incerta → fonte original avaliada",
+        "problem": "",
+        "confidence": 45,
+        "confidenceReason": "Encaixe semelhante não comprova tensão, polaridade ou comunicação.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Carregador original do doador ou reposição original da mesma variante: ~R$ 120–200. UNKNOWN: qual código, saída, polaridade, conector e eventual comunicação correspondem à bateria identificada?",
+        "porQue": "Um carregador que apenas encaixa pode danificar a bateria; a correspondência precisa de evidência técnica.",
+        "comoConfirmar": "Laudo do carregador identificado: zero reprovações nos ensaios do fabricante, incluindo correspondência com a bateria."
+      },
+      {
+        "tempId": "7jL4lN",
+        "kind": "recurso",
+        "name": "Laudo de aceitação técnica",
+        "fx": "Ensaios sem referência → avaliação completa e rastreável",
+        "problem": "",
+        "confidence": 35,
+        "confidenceReason": "O procedimento do fabricante para a variante ainda não está disponível.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Serviço de assistência qualificada para obter o procedimento do fabricante e emitir laudo do par identificado. DOCUMENTADO: [specs][product] cobrem só o 4; ensaios aplicáveis ao 4 Pro são UNKNOWN.",
+        "porQue": "Sem procedimento aplicável, ensaio ausente não pode virar aprovação; peça à assistência a referência exata usada.",
+        "comoConfirmar": "Laudo do par identificado: 100% dos ensaios previstos pelo fabricante registrados como aprovados."
+      }
+    ],
+    "edges": [
+      {
+        "sourceTempId": "rlwKmv",
+        "targetTempId": "t69-6K",
+        "kind": "direct",
+        "note": "Identificar a bateria antes de aceitar um carregador de reposição."
+      },
+      {
+        "sourceTempId": "rlwKmv",
+        "targetTempId": "7jL4lN",
+        "kind": "direct",
+        "note": "O laudo deve identificar a bateria efetivamente recebida."
+      },
+      {
+        "sourceTempId": "t69-6K",
+        "targetTempId": "7jL4lN",
+        "kind": "direct",
+        "note": "A aceitação inclui o carregador efetivamente recebido e sua correspondência."
+      }
+    ]
+  },
+  "elapsedMs": 22733,
+  "attempts": [
+    12
+  ]
+}

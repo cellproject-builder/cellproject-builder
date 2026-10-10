@@ -1,0 +1,323 @@
+{
+  "formatVersion": 1,
+  "startedAt": "2026-10-10T22:53:34.986Z",
+  "mode": "live-production-service",
+  "product": "Dynamic Diary",
+  "model": "openai/gpt-6.1-sol",
+  "modelSource": "PROVIDER_DEFAULTS.openrouter.mainModel from src/config/store.ts",
+  "configuration": "Isolated in-memory IndexedDB; no user browser config, projects or chats read. Portuguese locale. Production service/schema/normalizers/client; logging fetch wrapper only.",
+  "selection": "First rank=1 outline, otherwise lowest rank with original order tie-break. Decompose first energy/control/board resource by label, otherwise first resource; no response editing.",
+  "commonOptions": {
+    "locale": "pt-BR",
+    "webResearchEnabled": false,
+    "maxRetries": 0,
+    "effort": "production stage default",
+    "callOpts": "production per-stage defaults",
+    "rules": [],
+    "research": null
+  },
+  "limits": {
+    "maxRequests": 6,
+    "maxUsd": 1.5,
+    "includesTransportRetries": true,
+    "costMode": "conservative per-request reservation, no refunds for unknown/failed calls"
+  },
+  "revision": {
+    "head": "e2fd20838e0652194b7ffa95344a0ebe0928c794",
+    "dirty": [
+      "M docs/README.md",
+      " M docs/modules/planner-projects.md",
+      " M docs/project-appearance.md",
+      " M docs/reports/README.md",
+      " M package.json",
+      " M scripts/README.md",
+      " M scripts/audit-client-bundle.mjs",
+      " M scripts/check-repository.mjs",
+      " M src/ai/research.ts",
+      " M src/ai/schemas.ts",
+      " M src/ai/service.ts",
+      " M src/components/GroundTruth.tsx",
+      " M src/graph/treeLayout.ts",
+      " M src/store.ts",
+      " M src/workspace/project-appearance/ProjectIconPicker.test.tsx",
+      " M src/workspace/project-appearance/projectIcons.tsx",
+      "?? docs/design/plan-quality/",
+      "?? docs/reports/planning-quality-performance-2026-10-10.md",
+      "?? scripts/generate-project-icon-ids.mjs",
+      "?? scripts/planner-performance.bench.ts",
+      "?? scripts/planner-performance.config.ts",
+      "?? scripts/planning-quality-cases.ts",
+      "?? scripts/planning-quality-core.ts",
+      "?? scripts/planning-quality-runner.ts",
+      "?? scripts/planning-quality-summary.ts",
+      "?? scripts/planning-quality.mjs",
+      "?? src/ai/research.test.ts",
+      "?? src/ai/serviceEvidencePolicy.test.ts",
+      "?? src/ai/serviceGraphValidation.test.ts",
+      "?? src/components/GroundTruth.replanDiagnosis.test.tsx",
+      "?? src/graph/traversal.depth.test.ts",
+      "?? src/graph/treeLayout.depth.test.ts",
+      "?? src/workspace/project-appearance/RadixProjectIcon.tsx",
+      "?? src/workspace/project-appearance/projectIconIds.ts",
+      "?? src/workspace/project-appearance/projectIcons.chunkFailure.test.tsx"
+    ],
+    "diffSha256": "07ab693675fab4139b3e3f1d88da08839b43cf460c08fe66aeae013af661aab4",
+    "sourceHashes": {
+      "src/ai/service.ts": "722ecfcfa1cdcd1c847ad6152594a6f504b5d71a03e00b643ffca3ead23958ee",
+      "src/ai/schemas.ts": "a1f5214005fc0e0ea3241a75ceb702717c62e354cb97fb49d1b233492f5738a7",
+      "src/ai/client.ts": "6e642e274c77fa315b5683a2c81b4a1d19737d5a88e7b5ab05ba570cf79bcc11",
+      "src/ai/transport.ts": "224f15f983914c305a15a050e76a490133c02cf6f11bd3be21d1d54dd21b3368",
+      "src/ai/research.ts": "2bc685b97af39e3ed8af8dd275d95ab44adb628abb45a78ac4605bd223e0cf0a",
+      "src/ai/planStructure.ts": "30f807b735708fd7870d413df76de48d68479397714bf866a74645226a2dc62a",
+      "src/planningIntent.ts": "a53e505b4763bf6fdf1522c88dbcb34d9b514d2c4701954e09771cccb444c2d4",
+      "src/config/store.ts": "21ee1d5e6e30ce11b6a241342c7408df41af64c8ff46cdb9d058e096a6d4d021",
+      "src/i18n/messages.ts": "6482ebf53455e32e2923e6d4de0f8876b108cac706011af57bf63ee510c7ca38",
+      "package-lock.json": "fa78b7b0e1d3014f6909354644b4893f874ca75a074b240c67fe935235ab9a35",
+      "scripts/planning-quality-core.ts": "0a374a322e8681eb1f202163179fbe661637711af83098de86a68fb95609a2e3",
+      "scripts/planning-quality-cases.ts": "8aa70fe4273f6d3b7d084e650ff9181f19aee74460a1135dda7d52b2961b8aac",
+      "scripts/planning-quality-runner.ts": "8a8266c62425fe07019e77841b5ae654da6ba0f0435413af9f51d0024930a90d",
+      "scripts/planning-quality.mjs": "0157ec69342697659f6ccab4e2fbb17772ed44c3ca4866907ce014b8b6ca3064"
+    }
+  },
+  "sourceProvenance": {
+    "consultedAt": "2026-10-10",
+    "method": "Official pages opened with web tool; bounded human paraphrases, not full attachments or extracted PDFs.",
+    "variant": "Xiaomi Electric Scooter 4, global, NOT 4 Pro",
+    "sources": [
+      {
+        "id": "specs",
+        "url": "https://www.mi.com/global/product/xiaomi-electric-scooter-4/specs/",
+        "sections": [
+          "Product specifications",
+          "Battery specs",
+          "Adapter specs"
+        ]
+      },
+      {
+        "id": "product",
+        "url": "https://www.mi.com/global/product/xiaomi-electric-scooter-4/",
+        "sections": [
+          "Full battery protection by the intelligent BMS",
+          "Intuitive digital dashboard",
+          "Front folding buckle",
+          "Dual brake system",
+          "Range test footnote"
+        ]
+      }
+    ],
+    "scope": "Source ratings describe only the named commercial reference. No internal BOM, controller pinout, connector protocol or homemade compatibility is documented here."
+  },
+  "cases": [
+    {
+      "id": "reverse-bounded-source",
+      "group": "core",
+      "objective": "Quero construir um patinete elétrico caseiro; ainda não tenho arquitetura, peças ou desempenho selecionados.",
+      "intent": {
+        "planApproach": "reverse_engineering",
+        "referenceTarget": "Xiaomi Electric Scooter 4 global"
+      },
+      "kb": [
+        {
+          "docId": "specs",
+          "titulo": "Xiaomi Electric Scooter 4 — especificações globais",
+          "dominio": "mobilidade elétrica",
+          "tags": [
+            "referência",
+            "Scooter 4"
+          ],
+          "resumo": [],
+          "fatos": [],
+          "sourceTruncated": true,
+          "sourceText": "Fonte oficial: https://www.mi.com/global/product/xiaomi-electric-scooter-4/specs/\nVariante: Xiaomi Electric Scooter 4 global, não 4 Pro. Consultada em 10/10/2026. Paráfrase delimitada: a ficha declara motor de 300 W nominais/600 W máximos, frenagem E-ABS e disco traseiro, pneus sem câmara de 10 polegadas. A bateria de íons de lítio T2201-BA3A tem 7650 mAh/275,4 Wh. O adaptador informa saída nominal de 1,7 A e tensão máxima de 42 VDC. São declarações do produto de referência, não requisitos nem medições do projeto caseiro. A ficha não identifica BOM interna completa, pinagem do controlador ou encaixes entre componentes do projeto."
+        },
+        {
+          "docId": "product",
+          "titulo": "Xiaomi Electric Scooter 4 — descrição global",
+          "dominio": "mobilidade elétrica",
+          "tags": [
+            "referência",
+            "Scooter 4"
+          ],
+          "resumo": [],
+          "fatos": [],
+          "sourceTruncated": true,
+          "sourceText": "Fonte oficial: https://www.mi.com/global/product/xiaomi-electric-scooter-4/\nVariante: Xiaomi Electric Scooter 4 global, não 4 Pro. Consultada em 10/10/2026. Paráfrase delimitada: a descrição apresenta painel digital, dobra dianteira e BMS com proteções contra curto, sobrecorrente, sobrecarga, descarga excessiva e temperatura. Declara frenagem dianteira E-ABS e disco traseiro. O alcance anunciado de 35 km vem de ensaio citado com carga de 75±5 kg, velocidade constante de 15 km/h, piso plano e temperatura de 25±5 °C. A capacidade comercial não comprova o desempenho de um patinete caseiro. Não há esquema interno completo nem especificações suficientes das interfaces do projeto."
+        }
+      ],
+      "focus": [
+        "Citação specs/product nas afirmações documentadas",
+        "Separação referência/hipótese/projeto",
+        "Interfaces e limites ausentes nas páginas"
+      ]
+    },
+    {
+      "id": "reverse-variant-conflict",
+      "group": "core",
+      "objective": "Quero construir um patinete elétrico caseiro; ainda não tenho arquitetura, peças ou desempenho selecionados.",
+      "intent": {
+        "planApproach": "reverse_engineering",
+        "referenceTarget": "Xiaomi Electric Scooter 4 Pro global"
+      },
+      "kb": [
+        {
+          "docId": "specs",
+          "titulo": "Xiaomi Electric Scooter 4 — especificações globais",
+          "dominio": "mobilidade elétrica",
+          "tags": [
+            "referência",
+            "Scooter 4"
+          ],
+          "resumo": [],
+          "fatos": [],
+          "sourceTruncated": true,
+          "sourceText": "Fonte oficial: https://www.mi.com/global/product/xiaomi-electric-scooter-4/specs/\nVariante: Xiaomi Electric Scooter 4 global, não 4 Pro. Consultada em 10/10/2026. Paráfrase delimitada: a ficha declara motor de 300 W nominais/600 W máximos, frenagem E-ABS e disco traseiro, pneus sem câmara de 10 polegadas. A bateria de íons de lítio T2201-BA3A tem 7650 mAh/275,4 Wh. O adaptador informa saída nominal de 1,7 A e tensão máxima de 42 VDC. São declarações do produto de referência, não requisitos nem medições do projeto caseiro. A ficha não identifica BOM interna completa, pinagem do controlador ou encaixes entre componentes do projeto."
+        },
+        {
+          "docId": "product",
+          "titulo": "Xiaomi Electric Scooter 4 — descrição global",
+          "dominio": "mobilidade elétrica",
+          "tags": [
+            "referência",
+            "Scooter 4"
+          ],
+          "resumo": [],
+          "fatos": [],
+          "sourceTruncated": true,
+          "sourceText": "Fonte oficial: https://www.mi.com/global/product/xiaomi-electric-scooter-4/\nVariante: Xiaomi Electric Scooter 4 global, não 4 Pro. Consultada em 10/10/2026. Paráfrase delimitada: a descrição apresenta painel digital, dobra dianteira e BMS com proteções contra curto, sobrecorrente, sobrecarga, descarga excessiva e temperatura. Declara frenagem dianteira E-ABS e disco traseiro. O alcance anunciado de 35 km vem de ensaio citado com carga de 75±5 kg, velocidade constante de 15 km/h, piso plano e temperatura de 25±5 °C. A capacidade comercial não comprova o desempenho de um patinete caseiro. Não há esquema interno completo nem especificações suficientes das interfaces do projeto."
+        }
+      ],
+      "focus": [
+        "Conflito 4 Pro versus fontes Scooter 4 explicitado",
+        "Pergunta de identificação antes de copiar especificações",
+        "Nenhuma fusão de variantes"
+      ]
+    }
+  ],
+  "typesafe": {
+    "executed": false,
+    "semanticValidation": false
+  },
+  "physicalValidation": false,
+  "providerMetadata": {
+    "fetchedAt": "2026-10-10T22:53:35.091Z",
+    "url": "https://openrouter.ai/api/v1/models",
+    "model": {
+      "id": "openai/gpt-6.1-sol",
+      "canonical_slug": "openai/gpt-6.1-sol-20260929",
+      "hugging_face_id": null,
+      "name": "OpenAI: GPT-6.1 Sol",
+      "created": 1790702882,
+      "description": "GPT-6.1 Sol is an upgrade to GPT-6 Sol from OpenAI, positioned below the flagship GPT-6 Astra in the GPT-6 series. It is suited for agentic coding, computer use, document-heavy professional...",
+      "context_length": 1050000,
+      "architecture": {
+        "modality": "text+image+file->text",
+        "input_modalities": [
+          "file",
+          "image",
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "GPT",
+        "instruct_type": null
+      },
+      "pricing": {
+        "prompt": "0.000002",
+        "completion": "0.00001",
+        "web_search": "0.01",
+        "input_cache_read": "0.0000001",
+        "input_cache_write": "0.0000025",
+        "overrides": [
+          {
+            "min_prompt_tokens": 272000,
+            "prompt": "0.000004",
+            "completion": "0.000015",
+            "input_cache_read": "0.0000002",
+            "input_cache_write": "0.000005"
+          }
+        ]
+      },
+      "top_provider": {
+        "context_length": 1050000,
+        "max_completion_tokens": 128000,
+        "is_moderated": true
+      },
+      "per_request_limits": null,
+      "supported_parameters": [
+        "include_reasoning",
+        "max_completion_tokens",
+        "max_tokens",
+        "reasoning",
+        "reasoning_effort",
+        "response_format",
+        "seed",
+        "structured_outputs",
+        "tool_choice",
+        "tools",
+        "verbosity"
+      ],
+      "default_parameters": {},
+      "supported_voices": null,
+      "knowledge_cutoff": null,
+      "expiration_date": null,
+      "links": {
+        "details": "/api/v1/models/openai/gpt-6.1-sol-20260929/endpoints"
+      },
+      "benchmarks": {
+        "design_arena": [
+          {
+            "arena": "models",
+            "category": "codecategories",
+            "elo": 1345,
+            "win_rate": 58.1,
+            "rank": 5
+          },
+          {
+            "arena": "models",
+            "category": "gamedev",
+            "elo": 1354,
+            "win_rate": 58.8,
+            "rank": 6
+          },
+          {
+            "arena": "models",
+            "category": "website",
+            "elo": 1322,
+            "win_rate": 55.6,
+            "rank": 4
+          }
+        ],
+        "artificial_analysis": {
+          "intelligence_index": 51.8,
+          "coding_index": null,
+          "agentic_index": null
+        }
+      },
+      "reasoning": {
+        "mandatory": true,
+        "default_enabled": true,
+        "supported_efforts": [
+          "max",
+          "xhigh",
+          "high",
+          "medium",
+          "low"
+        ],
+        "default_effort": "medium"
+      }
+    },
+    "reservedPrices": {
+      "prompt": 0.000004,
+      "completion": 0.000015
+    }
+  },
+  "endedAt": "2026-10-10T22:56:54.646Z",
+  "requests": 6,
+  "reservedUsd": 1.233716,
+  "actualCostUsd": 0.16024159999999998,
+  "reportedPartialCostUsd": 0.16024159999999998,
+  "completedStages": 6,
+  "failedStages": 0,
+  "warnings": []
+}

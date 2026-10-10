@@ -70,6 +70,8 @@ O rascunho de objetivo guarda alternativas, esboços, planos expandidos em cache
 
 Decomposição e replanejamento preparam sugestões. O store mantém propostas pendentes/estacionadas e só as incorpora pelas ações correspondentes. Alterações estruturais pelo chat usam [planStructure.ts](../../src/ai/planStructure.ts) para preservar identidade, evidência, proveniência de anexos e undo, rejeitando ciclos e contexto desatualizado antes de aplicar um lote.
 
+Antes de materializar sugestões, o serviço rejeita IDs temporários vazios/repetidos, autoarestas e ciclos nas dependências `direct`. Referências a IDs inexistentes continuam descartadas; relações de outros tipos não são tratadas como dependências. Pesquisa armazenada contém afirmações documentais, sem se declarar medição ou verificação independente. Replanejamento admite causa indeterminada e diagnóstico sem novas partes; uma dificuldade não comprova que toda a premissa ou os filhos anteriores estejam errados. Ver [piloto de qualidade](../design/plan-quality/RESULTS.md) e [regressões desta rodada](../reports/planning-quality-performance-2026-10-10.md).
+
 `importPlanTasks(projectId)` percorre o snapshot do projeto e importa somente nós `kind === 'passo'` que sejam folhas e não estejam descartados. Registra `sourceNodeId`/`sourcePlanId`, inicia a tarefa em `todo` e evita repetir a mesma origem. É uma importação explícita de conteúdo, não uma sincronização bidirecional de estados. Editar/decompor o plano depois não é descrito como atualização automática das tarefas já importadas.
 
 ## Tinta livre no mapa
@@ -96,6 +98,8 @@ O método pretendido é **premissa → previsão/critério próprio → ensaio �
 | Histórico e replanejamento | Registram transições e propostas; a revisão precisa ser interpretada em relação ao ensaio e à evidência real. |
 
 `confirmNode` e os cálculos de conclusão/progresso em [store.ts](../../src/store.ts) distinguem avanço estrutural de suporte por evidência. Confirmar sem sinal suficiente pode marcar avanço assumido, não demonstrar atendimento físico. Tomar como conhecido, concluir tarefa, receber crítica de outra IA ou gerar um modelo 3D não substitui ensaio independente.
+
+As travessias de layout persistido, folhas efetivas, resolução e próximo pendente usam pilhas explícitas para suportar árvores profundas sem exceder a pilha de chamadas. Mantêm a ordem e as fronteiras conhecidas. O [benchmark de CPU](../design/plan-quality/performance/README.md) verifica operações/invariantes até 12.000 nós sintéticos; não comprova renderização fluida desse volume no canvas.
 
 A ocultação do critério da IA também é respeitada nas leituras de chat e prompts antes do momento apropriado. Os testes impedem que ferramentas inventem o critério da pessoa ou contornem a regra de confirmação. Isso é evidência de comportamento do software, não de que os usuários sempre formulam bons critérios ou de que o método já é eficaz.
 

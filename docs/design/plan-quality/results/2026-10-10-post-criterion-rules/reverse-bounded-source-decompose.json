@@ -1,0 +1,97 @@
+{
+  "case": "reverse-bounded-source",
+  "stage": "decompose",
+  "status": "success",
+  "startedAt": "2026-10-10T22:54:42.427Z",
+  "firstAttempt": true,
+  "events": [],
+  "output": {
+    "nodes": [
+      {
+        "tempId": "hMqtMQ",
+        "kind": "recurso",
+        "name": "Bateria original do doador",
+        "fx": "Bateria sem identificação → peça rastreada à variante",
+        "problem": "",
+        "confidence": 45,
+        "confidenceReason": "Código e histórico do exemplar ainda são desconhecidos.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Reaproveite a bateria original: R$ 0 extra se aprovada. [specs] declara T2201-BA3A; o código do exemplar é DESCONHECIDO. Se necessário, cote conjunto bateria/carregador: ~R$ 600–1.000.",
+        "porQue": "Identificar a bateria evita comprar uma reposição baseada apenas no nome comercial do patinete.",
+        "comoConfirmar": "Parecer da assistência confirma que o código lido na bateria corresponde à variante identificada do doador.",
+        "groundTruthHints": [
+          {
+            "kind": "spec",
+            "label": "Modelo declarado na referência [specs]",
+            "value": "T2201-BA3A"
+          }
+        ]
+      },
+      {
+        "tempId": "HNDZVb",
+        "kind": "recurso",
+        "name": "Carregador original compatível",
+        "fx": "Carregador sem comprovação → carregador avaliado para a bateria",
+        "problem": "",
+        "confidence": 40,
+        "confidenceReason": "Modelo, polaridade e estado do carregador não foram verificados.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Reaproveite o carregador original: R$ 0 extra se aprovado. DOCUMENTADO em [specs]: adaptador da referência. DESCONHECIDO no exemplar: modelo, saída, conector e polaridade; peça confirmação à assistência.",
+        "porQue": "Um encaixe igual não comprova que o carregador fornece alimentação adequada à bateria.",
+        "comoConfirmar": "Laudo do carregador aprova seu uso com a bateria identificada, após ensaio conforme procedimento da variante.",
+        "groundTruthHints": [
+          {
+            "kind": "spec",
+            "label": "Saída máxima declarada [specs]",
+            "value": "42 VDC"
+          },
+          {
+            "kind": "spec",
+            "label": "Corrente nominal declarada [specs]",
+            "value": "1,7 A"
+          }
+        ]
+      },
+      {
+        "tempId": "IflCH-",
+        "kind": "recurso",
+        "name": "Laudo profissional da bateria",
+        "fx": "Estado e proteções desconhecidos → aptidão de uso documentada",
+        "problem": "",
+        "confidence": 45,
+        "confidenceReason": "Depende de assistência com procedimento e limites da variante.",
+        "pros": [],
+        "cons": [],
+        "oQue": "Contrate avaliação, a cotar. [product] declara BMS (circuito de proteção da bateria), não seu estado. Pergunte: quais procedimentos e limites da variante serão usados? Obtenha-os antes dos ensaios.",
+        "porQue": "Somente a avaliação do exemplar pode sustentar o reaproveitamento seguro, inclusive das proteções.",
+        "comoConfirmar": "Laudo técnico aprova a bateria para uso segundo os limites documentados da variante identificada."
+      }
+    ],
+    "edges": [
+      {
+        "sourceTempId": "hMqtMQ",
+        "targetTempId": "HNDZVb",
+        "kind": "direct",
+        "note": "A avaliação do carregador exige identificar primeiro a bateria."
+      },
+      {
+        "sourceTempId": "hMqtMQ",
+        "targetTempId": "IflCH-",
+        "kind": "direct",
+        "note": "O laudo deve avaliar a bateria física identificada, original ou substituta."
+      },
+      {
+        "sourceTempId": "HNDZVb",
+        "targetTempId": "IflCH-",
+        "kind": "direct",
+        "note": "Forneça à assistência o carregador avaliado para os ensaios que o exigirem."
+      }
+    ]
+  },
+  "elapsedMs": 30387,
+  "attempts": [
+    3
+  ]
+}

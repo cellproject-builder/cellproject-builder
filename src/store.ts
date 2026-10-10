@@ -2252,8 +2252,17 @@ export const effectiveLeavesUnder = (
       confirmedWithoutSignal: false,
     });
   };
-  const walk = (id: string) => {
-    for (const child of map.get(id) ?? []) {
+  const start = project.nodes[startId];
+  if (start && reviewing?.has(startId) && (map.get(startId) ?? []).length > 0) {
+    pushReviewing(start);
+  }
+  const active = new Set([startId]);
+  const stack = [{ id: startId, index: 0 }];
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    const children = map.get(frame.id) ?? [];
+    if (frame.index < children.length) {
+      const child = children[frame.index++];
       if (child.takenAsKnown) {
         if (ACTIONABLE_KINDS.has(child.kind)) out.push(child);
         continue;
@@ -2261,11 +2270,15 @@ export const effectiveLeavesUnder = (
       const kids = map.get(child.id);
       if ((kids && kids.length > 0) || hasPendingAt(pending, child.id)) {
         if (kids && kids.length > 0 && reviewing?.has(child.id)) pushReviewing(child);
-        walk(child.id);
+        if (active.has(child.id)) throw new Error('Árvore de decomposição inválida: ciclo detectado.');
+        active.add(child.id);
+        stack.push({ id: child.id, index: 0 });
       } else if (ACTIONABLE_KINDS.has(child.kind)) {
         out.push(child);
       }
+      continue;
     }
+    const id = frame.id;
     if (pending && hasPendingAt(pending, id)) {
       for (const s of pending.nodes) {
         if (!ACTIONABLE_KINDS.has(s.data.kind)) continue;
@@ -2279,12 +2292,9 @@ export const effectiveLeavesUnder = (
         } as ConceptNodeData);
       }
     }
-  };
-  const start = project.nodes[startId];
-  if (start && reviewing?.has(startId) && (map.get(startId) ?? []).length > 0) {
-    pushReviewing(start);
+    active.delete(id);
+    stack.pop();
   }
-  walk(startId);
   return out;
 };
 
@@ -2317,9 +2327,37 @@ export const isNodeResolved = (
   if (!node) return false;
   if (node.takenAsKnown) return true;
   const map = byParent ?? childrenByParent(project);
-  const kids = map.get(nodeId) ?? [];
-  if (kids.length === 0) return node.confirmado;
-  return kids.every((k) => isNodeResolved(project, k.id, map));
+  const active = new Set<string>();
+  const resolved = new Set<string>();
+  const stack = [{ id: nodeId, exiting: false }];
+  while (stack.length > 0) {
+    const { id, exiting } = stack.pop()!;
+    if (resolved.has(id)) continue;
+    if (exiting) {
+      active.delete(id);
+      resolved.add(id);
+      continue;
+    }
+    const current = project.nodes[id];
+    if (!current) return false;
+    if (current.takenAsKnown) {
+      resolved.add(id);
+      continue;
+    }
+    if (active.has(id)) return false;
+    const kids = map.get(id) ?? [];
+    if (kids.length === 0) {
+      if (!current.confirmado) return false;
+      resolved.add(id);
+      continue;
+    }
+    active.add(id);
+    stack.push({ id, exiting: true });
+    for (let i = kids.length - 1; i >= 0; i--) {
+      stack.push({ id: kids[i].id, exiting: false });
+    }
+  }
+  return true;
 };
 
 const createdAtOf = (n: ConceptNodeData): number => n.history[0]?.timestamp ?? 0;
@@ -2499,23 +2537,33 @@ export const nextPendingForTutor = (
   if (!project) return null;
   const byParent = childrenByParent(project);
   const underReview = (id: string) => hasPendingAt(pending, id) || Boolean(reviewing?.has(id));
-  const walk = (id: string): ConceptNodeData | null => {
-    for (const child of byParent.get(id) ?? []) {
+  const active = new Set([project.rootId]);
+  const stack: { id: string; index: number; reviewNode?: ConceptNodeData }[] = [
+    { id: project.rootId, index: 0 },
+  ];
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    const children = byParent.get(frame.id) ?? [];
+    if (frame.index < children.length) {
+      const child = children[frame.index++];
       if (child.takenAsKnown) continue;
       const kids = byParent.get(child.id);
       if (kids && kids.length > 0) {
-        const found = walk(child.id);
-        if (found) return found;
-        // Filhos resolvidos mas sugestões ainda em revisão: o pai é o pendente.
-        if (underReview(child.id)) return child;
+        if (active.has(child.id)) throw new Error('Árvore de decomposição inválida: ciclo detectado.');
+        active.add(child.id);
+        stack.push({ id: child.id, index: 0, reviewNode: underReview(child.id) ? child : undefined });
         continue;
       }
       if (underReview(child.id)) return child;
       if (ACTIONABLE_KINDS.has(child.kind) && !child.confirmado) return child;
+      continue;
     }
-    return null;
-  };
-  return walk(project.rootId);
+    active.delete(frame.id);
+    stack.pop();
+    // Filhos resolvidos mas sugestões ainda em revisão: o pai é o pendente.
+    if (frame.reviewNode) return frame.reviewNode;
+  }
+  return null;
 };
 
 export const projectMetrics = (project: Project | null, reviewing?: ReadonlySet<string>) => {
