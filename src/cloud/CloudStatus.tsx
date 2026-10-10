@@ -6,6 +6,8 @@ import { CloudRuntime, cloudJson, getCloudRuntime, mutationHeaders } from './run
 import { CloudMigration } from './CloudMigration';
 import { downloadSessionRescue } from './rescue';
 import { assertDataTransitionIdle } from './activity';
+import { CloudSessionRecovery } from './CloudSessionRecovery';
+import type { PasswordProvider } from './passwordAuth';
 
 async function requireDataIdle() {
   const [chat, planner] = await Promise.all([import('@/chat/store'), import('@/workspace/planner')]);
@@ -30,7 +32,7 @@ export async function saveCurrentBackup(cloud: CloudRuntime | null = getCloudRun
   }) : await captureLegacyBackup();
   await downloadBackup(backup);
 }
-export function CloudStatus({ runtime, userId, email, onLogout }: { runtime: CloudRuntime; userId: string; email: string; onLogout: () => void }) {
+export function CloudStatus({ runtime, userId, email, onLogout, passwordProvider, fetcher = fetch }: { runtime: CloudRuntime; userId: string; email: string; onLogout: () => void; passwordProvider?: PasswordProvider; fetcher?: typeof fetch }) {
   const status = useSyncExternalStore(runtime.subscribe, runtime.getSnapshot), [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [saved, setSaved] = useState(false), [error, setError] = useState('');
   const panelId = useId(), panelVisible = open || !!status.issue;
   const statusLabel = status.issue ? 'Alterações sem salvar' : status.pending ? `Salvando (${status.pending})` : 'Salvo na nuvem';
@@ -47,7 +49,7 @@ export function CloudStatus({ runtime, userId, email, onLogout }: { runtime: Clo
       await requireDataIdle();
       if (runtime.getSnapshot().saving) throw new Error('Aguarde a tentativa de salvamento antes de sair.');
       if (!(vaultIsProtected() && runtime.getSnapshot().issue && rescued)) { await prepareCurrentData(true); await runtime.flush(); await requireDataIdle(); }
-      await cloudJson('/api/auth/logout', { method: 'POST', headers: mutationHeaders, body: '{}' });
+      await cloudJson('/api/auth/logout', { method: 'POST', headers: mutationHeaders, body: '{}' }, fetcher);
       runtime.dispose(); onLogout();
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível encerrar a sessão. Tente novamente.'); }
     finally { setBusy(false); }
@@ -56,23 +58,25 @@ export function CloudStatus({ runtime, userId, email, onLogout }: { runtime: Clo
     <button className="cloud-status-indicator" onClick={() => setOpen(value => !value)} aria-label={statusLabel} title={statusLabel} aria-expanded={panelVisible} aria-controls={panelId}>
       {status.issue ? <ExclamationTriangleIcon width={12} height={12} aria-hidden="true"/> : <span className="cloud-status-dot" aria-hidden="true"/>}
     </button>
-    {panelVisible && <div className="cloud-status-panel" id={panelId}><strong>{email}</strong>
-      {status.issue && <><p role="alert">{status.issue.message} Seu trabalho atual continua nesta sessão.</p><small>{status.issue.key}</small></>}
+    {panelVisible && <div className="cloud-status-panel" id={panelId}>
+      {status.issue?.kind === 'session' ? <CloudSessionRecovery key={`${userId}:${email}`} runtime={runtime} userId={userId} email={email} provider={passwordProvider} fetcher={fetcher} onBusyChange={setBusy}/> : <strong>{email}</strong>}
+      {status.issue && status.issue.kind !== 'session' && <p role="alert">{status.issue.message} Seu trabalho atual continua nesta sessão.</p>}
+      <details className="cloud-status-advanced"><summary>Mais opções</summary><div>
       {vaultIsProtected() && <p>Seus dados estão protegidos. Este aparelho continua autorizado após sair da conta. Use sua senha para entrar.</p>}
       <p>Dados remotos são a fonte principal. Rascunhos sem confirmação ficam somente na memória desta aba.</p>
       <button disabled={busy} onClick={() => {
         setBusy(true); setSendingPasswordLink(true); setError(''); setPasswordLinkSent(false);
-        void cloudJson('/api/auth/password/setup-link', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ email }) }).then(() => setPasswordLinkSent(true)).catch(() => setError('Não foi possível enviar o link de senha. Tente novamente em instantes.')).finally(() => { setBusy(false); setSendingPasswordLink(false); });
+        void cloudJson('/api/auth/password/setup-link', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ email }) }, fetcher).then(() => setPasswordLinkSent(true)).catch(() => setError('Não foi possível enviar o link de senha. Tente novamente em instantes.')).finally(() => { setBusy(false); setSendingPasswordLink(false); });
       }}>{sendingPasswordLink ? 'Enviando link de senha…' : 'Criar ou alterar senha'}</button>
       {passwordLinkSent && <p role="status">Abra o link enviado para seu e-mail neste navegador para criar ou alterar a senha. Depois, entre diretamente com ela.</p>}
       {status.issue?.kind === 'network' && <button onClick={() => void runtime.retry()}>Tentar salvar novamente</button>}
-      {status.issue?.kind === 'session' && <><a href="/" target="_blank" rel="noopener noreferrer">Entrar novamente em outra aba ↗</a><p>Mantenha esta aba aberta. Conclua o acesso na outra aba e depois retome aqui; seus rascunhos não serão substituídos.</p><button disabled={busy} onClick={() => { setBusy(true); setError(''); void runtime.resumeAfterAuthentication(userId).catch(reason => setError(reason instanceof Error ? reason.message : 'Não foi possível retomar.')).finally(() => setBusy(false)); }}>Retomar salvamento nesta aba</button></>}
       <button disabled={busy} onClick={() => void backup()}>{busy && !sendingPasswordLink ? 'Preparando backup…' : 'Baixar cópia completa desta sessão'}</button>
       {status.issue && <><button disabled={busy} onClick={() => {
         setBusy(true); setError('');
         void requireDataIdle().then(() => prepareCurrentData().catch(() => {})).then(requireDataIdle).then(() => downloadSessionRescue(runtime)).then(rescue => { setRescued(true); setMissing(rescue.missingMediaIds.length); }).catch(reason => setError(reason instanceof Error ? reason.message : 'Falha no resgate.')).finally(() => setBusy(false));
       }}>Baixar rascunhos de resgate ({vaultIsProtected() ? '.ddvault' : '.json'})</button><p>O resgate preserva os documentos e arquivos já lidos nesta aba. Os demais arquivos ficam identificados pelos IDs; este pacote é parcial e requer recuperação manual.</p>{missing !== null && <p role="status">Resgate baixado: {missing} arquivo(s) original(is) ainda precisam ser recuperados da nuvem.</p>}<button disabled={(!saved && !rescued) || busy} onClick={() => void requireDataIdle().then(() => window.location.reload()).catch(reason => setError(reason.message))}>{saved ? 'Reabrir dados remotos após baixar cópia' : 'Reabrir após baixar resgate parcial'}</button></>}
       <button disabled={busy || !!status.pending && !canLeaveWithRescue} onClick={() => void leave()}>{vaultIsProtected() ? canLeaveWithRescue ? 'Sair após baixar resgate' : 'Sair e bloquear' : 'Sair da conta'}</button>
+      </div></details>
       {error && <p role="alert">{error}</p>}
     </div>}
   </aside>;

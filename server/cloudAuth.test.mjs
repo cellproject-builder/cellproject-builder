@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, dirname, join, resolve } from 'node:path';
 import { createCloudAuth, CloudError, readCloudConfig, isPublishablePasswordKey } from './cloudAuth.mjs';
+import { createCloudSessionStore } from './cloudSessionStore.mjs';
 
 const email = 'wylgnerbossman@gmail.com';
 const id = '11111111-1111-4111-8111-111111111111';
@@ -75,7 +79,7 @@ test('password setup exposes only a short-lived access token to the verified ini
   assert.deepEqual(Object.keys(value), ['accessToken']);
   assert.equal(typeof value.accessToken, 'string');
   fixture.advance(900_001);
-  await assert.rejects(fixture.auth.passwordSetupSession(req(cookie)), error => error.status === 403);
+  await assert.rejects(fixture.auth.passwordSetupSession(req(cookie)), error => error.status === 401);
 });
 
 test('direct password exchanges cannot resurrect a logged-out, disconnected or closed session while provider checks are pending', async () => {
@@ -178,6 +182,110 @@ test('private API always rechecks server identity and database authorization, re
   assert.equal(await auth.authorize(req(handle)), null);
   allowed = true; await auth.verifyCode(email, '123456', req(), res); const secondHandle = cookie.split(';')[0];
   await auth.logout(req(secondHandle), res); assert.match(cookie, /Max-Age=0/); assert.equal(await auth.authorize(req(secondHandle)), null);
+});
+
+function authorizationFixture({ tokenSeconds = 3600 } = {}) {
+  let clock = 1_800_000_000_000, intercept;
+  const calls = [];
+  const auth = createCloudAuth({ config, now: () => clock, fetchImpl: async (target, init) => {
+    calls.push({ target, init });
+    const override = await intercept?.(target, init); if (override !== undefined) return override;
+    if (target.endsWith('/verify')) return response({ access_token: jwt(clock / 1000 + tokenSeconds), refresh_token: 'SYNTHETIC_REFRESH', user });
+    if (target.endsWith('grant_type=refresh_token')) return response({ access_token: jwt(clock / 1000 + 3600), refresh_token: 'ROTATED_SYNTHETIC_REFRESH', user });
+    return response(target.endsWith('/user') ? user : true);
+  } });
+  return {
+    auth, calls, advance: milliseconds => { clock += milliseconds; }, inject: value => { intercept = value; },
+    async signIn() { const result = headersResponse(); await auth.verifyCode(email, '123456', req(), result); return result.cookies().find(value => value.startsWith('__Host-cellproject_session=')).split(';')[0]; },
+  };
+}
+
+for (const phase of ['/user', '/cellproject_authorized', 'grant_type=refresh_token']) {
+  for (const fault of [503, 429, 'network']) test(`authorization preserves its handle after a temporary ${fault} failure at ${phase}`, async () => {
+    const fixture = authorizationFixture({ tokenSeconds: phase === 'grant_type=refresh_token' ? 120 : 3600 });
+    const { auth } = fixture;
+    try {
+      const cookie = await fixture.signIn(); if (phase === 'grant_type=refresh_token') fixture.advance(80_000);
+      fixture.inject(target => {
+        if (!target.endsWith(phase)) return;
+        if (fault === 'network') throw new TypeError('Synthetic provider connection failure');
+        return new Response('SYNTHETIC_PROVIDER_DETAIL', { status: fault });
+      });
+      await assert.rejects(auth.authorize(req(cookie)), error => error.status === (fault === 429 ? 429 : 502) && !String(error).includes('SYNTHETIC_PROVIDER_DETAIL'));
+      fixture.inject(undefined);
+      const recovered = await auth.authorize(req(cookie));
+      assert.equal(recovered?.user.id, id, 'the same authenticated handle can be checked again after the provider recovers');
+      assert.equal(recovered.id, cookie.split('=')[1]);
+    } finally { auth.close(); }
+  });
+}
+
+test('a temporary authorization failure cannot revoke another healthy check already in flight', async () => {
+  const fixture = authorizationFixture(); const { auth } = fixture;
+  let release, started; const waiting = new Promise(resolve => { started = resolve; });
+  try {
+    const cookie = await fixture.signIn(); let checks = 0;
+    fixture.inject(async target => {
+      if (!target.endsWith('/user')) return;
+      if (++checks === 1) { started(); await new Promise(resolve => { release = resolve; }); return response(user); }
+      return new Response('{}', { status: 503 });
+    });
+    const healthy = auth.authorize(req(cookie)); await waiting;
+    await assert.rejects(auth.authorize(req(cookie)), error => error.status === 502);
+    release(); assert.equal((await healthy)?.user.id, id);
+    fixture.inject(undefined); assert.equal((await auth.authorize(req(cookie)))?.user.id, id);
+  } finally { release?.(); auth.close(); }
+});
+
+test('concurrent authorization checks share a failed refresh and retry once after provider recovery', async () => {
+  const fixture = authorizationFixture({ tokenSeconds: 120 }); const { auth } = fixture;
+  let release, started; const waiting = new Promise(resolve => { started = resolve; });
+  try {
+    const cookie = await fixture.signIn(); fixture.advance(80_000);
+    fixture.inject(async target => {
+      if (!target.endsWith('grant_type=refresh_token')) return;
+      started(); await new Promise(resolve => { release = resolve; }); return new Response('{}', { status: 503 });
+    });
+    const first = assert.rejects(auth.authorize(req(cookie)), error => error.status === 502); await waiting;
+    const second = assert.rejects(auth.authorize(req(cookie)), error => error.status === 502);
+    release(); await Promise.all([first, second]);
+    assert.equal(fixture.calls.filter(call => call.target.endsWith('grant_type=refresh_token')).length, 1);
+    fixture.inject(undefined); assert.equal((await auth.authorize(req(cookie)))?.user.id, id);
+    assert.equal(fixture.calls.filter(call => call.target.endsWith('grant_type=refresh_token')).length, 2);
+  } finally { release?.(); auth.close(); }
+});
+
+for (const refusal of [401, 403, 'rpc-false', 'wrong-account', 'invalid-refresh-claims']) test(`authorization still revokes its handle for a genuine ${refusal} refusal`, async () => {
+  const fixture = authorizationFixture({ tokenSeconds: refusal === 'invalid-refresh-claims' ? 120 : 3600 }); const { auth } = fixture;
+  try {
+    const cookie = await fixture.signIn(); if (refusal === 'invalid-refresh-claims') fixture.advance(80_000);
+    fixture.inject(target => {
+      if (refusal === 'rpc-false' && target.endsWith('/cellproject_authorized')) return response(false);
+      if (refusal === 'wrong-account' && target.endsWith('/user')) return response({ ...user, id: '22222222-2222-4222-8222-222222222222' });
+      if (refusal === 'invalid-refresh-claims' && target.endsWith('grant_type=refresh_token')) return response({ access_token: 'invalid', refresh_token: 'SYNTHETIC_REFRESH' });
+      if (typeof refusal === 'number' && target.endsWith('/user')) return new Response('{}', { status: refusal });
+    });
+    assert.equal(await auth.authorize(req(cookie)), null);
+    fixture.inject(undefined); assert.equal(await auth.authorize(req(cookie)), null, 'provider recovery must not restore a revoked handle');
+  } finally { auth.close(); }
+});
+
+for (const ending of ['logout', 'expire', 'close']) test(`a temporary provider failure cannot restore a session ended by ${ending}`, async () => {
+  const fixture = authorizationFixture(); const { auth } = fixture;
+  let release, started; const waiting = new Promise(resolve => { started = resolve; });
+  try {
+    const cookie = await fixture.signIn();
+    fixture.inject(async target => {
+      if (!target.endsWith('/user')) return;
+      started(); await new Promise(resolve => { release = resolve; }); return new Response('{}', { status: 503 });
+    });
+    const pending = assert.rejects(auth.authorize(req(cookie)), error => error.status === 502); await waiting;
+    if (ending === 'logout') await auth.logout(req(cookie), headersResponse());
+    else if (ending === 'expire') fixture.advance(config.sessionLifetime + 1);
+    else auth.close();
+    release(); await pending; fixture.inject(undefined);
+    assert.equal(await auth.authorize(req(cookie)), null);
+  } finally { release?.(); auth.close(); }
 });
 
 test('request origin, host, fetch metadata and explicit mutation header reject independent attacks', () => {
@@ -427,7 +535,7 @@ test('password setup expires fifteen minutes after confirmation and an ended ses
     else if (action === 'logout') await auth.logout(req(cookie), headersResponse());
     else auth.close();
     const before = calls.length;
-    await assert.rejects(auth.setPassword('new password!', session), error => error.status === (action === 'expire' ? 403 : 401));
+    await assert.rejects(auth.setPassword('new password!', session), error => error.status === 401);
     assert.equal(calls.length, before);
   }
 });
@@ -511,7 +619,212 @@ test('token refresh does not extend the fifteen-minute password-setup window exp
   const { auth, calls } = fixture; const { cookie, session } = await fixture.setup();
   fixture.advance(850_000); assert.equal((await auth.authorize(req(cookie))).passwordSetup, true);
   assert.equal(calls.filter(value => value.target.includes('grant_type=refresh_token')).length, 1);
-  fixture.advance(50_001); assert.equal((await auth.authorize(req(cookie))).passwordSetup, false);
-  await assert.rejects(auth.setPassword('new password!', session), error => error.status === 403 && error.code === 'reauthentication_required');
+  fixture.advance(50_001); assert.equal(await auth.authorize(req(cookie)), null);
+  await assert.rejects(auth.setPassword('new password!', session), error => error.status === 401 && error.code === 'authentication_required');
   assert.equal(calls.filter(value => value.init.method === 'PUT').length, 0);
+});
+
+function persistentFixture(t, { tokenSeconds = 3600, store } = {}) {
+  const directory = mkdtempSync(join(tmpdir(), 'dynamic-diary-auth-'));
+  let clock = 1_800_000_000_000, intercept;
+  const instances = [], calls = [];
+  const persistentConfig = { ...config, sessionStoreDirectory: directory, sessionEncryptionKey: Buffer.alloc(32, 7).toString('base64'), sessionLifetime: 30 * 24 * 60 * 60_000 };
+  const fetchImpl = async (target, init) => {
+    calls.push({ target, init });
+    const custom = await intercept?.(target, init); if (custom !== undefined) return custom;
+    if (target.endsWith('/verify') || target.endsWith('grant_type=pkce')) return response({ access_token: jwt(clock / 1000 + tokenSeconds), refresh_token: 'PERSISTED_INITIAL_REFRESH', user });
+    if (target.endsWith('grant_type=refresh_token')) return response({ access_token: jwt(clock / 1000 + 3600), refresh_token: 'PERSISTED_ROTATED_REFRESH', user });
+    return response(target.endsWith('/user') ? user : true);
+  };
+  const create = (overrides = {}, customStore = store) => {
+    const auth = createCloudAuth({ config: { ...persistentConfig, ...overrides }, now: () => clock, fetchImpl, ...(customStore ? { sessionStore: customStore } : {}) });
+    instances.push(auth); return auth;
+  };
+  t.after(() => { for (const auth of instances) auth.close(); assert.equal(dirname(directory), resolve(tmpdir())); assert.match(basename(directory), /^dynamic-diary-auth-/); rmSync(directory, { recursive: true, force: true }); });
+  return {
+    create, calls, directory, persistentConfig, now: () => clock, advance: ms => { clock += ms; }, inject: value => { intercept = value; },
+    async signIn(auth) { const result = headersResponse(); await auth.verifyCode(email, '123456', req(), result); const cookie = result.cookies().find(value => value.startsWith('__Host-cellproject_session=')); return { cookie: cookie.split(';')[0], fullCookie: cookie }; },
+  };
+}
+
+test('persistent session configuration requires a complete valid private key and absolute volume path', () => {
+  const env = { CELLPROJECT_CLOUD_ENABLED: 'true', APP_ORIGIN: origin, SUPABASE_URL: url, SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_synthetic' };
+  const directory = join(tmpdir(), 'dynamic-diary-auth-config');
+  const key = Buffer.alloc(32, 7).toString('base64');
+  const enabled = readCloudConfig({ ...env, SESSION_STORE_DIR: directory, SESSION_ENCRYPTION_KEY: key });
+  assert.equal(enabled.sessionStoreDirectory, directory);
+  assert.equal(enabled.sessionEncryptionKey, key);
+  assert.equal(enabled.sessionLifetime, 30 * 24 * 60 * 60_000);
+  assert.equal(readCloudConfig(env).sessionLifetime, 8 * 60 * 60_000);
+  for (const fields of [{ SESSION_STORE_DIR: directory }, { SESSION_ENCRYPTION_KEY: key }, { SESSION_STORE_DIR: 'relative/path', SESSION_ENCRYPTION_KEY: key }, { SESSION_STORE_DIR: directory, SESSION_ENCRYPTION_KEY: Buffer.alloc(31).toString('base64') }, { SESSION_STORE_DIR: directory, SESSION_ENCRYPTION_KEY: 'not-a-key' }]) assert.throws(() => readCloudConfig({ ...env, ...fields }), /configuration/i);
+});
+
+test('a persistent ordinary session survives server replacement with the same opaque cookie and still checks the provider', async t => {
+  const fixture = persistentFixture(t); const first = fixture.create();
+  const { cookie, fullCookie } = await fixture.signIn(first);
+  assert.match(fullCookie, /Max-Age=2592000/); assert.doesNotMatch(fullCookie, /PERSISTED_|signature/);
+  first.close(); const before = fixture.calls.length;
+  const restored = await fixture.create().authorize(req(cookie));
+  assert.equal(restored?.user.id, id); assert.equal(restored.passwordSetup, false);
+  assert.ok(fixture.calls.slice(before).some(call => call.target.endsWith('/user')));
+  assert.ok(fixture.calls.slice(before).some(call => call.target.endsWith('/cellproject_authorized')));
+});
+
+test('a validated direct password login becomes an ordinary persistent session without storing setup privilege', async t => {
+  const fixture = persistentFixture(t); const first = fixture.create();
+  const accessToken = passwordJwt(fixture.now() / 1000 + 3600);
+  fixture.inject(target => target.endsWith('grant_type=refresh_token') ? response({ access_token: accessToken, refresh_token: 'PERSISTED_ROTATED_REFRESH', user }) : undefined);
+  const result = headersResponse(); await first.acceptPasswordSession({ accessToken, refreshToken: 'CLIENT_REFRESH' }, req(), result);
+  const cookie = result.cookies().find(value => value.startsWith('__Host-cellproject_session=')).split(';')[0];
+  first.close(); const restored = await fixture.create().authorize(req(cookie));
+  assert.equal(restored?.user.id, id); assert.equal(restored.passwordSetup, false);
+});
+
+test('a legacy memory-only session needs one new login when persistence is first enabled', async t => {
+  const legacy = authorizationFixture(); const cookie = await legacy.signIn(); legacy.auth.close();
+  const fixture = persistentFixture(t); assert.equal(await fixture.create().authorize(req(cookie)), null);
+});
+
+test('a refreshed persistent session restores the latest rotated token pair after restart without another refresh', async t => {
+  const fixture = persistentFixture(t, { tokenSeconds: 120 }); const first = fixture.create();
+  const { cookie } = await fixture.signIn(first); fixture.advance(80_000);
+  const refreshed = await first.authorize(req(cookie)); assert.ok(refreshed);
+  first.close(); const restored = await fixture.create().authorize(req(cookie));
+  assert.equal(restored?.accessToken, refreshed.accessToken);
+  assert.equal(fixture.calls.filter(call => call.target.endsWith('grant_type=refresh_token')).length, 1);
+  fixture.advance(3_550_000); await fixture.create().authorize(req(cookie));
+  const refreshes = fixture.calls.filter(call => call.target.endsWith('grant_type=refresh_token'));
+  assert.equal(JSON.parse(refreshes.at(-1).init.body).refresh_token, 'PERSISTED_ROTATED_REFRESH');
+});
+
+test('durable logout remains revoked across restart even when provider logout is unavailable', async t => {
+  const fixture = persistentFixture(t); const first = fixture.create(); const { cookie } = await fixture.signIn(first);
+  first.close(); const second = fixture.create();
+  fixture.inject(target => target.includes('/logout?') ? new Response('{}', { status: 503 }) : undefined);
+  const result = headersResponse(); await second.logout(req(cookie), result);
+  assert.ok(result.cookies().some(value => /Max-Age=0/.test(value)));
+  assert.equal(await fixture.create().authorize(req(cookie)), null);
+});
+
+test('logout during an in-flight persistent refresh cannot recreate a deleted session on disk', async t => {
+  const fixture = persistentFixture(t, { tokenSeconds: 120 }); const first = fixture.create(); const { cookie } = await fixture.signIn(first);
+  fixture.advance(80_000); let release, started; const waiting = new Promise(resolve => { started = resolve; });
+  fixture.inject(async target => { if (target.endsWith('grant_type=refresh_token')) { started(); await new Promise(resolve => { release = resolve; }); } });
+  const pending = first.authorize(req(cookie)); await waiting;
+  await first.logout(req(cookie), headersResponse()); release();
+  assert.equal(await pending, null); fixture.inject(undefined);
+  assert.equal(await fixture.create().authorize(req(cookie)), null);
+});
+
+test('password setup remains a fifteen-minute memory-only privilege under persistent configuration', async t => {
+  const fixture = persistentFixture(t); const first = fixture.create();
+  const start = headersResponse(); await first.requestPasswordSetup(email, req(), start);
+  const result = headersResponse(); await first.callback(linkReq(start.cookies()[0].split(';')[0]), result);
+  const fullCookie = result.cookies().find(value => value.startsWith('__Host-cellproject_session=')); const cookie = fullCookie.split(';')[0];
+  assert.match(fullCookie, /Max-Age=900(?:;|$)/);
+  assert.equal((await first.authorize(req(cookie))).passwordSetup, true);
+  assert.equal(readdirSync(fixture.directory).length, 0);
+  assert.equal(await fixture.create().authorize(req(cookie)), null);
+  fixture.advance(900_001); assert.equal(await first.authorize(req(cookie)), null);
+});
+
+test('persistent sessions retain absolute expiry across refresh and restart', async t => {
+  const fixture = persistentFixture(t, { tokenSeconds: 120 }); const first = fixture.create(); const { cookie } = await fixture.signIn(first);
+  fixture.advance(80_000); assert.ok(await first.authorize(req(cookie))); first.close();
+  fixture.advance(fixture.persistentConfig.sessionLifetime - 80_000 + 1);
+  const before = fixture.calls.length; assert.equal(await fixture.create().authorize(req(cookie)), null);
+  assert.equal(fixture.calls.length, before);
+});
+
+test('a wrong persistent encryption key fails temporarily without deleting the original valid session', async t => {
+  const fixture = persistentFixture(t); const first = fixture.create(); const { cookie } = await fixture.signIn(first); first.close();
+  await assert.rejects(fixture.create({ sessionEncryptionKey: Buffer.alloc(32, 8).toString('base64') }).authorize(req(cookie)), error => error.status === 503);
+  assert.equal((await fixture.create().authorize(req(cookie)))?.user.id, id);
+});
+
+test('a failed rotation write denies the request and retries persistence with the latest in-memory tokens', async t => {
+  const fixture = persistentFixture(t, { tokenSeconds: 120 });
+  const durable = createCloudSessionStore({ directory: fixture.directory, encryptionKey: fixture.persistentConfig.sessionEncryptionKey, origin, now: fixture.now });
+  let fail = true, writes = 0;
+  const store = { read: durable.read, remove: durable.remove, write(handle, session, options) { writes++; if (options?.create === false && fail) { fail = false; throw new CloudError(503, 'session_store_unavailable', 'Session storage temporarily unavailable.'); } return durable.write(handle, session, options); } };
+  const auth = createCloudAuth({ config: fixture.persistentConfig, sessionStore: store, now: fixture.now, fetchImpl: async (target, init) => {
+    fixture.calls.push({ target, init });
+    if (target.endsWith('/verify')) return response({ access_token: jwt(fixture.now() / 1000 + 120), refresh_token: 'PERSISTED_INITIAL_REFRESH', user });
+    if (target.endsWith('grant_type=refresh_token')) return response({ access_token: jwt(fixture.now() / 1000 + 3600), refresh_token: 'PERSISTED_ROTATED_REFRESH', user });
+    return response(target.endsWith('/user') ? user : true);
+  } }); t.after(() => auth.close());
+  const { cookie } = await fixture.signIn(auth); fixture.advance(80_000);
+  await assert.rejects(auth.authorize(req(cookie)), error => error.status === 503);
+  assert.equal((await auth.authorize(req(cookie)))?.user.id, id);
+  assert.equal(writes, 3); assert.equal(fixture.calls.filter(call => call.target.endsWith('grant_type=refresh_token')).length, 1);
+  auth.close(); assert.equal((await fixture.create().authorize(req(cookie)))?.user.id, id);
+});
+
+test('session issuance never emits an authenticated cookie when its initial durable write fails', async t => {
+  const fixture = persistentFixture(t);
+  const auth = createCloudAuth({ config: fixture.persistentConfig, now: fixture.now, sessionStore: { read: () => null, remove() {}, write() { throw new CloudError(503, 'session_store_unavailable', 'Session storage temporarily unavailable.'); } }, fetchImpl: async target => response(target.endsWith('/verify') ? { access_token: jwt(fixture.now() / 1000 + 3600), refresh_token: 'PERSISTED_INITIAL_REFRESH', user } : target.endsWith('/user') ? user : true) });
+  t.after(() => auth.close()); const result = headersResponse();
+  await assert.rejects(auth.verifyCode(email, '123456', req(), result), error => error.status === 503);
+  assert.ok(!result.cookies().some(value => /^__Host-cellproject_session=[A-Za-z0-9_-]{43};/.test(value)));
+});
+
+test('ordinary authorization cache hits do not read or write the persistent volume', async t => {
+  const fixture = persistentFixture(t);
+  const durable = createCloudSessionStore({ directory: fixture.directory, encryptionKey: fixture.persistentConfig.sessionEncryptionKey, origin, now: fixture.now });
+  let reads = 0, writes = 0;
+  const store = { read(handle) { reads++; return durable.read(handle); }, write(...args) { writes++; return durable.write(...args); }, remove: durable.remove };
+  const first = fixture.create({}, store); const { cookie } = await fixture.signIn(first); first.close();
+  const restored = fixture.create({}, store);
+  for (let index = 0; index < 12; index++) assert.equal((await restored.authorize(req(cookie)))?.user.id, id);
+  assert.equal(reads, 1); assert.equal(writes, 1);
+  assert.equal(fixture.calls.filter(call => call.target.endsWith('/cellproject_authorized')).length, 13);
+});
+
+test('a durable logout storage failure reports an error before clearing the cookie and remains retryable', async t => {
+  const fixture = persistentFixture(t);
+  const durable = createCloudSessionStore({ directory: fixture.directory, encryptionKey: fixture.persistentConfig.sessionEncryptionKey, origin, now: fixture.now });
+  let fail = true;
+  const auth = fixture.create({}, { read: durable.read, write: durable.write, remove(handle) { if (fail) { fail = false; throw new CloudError(503, 'session_storage_unavailable', 'Session storage is temporarily unavailable.'); } return durable.remove(handle); } });
+  const { cookie } = await fixture.signIn(auth); const result = headersResponse();
+  await assert.rejects(auth.logout(req(cookie), result), error => error.status === 503);
+  assert.equal(result.cookies().length, 0); assert.equal((await auth.authorize(req(cookie)))?.user.id, id);
+  await auth.logout(req(cookie), result); assert.equal(await fixture.create().authorize(req(cookie)), null);
+});
+
+test('a genuine authorization revocation deletes the persistent handle instead of restoring it on a later restart', async t => {
+  const fixture = persistentFixture(t); const first = fixture.create(); const { cookie } = await fixture.signIn(first); first.close();
+  fixture.inject(target => target.endsWith('/cellproject_authorized') ? response(false) : undefined);
+  const second = fixture.create(); assert.equal(await second.authorize(req(cookie)), null); second.close(); fixture.inject(undefined);
+  assert.equal(await fixture.create().authorize(req(cookie)), null);
+});
+
+test('closing during rotated-token validation cannot write credentials after shutdown and preserves the prior durable handle', async t => {
+  const fixture = persistentFixture(t, { tokenSeconds: 120 }); const first = fixture.create(); const { cookie } = await fixture.signIn(first); fixture.advance(80_000);
+  let release, started; const waiting = new Promise(resolve => { started = resolve; });
+  fixture.inject(async target => { if (target.endsWith('/user')) { started(); await new Promise(resolve => { release = resolve; }); return response(user); } });
+  const pending = first.authorize(req(cookie)); await waiting; first.close(); release();
+  assert.equal(await pending, null);
+  const durable = createCloudSessionStore({ directory: fixture.directory, encryptionKey: fixture.persistentConfig.sessionEncryptionKey, origin, now: fixture.now });
+  assert.equal(durable.read(cookie.split('=')[1]).refreshToken, 'PERSISTED_INITIAL_REFRESH');
+  fixture.inject(undefined); assert.equal((await fixture.create().authorize(req(cookie)))?.user.id, id);
+});
+
+test('an old authorization in flight cannot publish a refreshed token before its identity is validated', async () => {
+  const fixture = authorizationFixture({ tokenSeconds: 120 }); const { auth } = fixture;
+  let releaseOld, releaseCandidate, oldStarted, candidateStarted;
+  const waitingOld = new Promise(resolve => { oldStarted = resolve; });
+  const waitingCandidate = new Promise(resolve => { candidateStarted = resolve; });
+  try {
+    const cookie = await fixture.signIn(); const oldToken = jwt(1_800_000_120);
+    fixture.inject(async (target, init) => {
+      if (!target.endsWith('/user')) return;
+      if (init.headers.authorization === `Bearer ${oldToken}`) { oldStarted(); await new Promise(resolve => { releaseOld = resolve; }); return response(user); }
+      candidateStarted(); await new Promise(resolve => { releaseCandidate = resolve; }); return new Response('{}', { status: 401 });
+    });
+    const oldCheck = auth.authorize(req(cookie)); await waitingOld; fixture.advance(80_000);
+    const candidateCheck = auth.authorize(req(cookie)); await waitingCandidate;
+    releaseOld(); const checked = await oldCheck;
+    assert.equal(checked?.accessToken, oldToken, 'an identity check for the old token cannot return an unvalidated replacement');
+    releaseCandidate(); assert.equal(await candidateCheck, null);
+  } finally { releaseOld?.(); releaseCandidate?.(); auth.close(); }
 });

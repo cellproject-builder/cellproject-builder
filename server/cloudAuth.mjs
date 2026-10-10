@@ -1,5 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { isAbsolute } from 'node:path';
 import { CloudError, invalid, unavailable, remoteJson, timeoutSignal } from './cloudUtils.mjs';
+import { createCloudSessionStore } from './cloudSessionStore.mjs';
 export { CloudError } from './cloudUtils.mjs';
 
 const EMAIL = 'wylgnerbossman@gmail.com';
@@ -34,15 +36,31 @@ export function readCloudConfig(env = process.env) {
   if (!isPublishablePasswordKey(publishableKey)) fail();
   if (env.SUPABASE_ALLOWED_EMAIL && env.SUPABASE_ALLOWED_EMAIL !== EMAIL) fail();
   if (env.SUPABASE_ALLOWED_USER_ID && !UUID.test(env.SUPABASE_ALLOWED_USER_ID)) fail();
+  const sessionStoreDirectory = env.SESSION_STORE_DIR || null;
+  const sessionEncryptionKey = env.SESSION_ENCRYPTION_KEY || null;
+  if (Boolean(sessionStoreDirectory) !== Boolean(sessionEncryptionKey)) fail();
+  if (sessionStoreDirectory && (!isAbsolute(sessionStoreDirectory) || typeof sessionEncryptionKey !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(sessionEncryptionKey) || Buffer.from(sessionEncryptionKey, 'base64').length !== 32 || Buffer.from(sessionEncryptionKey, 'base64').toString('base64') !== sessionEncryptionKey)) fail();
   const alternateOrigins = (env.APP_ALTERNATE_ORIGINS ?? '').split(',').map(value => value.trim()).filter(Boolean);
   for (const value of alternateOrigins) { let alternate; try { alternate = new URL(value); } catch { fail(); } if (alternate.protocol !== 'https:' || alternate.username || alternate.password || alternate.origin !== value) fail(); }
-  return { enabled, origin: origin.origin, alternateOrigins, supabaseUrl: PROJECT_URL, publishableKey, allowedEmail: EMAIL, allowedUserId: env.SUPABASE_ALLOWED_USER_ID || null, sessionLifetime: 8 * 60 * 60_000, bucket: 'cellproject-media' };
+  return { enabled, origin: origin.origin, alternateOrigins, supabaseUrl: PROJECT_URL, publishableKey, allowedEmail: EMAIL, allowedUserId: env.SUPABASE_ALLOWED_USER_ID || null, sessionStoreDirectory, sessionEncryptionKey, sessionLifetime: (sessionStoreDirectory ? 30 * 24 : 8) * 60 * 60_000, bucket: 'cellproject-media' };
 }
 
-export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = {}) {
+export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now, sessionStore } = {}) {
+  if (Boolean(config?.sessionStoreDirectory) !== Boolean(config?.sessionEncryptionKey)) throw new Error('Invalid production cloud configuration.');
+  const store = sessionStore ?? (config?.sessionStoreDirectory ? createCloudSessionStore({ directory: config.sessionStoreDirectory, encryptionKey: config.sessionEncryptionKey, origin: config.origin, now }) : null);
   const sessions = new Map(); const attempts = new Map(); const flows = new Map(); const inFlightFlows = new Map(); let closed = false;
   const prune = () => { for (const [key, session] of sessions) if (session.expiresAt <= now()) sessions.delete(key); for (const [key, value] of attempts) if (value.until <= now()) attempts.delete(key); for (const [key, flow] of flows) if (flow.expiresAt <= now()) flows.delete(key); };
   const deny = () => new CloudError(401, 'authentication_required', 'Sign in to continue.');
+  // The persistent volume is owned by one process. Cache hits avoid filesystem
+  // reads; every request still checks the provider identity and authorization RPC.
+  const loadSession = id => {
+    if (!id || closed) return null;
+    const cached = sessions.get(id); if (cached) return cached;
+    const saved = store?.read(id); if (!saved) return null;
+    const session = { ...saved, refresh: null, passwordSetup: false, passwordConfirmedAt: null, passwordUpdate: false, persisted: true, persistencePending: false };
+    sessions.set(id, session); return session;
+  };
+  const assertSessionActive = (id, session) => { if (closed || sessions.get(id) !== session || session.expiresAt <= now()) throw deny(); };
   const sameOrigin = req => {
     if (!config?.enabled || !config.origin) return false;
     let canonical;
@@ -138,11 +156,19 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = 
     // A cancelled login must not recreate a session after logout or shutdown.
     if (closed) throw deny(); assertActive();
     prune(); if (sessions.size >= 20) throw new CloudError(429, 'session_limit', 'Too many active sessions. Sign out of another session.');
-    const prior = handle(req); if (prior) sessions.delete(prior);
+    const lifetime = passwordSetup ? FLOW_LIFETIME : (config.sessionLifetime ?? (store ? 30 * 24 * 60 * 60_000 : 28_800_000));
     const sessionId = randomBytes(32).toString('base64url');
-    sessions.set(sessionId, { ...checked, accessToken: issued.access_token, refreshToken: issued.refresh_token, expiresAt: now() + (config.sessionLifetime ?? 28_800_000), refresh: null, passwordSetup, passwordConfirmedAt: passwordSetup ? now() : null, passwordUpdate: false });
+    const session = { ...checked, accessToken: issued.access_token, refreshToken: issued.refresh_token, expiresAt: now() + lifetime, refresh: null, passwordSetup, passwordConfirmedAt: passwordSetup ? now() : null, passwordUpdate: false, persisted: Boolean(store) && !passwordSetup, persistencePending: false };
+    // A cookie is issued only after the new handle is durably available. Setup
+    // privileges remain short-lived in memory and cannot survive a restart.
+    if (session.persisted) store.write(sessionId, session);
+    const prior = handle(req);
+    try { if (prior) store?.remove(prior); }
+    catch (error) { if (session.persisted) store.remove(sessionId); throw error; }
+    if (prior) sessions.delete(prior);
+    sessions.set(sessionId, session);
     clearFlow(req, res);
-    setCookie(res, sessionId, Math.floor((config.sessionLifetime ?? 28_800_000) / 1000));
+    setCookie(res, sessionId, Math.floor(lifetime / 1000));
     return checked.user;
   };
   const requestLink = async (email, req, res, purpose) => {
@@ -170,7 +196,7 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = 
     async acceptPasswordSession(input, req, res) {
       throttle('password', req, 10);
       if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).sort().join(',') !== 'accessToken,refreshToken' || typeof input.accessToken !== 'string' || !input.accessToken || input.accessToken.length > 32768 || typeof input.refreshToken !== 'string' || !input.refreshToken || input.refreshToken.length > 16384) throw deny();
-      const priorId = handle(req), prior = sessions.get(priorId);
+      const priorId = handle(req), prior = loadSession(priorId);
       const flowId = handle(req, FLOW_COOKIE), flow = flows.get(flowId) ?? inFlightFlows.get(flowId);
       const assertActive = () => { if (closed || req.aborted || res.destroyed || (prior && sessions.get(priorId) !== prior) || flow?.cancelled) throw deny(); };
       assertActive();
@@ -199,7 +225,7 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = 
       const invalidCredentials = () => new CloudError(401, 'invalid_credentials', 'E-mail ou senha incorretos.');
       if (typeof password !== 'string' || password.length < 1 || password.length > 128) throw invalidCredentials();
       if (closed) throw deny();
-      const priorId = handle(req); const prior = sessions.get(priorId);
+      const priorId = handle(req); const prior = loadSession(priorId);
       const flowId = handle(req, FLOW_COOKIE); const flow = flows.get(flowId) ?? inFlightFlows.get(flowId);
       const assertActive = () => { if (closed || req.aborted || res.destroyed || (prior && sessions.get(priorId) !== prior) || flow?.cancelled) throw deny(); };
       try {
@@ -233,23 +259,42 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = 
       return issueSession(issued, req, res);
     },
     async authorize(req) {
-      if (!sameOrigin(req)) return null;
-      prune(); const id = handle(req); const session = sessions.get(id); if (!session) return null;
+      if (closed || !sameOrigin(req)) return null;
+      prune(); const id = handle(req); const session = loadSession(id); if (!session) return null;
       try {
         if (session.tokenExpiresAt <= now() + 60_000) {
           session.refresh ??= (async () => {
             const issued = await call('/auth/v1/token?grant_type=refresh_token', { body: { refresh_token: session.refreshToken } });
             const tokenExpiresAt = validateToken(issued?.access_token, session.user.id);
             if (typeof issued.refresh_token !== 'string' || !issued.refresh_token || issued.refresh_token.length > 16_384) throw deny();
+            // Another request may still be checking the previous token. Do not
+            // publish the rotated pair to shared state until its identity passes.
+            const refreshed = await identity(issued.access_token);
+            if (refreshed.user.id !== session.user.id) throw deny();
+            assertSessionActive(id, session);
             session.accessToken = issued.access_token; session.refreshToken = issued.refresh_token; session.tokenExpiresAt = tokenExpiresAt;
+            session.persistencePending = session.persisted;
           })().finally(() => { session.refresh = null; });
           await session.refresh;
         }
         const checked = await identity(session.accessToken);
-        if (checked.user.id !== session.user.id || sessions.get(id) !== session || session.expiresAt <= now()) throw deny();
+        assertSessionActive(id, session);
+        if (checked.user.id !== session.user.id) throw deny();
+        if (session.persistencePending) {
+          // Keep rotated credentials in memory on I/O failure. A later request
+          // retries this write before authorization, without replaying old tokens.
+          if (!store.write(id, session, { create: false })) throw deny();
+          session.persistencePending = false;
+        }
         if (session.passwordSetup && session.passwordConfirmedAt + FLOW_LIFETIME < now()) session.passwordSetup = false;
         return { id, user: checked.user, accessToken: session.accessToken, passwordSetup: session.passwordSetup };
-      } catch (error) { sessions.delete(id); if (error instanceof CloudError && error.status >= 500) throw error; return null; }
+      } catch (error) {
+        // A provider outage or throttle denies this request, but is not evidence
+        // that the authenticated handle was revoked. Retry fresh checks later.
+        if (error instanceof CloudError && (error.status === 429 || error.status >= 500)) throw error;
+        if (sessions.get(id) === session) { if (session.persisted) store.remove(id); sessions.delete(id); }
+        return null;
+      }
     },
     async setPassword(password, authorization) {
       if (config.vaultEnabled) throw new CloudError(426, 'password_client_upgrade_required', 'Atualize a página para redefinir sua senha com segurança.');
@@ -274,7 +319,11 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now } = 
       } finally { session.passwordUpdate = false; }
     },
     async logout(req, res) {
-      const id = handle(req); const session = sessions.get(id); sessions.delete(id); clearFlow(req, res); setCookie(res, '', 0);
+      const id = handle(req); const session = loadSession(id);
+      // Durable removal precedes success and cookie clearing. Provider downtime
+      // cannot resurrect this handle when the process is replaced.
+      if (id) store?.remove(id);
+      sessions.delete(id); clearFlow(req, res); setCookie(res, '', 0);
       if (session) { try { await call('/auth/v1/logout?scope=local', { token: session.accessToken, method: 'POST' }); } catch { /* Local handle is invalidated even if remote logout is unavailable. */ } }
     },
     close() { closed = true; for (const flow of inFlightFlows.values()) flow.cancelled = true; sessions.clear(); attempts.clear(); flows.clear(); },

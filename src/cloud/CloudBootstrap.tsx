@@ -134,7 +134,7 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
     submittedPassword.current = null; setPassword(''); setVaultGate(false); setVaultHead(null); setSnapshot(null); setDeviceError('');
     await refresh();
   }
-  if (App) return <><App/>{runtime && <><Suspense fallback={null}><CloudLiveSync runtime={runtime}/></Suspense><CloudStatus runtime={runtime} userId={config?.user?.id ?? ''} email={config?.user?.email ?? email} onLogout={() => { runtime.dispose(); window.location.reload(); }}/></>}</>;
+  if (App) return <><App/>{runtime && <><Suspense fallback={null}><CloudLiveSync runtime={runtime}/></Suspense><CloudStatus runtime={runtime} userId={config?.user?.id ?? ''} email={config?.user?.email ?? email} passwordProvider={config?.passwordProvider} fetcher={fetcher} onLogout={() => { runtime.dispose(); window.location.reload(); }}/></>}</>;
   return <main className="cloud-entry">
     {vaultGate && config?.user && config.passwordProvider ? <PasswordVaultGate key={`${config.user.id}:${vaultHead?.header.id ?? 'new'}`} ownerId={config.user.id} email={config.user.email} provider={config.passwordProvider} head={vaultHead} snapshot={snapshot} fetcher={fetcher} takeLoginPassword={() => { const secret = submittedPassword.current; submittedPassword.current = null; return secret; }} onRetry={() => window.location.reload()} onRestart={restartLogin} onUnlocked={async vault => {
       const id = generation.current;

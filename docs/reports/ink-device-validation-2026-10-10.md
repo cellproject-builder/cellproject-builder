@@ -33,4 +33,10 @@ Registrar sistema/navegador dos dois dispositivos, uso de dedo ou caneta, direç
 
 Verificação completa do código desta rodada: **1485 testes frontend aprovados, 8 testes externos pulados; 162 testes gateway aprovados**. Build TypeScript/Vite, checagem de organização/links do repositório e auditoria do bundle aprovados. Revisão independente identificou o reaparecimento de traço apagado após commit atrasado; regressão reproduzida, corrigida e conferida novamente.
 
+O usuário confirmou o mesmo quadro aberto no tablet e no computador. Antes de registrar o ensaio, relatou a tela de sessão expirada (`remote-sync`). A reprodução automatizada identificou um defeito: falhas temporárias de Auth/RPC apagavam uma sessão válida e transformavam o pedido seguinte em 401. A correção conserva o handle em 429/5xx/rede e mantém recusas reais protegidas. Não foi capturada a causa exata do evento em produção; deploy/reinício também invalida sessões em memória.
+
+Foi acrescentada retomada por senha na própria aba, com a mesma conta, runtime e rascunhos. A inspeção visual usa uma fixture local com identidade sintética; não equivale a login real. O formulário foi conferido também em 390 × 844, sem transbordamento horizontal. Sessões normais passam a usar registros cifrados no volume Railway, com validade absoluta de 30 dias e nova validação no Supabase após reinício. A primeira transição exige um login; fluxos temporários de redefinição de senha continuam em memória.
+
+Verificação da correção de sessão: **1491 testes frontend aprovados, 8 testes externos pulados; 208 testes gateway aprovados, 1 teste de symlink ignorado no Windows**. A revisão independente conferiu persistência, refresh, logout, concorrência e falhas de disco, sem achados acionáveis. O ensaio do filesystem Linux e a verificação da publicação serão registrados separadamente. Esses resultados não comprovam o login real da conta nem o ensaio físico entre dispositivos.
+
 Ensaio físico ainda não executado. Preencher com observações reais, sem substituir este registro por resultados de testes emulados.

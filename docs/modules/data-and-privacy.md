@@ -88,6 +88,12 @@ Na abertura, o bootstrap primeiro verifica conta autorizada e cabeçalho remoto.
 
 O manifesto cifrado aceita até 96 MiB, com transporte até 130 MiB; blobs cifrados até 15 MiB; catálogo cifrado até 700 MiB. Excluir arquivo não libera automaticamente quota nesta versão. Migração de contas com mídia legada exige assistência; ativação recusa catálogo ou objetos antigos em Storage. Esses limites pertencem ao release e não devem ser removidos por uma descrição genérica de “nuvem ilimitada”.
 
+## Retomada de uma sessão expirada
+
+[CloudSessionRecovery.tsx](../../src/cloud/CloudSessionRecovery.tsx) permite entrar novamente na própria aba com a senha da conta atual. A senha é enviada diretamente ao Supabase por [passwordAuth.ts](../../src/cloud/passwordAuth.ts); o gateway recebe somente os tokens de sessão. O campo nativo é limpo ao enviar, ao terminar e ao desmontar. A operação de login é cancelada na desmontagem e tem limite de tempo. A retomada confere a mesma conta antes de liberar a fila; conserva o mesmo `CloudRuntime`, o cofre aberto e os rascunhos existentes. Login concluído em outra aba pode ser reconhecido ao voltar ao aplicativo, com chamadas concorrentes deduplicadas. Resgate, backup e saída permanecem disponíveis em **Mais opções**.
+
+[cloudAuth.mjs](../../server/cloudAuth.mjs) distingue recusa de identidade de indisponibilidade do provedor: respostas 429/5xx e falhas de rede recusam a operação atual, mas conservam o handle para nova validação. Recusas reais, logout e expiração continuam invalidando o acesso. Isso não acrescenta cache de autorização. No modo persistente, [cloudSessionStore.mjs](../../server/cloudSessionStore.mjs) conserva credenciais de autenticação cifradas em volume interno do servidor por até 30 dias absolutos; elas podem ser revalidadas após reinícios sem pedir outra senha. A chave do servidor não abre conteúdo de projetos. Sessões de redefinição de senha e fluxos PKCE continuam efêmeros. O modo legado sem volume permanece com oito horas em RAM; o [contrato de produção](../cloud-production.md) detalha configuração, transição inicial e limite de uma réplica.
+
 ## Backups, transferência e resgate
 
 Há formatos com finalidades distintas:
@@ -123,7 +129,7 @@ Os resultados atuais das suítes cliente/gateway estão no [relatório desta rod
 ## Lacunas e recomendações de organização
 
 - O release é de conta única. Antes de múltiplas contas, `activate/write/blob` precisam receber e validar `expectedOwnerId` no servidor: verificar conta antes de abrir a UI não cobre troca de cookie entre snapshot e POST. Essa lacuna está registrada em [encrypted-vault.md](../encrypted-vault.md) e é observável nos contratos atuais de [vaultRepository.mjs](../../server/vaultRepository.mjs). O envelope adicional de senha já valida `expectedOwnerId` em [passwordAccessRepository.mjs](../../server/passwordAccessRepository.mjs); isso não amplia automaticamente a proteção às outras rotas.
-- Sessões, fluxos PKCE, limites e barreira de ativação Node são locais ao processo. Uma réplica é requisito; expansão precisa de coordenação compartilhada, sem confundir o lock SQL com todos os controles de processo.
+- Sessões normais podem usar o volume cifrado; fluxos PKCE, limites, cache e barreira de ativação Node continuam locais ao processo. Uma réplica é requisito; expansão precisa de coordenação compartilhada, sem confundir o lock SQL com todos os controles de processo.
 - `CloudRuntime`, `VaultTransport` e os stores têm responsabilidades de fila diferentes. Modularização futura deve preservar uma fila de gravação por responsabilidade e as invariantes de retry, em vez de criar outro autosave genérico.
 - `migration.ts` reúne codecs de backup, validação e importação remota. Separar o formato puro do transporte facilitaria revisão e futura restauração independente; os contratos de mídia e cofre precisam permanecer explícitos.
 - Retenção/coleta de órfãos, liberação de quota, restauração independente, rotação de chave/frase e esquecimento seletivo do dispositivo permanecem frentes próprias. Não estão entregues pelo simples uso de AES-GCM ou Storage privado.
