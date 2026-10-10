@@ -9,7 +9,7 @@ export interface LiveInkStrokeData extends InkStrokeData { id?: string; x?: numb
 export interface LiveInkFrame { version: 1; sender: string; scope: LiveInkScope; gestureId: string; seq: number; phase: 'preview' | 'commit' | 'cancel'; stroke?: LiveInkStrokeData }
 export interface LiveInkStroke { gestureId: string; sender: string; scope: LiveInkScope; stroke: LiveInkStrokeData; committed: boolean }
 interface Options { session: VaultSession; fetcher?: typeof fetch; isActive?: () => boolean; onCommit?: (frame: LiveInkFrame) => void }
-const PURPOSE = 'live-ink:v1', ENDPOINT = '/api/live/ink', MAX_BYTES = 512 * 1024, PREVIEW_TTL = 8000, COMMIT_TTL = 1500;
+const PURPOSE = 'live-ink:v1', ENDPOINT = '/api/live/ink', MAX_BYTES = 512 * 1024, PREVIEW_TTL = 8000, COMMIT_TTL = 120000;
 const empty: LiveInkStroke[] = [];
 const identifier = z.string().regex(/^[\w:-]{1,160}$/).refine(value => !['constructor', 'prototype', '__proto__'].includes(value));
 const coordinate = z.number().finite().min(-100000).max(100000);
@@ -35,6 +35,7 @@ export class LiveInkChannel {
   private readonly terminal: Omit<LiveInkFrame, 'sender' | 'seq' | 'version'>[] = [];
   private readonly remote = new Map<string, LiveInkStroke & { expires: number }>();
   private readonly remoteScopes = new Map<string, LiveInkStroke[]>();
+  private readonly acknowledged = new Map<string, number>();
   private readonly received = new Map<string, { seq: number; at: number }>();
   private readonly listeners = new Set<() => void>();
   private sequence = 0;
@@ -54,6 +55,21 @@ export class LiveInkChannel {
   private available() { if (this.closed) return false; if (this.options.isActive && !this.options.isActive()) { this.dispose(); return false; } return true; }
   readonly subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   getRemote(scope: LiveInkScope): LiveInkStroke[] { return this.remoteScopes.get(scopeKey(scope)) ?? empty; }
+  /** Retire only completed previews already present in an applied, validated document. */
+  acknowledge(scope: LiveInkScope, strokeIds: readonly string[]) {
+    if (!this.available() || !strokeIds.length) return;
+    const ids = new Set(strokeIds); let changed = false;
+    // HTTP snapshots and SSE can arrive in either order. Remember a bounded
+    // window of canonical IDs even after their stroke has been erased locally.
+    for (const id of ids) {
+      const key = gestureKey(scope, id); this.acknowledged.delete(key); this.acknowledged.set(key, Date.now() + COMMIT_TTL);
+      if (this.acknowledged.size > 8192) this.acknowledged.delete(this.acknowledged.keys().next().value!);
+    }
+    for (const [key, value] of this.remote) {
+      if (value.committed && scopeKey(value.scope) === scopeKey(scope) && ids.has(value.stroke.id ?? value.gestureId)) { this.remote.delete(key); changed = true; }
+    }
+    if (changed) this.changed();
+  }
   hasLocalGesture() { return this.local.size > 0; }
   private changed() {
     this.remoteScopes.clear();
@@ -118,7 +134,10 @@ export class LiveInkChannel {
       if (frame.phase === 'cancel') this.remote.delete(key);
       else {
         const stroke = frame.stroke ?? this.remote.get(key)?.stroke;
-        if (stroke) { this.remote.set(key, { gestureId: frame.gestureId, sender: frame.sender, scope: frame.scope, stroke, committed: frame.phase === 'commit', expires: Date.now() + (frame.phase === 'commit' ? COMMIT_TTL : PREVIEW_TTL) }); if (this.remote.size > 128) this.remote.delete(this.remote.keys().next().value!); }
+        if (stroke) {
+          if ((this.acknowledged.get(gestureKey(frame.scope, stroke.id ?? frame.gestureId)) ?? 0) > Date.now()) this.remote.delete(key);
+          else { this.remote.set(key, { gestureId: frame.gestureId, sender: frame.sender, scope: frame.scope, stroke, committed: frame.phase === 'commit', expires: Date.now() + (frame.phase === 'commit' ? COMMIT_TTL : PREVIEW_TTL) }); if (this.remote.size > 128) this.remote.delete(this.remote.keys().next().value!); }
+        }
         if (frame.phase === 'commit') {
           try { this.options.onCommit?.(frame); } catch { /* An observer must not break the encrypted event stream. */ }
           browserEvent('dynamic-diary:cloud-commit', { scope: frame.scope, sender: frame.sender });
@@ -131,6 +150,7 @@ export class LiveInkChannel {
     if (!this.available()) return;
     const time = Date.now(); let changed = false, activity = false;
     for (const [key, value] of this.remote) if (value.expires <= time) { this.remote.delete(key); changed = true; }
+    for (const [key, expires] of this.acknowledged) if (expires <= time) this.acknowledged.delete(key);
     for (const [key, value] of this.local) if (time - value.at > PREVIEW_TTL) { this.local.delete(key); this.pending.delete(key); activity = true; }
     for (const [key, value] of this.received) if (time - value.at > 600000) this.received.delete(key);
     if (changed) this.changed(); if (activity) this.activity();
@@ -173,7 +193,7 @@ export class LiveInkChannel {
     if (this.closed) return; this.closed = true;
     clearInterval(this.cleanup); if (this.timer) clearTimeout(this.timer); if (this.reconnect) clearTimeout(this.reconnect);
     this.connection?.abort(); void this.reader?.cancel().catch(() => {}); this.requests.abort();
-    const active = this.local.size > 0; this.local.clear(); this.pending.clear(); this.terminal.length = 0; this.received.clear(); this.remote.clear(); this.changed(); if (active) this.activity();
+    const active = this.local.size > 0; this.local.clear(); this.pending.clear(); this.terminal.length = 0; this.received.clear(); this.remote.clear(); this.acknowledged.clear(); this.changed(); if (active) this.activity();
   }
 }
 

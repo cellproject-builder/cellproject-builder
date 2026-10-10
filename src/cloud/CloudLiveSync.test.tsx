@@ -18,6 +18,8 @@ import { registerDataIngestion } from './activity';
 import { createBoardDocument } from '@/boards/model';
 import { createNoteCanvas } from '@/workspace/noteCanvasModel';
 import { useWorkspaceStore } from '@/workspace/store';
+import { LiveInkChannel, configureLiveInk } from '@/ink/live';
+import { sessionFromDeviceKey, type VaultHeader } from './vault/crypto';
 
 const board = () => ({ id: 'board', title: 'Board', archived: false, createdAt: 1, updatedAt: 1, document: createBoardDocument() });
 const project = () => ({ id: 'plan', name: 'Plan', objective: '', rootId: 'root', nodes: { root: { id: 'root', name: 'Root', parentId: null } }, edges: {}, createdAt: 1, updatedAt: 1 });
@@ -29,7 +31,7 @@ beforeEach(() => {
   mocks.pending = false; mocks.busy = false; mocks.chat = false; mocks.owner = 'owner';
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); document.body.innerHTML = ''; });
+afterEach(() => { configureLiveInk(null); vi.useRealTimers(); vi.restoreAllMocks(); document.body.innerHTML = ''; });
 
 it('applies remote board strokes and notebook strokes while preserving the local view and selection', () => {
   const remote = workspace();
@@ -75,4 +77,41 @@ it('refreshes on remote commit, uses bounded polling, suppresses persist echoes 
   await act(async () => root.unmount());
   await act(async () => { window.dispatchEvent(new CustomEvent('dynamic-diary:cloud-commit')); await vi.advanceTimersByTimeAsync(4000); });
   expect(fetcher).toHaveBeenCalledTimes(5); runtime.dispose();
+});
+
+it('keeps tablet ink visible while a text editor is focused, then hands it to the saved document on blur', async () => {
+  vi.useFakeTimers();
+  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  const cipher = { v: 1, iv: btoa('\0'.repeat(12)), data: btoa('\0'.repeat(48)) };
+  const header = { format: 'dynamic-diary-vault', version: 1, id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', kdf: { name: 'PBKDF2', hash: 'SHA-256', iterations: 600000, salt: btoa('\0'.repeat(16)) }, password: cipher, recovery: cipher } as VaultHeader;
+  const session = sessionFromDeviceKey('owner-a', header, key), ink = new LiveInkChannel({ session });
+  configureLiveInk(ink);
+  const remote = workspace();
+  remote.boards.board.document.items.push({ id: 'tablet', kind: 'drawing', x: 2, y: 3, width: 10, height: 10, color: '#111111', widthStroke: 2, points: [{ x: 1, y: 1 }] });
+  const fetcher = vi.fn<typeof fetch>(async () => Response.json({ documents: [documentOf(remote)], media: [] }));
+  const runtime = new CloudRuntime({ documents: [documentOf(workspace(), 1)], media: [] }, fetcher);
+  const host = document.createElement('div'), input = document.createElement('textarea'); document.body.append(host, input);
+  const root = createRoot(host), scope = { surface: 'board', documentId: 'board' } as const;
+  try {
+    await act(async () => root.render(<CloudLiveSync runtime={runtime}/>));
+    input.value = 'My unfinished text'; input.focus();
+    await act(async () => {
+      await ink.receive(await session.seal(JSON.stringify({ version: 1, sender: 'tablet-device', scope, gestureId: 'tablet', seq: 1, phase: 'commit', stroke: { id: 'tablet', color: '#111111', width: 2, points: [{ x: 1, y: 1 }] } }), 'live-ink:v1'));
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(ink.getRemote(scope)).toHaveLength(1);
+    expect(mocks.workspace.boards.board.document.items).toHaveLength(0);
+    expect(input.value).toBe('My unfinished text'); expect(document.activeElement).toBe(input);
+    await act(async () => { input.blur(); await vi.advanceTimersByTimeAsync(0); });
+    expect(mocks.workspace.boards.board.document.items).toHaveLength(1);
+    expect(ink.getRemote(scope)).toHaveLength(0);
+    expect(input.value).toBe('My unfinished text');
+    // A delayed commit arriving after its saved snapshot must not linger and
+    // reappear as a ghost if the user subsequently erases the canonical stroke.
+    await act(async () => {
+      await ink.receive(await session.seal(JSON.stringify({ version: 1, sender: 'tablet-device', scope, gestureId: 'tablet', seq: 2, phase: 'commit', stroke: { id: 'tablet', color: '#111111', width: 2, points: [{ x: 1, y: 1 }] } }), 'live-ink:v1'));
+    });
+    expect(ink.getRemote(scope)).toHaveLength(0);
+  } finally { await act(async () => root.unmount()); runtime.dispose(); configureLiveInk(null); session.dispose(); }
 });

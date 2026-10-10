@@ -1,6 +1,6 @@
 # Desenho entre dispositivos e sincronização canônica
 
-> Implementação local em 10/10/2026. Testes automatizados com contas, chaves, streams e documentos sintéticos. Não houve implantação nem teste com um tablet físico nesta rodada.
+> Canal publicado e regressões ampliadas em 10/10/2026. A bateria automatizada inclui clientes, AES-GCM, HTTP e SSE reais com identidades sintéticas. O ensaio simultâneo em tablet e computador físicos continua pendente; veja o [roteiro e registro](../reports/ink-device-validation-2026-10-10.md).
 
 ## Finalidade
 
@@ -19,6 +19,7 @@ O canal de prévias não é um editor colaborativo de texto nem um mecanismo de 
 | Transporte do cofre | GET real do cabeçalho, validação, abertura de manifesto e revisão CAS | [transport.ts](../../src/cloud/vault/transport.ts) |
 | Ponte para a interface | Aplicar os domínios relevantes preservando a navegação local | [CloudLiveSync.tsx](../../src/cloud/CloudLiveSync.tsx) |
 | Bootstrap | Habilitar o canal apenas com capability do servidor e sessão válida; desmontar ao sair | [CloudBootstrap.tsx](../../src/cloud/CloudBootstrap.tsx) |
+| Ciclo de autenticação | Pausar o canal expirado e recriá-lo após retomada verificada da mesma conta | [CloudInkConnection.ts](../../src/cloud/CloudInkConnection.ts) |
 
 O escopo da prévia é `{surface: board | note | notebook | planner, documentId}`. O frame aberto contém versão, emissor, identificador de gesto, sequência, fase `preview | commit | cancel` e um traço opcional. `x/y` posicionam o desenho no canvas; âncoras de seção permitem acompanhar o conteúdo das notas. A validação limita pontos, ferramentas e coordenadas antes de renderizar.
 
@@ -29,7 +30,9 @@ O escopo da prévia é `{surface: board | note | notebook | planner, documentId}
 3. O relay entrega o envelope aos streams SSE autenticados da mesma conta. O destinatário abre e valida o frame, rejeita sequências antigas e o exibe apenas no escopo correspondente.
 4. Ao terminar, a superfície salva o desenho pelo caminho normal do domínio e envia `commit`; ao cancelar, envia `cancel`. Prévia não é gravação de documento.
 5. Um commit remoto dispara `dynamic-diary:cloud-commit`. A ponte solicita o snapshot imediatamente e repete a leitura em 250, 750 e 1250 ms, porque o commit efêmero pode chegar antes do PUT durável. Polling de 2 s funciona como fallback quando a página está visível e online.
-6. O documento validado é aplicado sem reenviá-lo como edição local. Os renderizadores descartam a duplicação quando o identificador já existe no documento salvo; a prévia concluída expira em 1,5 s. Não há promessa de ausência de intervalo visual se a gravação durável demorar mais do que isso.
+6. O documento validado é aplicado sem reenviá-lo como edição local. Um reconhecimento por superfície, documento e identificador de traço retira somente as prévias concluídas já presentes no documento aplicado. Se o snapshot chegar antes do commit SSE, o mesmo reconhecimento ocorre ao receber o commit. Isso evita duplicação ou reaparecimento de tinta apagada.
+
+A prévia concluída aguarda essa passagem por até dois minutos, em vez de desaparecer após 1,5 s enquanto um campo de texto bloqueia o refresh. O limite impede reter indefinidamente traços cuja gravação nunca foi confirmada; não transforma a prévia em persistência. Uma memória efêmera de até 8192 IDs reconhecidos por escopo, também com expiração de dois minutos, impede que um frame atrasado ressuscite um traço salvo e depois apagado. Ao sair de um editor, a ponte verifica novamente os guards e tenta atualizar o documento. Trocar diretamente entre campos mantém a proteção da edição.
 
 Prévia inacabada expira em 8 s. O canal mantém buffers e filas limitados, descarta intermediários offline e não cria um histórico de frames no banco. Ao bloquear/sair, encerra streams, timers, requests e conteúdo temporário em memória.
 
@@ -44,6 +47,8 @@ O refresh valida o snapshot antes de trocar valores confirmados. Revisão menor,
 No cofre, `VaultTransport.refreshSnapshot()` faz `GET /api/cloud/vault`, serializado com suas mutações. Não tenta resolver uma gravação ambígua durante um refresh. Confere cabeçalho e revisão e abre/valida manifestos novos antes de adotá-los. Um cabeçalho inalterado precisa ter a mesma cifra já autenticada; ela não é novamente decifrada e interpretada a cada tick.
 
 Falhas temporárias de leitura aparecem no status e podem recuperar no próximo poll. Uma falha de escrita ou resultado ambíguo conserva sua identidade e seu rascunho; polling não repete mutações. Revisões novas são adotadas antes da próxima edição local, mantendo o controle de concorrência existente.
+
+GET SSE ou POST de prévia com 401/403 notifica o runtime proprietário e encerra o canal. Após o usuário renovar o login e retomar o salvamento na mesma aba, `CloudRuntime.resumeAfterAuthentication()` verifica a mesma conta e `CloudInkConnection` abre um canal novo com o cofre ainda desbloqueado. Gestos e filas antigos não são reenviados. Respostas tardias de uma conexão descartada não podem expirar um runtime ou cofre novo; logout remove a assinatura de status e impede reabertura.
 
 ## Estado local que permanece local
 
@@ -70,3 +75,5 @@ Rascunhos do planner, prompts visuais e propostas locais permanecem preservados.
 [CloudLiveSync.integration.test.ts](../../src/cloud/CloudLiveSync.integration.test.ts) aplica tinta livre de nota e desenho do Board nos stores Zustand reais, confirma ausência de gravação de eco e verifica a revisão base da próxima edição local.
 
 O canal e o isolamento HTTP têm testes próprios em [live.test.ts](../../src/ink/live.test.ts) e [live-ink.test.mjs](../../server/live-ink.test.mjs), incluindo pausa por backpressure, retomada em `drain` e encerramento de conexão bloqueada. Para o artigo, a hipótese observável é que a passagem do rascunho ao modelo compartilhado facilita registrar e discutir evidências. Medir latência entre dispositivos, preservação de traços, interrupções, conflitos e interferência com edição textual; não inferir melhoria pedagógica só pela presença da sincronização.
+
+[live.http.test.ts](../../src/ink/live.http.test.ts) atravessa dois `LiveInkChannel`, sessões AES-GCM independentes, fetch HTTP, o handler de produção e SSE reais. Confere preview antes de terminar, commit, cancelamento, reconexão, revogação e isolamento de uma terceira conta também no stream bruto. A autenticação do fixture é sintética, portanto esse teste não comprova login Supabase nem hardware real. [CloudInkConnection.test.ts](../../src/cloud/CloudInkConnection.test.ts) cobre expiração SSE/POST, retomada da mesma conta, recusa de conta diferente, respostas tardias e encerramento definitivo.

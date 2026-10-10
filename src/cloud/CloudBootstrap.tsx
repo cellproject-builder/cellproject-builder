@@ -9,9 +9,10 @@ import { PasswordVaultGate } from './PasswordVaultGate';
 import { signInPassword } from './passwordAuth';
 import { preparePasswordProtection } from './vault/passwordSetup';
 import { VaultTransport, type VaultHead } from './vault/transport';
-import { configureVault, getVaultSession } from './vault/privacy';
+import { configureVault } from './vault/privacy';
 import { readDeviceVault } from './vault/deviceKeys';
-import { configureLiveInk, getLiveInk, LiveInkChannel } from '@/ink/live';
+import { configureLiveInk } from '@/ink/live';
+import { CloudInkConnection } from './CloudInkConnection';
 import './cloud.css';
 
 const CloudLiveSync = lazy(() => import('./CloudLiveSync').then(module => ({ default: module.CloudLiveSync })));
@@ -34,12 +35,12 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
   const invalidLink = useRef(new URLSearchParams(window.location.search).get('auth_error') === 'link_invalid');
   async function load(selected: CloudSnapshot | null, next: CloudConfig, vault?: VaultTransport) {
     const id = generation.current;
-    let ink: LiveInkChannel | null = null;
-    const cloud = selected ? new CloudRuntime(selected, vault?.fetch ?? fetcher, vault ? () => { ink?.dispose(); if (getLiveInk() === ink) configureLiveInk(null); vault.dispose(); } : undefined, vault ? () => vault.refreshSnapshot() : undefined) : null;
+    let ink: CloudInkConnection | null = null;
+    const cloud = selected ? new CloudRuntime(selected, vault?.fetch ?? fetcher, vault ? () => { ink?.dispose(); vault.dispose(); } : undefined, vault ? () => vault.refreshSnapshot() : undefined) : null;
     activeRuntime.current = cloud;
     configureCloud(cloud, next.providers); configureVault(vault?.session ?? null, !!vault);
-    if (cloud && vault && next.liveInkAvailable) ink = new LiveInkChannel({ session: vault.session, fetcher, isActive: () => getVaultSession() === vault.session && getCloudRuntime() === cloud });
-    configureLiveInk(ink);
+    configureLiveInk(null);
+    if (cloud && vault && next.liveInkAvailable) ink = new CloudInkConnection({ runtime: cloud, session: vault.session, fetcher });
     try { const application = await loadApplication(); if (id !== generation.current) { cloud?.dispose(); return; } ink?.start(); setRuntime(cloud); setMigration(false); setVaultGate(false); setApp(() => application.default); }
     catch (reason) { ink?.dispose(); if (getCloudRuntime() === cloud) { configureCloud(null); configureLiveInk(null); configureVault(null, !!vault); } throw reason; }
   }

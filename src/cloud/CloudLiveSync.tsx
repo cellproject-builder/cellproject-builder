@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { hasActiveAIActions } from '@/ai/actions';
 import { useChatStore } from '@/chat/store';
 import { restoreWorkspaceBackup, type WorkspaceData } from '@/data/workspaceTransfer';
-import { liveInkGestureActive } from '@/ink/live';
+import { getLiveInk, liveInkGestureActive } from '@/ink/live';
 import { useGraphStore, hasPendingGraphPersistence } from '@/store';
 import type { Project } from '@/types';
 import { normalizeVisualWorkspace } from '@/visuals/normalize';
@@ -63,6 +63,18 @@ function withoutPersistenceEcho(apply: () => void) {
   }
 }
 
+function acknowledgeAppliedInk(workspace: Pick<WorkspaceData, 'boards' | 'notes' | 'projects'>, graphProject: Project | null) {
+  const ink = getLiveInk(); if (!ink) return;
+  const acknowledgePlan = (project: Project | null | undefined) => { if (project) ink.acknowledge({ surface: 'planner', documentId: project.id }, project.visuals?.ink?.strokes.map(stroke => stroke.id) ?? []); };
+  for (const board of Object.values(workspace.boards ?? {})) ink.acknowledge({ surface: 'board', documentId: board.id }, board.document.items.filter(item => item.kind === 'drawing').map(item => item.id));
+  for (const note of Object.values(workspace.notes)) {
+    ink.acknowledge({ surface: 'note', documentId: note.id }, note.ink?.strokes.map(stroke => stroke.id) ?? []);
+    ink.acknowledge({ surface: 'notebook', documentId: note.id }, note.canvas?.strokes.map(stroke => stroke.id) ?? []);
+  }
+  for (const managed of Object.values(workspace.projects)) acknowledgePlan(managed.planner?.project);
+  acknowledgePlan(graphProject);
+}
+
 /** Apply only domain documents; never rehydrate another device's active surface or singleton editor ownership. */
 export function applyRemoteCanvasDocuments(documents: readonly CloudDocument[]) {
   let workspace: WorkspaceData | undefined, graphProject: Project | null | undefined;
@@ -95,6 +107,9 @@ export function applyRemoteCanvasDocuments(documents: readonly CloudDocument[]) 
     if (nextProject !== localGraph.project) useGraphStore.setState({ project: nextProject, lastAction: null, selectedNodeId: localGraph.selectedNodeId && nextProject?.nodes[localGraph.selectedNodeId] ? localGraph.selectedNodeId : nextProject?.rootId ?? null, focusedParentId: localGraph.focusedParentId && nextProject?.nodes[localGraph.focusedParentId] ? localGraph.focusedParentId : nextProject?.rootId ?? null });
     if (workspace) useWorkspaceStore.setState(workspace);
   });
+  // A commit signal can arrive before its durable PUT, or while typing defers
+  // refresh. Hand the preview over only after the same stroke is canonical.
+  acknowledgeAppliedInk(useWorkspaceStore.getState(), useGraphStore.getState().project);
 }
 
 /** Bounded fallback polling plus a fast, authenticated remote-commit signal from LiveInkChannel. */
@@ -104,9 +119,17 @@ export function CloudLiveSync({ runtime }: { runtime: CloudRuntime }) {
     const commitRetries = new Set<number>();
     const idle = () => active && document.visibilityState !== 'hidden' && navigator.onLine !== false && cloudCanvasIdle();
     const refresh = () => { if (idle()) void runtime.refreshRemote({ keys: SYNC_KEYS, isIdle: idle, apply: applyRemoteCanvasDocuments }).catch(() => { /* CloudStatus owns conflicts/session/network presentation. */ }); };
+    // focusout fires before activeElement settles. Check on the next task, so
+    // switching between two text fields still preserves the editor guard.
+    const focusLeft = () => {
+      const timer = window.setTimeout(() => { commitRetries.delete(timer); refresh(); }, 0);
+      commitRetries.add(timer);
+    };
     // A preview commit can beat its durable encrypted PUT to the server. Retry a
     // small bounded burst so the temporary stroke can become canonical promptly.
     const committed = () => {
+      // SSE and durable reads are independent: the saved stroke can arrive first.
+      acknowledgeAppliedInk(useWorkspaceStore.getState(), useGraphStore.getState().project);
       refresh();
       for (const timer of commitRetries) window.clearTimeout(timer);
       commitRetries.clear();
@@ -119,7 +142,8 @@ export function CloudLiveSync({ runtime }: { runtime: CloudRuntime }) {
     window.addEventListener('dynamic-diary:cloud-commit', committed);
     window.addEventListener('online', refresh);
     document.addEventListener('visibilitychange', refresh);
-    return () => { active = false; window.clearInterval(timer); for (const retry of commitRetries) window.clearTimeout(retry); window.removeEventListener('dynamic-diary:cloud-commit', committed); window.removeEventListener('online', refresh); document.removeEventListener('visibilitychange', refresh); };
+    document.addEventListener('focusout', focusLeft);
+    return () => { active = false; window.clearInterval(timer); for (const retry of commitRetries) window.clearTimeout(retry); window.removeEventListener('dynamic-diary:cloud-commit', committed); window.removeEventListener('online', refresh); document.removeEventListener('visibilitychange', refresh); document.removeEventListener('focusout', focusLeft); };
   }, [runtime]);
   return null;
 }

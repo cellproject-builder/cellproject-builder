@@ -35,7 +35,7 @@ it('coalesces previews, sends only a vault envelope and orders the final frame a
   expect(commit.phase).toBe('commit'); expect(commit.seq).toBeGreaterThan(preview.seq); expect(commit.stroke.width).toBe(7);
 });
 
-it('keeps remote previews scoped, drops replays/local echoes and expires cancellations and committed previews', async () => {
+it('keeps remote previews scoped, drops replays/local echoes and hands committed strokes to canonical ink', async () => {
   const committed = vi.fn(), receiver = channel({ session, onCommit: committed });
   const frame: LiveInkFrame = { version: 1, sender: 'other-device', scope, gestureId: 'trace-1', seq: 1, phase: 'preview', stroke: drawing() };
   await receive(receiver, frame); expect(receiver.getRemote(scope)).toHaveLength(1);
@@ -43,9 +43,32 @@ it('keeps remote previews scoped, drops replays/local echoes and expires cancell
   await receive(receiver, { ...frame, seq: 0, stroke: { ...drawing(), width: 20 } }); expect(receiver.getRemote(scope)[0].stroke.width).toBe(3);
   await receive(receiver, { ...frame, sender: receiver.sender, seq: 2 }); expect(receiver.getRemote(scope)).toHaveLength(1);
   await receive(receiver, { ...frame, seq: 2, phase: 'commit' }); expect(committed).toHaveBeenCalledOnce(); expect(receiver.getRemote(scope)[0].committed).toBe(true);
-  await vi.advanceTimersByTimeAsync(2000); expect(receiver.getRemote(scope)).toHaveLength(0);
+  // A focused editor can defer canonical refresh beyond the old 1.5 second TTL.
+  await vi.advanceTimersByTimeAsync(2000); expect(receiver.getRemote(scope)).toHaveLength(1);
+  receiver.acknowledge({ ...scope, documentId: 'another-board' }, ['trace-1']);
+  receiver.acknowledge(scope, ['another-stroke']); expect(receiver.getRemote(scope)).toHaveLength(1);
+  receiver.acknowledge(scope, ['trace-1']); expect(receiver.getRemote(scope)).toHaveLength(0);
   await receive(receiver, { ...frame, seq: 3 }); await receive(receiver, { ...frame, seq: 4, phase: 'cancel', stroke: undefined }); expect(receiver.getRemote(scope)).toHaveLength(0);
   await receive(receiver, { ...frame, seq: 5 }); await vi.advanceTimersByTimeAsync(8500); expect(receiver.getRemote(scope)).toHaveLength(0);
+});
+
+it('bounds committed handoff retention when durable persistence never confirms the stroke', async () => {
+  const receiver = channel({ session });
+  await receive(receiver, { version: 1, sender: 'tablet', scope, gestureId: 'gesture-1', seq: 1, phase: 'commit', stroke: drawing() });
+  await vi.advanceTimersByTimeAsync(30000); expect(receiver.getRemote(scope)).toHaveLength(1);
+  await vi.advanceTimersByTimeAsync(90000); expect(receiver.getRemote(scope)).toHaveLength(0);
+});
+
+it('does not resurrect an acknowledged and subsequently erased stroke when SSE arrives after the snapshot', async () => {
+  const receiver = channel({ session });
+  receiver.acknowledge(scope, ['trace-1']); // The durable snapshot won the race.
+  receiver.acknowledge(scope, []); // The next document has already erased it.
+  const frame: LiveInkFrame = { version: 1, sender: 'tablet', scope, gestureId: 'gesture-1', seq: 1, phase: 'preview', stroke: drawing() };
+  await receive(receiver, frame);
+  await receive(receiver, { ...frame, seq: 2, phase: 'commit' });
+  expect(receiver.getRemote(scope)).toHaveLength(0);
+  await receive(receiver, { ...frame, scope: { ...scope, documentId: 'unrelated-board' }, seq: 3 });
+  expect(receiver.getRemote({ ...scope, documentId: 'unrelated-board' })).toHaveLength(1);
 });
 
 it('rejects wrong-vault ciphertext, malformed or oversized drawing payloads without exposing them', async () => {
