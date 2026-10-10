@@ -4,7 +4,7 @@ Data: 10/10/2026. Aplicação: Dynamic Diary. Destino: https://builder.cellproje
 
 ## Estado da evidência
 
-O usuário confirmou possuir um tablet disponível. O ensaio físico depende de abrir a mesma conta e o mesmo documento no tablet e no computador. Até existir observação registrada, não classificar a sincronização física, a pressão da caneta ou a latência da rede como aprovadas.
+O ensaio começou com um Samsung S9, caneta e Chrome, na mesma conta e no mesmo Board do computador. O usuário confirmou que o traço permanece no tablet, sincroniza e aparece no computador durante o desenho, mas com atraso percebido. Isso confirma o caminho funcional de prévia; fluidez, latência quantitativa, pressão física e a bateria completa continuam sem aprovação.
 
 Regressões automatizadas desta rodada:
 
@@ -19,8 +19,8 @@ Usar um Board descartável identificado como `QA · Tablet e computador · 10-10
 
 | Verificação | Ação | Critério observável | Resultado físico |
 | --- | --- | --- | --- |
-| Prévia ao vivo | No tablet, desenhar uma espiral lentamente por 5–10 segundos | O computador mostra partes do traço antes de soltar a caneta/dedo | Pendente |
-| Passagem ao salvo | Finalizar o gesto e aguardar o indicador de salvamento | O traço permanece, sem duplicação; recarregar o computador preserva o desenho | Pendente |
+| Prévia ao vivo | No tablet, desenhar um rabisco lentamente por 5–15 segundos | O computador mostra partes do traço antes de soltar a caneta/dedo | Confirmado pelo usuário no S9, com atraso; fluidez ainda em ajuste |
+| Passagem ao salvo | Finalizar o gesto e aguardar o indicador de salvamento | O traço permanece, sem duplicação; recarregar o computador preserva o desenho | Parcial: traço permaneceu no S9 e apareceu salvo no PC; reload deste gesto ainda pendente |
 | Caminho inverso | Desenhar no computador com o tablet observando | O tablet recebe a prévia e depois o traço salvo | Pendente |
 | Edição textual | No computador, focar um campo de texto enquanto o tablet desenha | A prévia concluída permanece durante o foco; texto e foco são preservados; sair do campo libera o snapshot | Pendente |
 | Reconexão | Desconectar e reconectar a rede de um dispositivo sem editar offline | Um novo gesto online volta a aparecer; os desenhos confirmados continuam presentes | Pendente |
@@ -43,6 +43,18 @@ A publicação do commit `7d351c8` no deployment Railway `3f83e923-ff07-4ae5-b5b
 
 Na aba antiga, a retomada revelou `Illegal invocation`: o transporte privado chamava o `fetch` nativo como método da instância. Antes de recarregar, foram comparados os IDs, viewBoxes e paths SVG dos 14 desenhos visíveis com os 16 da nova aba; todos estavam incluídos, sem diferenças. Após a atualização segura e reabertura do quadro, os 16 desenhos reapareceram salvos sem novo login. Esse reload não foi classificado como sucesso da retomada na própria aba.
 
-O receiver foi corrigido na entrada de `VaultTransport` e `LiveInkChannel`. Nove regressões reproduziram a incompatibilidade antes da alteração e passaram depois, incluindo recuperação de rascunho, passagem da configuração, leitura/readback de mídia e GET SSE/POST cifrado. Uma fixture local sintética também passou usando o fetch nativo real do Chromium. A suíte frontend completa ficou em **1500 aprovados e 8 externos pulados**. Revisão independente não encontrou defeitos nos diffs. O usuário confirmou o tablet atualizado no mesmo quadro; o traço físico ainda aguarda observação.
+O receiver foi corrigido na entrada de `VaultTransport` e `LiveInkChannel`. Nove regressões reproduziram a incompatibilidade antes da alteração e passaram depois, incluindo recuperação de rascunho, passagem da configuração, leitura/readback de mídia e GET SSE/POST cifrado. Uma fixture local sintética também passou usando o fetch nativo real do Chromium. A suíte frontend completa ficou em **1500 aprovados e 8 externos pulados**. Revisão independente não encontrou defeitos nos diffs.
 
-Ensaio físico ainda não executado. Preencher com observações reais, sem substituir este registro por resultados de testes emulados.
+O commit `afe25e3` foi publicado no deployment `d99db541-1757-45c6-9d0b-30ce686e2bc1`. O computador atravessou esse deploy, recarregou e abriu o quadro sem pedir senha novamente. Esse resultado comprova continuidade da sessão nesse reinício, sem comprovar todos os cenários de recuperação.
+
+## Primeiro gesto físico e diagnóstico de atraso
+
+O usuário confirmou o mesmo quadro aberto nos dois aparelhos, o rabisco visível depois de levantar a caneta e, em seguida, esclareceu: **"Durante o desenho, mas com atraso"**. O computador mostrou os desenhos canônicos com indicador normal de salvamento. A inspeção do Chrome registrou conexão SSE HTTP/2 com resposta 200, heartbeats de 13 bytes separados por aproximadamente 15 segundos e chunks maiores durante o gesto, sem falha de rede observada. Tamanho de chunk não equivale a contagem de frames.
+
+Não houve captura sincronizada dos dois aparelhos. Portanto, não há medida válida da latência tablet → computador, nem aprovação da fluidez. Contagens de objetos mudaram durante a sessão, mas não foram correlacionadas às ações de apagar/desenhar do usuário; não permitem afirmar perda de dados.
+
+Um novo teste integrado usa `BoardCanvas`, `CloudInkConnection`, `LiveInkChannel`, criptografia e parser SSE reais. Com o gesto ainda ativo, verifica publicação e recepção de prévias com pressão, antes de `pointerUp` ou gravação canônica, e depois a renderização receptora e o isolamento de escopo. Layout React Flow e fronteira HTTP usam fixtures; as duas UIs são montadas sequencialmente porque o canal é global por janela. O teste não mede hardware ou Railway.
+
+A investigação identificou uma pausa adicional no cliente: um POST lento era seguido por outros 100 ms antes da próxima prévia. A correção mantém a primeira espera e o intervalo mínimo entre envios, mas desconta o tempo já consumido pela rede. Não altera autenticação, cifra ou serialização. Também foram identificadas escritas sem alteração de título/viewport, capazes de gerar conflito desnecessário entre abas. O reteste físico após essas correções permanece pendente.
+
+Verificação desta correção: **1512 testes frontend aprovados e 8 externos pulados**; build TypeScript/Vite, organização do repositório, links e auditoria do bundle aprovados. No teste com POST de 250 ms, a prévia pendente iniciou em 350 ms, em vez de 450 ms; com POST de 20 ms, iniciou em 200 ms, em vez de 220 ms. São tempos de um teste controlado do agendador, não medições da rede ou do S9. Regressões cobrem título inalterado, movimentos automáticos, navegação durante callback e persistência dos botões de zoom. Revisão independente não encontrou bloqueadores.

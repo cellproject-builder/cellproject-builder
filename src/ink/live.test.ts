@@ -58,6 +58,48 @@ it('coalesces previews, sends only a vault envelope and orders the final frame a
   expect(commit.phase).toBe('commit'); expect(commit.seq).toBeGreaterThan(preview.seq); expect(commit.stroke.width).toBe(7);
 });
 
+it('sends the newest pending preview immediately after a 250 ms POST, without adding another cadence delay', async () => {
+  const firstResponse = deferred<Response>(), starts: number[] = [], frames: LiveInkFrame[] = [];
+  const encrypted = await session.seal('{}', 'live-ink:v1'), epoch = Date.now();
+  vi.spyOn(session, 'seal').mockImplementation(async value => { frames.push(JSON.parse(String(value))); return encrypted; });
+  const fetcher = vi.fn<typeof fetch>(async () => {
+    starts.push(Date.now() - epoch);
+    return starts.length === 1 ? firstResponse.promise : new Response(null, { status: 202 });
+  });
+  const sender = channel({ session, fetcher });
+  sender.preview(scope, 'trace-1', drawing());
+  await vi.advanceTimersByTimeAsync(99); expect(starts).toEqual([]);
+  await vi.advanceTimersByTimeAsync(1); expect(starts).toEqual([100]);
+  sender.preview(scope, 'trace-1', { ...drawing(), width: 5 });
+  await vi.advanceTimersByTimeAsync(125);
+  sender.preview(scope, 'trace-1', { ...drawing(), width: 7 });
+  await vi.advanceTimersByTimeAsync(125); expect(starts).toEqual([100]);
+  firstResponse.resolve(new Response(null, { status: 202 }));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(starts).toEqual([100, 350]);
+  expect(frames.map(frame => frame.stroke?.width)).toEqual([3, 7]);
+  await vi.advanceTimersByTimeAsync(500); expect(starts).toEqual([100, 350]);
+});
+
+it('waits only the remaining cadence after a fast POST and never overlaps preview requests', async () => {
+  const firstResponse = deferred<Response>(), starts: number[] = [];
+  const encrypted = await session.seal('{}', 'live-ink:v1'), epoch = Date.now();
+  vi.spyOn(session, 'seal').mockResolvedValue(encrypted);
+  const fetcher = vi.fn<typeof fetch>(async () => {
+    starts.push(Date.now() - epoch);
+    return starts.length === 1 ? firstResponse.promise : new Response(null, { status: 202 });
+  });
+  const sender = channel({ session, fetcher });
+  sender.preview(scope, 'trace-1', drawing());
+  await vi.advanceTimersByTimeAsync(100); expect(starts).toEqual([100]);
+  sender.preview(scope, 'trace-1', { ...drawing(), width: 5 });
+  await vi.advanceTimersByTimeAsync(20); expect(starts).toEqual([100]);
+  firstResponse.resolve(new Response(null, { status: 202 }));
+  await vi.advanceTimersByTimeAsync(0);
+  await vi.advanceTimersByTimeAsync(79); expect(starts).toEqual([100]);
+  await vi.advanceTimersByTimeAsync(1); expect(starts).toEqual([100, 200]);
+});
+
 it('keeps remote previews scoped, drops replays/local echoes and hands committed strokes to canonical ink', async () => {
   const committed = vi.fn(), receiver = channel({ session, onCommit: committed });
   const frame: LiveInkFrame = { version: 1, sender: 'other-device', scope, gestureId: 'trace-1', seq: 1, phase: 'preview', stroke: drawing() };

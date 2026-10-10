@@ -1,6 +1,6 @@
 # Desenho entre dispositivos e sincronização canônica
 
-> Canal publicado e regressões ampliadas em 10/10/2026. A bateria automatizada inclui clientes, AES-GCM, HTTP e SSE reais com identidades sintéticas. O ensaio simultâneo em tablet e computador físicos continua pendente; veja o [roteiro e registro](../reports/ink-device-validation-2026-10-10.md).
+> Canal publicado e regressões ampliadas em 10/10/2026. A bateria automatizada inclui clientes, AES-GCM, HTTP e SSE reais com identidades sintéticas. No primeiro ensaio com Samsung S9, caneta e Chrome, o usuário confirmou prévia durante o desenho, com atraso; fluidez e os demais cenários continuam pendentes. Veja o [roteiro e registro](../reports/ink-device-validation-2026-10-10.md).
 
 ## Finalidade
 
@@ -26,7 +26,7 @@ O escopo da prévia é `{surface: board | note | notebook | planner, documentId}
 ## Fluxo de um gesto
 
 1. A superfície registra a atividade local. Enquanto ela está ativa, snapshots remotos não substituem os dados em edição.
-2. O cliente mantém a última prévia de cada gesto e envia frames agrupados, aproximadamente a cada 100 ms. Os pontos são cifrados com a `VaultSession` antes do `fetch`; o gateway recebe um envelope AES-GCM.
+2. O cliente mantém a última prévia de cada gesto e agrupa movimentos em lotes com intervalo de 100 ms. Depois de um POST lento, desconta o tempo de rede já transcorrido, evitando acrescentar outra pausa completa. Há apenas um envio ativo; terminais mantêm a ordem. Um lote pode conter mais de um gesto, portanto esse intervalo não representa um teto global de dez POSTs por segundo. Os pontos são cifrados com a `VaultSession` antes do `fetch`; o gateway recebe um envelope AES-GCM.
 3. O relay entrega o envelope aos streams SSE autenticados da mesma conta. O destinatário abre e valida o frame, rejeita sequências antigas e o exibe apenas no escopo correspondente.
 4. Ao terminar, a superfície salva o desenho pelo caminho normal do domínio e envia `commit`; ao cancelar, envia `cancel`. Prévia não é gravação de documento.
 5. Um commit remoto dispara `dynamic-diary:cloud-commit`. A ponte solicita o snapshot imediatamente e repete a leitura em 250, 750 e 1250 ms, porque o commit efêmero pode chegar antes do PUT durável. Polling de 2 s funciona como fallback quando a página está visível e online.
@@ -77,3 +77,5 @@ Rascunhos do planner, prompts visuais e propostas locais permanecem preservados.
 O canal e o isolamento HTTP têm testes próprios em [live.test.ts](../../src/ink/live.test.ts) e [live-ink.test.mjs](../../server/live-ink.test.mjs), incluindo pausa por backpressure, retomada em `drain` e encerramento de conexão bloqueada. Para o artigo, a hipótese observável é que a passagem do rascunho ao modelo compartilhado facilita registrar e discutir evidências. Medir latência entre dispositivos, preservação de traços, interrupções, conflitos e interferência com edição textual; não inferir melhoria pedagógica só pela presença da sincronização.
 
 [live.http.test.ts](../../src/ink/live.http.test.ts) atravessa dois `LiveInkChannel`, sessões AES-GCM independentes, fetch HTTP, o handler de produção e SSE reais. Confere preview antes de terminar, commit, cancelamento, reconexão, revogação e isolamento de uma terceira conta também no stream bruto. A autenticação do fixture é sintética, portanto esse teste não comprova login Supabase nem hardware real. [CloudInkConnection.test.ts](../../src/cloud/CloudInkConnection.test.ts) cobre expiração SSE/POST, retomada da mesma conta, recusa de conta diferente, respostas tardias e encerramento definitivo.
+
+[BoardCanvas.live.test.tsx](../../src/boards/BoardCanvas.live.test.tsx) verifica os handlers de desenho, publicação cifrada, recepção SSE e renderização antes de finalizar o gesto ou gravar o documento. React Flow e HTTP usam fixtures; esse ensaio não mede a latência física. [BoardCanvas.test.tsx](../../src/boards/BoardCanvas.test.tsx) também protege contra gravações incidentais de título e viewport sem alteração, preservando pan e botões de zoom reais.

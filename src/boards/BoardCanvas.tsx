@@ -65,6 +65,16 @@ function Canvas({boardId,onBack,english=false,onMaximizedChange}:Props) {
     setError('');setLive({});refresh(value=>value+1);
   },[boardId]);
   const safely=(action:()=>void)=>{try{action();}catch{setError(t('Não foi possível aplicar. Confira o tamanho ou conteúdo do quadro.','Could not apply. Check the size or content of this board.'));}};
+  const saveViewport=(viewport:BoardDocument['viewport'])=>{
+    const latest=current();if(!alive.current||!latest||latest.archived||useWorkspaceStore.getState().activeBoardId!==boardId)return;
+    const previous=latest.document.viewport;
+    if(previous.x===viewport.x&&previous.y===viewport.y&&previous.zoom===viewport.zoom)return;
+    safely(()=>save({...latest.document,viewport},false));
+  };
+  const changeView=async(action:()=>Promise<unknown>)=>{
+    try{await action();saveViewport(api.getViewport());}
+    catch{if(alive.current)setError(t('Não foi possível ajustar a vista.','Could not adjust the view.'));}
+  };
   const center=()=>{
     const rect=canvas.current?.getBoundingClientRect();
     return api.screenToFlowPosition({x:(rect?.left??0)+(rect?.width??800)/2,y:(rect?.top??0)+(rect?.height??600)/2});
@@ -94,7 +104,7 @@ function Canvas({boardId,onBack,english=false,onMaximizedChange}:Props) {
     history.current[direction].pop();history.current[direction==='past'?'future':'past'].push(latest.document);setSelected([]);
   });
   const maximize=(value:boolean)=>{setMaximized(value);onMaximizedChange?.(value);};
-  const rename=()=>{const value=title.trim();if(!value){setTitle(current()?.title??'');return;}safely(()=>{useWorkspaceStore.getState().updateBoard(boardId,{title:value});ownedDocument.current=current()?.document;});};
+  const rename=()=>{const value=title.trim(),latest=current();if(!value||value===latest?.title){setTitle(latest?.title??'');return;}safely(()=>{useWorkspaceStore.getState().updateBoard(boardId,{title:value});ownedDocument.current=current()?.document;});};
   useEffect(()=>{
     const cancel=()=>{releaseDrag();setLive({});};
     // React Flow uses d3 mouse/touch end events. Capture also covers a no-op
@@ -248,7 +258,7 @@ function Canvas({boardId,onBack,english=false,onMaximizedChange}:Props) {
     <header className="db-canvas-header">{!maximized&&shell?.navigation}<button className="ws-icon-button" aria-label={t('Voltar aos quadros','Back to boards')} title={t('Voltar aos quadros','Back to boards')} onClick={()=>{maximize(false);onBack();}}><ArrowLeftIcon/></button><span className="db-header-brand">Dynamic Board<span>/</span></span><input aria-label={t('Nome do quadro','Board name')} value={title} maxLength={240} onChange={event=>setTitle(event.target.value)} onBlur={rename} onKeyDown={event=>{if(event.key==='Enter')event.currentTarget.blur();if(event.key==='Escape'){event.preventDefault();event.stopPropagation();setTitle(board.title);}}}/><button className="ws-icon-button" aria-label={maximized?t('Restaurar quadro','Restore board view'):t('Maximizar quadro','Maximize board')} aria-pressed={maximized} title={maximized?t('Restaurar quadro','Restore board view'):t('Maximizar quadro','Maximize board')} onClick={()=>maximize(!maximized)}>{maximized?<ExitFullScreenIcon/>:<CornersIcon/>}</button></header>
     </ExpandedChrome>
     <div className="db-canvas" ref={canvas} data-board-canvas tabIndex={0} role="region" aria-label={t('Canvas livre','Free canvas')} onKeyDown={keyboard} onDragOver={event=>{if(event.dataTransfer.types.includes('Files'))event.preventDefault();}} onDrop={event=>{if(event.dataTransfer.files.length){event.preventDefault();void addImages(Array.from(event.dataTransfer.files));}}}>
-      <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={changes} defaultViewport={board.document.viewport} minZoom={.05} maxZoom={4} deleteKeyCode={null} selectionKeyCode="Shift" multiSelectionKeyCode="Shift" panOnScroll zoomOnScroll={false} zoomOnPinch panOnDrag={mode==='select'} selectionOnDrag={false} onPaneClick={()=>setSelected([])} onNodeClick={event=>{if(!(event as {ctrlKey?:boolean}).ctrlKey&&!editable(event.target)&&!(event.target instanceof Element&&event.target.closest('button,.nodrag,.board-text-editor')))canvas.current?.focus({preventScroll:true});}} onNodeDragStart={holdDrag} onNodeDragStop={stopDrag} onMoveEnd={(_event,viewport)=>{const latest=current();if(latest&&!latest.archived)safely(()=>save({...latest.document,viewport},false));}} onConnect={(connection:Connection)=>safely(()=>{const latest=current();if(!latest||!connection.source||!connection.target)return;const source=connection.source.replace(/^visual:/,''),target=connection.target.replace(/^visual:/,'');if(source===target||latest.document.edges.some(edge=>edge.source===source&&edge.target===target))return;save({...latest.document,edges:[...latest.document.edges,{id:nanoid(12),source,target}]});})} onEdgesChange={changes=>setSelected(previous=>{let next=[...previous];for(const change of changes)if(change.type==='select')next=change.selected?[...new Set([...next,`edge:${change.id}`])]:next.filter(value=>value!==`edge:${change.id}`);return next;})} proOptions={{hideAttribution:true}}>
+      <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={changes} defaultViewport={board.document.viewport} minZoom={.05} maxZoom={4} deleteKeyCode={null} selectionKeyCode="Shift" multiSelectionKeyCode="Shift" panOnScroll zoomOnScroll={false} zoomOnPinch panOnDrag={mode==='select'} selectionOnDrag={false} onPaneClick={()=>setSelected([])} onNodeClick={event=>{if(!(event as {ctrlKey?:boolean}).ctrlKey&&!editable(event.target)&&!(event.target instanceof Element&&event.target.closest('button,.nodrag,.board-text-editor')))canvas.current?.focus({preventScroll:true});}} onNodeDragStart={holdDrag} onNodeDragStop={stopDrag} onMoveEnd={(event,viewport)=>{if(event)saveViewport(viewport);}} onConnect={(connection:Connection)=>safely(()=>{const latest=current();if(!latest||!connection.source||!connection.target)return;const source=connection.source.replace(/^visual:/,''),target=connection.target.replace(/^visual:/,'');if(source===target||latest.document.edges.some(edge=>edge.source===source&&edge.target===target))return;save({...latest.document,edges:[...latest.document.edges,{id:nanoid(12),source,target}]});})} onEdgesChange={changes=>setSelected(previous=>{let next=[...previous];for(const change of changes)if(change.type==='select')next=change.selected?[...new Set([...next,`edge:${change.id}`])]:next.filter(value=>value!==`edge:${change.id}`);return next;})} proOptions={{hideAttribution:true}}>
         <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgb(var(--text-faint) / .32)"/>
         {artifacts.length > 0 && <Suspense fallback={null}><VisualCanvasLayer artifacts={artifacts} onAvailability={setWebglAvailable}/></Suspense>}
       </ReactFlow>
@@ -269,7 +279,7 @@ function Canvas({boardId,onBack,english=false,onMaximizedChange}:Props) {
         {mode==='lasso'&&ink.length>0&&<polyline className="db-lasso-path" points={ink.map(point=>`${point.x},${point.y}`).join(' ')} fill="none" stroke="currentColor" strokeWidth={1.5/viewport.zoom} strokeDasharray={`${5/viewport.zoom} ${4/viewport.zoom}`}/>}
         {mode==='eraser'&&eraserPoint&&<circle className="db-eraser-cursor" cx={eraserPoint.x} cy={eraserPoint.y} r={12/viewport.zoom} strokeWidth={1/viewport.zoom}/>}
       </g></svg></div>}
-      <div className="db-view-tools" role="toolbar" aria-label={t('Vista do quadro','Board view')}>{tool(MinusIcon,t('Afastar','Zoom out'),()=>void api.zoomOut())}{tool(PlusIcon,t('Aproximar','Zoom in'),()=>void api.zoomIn())}{tool(CornersIcon,t('Enquadrar objetos','Fit objects'),()=>void api.fitView({padding:.2,maxZoom:1}))}</div>
+      <div className="db-view-tools" role="toolbar" aria-label={t('Vista do quadro','Board view')}>{tool(MinusIcon,t('Afastar','Zoom out'),()=>void changeView(()=>api.zoomOut()))}{tool(PlusIcon,t('Aproximar','Zoom in'),()=>void changeView(()=>api.zoomIn()))}{tool(CornersIcon,t('Enquadrar objetos','Fit objects'),()=>void changeView(()=>api.fitView({padding:.2,maxZoom:1})))}</div>
       {(error||importing)&&<div className="db-status" role="status">{error||t('Adicionando imagem…','Adding image…')}{error&&<button aria-label={t('Fechar aviso','Dismiss message')} onClick={()=>setError('')}>×</button>}</div>}
       <span className="db-object-count">{board.document.items.length} {t('objetos','objects')}</span>
       <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden aria-label={t('Escolher imagens','Choose images')} onChange={event=>{const files=Array.from(event.target.files??[]);event.target.value='';void addImages(files);}}/>

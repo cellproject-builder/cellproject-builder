@@ -42,6 +42,7 @@ export class LiveInkChannel {
   private closed = false;
   private started = false;
   private sending = false;
+  private lastSendAt: number | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private reconnect: ReturnType<typeof setTimeout> | undefined;
   private cleanup: ReturnType<typeof setInterval>;
@@ -99,7 +100,14 @@ export class LiveInkChannel {
     this.terminal.push({ scope, gestureId, phase: cancelled ? 'cancel' : 'commit', ...(cancelled ? {} : { stroke: local.stroke }) });
     if (this.timer) clearTimeout(this.timer); this.timer = undefined; void this.flush();
   }
-  private schedule() { if (!this.timer && !this.sending && this.available()) this.timer = unref(setTimeout(() => { this.timer = undefined; void this.flush(); }, 100)); }
+  private schedule(resuming = false) {
+    if (this.timer || this.sending || !this.available()) return;
+    // A slow POST already consumes the cadence interval. Keep the first preview
+    // delayed, but resume queued movement as soon as the previous send permits.
+    const delay = resuming && this.lastSendAt !== undefined ? Math.max(0, 100 - (Date.now() - this.lastSendAt)) : 100;
+    if (!delay) void this.flush();
+    else this.timer = unref(setTimeout(() => { this.timer = undefined; void this.flush(); }, delay));
+  }
   private async flush() {
     if (this.sending || !this.available()) return; this.sending = true;
     try {
@@ -116,12 +124,13 @@ export class LiveInkChannel {
           const encrypted = await this.options.session.seal(JSON.stringify(frame), PURPOSE);
           if (!this.available()) return;
           const body = JSON.stringify(encrypted); if (body.length > MAX_BYTES || typeof navigator !== 'undefined' && navigator.onLine === false) continue;
+          this.lastSendAt = Date.now();
           const response = await this.fetcher(ENDPOINT, { method: 'POST', credentials: 'same-origin', cache: 'no-store', headers: { 'content-type': 'application/json', 'x-cellproject-request': '1' }, body, signal: AbortSignal.any([this.requests.signal, AbortSignal.timeout(8000)]) });
           await response.body?.cancel();
           if ([401, 403].includes(response.status)) { this.dispose(); return; }
         } catch { /* Offline previews are discarded; durable document sync remains the source of truth. */ }
       }
-    } finally { this.sending = false; if (this.terminal.length && this.available()) void this.flush(); else if (this.pending.size) this.schedule(); }
+    } finally { this.sending = false; if (this.terminal.length && this.available()) void this.flush(); else if (this.pending.size) this.schedule(true); }
   }
   async receive(value: unknown): Promise<void> {
     if (!this.available()) return;

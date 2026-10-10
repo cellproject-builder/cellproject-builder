@@ -2,7 +2,7 @@ import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { useWorkspaceStore } from '@/workspace/store';
+import { useWorkspaceStore, flushWorkspacePersistence } from '@/workspace/store';
 import { BoardCanvas } from './BoardCanvas';
 import type { Node, NodeChange } from '@xyflow/react';
 import { importNoteImage } from '@/workspace/noteImages';
@@ -11,21 +11,73 @@ import { assertDataTransitionIdle, hasActiveDataIngestions, registerDataIngestio
 import { configureLiveInk, LiveInkChannel } from '@/ink/live';
 import type { VaultSession } from '@/cloud/vault/crypto';
 import { applyRemoteCanvasDocuments } from '@/cloud/CloudLiveSync';
+import { CloudRuntime, configureCloud } from '@/cloud/runtime';
 vi.mock('@/workspace/noteImages',async original=>({...await original<typeof import('@/workspace/noteImages')>(),importNoteImage:vi.fn()}));
 vi.mock('@/visuals/media',async original=>({...await original<typeof import('@/visuals/media')>(),readVisualMedia:vi.fn()}));
 vi.mock('@/cloud/activity',async original=>{const actual=await original<typeof import('@/cloud/activity')>();return {...actual,registerDataIngestion:vi.fn(actual.registerDataIngestion)};});
-const flow=vi.hoisted(()=>({props:null as unknown as {nodes:Node[];onNodesChange(changes:NodeChange[]):void;onNodeDragStop(event:unknown,node:Node,nodes:Node[]):void;onConnect(connection:{source:string;target:string}):void;onNodeClick(event:{target:Element;ctrlKey?:boolean}):void},fitView:vi.fn(),viewport:{x:0,y:0,zoom:1}}));
+const flow=vi.hoisted(()=>({props:null as unknown as {nodes:Node[];onNodesChange(changes:NodeChange[]):void;onNodeDragStop(event:unknown,node:Node,nodes:Node[]):void;onConnect(connection:{source:string;target:string}):void;onNodeClick(event:{target:Element;ctrlKey?:boolean}):void;onMoveEnd(event:MouseEvent|null|undefined,viewport:{x:number;y:number;zoom:number}):void},fitView:vi.fn(),viewport:{x:0,y:0,zoom:1}}));
 vi.mock('@xyflow/react',async()=>{const actual=await vi.importActual<typeof import('@xyflow/react')>('@xyflow/react');return {...actual,ReactFlowProvider:({children}:{children:ReactNode})=>children,ReactFlow:(props:typeof flow.props&{children:ReactNode})=>{flow.props=props;return <div data-flow>{props.children}</div>;},Background:()=>null,useViewport:()=>flow.viewport,useReactFlow:()=>({screenToFlowPosition:({x,y}:{x:number;y:number})=>({x:(x-flow.viewport.x)/flow.viewport.zoom,y:(y-flow.viewport.y)/flow.viewport.zoom}),getViewport:()=>flow.viewport,fitView:flow.fitView,zoomIn:vi.fn(),zoomOut:vi.fn(),setViewport:vi.fn()})};});
 vi.mock('./BoardItemNode',()=>({BoardItemNode:()=>null}));
 vi.mock('./BoardComposer',()=>({BoardComposer:()=>null}));
 vi.mock('@/visuals/rendering/VisualCanvasLayer',()=>({VisualCanvasLayer:()=>null}));
 let host:HTMLDivElement,root:Root,id:string;
 beforeEach(()=>{vi.clearAllMocks();flow.viewport={x:0,y:0,zoom:1};(globalThis as {IS_REACT_ACT_ENVIRONMENT?:boolean}).IS_REACT_ACT_ENVIRONMENT=true;useWorkspaceStore.setState({boards:{},activeBoardId:null,projects:{},notes:{},surface:'boards'});id=useWorkspaceStore.getState().createBoard('Sketch');host=document.createElement('div');document.body.append(host);root=createRoot(host);act(()=>root.render(<BoardCanvas boardId={id} onBack={vi.fn()}/>));});
-afterEach(()=>{act(()=>root.unmount());configureLiveInk(null);host.remove();});
+afterEach(()=>{act(()=>root.unmount());configureLiveInk(null);configureCloud(null);host.remove();});
 const click=(label:string)=>act(()=>Simulate.click(host.querySelector(`[aria-label="${label}"]`)!));
 const key=(key:string,options:Record<string,unknown>={})=>act(()=>Simulate.keyDown(host.querySelector('[data-board-canvas]')!,{key,...options}));
 const items=()=>useWorkspaceStore.getState().boards[id].document.items;
 const pointer=(type:'pointerDown'|'pointerMove'|'pointerUp'|'pointerCancel',x:number,y:number,extra:Record<string,unknown>={})=>{const values={pointerId:1,button:0,isPrimary:true,clientX:x,clientY:y,pointerType:'mouse',...extra};act(()=>Simulate[type](host.querySelector('.db-drawing-layer')!,values));};
+const cloudBoard=async()=>{
+  await flushWorkspacePersistence();
+  const state=useWorkspaceStore.persist.getOptions().partialize!(useWorkspaceStore.getState());
+  const fetcher=vi.fn<typeof fetch>(async()=>Response.json({revision:2}));
+  const runtime=new CloudRuntime({documents:[{key:'cellproject-workspace',value:JSON.stringify({state,version:2}),revision:1}],media:[]},fetcher);
+  configureCloud(runtime);return {runtime,fetcher};
+};
+it('does not write a workspace snapshot when an unchanged title loses focus before navigation',async()=>{
+  const {runtime,fetcher}=await cloudBoard(),before=useWorkspaceStore.getState().boards[id];
+  const input=host.querySelector<HTMLInputElement>('input[aria-label="Nome do quadro"]')!;
+  act(()=>Simulate.blur(input));
+  act(()=>{input.value=' Sketch ';Simulate.change(input);});
+  act(()=>Simulate.blur(input));click('Voltar aos quadros');
+  await runtime.flush();
+  expect(useWorkspaceStore.getState().boards[id]).toBe(before);expect(input.value).toBe('Sketch');
+  expect(fetcher).not.toHaveBeenCalled();
+});
+it.each([null,undefined])('does not write a workspace snapshot for a programmatic viewport callback with event %s',async event=>{
+  const {runtime,fetcher}=await cloudBoard(),before=useWorkspaceStore.getState().boards[id];
+  act(()=>flow.props.onMoveEnd(event,{x:80,y:90,zoom:2}));await runtime.flush();
+  expect(useWorkspaceStore.getState().boards[id]).toBe(before);expect(fetcher).not.toHaveBeenCalled();
+});
+it('does not write a workspace snapshot for an unchanged user viewport',async()=>{
+  const {runtime,fetcher}=await cloudBoard(),before=useWorkspaceStore.getState().boards[id];
+  act(()=>flow.props.onMoveEnd(new MouseEvent('mouseup'),{...before.document.viewport}));await runtime.flush();
+  expect(useWorkspaceStore.getState().boards[id]).toBe(before);expect(fetcher).not.toHaveBeenCalled();
+});
+it('saves a changed user viewport once and preserves the board contents',async()=>{
+  click('Adicionar cartão');const {runtime,fetcher}=await cloudBoard(),before=items(),viewport={x:80,y:90,zoom:2};
+  act(()=>flow.props.onMoveEnd(new MouseEvent('mouseup'),viewport));await runtime.flush();
+  expect(useWorkspaceStore.getState().boards[id].document.viewport).toEqual(viewport);expect(items()).toEqual(before);
+  expect(fetcher).toHaveBeenCalledOnce();
+});
+it('ignores a delayed viewport callback after navigating away from the board',async()=>{
+  const {runtime,fetcher}=await cloudBoard(),before=useWorkspaceStore.getState().boards[id];
+  act(()=>{useWorkspaceStore.setState({activeBoardId:null});});
+  act(()=>flow.props.onMoveEnd(new MouseEvent('mouseup'),{x:80,y:90,zoom:2}));await runtime.flush();
+  expect(useWorkspaceStore.getState().boards[id]).toBe(before);expect(fetcher).not.toHaveBeenCalled();
+});
+it.each(['Aproximar','Afastar'])('saves an explicitly requested %s without a mouse viewport event',async label=>{
+  const {runtime,fetcher}=await cloudBoard(),viewport={x:50,y:40,zoom:label==='Aproximar'?1.2:.8};
+  flow.viewport=viewport;
+  await act(async()=>{Simulate.click(host.querySelector(`[aria-label="${label}"]`)!);});await runtime.flush();
+  expect(useWorkspaceStore.getState().boards[id].document.viewport).toEqual(viewport);expect(fetcher).toHaveBeenCalledOnce();
+});
+it('saves an explicitly requested fit after its passive viewport callback without a second write',async()=>{
+  const {runtime,fetcher}=await cloudBoard(),viewport={x:50,y:40,zoom:.8};
+  flow.fitView.mockImplementationOnce(async()=>{flow.viewport=viewport;flow.props.onMoveEnd(undefined,viewport);return true;});
+  await act(async()=>{Simulate.click(host.querySelector('[aria-label="Enquadrar objetos"]')!);});await runtime.flush();
+  expect(useWorkspaceStore.getState().boards[id].document.viewport).toEqual(viewport);expect(fetcher).toHaveBeenCalledOnce();
+});
 it('offers drawing, stroke erasing, and lasso selection modes',()=>{
   for(const label of ['Desenhar','Borracha de traços','Selecionar com laço']) expect(host.querySelector(`[aria-label="${label}"]`)).not.toBeNull();
 });
