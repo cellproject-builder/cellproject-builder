@@ -26,7 +26,12 @@ export class VaultTransport {
   private responseBytes = 0;
   private disposed = false;
   private uploads = new Map<string, { blobId: string; cipherBytes: ArrayBuffer; cipherHash: string }>();
-  private constructor(readonly session: VaultSession, private state: Manifest, private revision: number, private remote: typeof fetch, private knownManifest: CipherEnvelope) {}
+  private remote: typeof fetch;
+  private constructor(readonly session: VaultSession, private state: Manifest, private revision: number, remote: typeof fetch, private knownManifest: CipherEnvelope) {
+    // Invoke native fetch as a function: using it as a transport method gives
+    // browsers an invalid receiver. Preserve the injected request and its signal.
+    this.remote = (input, init) => remote(input, init);
+  }
   static async open(session: VaultSession, head: VaultHead, remote: typeof fetch = fetch) {
     if (!head || !Number.isSafeInteger(head.revision) || head.revision < 1 || JSON.stringify(validateHeader(head.header)) !== JSON.stringify(session.header)) throw new Error('Cofre remoto inválido.');
     const manifest = validateCipher(head.manifest), state = validateManifest(JSON.parse(await session.openText(manifest, `manifest:${head.revision}`)));

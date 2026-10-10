@@ -5,11 +5,19 @@ import { createVault, sessionFromDeviceKey } from './crypto';
 import { activateVault, prepareVaultActivation, VaultTransport } from './transport';
 beforeAll(() => vi.stubGlobal('crypto', webcrypto));
 const snapshot = { documents: [{ key: 'dynamic_diary-chat', value: '{"version":1,"state":{"private":"private chat"}}', revision: 1 }], media: [] };
-async function fixture() {
+function receiverSensitiveFetch(remote: typeof fetch): typeof fetch {
+  // Browser fetch permits a detached call, but rejects an arbitrary object as this.
+  return function (this: unknown, input, init) {
+    if (this !== undefined && this !== globalThis) throw new TypeError("Failed to execute 'fetch' on 'Window': Illegal invocation");
+    return remote(input, init);
+  } as typeof fetch;
+}
+async function fixture(wrap: (remote: typeof fetch) => typeof fetch = remote => remote) {
   const vault = await createVault('owner', 'test-only exclusive secret phrase');
   let revision = 1, lose = false, loseBlob = false; const bodies: string[] = [], blobs = new Map<string, string>(), replies = new Map<string, number>();
   let head = { header: vault.header, revision, manifest: await vault.session.seal(JSON.stringify({ snapshot, files: {} }), 'manifest:1') };
   const fetcher = vi.fn<typeof fetch>(async (path, init) => {
+    if (String(path) === '/api/cloud/config') return Response.json({ enabled: true, authenticated: true, user: { id: 'owner', email: 'synthetic@example.test' }, providers: {} });
     if (String(path).includes('/blobs/')) return new Response(blobs.get(String(path).split('/').at(-1)!)!);
     if (String(path).endsWith('/blobs')) { const data = JSON.parse(String(init!.body)); blobs.set(data.id, atob(data.base64)); if (loseBlob) { loseBlob = false; throw new Error('upload response lost'); } return Response.json({ id: data.id, sha256: data.sha256, size: atob(data.base64).length }); }
     if (init?.method === 'PUT') {
@@ -19,9 +27,55 @@ async function fixture() {
     }
     return Response.json(head);
   });
-  const transport = await VaultTransport.open(vault.session, head, fetcher);
+  const transport = await VaultTransport.open(vault.session, head, wrap(fetcher));
   return { vault, transport, fetcher, bodies, loseNext: () => { lose = true; }, loseUpload: () => { loseBlob = true; } };
 }
+it.each(['/api/cloud/config', '/api/cloud/vault', '/api/live/ink'])('forwards %s without using the transport as the native fetch receiver', async path => {
+  const f = await fixture(receiverSensitiveFetch), controller = new AbortController();
+  const response = await f.transport.fetch(path, { signal: controller.signal, credentials: 'same-origin', cache: 'no-store' });
+  expect(response.ok).toBe(true);
+  expect(f.fetcher.mock.calls.at(-1)).toEqual([path, { signal: controller.signal, credentials: 'same-origin', cache: 'no-store' }]);
+  f.transport.dispose();
+});
+it('preserves abort propagation for a receiver-sensitive passthrough request', async () => {
+  const f = await fixture(receiverSensitiveFetch), controller = new AbortController();
+  f.fetcher.mockImplementationOnce((_input, init) => new Promise((_resolve, reject) => {
+    init!.signal!.addEventListener('abort', () => reject(init!.signal!.reason), { once: true });
+  }));
+  const pending = f.transport.fetch('/api/cloud/config', { signal: controller.signal });
+  controller.abort(); await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  f.transport.dispose();
+});
+it('resumes the same CloudRuntime with a real vault transport and saves its preserved draft', async () => {
+  const f = await fixture(receiverSensitiveFetch), runtime = new CloudRuntime(snapshot, f.transport.fetch);
+  const value = '{"version":1,"state":{"private":"preserved old-tab draft"}}';
+  runtime.notifySessionExpired('/api/cloud/config'); await runtime.write('dynamic_diary-chat', value);
+  expect(runtime.getSnapshot()).toMatchObject({ pending: 1, issue: { kind: 'session' } });
+  await runtime.resumeAfterAuthentication('owner');
+  expect(runtime.getSnapshot()).toMatchObject({ pending: 0, issue: null });
+  expect(runtime.get('dynamic_diary-chat')).toBe(value);
+  expect(f.transport.snapshot().documents.find(doc => doc.key === 'dynamic_diary-chat')).toMatchObject({ value, revision: 2 });
+  expect(f.bodies.join()).not.toContain('preserved old-tab draft');
+  runtime.dispose(); f.transport.dispose();
+});
+it('verifies encrypted upload readback with a receiver-sensitive native fetch', async () => {
+  const f = await fixture(receiverSensitiveFetch), runtime = new CloudRuntime(snapshot, f.transport.fetch);
+  const bytes = new TextEncoder().encode('synthetic encrypted media').buffer;
+  await runtime.writeMedia({ id: 'native-readback', mime: 'text/plain', name: 'synthetic.txt', bytes });
+  expect(f.transport.snapshot().media.find(media => media.id === 'native-readback')?.size).toBe(bytes.byteLength);
+  expect(await runtime.readMedia('native-readback')).toEqual(bytes);
+  runtime.dispose(); f.transport.dispose();
+});
+it('reads and decrypts saved media with a receiver-sensitive native fetch on a fresh runtime', async () => {
+  const f = await fixture(), writer = new CloudRuntime(snapshot, f.transport.fetch);
+  const bytes = new TextEncoder().encode('synthetic fresh-reader media').buffer;
+  await writer.writeMedia({ id: 'native-media-get', mime: 'text/plain', name: 'synthetic.txt', bytes });
+  const head = await (await f.fetcher('/api/cloud/vault')).json();
+  const transport = await VaultTransport.open(f.vault.session, head, receiverSensitiveFetch(f.fetcher));
+  const reader = new CloudRuntime(transport.snapshot(), transport.fetch);
+  expect(await reader.readMedia('native-media-get')).toEqual(bytes);
+  writer.dispose(); reader.dispose(); transport.dispose(); f.transport.dispose();
+});
 it('sends only ciphertext for documents and keeps exact retry bytes after an ambiguous commit', async () => {
   const f = await fixture(), runtime = new CloudRuntime(snapshot, f.transport.fetch);
   f.loseNext(); await runtime.write('dynamic_diary-chat', '{"version":1,"state":{"private":"latest secret"}}');

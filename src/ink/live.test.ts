@@ -20,6 +20,29 @@ afterEach(() => { channels.splice(0).forEach(value => value.dispose()); session.
 const deferred = <T = void,>() => { let resolve!: (value: T | PromiseLike<T>) => void; const promise = new Promise<T>(ready => { resolve = ready; }); return { promise, resolve }; };
 async function receive(receiver: LiveInkChannel, frame: LiveInkFrame) { await receiver.receive(await session.seal(JSON.stringify(frame), 'live-ink:v1')); }
 
+it.each(['default', 'injected'] as const)('receives and publishes encrypted ink with a receiver-sensitive %s browser fetch', async mode => {
+  const incoming: LiveInkFrame = { version: 1, sender: 'tablet', scope, gestureId: 'tablet-trace', seq: 1, phase: 'preview', stroke: drawing() };
+  const encrypted = await session.seal(JSON.stringify(incoming), 'live-ink:v1');
+  const event = new TextEncoder().encode(`event: ink\ndata: ${JSON.stringify(encrypted)}\n\n`);
+  const bodies: string[] = [];
+  // Node fetch accepts arbitrary receivers, while browser fetch rejects a channel instance.
+  const browserFetch: typeof fetch = async function (this: unknown, _input, init) {
+    if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation');
+    if (init?.method === 'POST') { bodies.push(init.body as string); return new Response(null, { status: 202 }); }
+    return new Response(new ReadableStream({ start(controller) { controller.enqueue(event); } }), { headers: { 'content-type': 'text/event-stream' } });
+  };
+  vi.spyOn(globalThis, 'fetch').mockImplementation(browserFetch);
+  const connection = channel({ session, ...(mode === 'injected' ? { fetcher: browserFetch } : {}) });
+  connection.start();
+  await vi.waitFor(() => expect(connection.getRemote(scope)).toHaveLength(1));
+  expect(connection.getRemote(scope)[0].stroke.points).toEqual(drawing().points);
+  connection.preview(scope, 'local-trace', drawing()); connection.finish(scope, 'local-trace');
+  await vi.waitFor(() => expect(bodies).toHaveLength(1));
+  expect(bodies[0]).not.toMatch(/board-1|fountain|points|local-trace|owner-a/);
+  const committed = JSON.parse(await session.openText(JSON.parse(bodies[0]), 'live-ink:v1'));
+  expect(committed).toMatchObject({ phase: 'commit', gestureId: 'local-trace', scope, stroke: { points: drawing().points } });
+});
+
 it('coalesces previews, sends only a vault envelope and orders the final frame after active encryption', async () => {
   const firstPost = deferred(), finalPost = deferred();
   const bodies: string[] = [], fetcher = vi.fn<typeof fetch>(async (_path, init) => { bodies.push(init!.body as string); (bodies.length === 1 ? firstPost : finalPost).resolve(); return Response.json({ received: true }, { status: 202 }); });

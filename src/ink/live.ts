@@ -49,7 +49,9 @@ export class LiveInkChannel {
   private reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   private requests = new AbortController();
   constructor(private readonly options: Options) {
-    this.fetcher = options.fetcher ?? fetch;
+    const fetcher = options.fetcher ?? fetch;
+    // Native browser fetch must not receive this channel as its receiver.
+    this.fetcher = (input, init) => fetcher(input, init);
     this.cleanup = unref(setInterval(() => this.expire(), 250));
   }
   private available() { if (this.closed) return false; if (this.options.isActive && !this.options.isActive()) { this.dispose(); return false; } return true; }
