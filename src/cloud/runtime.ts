@@ -1,4 +1,6 @@
 import { authorizeVaultSharing, configureVault } from './vault/privacy';
+import type { CheckpointStore } from './offline/checkpoints';
+export type { CheckpointStore } from './offline/checkpoints';
 export const CLOUD_DOCUMENT_KEYS = ['cellproject-workspace', 'cellproject-graph', 'dynamic_diary-chat', 'cellproject-kb', 'cellproject-config', 'cellproject-locale', 'dynamic_diary-theme', 'dynamic_diary-sidebar-collapsed', 'dynamic_diary:task-view'] as const;
 export type CloudProvider = 'openrouter' | 'openai' | 'anthropic';
 export interface CloudDocument { key: string; value: string; revision: number }
@@ -6,7 +8,15 @@ export interface CloudMedia { id: string; mime: string; name: string; projectId?
 export interface CloudSnapshot { documents: CloudDocument[]; media: CloudMedia[] }
 export interface CloudConfig { enabled: boolean; authenticated: boolean; authMethod?: 'email_link' | 'code'; passwordAuth?: boolean; passwordProvider?: { url: string; publishableKey: string }; passwordSetup?: boolean; vaultAvailable?: boolean; liveInkAvailable?: boolean; user?: { id: string; email: string }; providers?: Partial<Record<CloudProvider, boolean>> }
 export interface CloudIssue { kind: 'conflict' | 'network' | 'session'; key: string; message: string }
-export interface CloudStatus { pending: number; issue: CloudIssue | null; saving: boolean }
+export interface CloudStatus { pending: number; issue: CloudIssue | null; saving: boolean; localSaved?: boolean; localSaving?: boolean; localError?: string; offline?: boolean }
+export interface CloudRuntimeOptions {
+  persistence?: CheckpointStore;
+  checkpoint?: unknown;
+  networkReady?: () => boolean;
+  /** Called only after the operation's removal from the runtime queue is durable. */
+  acknowledgeOperation?: (operationId: string) => Promise<void>;
+}
+export interface RuntimeCheckpoint { version: 1; confirmed: CloudSnapshot; drafts: [string, string][]; queue: Operation[]; issue: CloudIssue | null }
 export interface RemoteRefreshOptions {
   keys?: readonly string[];
   isIdle?: () => boolean;
@@ -30,7 +40,7 @@ export function sanitizeCloudDocument(key: string, value: string): string {
   return JSON.stringify(data);
 }
 
-/** Cloud is canonical; drafts and retry operations live in memory only. No browser credential or data writes. */
+/** Cloud is canonical; optional encrypted checkpoints preserve local drafts and exact retry identities. */
 export class CloudRuntime {
   private confirmed = new Map<string, CloudDocument>();
   private drafts = new Map<string, string>();
@@ -46,7 +56,9 @@ export class CloudRuntime {
   private status: CloudStatus = { pending: 0, issue: null, saving: false };
   private mediaMetadata = new Map<string, CloudMedia>();
   private mediaBytes = new Map<string, ArrayBuffer>();
-  constructor(snapshot: CloudSnapshot, private fetcher: typeof fetch = fetch, private vaultDisposer?: () => void, private snapshotLoader?: () => Promise<CloudSnapshot>) {
+  private localChain: Promise<void> = Promise.resolve();
+  private localGeneration = 0;
+  constructor(snapshot: CloudSnapshot, private fetcher: typeof fetch = fetch, private vaultDisposer?: () => void, private snapshotLoader?: () => Promise<CloudSnapshot>, private options: CloudRuntimeOptions = {}) {
     if (!snapshot || !Array.isArray(snapshot.documents) || !Array.isArray(snapshot.media)) throw new Error('Snapshot remoto inválido.');
     for (const doc of snapshot.documents) {
       if (!CLOUD_DOCUMENT_KEYS.includes(doc.key as typeof CLOUD_DOCUMENT_KEYS[number]) || typeof doc.value !== 'string' || !Number.isSafeInteger(doc.revision) || doc.revision < 1 || this.confirmed.has(doc.key)) throw new Error('Snapshot remoto inválido.');
@@ -60,11 +72,52 @@ export class CloudRuntime {
       if (!media || typeof media.id !== 'string' || !/^[A-Za-z0-9_.:-]{1,180}$/.test(media.id) || ['.', '..'].includes(media.id) || this.mediaMetadata.has(media.id) || !['application/pdf', 'text/plain', 'text/markdown', 'image/png', 'image/jpeg', 'image/webp'].includes(media.mime) || typeof media.name !== 'string' || !/^[a-f0-9]{64}$/.test(media.sha256) || !Number.isSafeInteger(media.size) || media.size < 1 || media.size > 10 * 1024 * 1024 || (media.mime.startsWith('image/') && media.size > 5 * 1024 * 1024)) throw new Error('Catálogo remoto inválido.');
       this.mediaMetadata.set(media.id, media);
     }
+    if (options.checkpoint !== undefined && options.checkpoint !== null) this.restoreCheckpoint(options.checkpoint);
+    if (options.persistence) this.status = { ...this.status, localSaved: options.checkpoint != null, localSaving: false, offline: !this.networkReady() };
   }
+  private restoreCheckpoint(value: unknown) {
+    const data = value as RuntimeCheckpoint;
+    if (!data || data.version !== 1 || !Array.isArray(data.drafts) || !Array.isArray(data.queue) || data.queue.length > 10000 || data.drafts.length > CLOUD_DOCUMENT_KEYS.length) throw new Error('Diário local inválido.');
+    const checked = new CloudRuntime(data.confirmed), confirmed = checked.documents(), media = checked.media(); checked.dispose();
+    const drafts = new Map<string, string>(), ids = new Set<string>();
+    for (const entry of data.drafts) {
+      if (!Array.isArray(entry) || entry.length !== 2 || !CLOUD_DOCUMENT_KEYS.includes(entry[0] as typeof CLOUD_DOCUMENT_KEYS[number]) || typeof entry[1] !== 'string' || drafts.has(entry[0]) || sanitizeCloudDocument(entry[0], entry[1]) !== entry[1]) throw new Error('Rascunho local inválido.');
+      const check = new CloudRuntime({ documents: [{ key: entry[0], value: entry[1], revision: 1 }], media: [] }); check.dispose();
+      drafts.set(entry[0], entry[1]);
+    }
+    const latest = new Map<string, string>();
+    for (const op of data.queue) {
+      if (!op || !CLOUD_DOCUMENT_KEYS.includes(op.key as typeof CLOUD_DOCUMENT_KEYS[number]) || typeof op.value !== 'string' || sanitizeCloudDocument(op.key, op.value) !== op.value || typeof op.operationId !== 'string' || !/^[A-Za-z0-9_.:-]{1,160}$/.test(op.operationId) || ids.has(op.operationId) || op.baseRevision !== undefined && (!Number.isSafeInteger(op.baseRevision) || op.baseRevision < 0)) throw new Error('Fila local inválida.');
+      const check = new CloudRuntime({ documents: [{ key: op.key, value: op.value, revision: 1 }], media: [] }); check.dispose();
+      ids.add(op.operationId); latest.set(op.key, op.value);
+    }
+    if (latest.size !== drafts.size || [...latest].some(([key, text]) => drafts.get(key) !== text)) throw new Error('Fila e rascunhos locais não correspondem.');
+    if (data.issue !== null && (!data.issue || !['conflict', 'network', 'session'].includes(data.issue.kind) || typeof data.issue.key !== 'string' || typeof data.issue.message !== 'string')) throw new Error('Estado local inválido.');
+    this.confirmed = new Map(confirmed.map(doc => [doc.key, doc])); this.mediaMetadata = new Map(media.map(item => [item.id, item])); this.drafts = drafts;
+    this.queue = data.queue.map(op => ({ ...op })); this.status = { pending: this.queue.length, saving: false, issue: data.issue };
+  }
+  checkpoint(): RuntimeCheckpoint { return { version: 1, confirmed: { documents: [...this.confirmed.values()].map(doc => ({ ...doc })), media: this.media() }, drafts: [...this.drafts], queue: this.queue.map(op => ({ ...op })), issue: this.status.issue ? { ...this.status.issue } : null }; }
+  persistCheckpoint(): Promise<void> {
+    if (!this.options.persistence) return Promise.resolve();
+    const value = this.checkpoint(), generation = ++this.localGeneration;
+    this.publish({ localSaving: true, localSaved: false });
+    const task = this.localChain.catch(() => {}).then(async () => {
+      if (this.disposed) throw new Error('Sessão encerrada.');
+      await this.options.persistence!.write('runtime', value);
+      if (!this.disposed && generation === this.localGeneration) this.publish({ localSaving: false, localSaved: true, localError: undefined });
+    }).catch((reason: unknown) => {
+      if (!this.disposed && generation === this.localGeneration) this.publish({ localSaving: false, localSaved: false, localError: reason instanceof Error ? reason.message : 'Não foi possível salvar neste aparelho.' });
+      throw reason;
+    });
+    this.localChain = task; return task;
+  }
+  private networkReady() { return this.options.networkReady?.() !== false; }
+  notifyNetworkState() { this.publish({ offline: !this.networkReady() }); }
+  reportSyncIssue(issue: CloudIssue) { this.publish({ issue }); if (this.options.persistence) void this.persistCheckpoint().catch(() => {}); }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   subscribeRemote = (listener: (documents: readonly CloudDocument[]) => void) => { this.remoteListeners.add(listener); return () => { this.remoteListeners.delete(listener); }; };
   getSnapshot = () => this.status;
-  notifySessionExpired(key: string) { if (!this.disposed && this.status.issue?.kind !== 'conflict') this.publish({ issue: { kind: 'session', key, message: 'Sessão expirada ou acesso recusado. Preserve uma cópia antes de entrar novamente.' } }); }
+  notifySessionExpired(key: string) { if (!this.disposed && this.status.issue?.kind !== 'conflict') this.reportSyncIssue({ kind: 'session', key, message: 'Sessão expirada ou acesso recusado. Preserve uma cópia antes de entrar novamente.' }); }
   private publish(patch: Partial<CloudStatus> = {}) { this.status = { ...this.status, ...patch, pending: this.queue.length }; for (const listener of this.listeners) listener(); }
   get(key: string): string | null { return this.drafts.get(key) ?? this.confirmed.get(key)?.value ?? null; }
   documents(): CloudDocument[] { return [...new Set([...this.confirmed.keys(), ...this.drafts.keys()])].map(key => ({ key, value: this.get(key)!, revision: this.confirmed.get(key)?.revision ?? 0 })); }
@@ -75,10 +128,35 @@ export class CloudRuntime {
     this.remoteApplyDepth++;
     try { return apply(); } finally { this.remoteApplyDepth--; }
   }
+  /** Adopt recovered auxiliary effects without changing any queued document's base or draft. */
+  async adoptRecoveredSnapshot(snapshot: CloudSnapshot, options: Pick<RemoteRefreshOptions, 'isIdle' | 'apply'> = {}): Promise<boolean> {
+    if (this.disposed) throw new Error('Sessão encerrada.');
+    if (this.pendingMediaWrites || options.isIdle?.() === false) return false;
+    const checked = new CloudRuntime(snapshot), documents = checked.documents(), media = checked.media(); checked.dispose();
+    const queued = new Set(this.queue.map(op => op.key)), changes: CloudDocument[] = [];
+    for (const old of this.confirmed.values()) {
+      const next = documents.find(doc => doc.key === old.key);
+      if (!next || next.revision < old.revision || next.revision === old.revision && next.value !== old.value) throw new CloudConflictError();
+    }
+    for (const doc of documents) {
+      if (queued.has(doc.key)) continue;
+      const old = this.confirmed.get(doc.key);
+      if (!old || doc.revision > old.revision) changes.push(doc);
+    }
+    // Validate/apply domain changes synchronously before acknowledging their revisions.
+    if (changes.length && options.apply) this.withRemoteApply(() => options.apply!(changes));
+    for (const doc of changes) this.confirmed.set(doc.key, doc);
+    const metadata = new Map(media.map(item => [item.id, item]));
+    for (const [id, old] of this.mediaMetadata) if (metadata.get(id)?.sha256 !== old.sha256) this.mediaBytes.delete(id);
+    this.mediaMetadata = metadata;
+    if (this.options.persistence) await this.persistCheckpoint();
+    if (changes.length) for (const listener of this.remoteListeners) listener(changes);
+    return true;
+  }
   /** Reads a real remote snapshot and adopts revisions only when local drafts stayed idle. */
   refreshRemote(options: RemoteRefreshOptions = {}): Promise<CloudDocument[]> {
     if (this.refreshing) return this.refreshing;
-    if (!this.isIdle() || options.isIdle?.() === false) return Promise.resolve([]);
+    if (!this.networkReady() || this.status.localError || !this.isIdle() || options.isIdle?.() === false) return Promise.resolve([]);
     const epoch = this.mutationEpoch;
     const task = (async () => {
       const snapshot = this.snapshotLoader ? await this.snapshotLoader() : await cloudJson<CloudSnapshot>('/api/cloud/snapshot', {}, this.fetcher);
@@ -103,6 +181,7 @@ export class CloudRuntime {
       const metadata = new Map(snapshot.media.map(item => [item.id, item]));
       for (const [id, old] of this.mediaMetadata) if (metadata.get(id)?.sha256 !== old.sha256) this.mediaBytes.delete(id);
       this.mediaMetadata = metadata;
+      if (this.options.persistence) await this.persistCheckpoint();
       if (this.hasTransientReadIssue()) this.publish({ issue: null });
       if (changes.length) for (const listener of this.remoteListeners) listener(changes);
       return changes;
@@ -128,36 +207,40 @@ export class CloudRuntime {
     if (previous?.key === key && previous.baseRevision === undefined) previous.value = value;
     else this.queue.push({ key, value, operationId: crypto.randomUUID() });
     this.publish();
-    return this.drain();
+    return this.options.persistence ? this.persistCheckpoint().then(() => this.drain()).catch(() => {}) : this.drain();
   }
   private drain(): Promise<void> {
     if (this.active) return this.active;
-    if (this.disposed || this.status.issue || !this.queue.length) return Promise.resolve();
+    if (this.disposed || !this.networkReady() || this.status.localError || this.status.issue || !this.queue.length) return Promise.resolve();
     this.active = (async () => {
       this.publish({ saving: true });
       while (this.queue.length && !this.disposed) {
         const op = this.queue[0]; op.baseRevision ??= this.confirmed.get(op.key)?.revision ?? 0;
         try {
+          if (this.options.persistence) await this.persistCheckpoint();
+          if (this.disposed || !this.networkReady()) break;
           const result = await cloudJson<{ revision: number }>(`/api/cloud/documents/${encodeURIComponent(op.key)}`, { method: 'PUT', headers: mutationHeaders, body: JSON.stringify({ value: op.value, baseRevision: op.baseRevision, operationId: op.operationId }) }, this.fetcher);
           if (this.disposed) return;
           if (!Number.isSafeInteger(result.revision) || result.revision < 1) throw new Error('Revisão inválida.');
           this.confirmed.set(op.key, { key: op.key, value: op.value, revision: result.revision }); this.queue.shift();
           if (!this.queue.some(item => item.key === op.key)) this.drafts.delete(op.key);
+          if (this.options.persistence) { await this.persistCheckpoint(); await this.options.acknowledgeOperation?.(op.operationId); }
           this.publish();
         } catch (reason) {
           const status = reason instanceof CloudHttpError ? reason.status : 0;
           this.publish({ issue: { key: op.key, kind: status === 409 ? 'conflict' : status === 401 || status === 403 ? 'session' : 'network', message: reason instanceof Error ? reason.message : 'Falha de conexão.' } });
+          if (this.options.persistence && !this.status.localError) await this.persistCheckpoint().catch(() => {});
           break;
         }
       }
     })().finally(() => {
       this.active = null; this.publish({ saving: false });
-      if (this.queue.length && !this.status.issue && !this.disposed) void this.drain();
+      if (this.queue.length && !this.status.issue && !this.status.localError && this.networkReady() && !this.disposed) void this.drain();
     });
     return this.active;
   }
-  async flush() { do { await this.drain(); } while (this.queue.length && !this.status.issue && !this.disposed); if (this.status.issue?.kind === 'conflict') throw new CloudConflictError(); if (this.status.issue || this.queue.length) throw new Error('Existem alterações sem confirmação remota.'); }
-  async retry() { if (this.status.issue?.kind === 'conflict' || this.status.issue?.kind === 'session') return; this.publish({ issue: null }); await this.drain(); }
+  async flush() { await this.localChain.catch(() => {}); if (this.status.localError) throw new Error(this.status.localError); do { await this.drain(); } while (this.queue.length && !this.status.issue && !this.status.localError && this.networkReady() && !this.disposed); if (this.status.localError) throw new Error(this.status.localError); if (this.status.issue?.kind === 'conflict') throw new CloudConflictError(); if (this.status.issue || this.queue.length) throw new Error('Existem alterações sem confirmação remota.'); }
+  async retry() { if (this.status.issue?.kind === 'conflict' || this.status.issue?.kind === 'session') return; this.publish({ issue: null, offline: !this.networkReady() }); if (this.options.persistence) { try { await this.persistCheckpoint(); } catch { return; } } await this.drain(); }
   async resumeAfterAuthentication(expectedUserId: string) {
     if (this.disposed) throw new Error('Sessão encerrada.');
     if (this.status.issue?.kind !== 'session') return;
@@ -182,6 +265,7 @@ export class CloudRuntime {
   }
   async writeMedia(record: { id: string; mime: string; name: string; projectId?: string; createdAt?: number; bytes: ArrayBuffer }) {
     if (this.disposed) throw new Error('Sessão encerrada.');
+    if (!this.networkReady()) throw new Error('Novos arquivos precisam de conexão e conta confirmada.');
     this.mutationEpoch++;
     this.pendingMediaWrites++;
     try {
@@ -189,12 +273,15 @@ export class CloudRuntime {
     if (existing && (existing.sha256 !== hash || existing.mime !== record.mime || existing.size !== record.bytes.byteLength)) throw new CloudConflictError();
     if (!existing) {
       const { bytes, ...metadata } = record;
-      const result = await cloudJson<{ id: string; sha256: string; size: number }>('/api/cloud/media', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ ...metadata, sha256: hash, base64: encodeBytes(bytes), operationId: crypto.randomUUID() }) }, this.fetcher);
+      const operationId = crypto.randomUUID();
+      const result = await cloudJson<{ id: string; sha256: string; size: number }>('/api/cloud/media', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ ...metadata, sha256: hash, base64: encodeBytes(bytes), operationId }) }, this.fetcher);
       if (result.id !== record.id || result.sha256 !== hash || result.size !== bytes.byteLength) throw new Error('Upload não confirmado.');
       if (this.disposed) throw new Error('Sessão encerrada.');
       this.mediaMetadata.set(record.id, { ...metadata, sha256: hash, size: bytes.byteLength });
+      if (this.options.persistence) { await this.persistCheckpoint(); await this.options.acknowledgeOperation?.(operationId); }
     }
     this.mediaBytes.set(record.id, record.bytes.slice(0));
+    if (this.options.persistence) await this.persistCheckpoint();
     } finally { this.pendingMediaWrites--; }
   }
 }
@@ -203,10 +290,17 @@ let runtime: CloudRuntime | null = null;
 let providers: Partial<Record<CloudProvider, boolean>> = {};
 export function configureCloud(next: CloudRuntime | null, capabilities: Partial<Record<CloudProvider, boolean>> = {}) { runtime?.dispose(); runtime = next; providers = capabilities; }
 export const isCloudEnabled = () => runtime !== null;
-export const cloudProviderAvailable = (provider: CloudProvider) => isCloudEnabled() && providers[provider] === true;
+export const cloudProviderAvailable = (provider: CloudProvider) => isCloudEnabled() && runtime?.getSnapshot().offline !== true && providers[provider] === true;
 export const getCloudRuntime = () => runtime;
 /** Report authentication failures without retrying paid requests or changing the selected backend. */
 export async function sessionAwareFetch(input: RequestInfo | URL, init?: RequestInit, fetcher: typeof fetch = fetch): Promise<Response> {
+  if (runtime?.getSnapshot().offline === true) {
+    const url = new URL(input instanceof Request ? input.url : String(input), typeof window === 'undefined' ? 'http://localhost' : window.location.href);
+    const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
+    // Browser connectivity and a previous privacy approval do not verify the
+    // owner/header after an offline reopen. Recovery reads must stay available.
+    if (method === 'POST' && (url.pathname.startsWith('/api/ai/') || url.pathname.startsWith('/api/visuals/'))) throw new Error('IA, pesquisa e leitura externa precisam de conexão e confirmação da mesma conta e cofre.');
+  }
   authorizeVaultSharing(input, init);
   const response = await fetcher(input, init);
   if (response.status === 401 || response.status === 403) {

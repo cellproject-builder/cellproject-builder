@@ -14,6 +14,7 @@ import { createVault } from './vault/crypto';
 import { rememberDeviceVault, readDeviceVault } from './vault/deviceKeys';
 import { configureVault, getVaultSession } from './vault/privacy';
 import * as rescue from './rescue';
+import * as offlineAuthorization from './offline/repository';
 async function settle(assertion: () => void) {
   let last: unknown;
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -22,6 +23,37 @@ async function settle(assertion: () => void) {
   }
   throw last;
 }
+
+it('keeps a durable offline draft quiet and distinguishes it from a cloud confirmation', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const persistence = { read: async <T,>() => null as T | null, write: async () => {}, remove: async () => {} };
+  const cloud = new CloudRuntime({ documents: [], media: [] }, vi.fn(), undefined, undefined, { persistence, networkReady: () => false });
+  await cloud.write('dynamic_diary-theme', 'dark');
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId="owner" email="wylgnerbossman@gmail.com" onLogout={() => {}}/>));
+    const indicator = host.querySelector('button')!;
+    expect(indicator.getAttribute('aria-label')).toBe('Salvo neste aparelho · aguardando conexão');
+    expect(indicator.getAttribute('aria-expanded')).toBe('false');
+    const unload = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(false);
+    await act(async () => indicator.click());
+    expect(host.textContent).toContain('cópia cifrada');
+  } finally { await act(async () => root.unmount()); host.remove(); cloud.dispose(); }
+});
+
+it('opens the status when the device cannot save and warns before leaving', async () => {
+  const persistence = { read: async <T,>() => null as T | null, write: async () => { throw new Error('Sem espaço no aparelho'); }, remove: async () => {} };
+  const cloud = new CloudRuntime({ documents: [], media: [] }, vi.fn(), undefined, undefined, { persistence, networkReady: () => false });
+  await cloud.write('dynamic_diary-theme', 'dark');
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId="owner" email="wylgnerbossman@gmail.com" onLogout={() => {}}/>));
+    expect(host.textContent).toContain('Sem espaço no aparelho');
+    const unload = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(true);
+  } finally { await act(async () => root.unmount()); host.remove(); cloud.dispose(); }
+});
 
 it('keeps the saved indicator quiet while its button still opens synchronization details', async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -112,9 +144,59 @@ it('logs out before closing a protected session and retains its remembered brows
     const remembered = await readDeviceVault(vault.session.ownerId, vault.header); expect(remembered).not.toBeNull(); remembered!.dispose();
   } finally { await act(async () => root.unmount()); host.remove(); configureCloud(null); configureVault(null, false); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
 }, 15000);
+it('revokes offline reopening before remote logout and preserves a durable pending checkpoint', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true; vi.stubGlobal('crypto', webcrypto); activity.chatRunning = false;
+  const vault = await createVault(crypto.randomUUID(), 'synthetic durable-logout phrase'), events: string[] = [];
+  const persistence = { read: async <T,>() => null as T | null, write: async () => {}, remove: vi.fn(async () => {}) };
+  const cloud = new CloudRuntime({ documents: [], media: [] }, vi.fn(), () => vault.session.dispose(), undefined, { persistence, networkReady: () => false });
+  configureCloud(cloud); configureVault(vault.session); await cloud.write('dynamic_diary-theme', 'pending dark');
+  vi.spyOn(offlineAuthorization, 'revokeOfflineAuthorization').mockImplementation(async () => { events.push('revoke'); });
+  const logout = vi.fn(), fetcher = vi.fn<typeof fetch>(async () => { events.push('logout'); expect(cloud.getSnapshot().pending).toBe(1); return Response.json({ signedOut: true }); });
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId={vault.session.ownerId} email="wylgnerbossman@gmail.com" fetcher={fetcher} onLogout={logout}/>));
+    await act(async () => host.querySelector('button')!.click());
+    const leave = [...host.querySelectorAll('button')].find(button => button.textContent === 'Sair e bloquear')!;
+    expect(leave.disabled).toBe(false); await act(async () => leave.click());
+    await settle(() => expect(logout).toHaveBeenCalledOnce());
+    expect(events).toEqual(['revoke', 'logout']); expect(persistence.remove).not.toHaveBeenCalled();
+  } finally { await act(async () => root.unmount()); host.remove(); configureCloud(null); configureVault(null, false); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
+});
+it('keeps the current session open and skips remote logout if local revocation cannot be confirmed', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true; activity.chatRunning = false;
+  const cloud = new CloudRuntime({ documents: [], media: [] });
+  const revoke = vi.spyOn(offlineAuthorization, 'revokeOfflineAuthorization').mockRejectedValue(new Error('Falha ao revogar a abertura offline'));
+  const logout = vi.fn(), fetcher = vi.fn<typeof fetch>();
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId="owner" email="wylgnerbossman@gmail.com" fetcher={fetcher} onLogout={logout}/>));
+    await act(async () => host.querySelector('button')!.click());
+    await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Sair da conta')!.click());
+    await settle(() => expect(host.textContent).toContain('Falha ao revogar'));
+    expect(revoke).toHaveBeenCalledOnce(); expect(fetcher).not.toHaveBeenCalled(); expect(logout).not.toHaveBeenCalled();
+  } finally { await act(async () => root.unmount()); host.remove(); cloud.dispose(); vi.restoreAllMocks(); }
+});
+it('allows an explicit encrypted rescue before logout when the device checkpoint cannot be saved', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true; vi.stubGlobal('crypto', webcrypto); activity.chatRunning = false;
+  const vault = await createVault(crypto.randomUUID(), 'synthetic local-quota rescue phrase');
+  const persistence = { read: async <T,>() => null as T | null, write: async () => { throw new Error('Sem espaço no aparelho'); }, remove: async () => {} };
+  const cloud = new CloudRuntime({ documents: [], media: [] }, vi.fn(), () => vault.session.dispose(), undefined, { persistence, networkReady: () => false });
+  configureCloud(cloud); configureVault(vault.session); await cloud.write('dynamic_diary-theme', 'pending dark');
+  vi.spyOn(rescue, 'downloadSessionRescue').mockImplementation(rescue.captureSessionRescue);
+  const logout = vi.fn(), fetcher = vi.fn<typeof fetch>(async () => Response.json({ signedOut: true }));
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId={vault.session.ownerId} email="wylgnerbossman@gmail.com" fetcher={fetcher} onLogout={logout}/>));
+    await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Baixar rascunhos de resgate (.ddvault)')!.click());
+    await settle(() => expect([...host.querySelectorAll('button')].find(button => button.textContent === 'Sair após baixar resgate')?.disabled).toBe(false));
+    await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Sair após baixar resgate')!.click());
+    await settle(() => expect(logout).toHaveBeenCalledOnce());
+  } finally { await act(async () => root.unmount()); host.remove(); configureCloud(null); configureVault(null, false); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
+});
 it('allows logout after an explicit partial rescue with a pending failed write, preserving it if logout fails', async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true; vi.stubGlobal('crypto', webcrypto); activity.chatRunning = false;
   const vault = await createVault(crypto.randomUUID(), 'synthetic failed-logout phrase');
+  await offlineAuthorization.authorizeOffline({ version: 1, ownerId: vault.session.ownerId, email: 'wylgnerbossman@gmail.com', header: vault.header });
   const cloud = new CloudRuntime({ documents: [], media: [] }, async () => { throw new Error('write offline'); }, () => vault.session.dispose()); configureCloud(cloud); configureVault(vault.session);
   await cloud.write('dynamic_diary-theme', 'dark'); expect(cloud.getSnapshot().pending).toBe(1);
   vi.spyOn(rescue, 'downloadSessionRescue').mockImplementation(rescue.captureSessionRescue);
@@ -128,6 +210,8 @@ it('allows logout after an explicit partial rescue with a pending failed write, 
     expect(host.textContent).toContain('pacote é parcial');
     await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Sair após baixar resgate')!.click());
     await settle(() => expect(host.textContent).toContain('logout offline'));
+    expect(host.textContent).toContain('abertura offline deste navegador já foi revogada');
+    expect(await offlineAuthorization.readOfflineAuthorization()).toBeNull();
     expect(logout).not.toHaveBeenCalled(); expect(getVaultSession()).toBe(vault.session); expect(cloud.getSnapshot().pending).toBe(1);
     await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Sair após baixar resgate')!.click());
     await settle(() => expect(logout).toHaveBeenCalledOnce()); expect(fetcher).toHaveBeenCalledTimes(2); expect(getVaultSession()).toBeNull();

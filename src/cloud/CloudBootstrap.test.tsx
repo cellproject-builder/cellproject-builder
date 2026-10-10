@@ -13,6 +13,14 @@ beforeEach(() => { (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REA
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); configureCloud(null); configureVault(null, false); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 async function fill(input: HTMLInputElement, value: string) { await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); }); }
 async function submit() { await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))); }
+async function waitForRetry() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+    const button = host.querySelector<HTMLButtonElement>('button');
+    if (button && !button.disabled) return button;
+  }
+  throw new Error('The encrypted cache read did not finish before retry.');
+}
 it('does not import application stores before an encrypted-vault unlock or explicit legacy choice', async () => {
   const load = vi.fn(async () => ({ default: () => <div>Workspace</div> }));
   const fetcher = vi.fn<typeof fetch>(async path => String(path).endsWith('/config') ? Response.json({ enabled: true, authenticated: true, vaultAvailable: true, user: { id: 'owner', email: 'wylgnerbossman@gmail.com' } }) : String(path).endsWith('/vault') ? Response.json({ vault: null }) : Response.json({ documents: [{ key: 'dynamic_diary-theme', value: 'dark', revision: 1 }], media: [] }));
@@ -138,6 +146,49 @@ it('loads the local app only after an explicit disabled config and fails closed 
   load.mockClear();
   await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={vi.fn(async () => { throw new Error('network'); })}/>));
   expect(load).not.toHaveBeenCalled(); expect(host.querySelector('[role="alert"]')).not.toBeNull();
+});
+it.each([
+  { enabled: false, authenticated: false, expected: 'Local workspace' },
+  { enabled: true, authenticated: false, passwordAuth: true, expected: 'Entrar' },
+])('keeps offline startup closed until an online retry receives the real config: %j', async ({ expected, ...config }) => {
+  let online = false;
+  vi.spyOn(navigator, 'onLine', 'get').mockImplementation(() => online);
+  const read = vi.spyOn(deviceKeys, 'readDeviceVault'), write = vi.spyOn(deviceKeys, 'rememberDeviceVault');
+  const localWrite = vi.spyOn(Storage.prototype, 'setItem');
+  const load = vi.fn(async () => ({ default: () => <div>Local workspace</div> }));
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(config));
+  await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={fetcher}/>));
+  expect(host.querySelector('h1')?.textContent ?? '').toContain('Sem conexão');
+  expect(host.textContent).toContain('conectar');
+  expect(host.textContent).toContain('internet');
+  const retry = host.querySelector<HTMLButtonElement>('button')!;
+  expect(retry.disabled).toBe(true);
+  expect(fetcher).not.toHaveBeenCalled(); expect(load).not.toHaveBeenCalled();
+  expect(read).not.toHaveBeenCalled(); expect(write).not.toHaveBeenCalled(); expect(localWrite).not.toHaveBeenCalled();
+  online = true;
+  await act(async () => window.dispatchEvent(new Event('online')));
+  await waitForRetry();
+  expect(retry.disabled).toBe(false);
+  expect(fetcher).not.toHaveBeenCalled();
+  await act(async () => retry.click());
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(fetcher.mock.calls[0][0]).toBe('/api/cloud/config');
+  expect(host.textContent).toContain(expected);
+  expect(load).toHaveBeenCalledTimes(config.enabled ? 0 : 1);
+  expect(read).not.toHaveBeenCalled(); expect(write).not.toHaveBeenCalled(); expect(localWrite).not.toHaveBeenCalled();
+});
+it('explains a failed config connection without exposing the raw browser error or opening local data', async () => {
+  const read = vi.spyOn(deviceKeys, 'readDeviceVault'), write = vi.spyOn(deviceKeys, 'rememberDeviceVault');
+  const load = vi.fn(async () => ({ default: () => <div>Workspace</div> }));
+  const fetcher = vi.fn<typeof fetch>().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce(Response.json({ enabled: true, authenticated: false, passwordAuth: true }));
+  await act(async () => root.render(<CloudBootstrap loadApplication={load} fetcher={fetcher}/>));
+  expect(host.querySelector('h1')?.textContent ?? '').toContain('Sem conexão');
+  expect(host.textContent).not.toContain('Failed to fetch');
+  expect(load).not.toHaveBeenCalled(); expect(read).not.toHaveBeenCalled(); expect(write).not.toHaveBeenCalled();
+  const retry = await waitForRetry();
+  await act(async () => retry.click());
+  expect(host.textContent).toContain('Entrar'); expect(host.querySelector('input[type="password"]')).not.toBeNull();
+  expect(fetcher).toHaveBeenCalledTimes(2); expect(load).not.toHaveBeenCalled(); expect(read).not.toHaveBeenCalled(); expect(write).not.toHaveBeenCalled();
 });
 it('shows a recoverable notebook hydration error without rendering the app or rewriting data', async () => {
   const { get, set } = await import('idb-keyval');

@@ -5,6 +5,7 @@
 .cloud-status>.cloud-status-indicator:focus-visible{outline:2px solid rgb(var(--ai-accent)/.65);outline-offset:2px}
 .cloud-status-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
 .cloud-status.is-saving>.cloud-status-indicator{color:rgb(var(--conf-mid))}
+.cloud-status.is-offline>.cloud-status-indicator{color:rgb(var(--text-muted))}
 .cloud-status.has-error>.cloud-status-indicator{color:rgb(var(--state-problem))}.cloud-status-panel{position:absolute;bottom:calc(100% + 8px);right:-70px;width:min(360px,calc(100vw - 24px));display:flex;flex-direction:column;gap:9px;padding:17px;background:rgb(var(--bg-secondary));border:1px solid rgb(var(--border-base));border-radius:12px;box-shadow:0 12px 40px #0005;font-size:12px;max-height:75dvh;overflow:auto}.cloud-status-panel p{line-height:1.5;color:rgb(var(--text-secondary))}.cloud-status-panel small{overflow-wrap:anywhere;color:rgb(var(--text-muted))}@media(max-width:600px){.cloud-card{padding:23px}.cloud-entry,.cloud-import-overlay{padding:14px}.cloud-actions button{width:100%}}
 
 @media(max-width:767px){.cloud-status{right:74px;bottom:max(28px,calc(env(safe-area-inset-bottom) + 10px))}.cloud-status-panel{right:-62px}}

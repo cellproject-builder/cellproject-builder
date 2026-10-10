@@ -17,14 +17,59 @@ beforeEach(async () => {
 });
 afterEach(() => { connections.splice(0).forEach(connection => connection.dispose()); configureLiveInk(null); configureCloud(null); configureVault(null, false); session.dispose(); vi.restoreAllMocks(); });
 const stream = () => new Response(new ReadableStream<Uint8Array>(), { headers: { 'content-type': 'text/event-stream' } });
-function activate(fetcher: typeof fetch) {
-  const runtime = new CloudRuntime({ documents: [], media: [] }, fetcher);
+function activate(fetcher: typeof fetch, networkReady?: () => boolean) {
+  const runtime = new CloudRuntime({ documents: [], media: [] }, fetcher, undefined, undefined, { networkReady });
+  runtime.notifyNetworkState();
   configureCloud(runtime); configureVault(session);
   const connection = new CloudInkConnection({ runtime, session, fetcher }); connections.push(connection); connection.start();
   return { runtime, connection };
 }
 const account = (id = session.ownerId) => Response.json({ enabled: true, authenticated: true, user: { id, email: 'synthetic@example.test' } });
 const deferred = <T,>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(ready => { resolve = ready; }); return { promise, resolve }; };
+
+it('keeps LiveInk closed during offline startup until the runtime confirms connectivity', () => {
+  let ready = false;
+  const fetcher = vi.fn<typeof fetch>(async () => stream());
+  const { runtime } = activate(fetcher, () => ready);
+  expect(getLiveInk()).toBeNull(); expect(fetcher).not.toHaveBeenCalled();
+  runtime.notifyNetworkState();
+  expect(getLiveInk()).toBeNull(); expect(fetcher).not.toHaveBeenCalled();
+  ready = true; runtime.notifyNetworkState();
+  expect(getLiveInk()).not.toBeNull(); expect(fetcher).toHaveBeenCalledOnce();
+});
+
+it('stops the active channel offline and waits for both connectivity and verified session recovery', async () => {
+  let ready = true, subscriptions = 0;
+  const fetcher = vi.fn<typeof fetch>(async path => {
+    if (String(path).endsWith('/config')) return account();
+    subscriptions++; return stream();
+  });
+  const { runtime } = activate(fetcher, () => ready), original = getLiveInk()!;
+  expect(subscriptions).toBe(1);
+  ready = false; runtime.notifyNetworkState();
+  expect(getLiveInk()).toBeNull();
+  original.preview(scope, 'closed-trace', stroke('closed-trace')); original.finish(scope, 'closed-trace');
+  runtime.notifySessionExpired('/api/live/ink');
+  ready = true; runtime.notifyNetworkState();
+  expect(getLiveInk()).toBeNull(); expect(subscriptions).toBe(1);
+  await runtime.resumeAfterAuthentication(session.ownerId);
+  expect(getLiveInk()).not.toBeNull(); expect(getLiveInk()).not.toBe(original); expect(subscriptions).toBe(2);
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+});
+
+it('ignores a late 401 from an offline channel after a new connection opens', async () => {
+  let ready = true;
+  const pending = deferred<Response>();
+  const fetcher = vi.fn<typeof fetch>().mockImplementationOnce(() => pending.promise).mockImplementation(async () => stream());
+  const { runtime } = activate(fetcher, () => ready);
+  ready = false; runtime.notifyNetworkState();
+  expect(getLiveInk()).toBeNull();
+  ready = true; runtime.notifyNetworkState();
+  const current = getLiveInk(); expect(current).not.toBeNull();
+  pending.resolve(new Response(null, { status: 401 }));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(runtime.getSnapshot().issue).toBeNull(); expect(getLiveInk()).toBe(current); expect(fetcher).toHaveBeenCalledTimes(2);
+});
 
 it('reports an expired SSE session and opens a fresh working channel after the same owner resumes authentication', async () => {
   let authenticated = false, subscriptions = 0;

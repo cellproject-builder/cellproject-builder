@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { signInPassword, type PasswordProvider } from './passwordAuth';
 import { CloudHttpError, getCloudRuntime, type CloudRuntime } from './runtime';
 
-interface Props { runtime: CloudRuntime; userId: string; email: string; provider?: PasswordProvider; fetcher?: typeof fetch; onBusyChange?: (busy: boolean) => void }
+interface Props { runtime: CloudRuntime; userId: string; email: string; provider?: PasswordProvider; fetcher?: typeof fetch; onResume?: () => Promise<void>; onBusyChange?: (busy: boolean) => void }
 /** Reauthenticate without replacing the unlocked runtime or its unsaved documents. */
-export function CloudSessionRecovery({ runtime, userId, email, provider, fetcher = fetch, onBusyChange }: Props) {
+export function CloudSessionRecovery({ runtime, userId, email, provider, fetcher = fetch, onResume, onBusyChange }: Props) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const status = useSyncExternalStore(runtime.subscribe, runtime.getSnapshot);
   const password = useRef<HTMLInputElement>(null), mounted = useRef(false);
   const operation = useRef<{ controller: AbortController; promise: Promise<void> } | null>(null);
   const busyObserver = useRef(onBusyChange); busyObserver.current = onBusyChange;
+  const resumeObserver = useRef(onResume); resumeObserver.current = onResume;
   const active = () => mounted.current && getCloudRuntime() === runtime;
   const run = (task: (controller: AbortController) => Promise<void>, quiet = false) => {
     if (!active()) return Promise.resolve();
@@ -27,7 +29,8 @@ export function CloudSessionRecovery({ runtime, userId, email, provider, fetcher
     })();
     operation.current = { controller, promise }; return promise;
   };
-  const resume = (quiet = false) => run(async () => { await runtime.resumeAfterAuthentication(userId); }, quiet);
+  const continueSession = () => resumeObserver.current ? resumeObserver.current() : runtime.resumeAfterAuthentication(userId);
+  const resume = (quiet = false) => run(async () => { await continueSession(); }, quiet);
   useEffect(() => {
     mounted.current = true; const field = password.current;
     return () => { mounted.current = false; if (field) field.value = ''; operation.current?.controller.abort(); busyObserver.current?.(false); };
@@ -50,13 +53,13 @@ export function CloudSessionRecovery({ runtime, userId, email, provider, fetcher
           return fetcher(input, { ...init, signal: AbortSignal.any(signals) });
         };
         await signInPassword(email, secret, provider, scopedFetch);
-        if (active() && !controller.signal.aborted) await runtime.resumeAfterAuthentication(userId);
+        if (active() && !controller.signal.aborted) await continueSession();
       } finally { field.value = ''; }
     });
   };
   return <section className="cloud-session-recovery" aria-label="Recuperar sessão">
     <strong>Entrar novamente</strong>
-    <p role="alert">Sua sessão expirou. Seus rascunhos continuam preservados nesta aba.</p>
+    <p role="alert">Sua sessão expirou. {status.localSaved === true && !status.localSaving && !status.localError ? 'Seus rascunhos continuam na cópia cifrada deste aparelho.' : 'Seus rascunhos continuam preservados nesta aba.'}</p>
     {provider ? <form onSubmit={submit}>
       <span className="cloud-session-email">{email}</span>
       <label>Senha<input ref={password} type="password" name="password" autoComplete="current-password" maxLength={128} required disabled={busy} onInput={() => setError('')}/></label>

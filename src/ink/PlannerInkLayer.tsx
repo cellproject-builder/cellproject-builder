@@ -71,7 +71,7 @@ export function PlannerInkLayer({ project, containerRef, english = false }: { pr
     setErased(new Set(action.erased));
   };
   const begin = (event: PointerEvent<HTMLDivElement>) => {
-    if (!active || event.button !== 0 || gesture.current) return;
+    if (!active || event.button !== 0 || event.isPrimary === false || gesture.current) return;
     event.preventDefault(); event.stopPropagation(); event.currentTarget.focus({ preventScroll: true });
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Synthetic events have no active pointer. */ }
     try {
@@ -114,7 +114,7 @@ export function PlannerInkLayer({ project, containerRef, english = false }: { pr
       {liveInk.remote.filter(value => !saved.some(stroke => stroke.id === (value.stroke.id ?? value.gestureId))).map(value => <g key={`${value.sender}:${value.gestureId}`} transform={`translate(${value.stroke.x ?? 0} ${value.stroke.y ?? 0})`}><InkStroke stroke={value.stroke} data-planner-remote-stroke={value.gestureId} /></g>)}
       {preview && <g transform={`translate(${preview.x} ${preview.y})`}><InkStroke stroke={preview} /></g>}
     </g></svg>
-    <div ref={stage} data-planner-ink className="planner-ink-input" style={{ pointerEvents: active ? 'auto' : 'none' }} tabIndex={active ? 0 : -1} role="group" aria-label={t('Desenho livre no plano', 'Free drawing on plan')} onPointerDown={begin} onPointerMove={move} onPointerUp={finish} onPointerCancel={() => cancel()} onLostPointerCapture={() => cancel()} onKeyDown={event => {
+    <div ref={stage} data-planner-ink className="planner-ink-input" style={{ pointerEvents: active ? 'auto' : 'none' }} tabIndex={active ? 0 : -1} role="group" aria-label={t('Desenho livre no plano', 'Free drawing on plan')} onPointerDown={begin} onPointerMove={move} onPointerUp={finish} onPointerCancel={event => { if (gesture.current?.pointer === event.pointerId) cancel(); }} onLostPointerCapture={event => { if (gesture.current?.pointer === event.pointerId) cancel(); }} onKeyDown={event => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel(); setActive(false); }
       else if ((event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase())) { event.preventDefault(); event.stopPropagation(); travel(event.key === 'y' || event.shiftKey ? 'future' : 'past'); }
     }} />

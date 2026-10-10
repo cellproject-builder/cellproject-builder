@@ -11,20 +11,24 @@ export class CloudInkConnection {
   private generation = 0;
   private started = false;
   private disposed = false;
-  private waitingForAuthentication = false;
+  private waitingForConnection = false;
   private readonly unsubscribe: () => void;
   constructor(private readonly options: Options) {
     this.unsubscribe = options.runtime.subscribe(() => this.statusChanged());
   }
   private active() { return !this.disposed && getCloudRuntime() === this.options.runtime && getVaultSession() === this.options.session; }
+  private blocked() {
+    const status = this.options.runtime.getSnapshot();
+    return status.offline === true || status.issue?.kind === 'session';
+  }
   start() {
     if (this.started || !this.active()) return;
     this.started = true;
-    if (this.options.runtime.getSnapshot().issue?.kind === 'session') { this.waitingForAuthentication = true; return; }
+    if (this.blocked()) { this.waitingForConnection = true; return; }
     this.open();
   }
   private open() {
-    if (!this.active() || !this.started || this.channel) return;
+    if (!this.active() || !this.started || this.channel || this.blocked()) return;
     const generation = ++this.generation, fetcher = this.options.fetcher ?? fetch;
     const authenticatedFetch: typeof fetch = async (input, init) => {
       const response = await fetcher(input, init);
@@ -42,11 +46,11 @@ export class CloudInkConnection {
   }
   private statusChanged() {
     if (!this.active()) { this.dispose(); return; }
-    if (this.options.runtime.getSnapshot().issue?.kind === 'session') {
-      this.waitingForAuthentication = true; this.stop(); return;
+    if (this.blocked()) {
+      this.waitingForConnection = true; this.stop(); return;
     }
-    // Only the runtime's verified same-account recovery clears a session issue.
-    if (this.waitingForAuthentication) { this.waitingForAuthentication = false; this.open(); }
+    // The runtime confirms connectivity and same-account recovery before reopening.
+    if (this.waitingForConnection) { this.waitingForConnection = false; this.open(); }
   }
   dispose() {
     if (this.disposed) return;

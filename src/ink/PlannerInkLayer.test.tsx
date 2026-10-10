@@ -20,8 +20,8 @@ beforeEach(() => {
 });
 afterEach(() => { act(() => root.unmount()); configureLiveInk(null); host.remove(); vi.restoreAllMocks(); });
 const click = (name: string) => act(() => Simulate.click(host.querySelector(`[aria-label="${name}"]`)!));
-function pointer(type: 'pointerDown' | 'pointerMove' | 'pointerUp' | 'pointerCancel', x: number, y: number) {
-  act(() => Simulate[type](host.querySelector('[data-planner-ink]')!, { pointerId: 1, clientX: x, clientY: y, button: 0, pressure: .7, pointerType: 'pen' } as never));
+function pointer(type: 'pointerDown' | 'pointerMove' | 'pointerUp' | 'pointerCancel' | 'lostPointerCapture', x: number, y: number, extra: Record<string, unknown> = {}) {
+  act(() => Simulate[type](host.querySelector('[data-planner-ink]')!, { pointerId: 1, clientX: x, clientY: y, button: 0, pressure: .7, pointerType: 'pen', isPrimary: true, ...extra } as never));
 }
 it('adds reversible free ink in plan world coordinates without moving or changing plan nodes', () => {
   const nodes = useGraphStore.getState().project!.nodes;
@@ -40,6 +40,39 @@ it('cancels partial strokes and restores map interaction when the palette closes
   expect(useGraphStore.getState().project!.visuals?.ink).toBeUndefined();
   click('Voltar ao mapa');
   expect(host.querySelector<HTMLElement>('[data-planner-ink]')!.style.pointerEvents).toBe('none');
+});
+it.each(['pointerCancel', 'lostPointerCapture'] as const)('ignores secondary %s while the active pen finishes one stroke', type => {
+  click('Desenhar no plano');
+  pointer('pointerDown', 20, 20); pointer('pointerMove', 40, 30);
+  pointer('pointerDown', 200, 200, { pointerId: 2, pointerType: 'touch', isPrimary: false });
+  pointer(type, 200, 200, { pointerId: 2, pointerType: 'touch', isPrimary: false });
+  expect(hasActiveDataIngestions()).toBe(true);
+  expect(useGraphStore.getState().project!.visuals?.ink).toBeUndefined();
+  pointer('pointerMove', 60, 40); pointer('pointerUp', 80, 50); pointer('pointerUp', 80, 50);
+  const strokes = useGraphStore.getState().project!.visuals!.ink!.strokes;
+  expect(strokes).toHaveLength(1);
+  expect(strokes[0]).toMatchObject({ x: 20, y: 20, points: [{ x: 0, y: 0, pressure: .7 }, { x: 20, y: 10, pressure: .7 }, { x: 40, y: 20, pressure: .7 }, { x: 60, y: 30, pressure: .7 }] });
+  expect(hasActiveDataIngestions()).toBe(false);
+});
+it.each(['pointerCancel', 'lostPointerCapture'] as const)('discards the active pen on %s and allows another gesture', type => {
+  click('Desenhar no plano'); pointer('pointerDown', 20, 20); pointer('pointerMove', 40, 30);
+  expect(hasActiveDataIngestions()).toBe(true);
+  pointer(type, 40, 30); pointer('pointerUp', 60, 40);
+  expect(hasActiveDataIngestions()).toBe(false);
+  expect(useGraphStore.getState().project!.visuals?.ink).toBeUndefined();
+  pointer('pointerDown', 80, 50); pointer('pointerUp', 100, 60);
+  expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(1);
+  expect(hasActiveDataIngestions()).toBe(false);
+});
+it('ignores nonprimary starts without holding refresh or blocking the next pen stroke', () => {
+  click('Desenhar no plano');
+  pointer('pointerDown', 200, 200, { pointerId: 2, pointerType: 'touch', isPrimary: false });
+  expect(hasActiveDataIngestions()).toBe(false);
+  pointer('pointerMove', 220, 220, { pointerId: 2, pointerType: 'touch', isPrimary: false });
+  pointer('pointerUp', 240, 240, { pointerId: 2, pointerType: 'touch', isPrimary: false });
+  expect(useGraphStore.getState().project!.visuals?.ink).toBeUndefined();
+  pointer('pointerDown', 20, 20); pointer('pointerUp', 40, 30);
+  expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(1);
 });
 it('erases only ink and leaves plan topology unchanged', () => {
   const edges = useGraphStore.getState().project!.edges;
