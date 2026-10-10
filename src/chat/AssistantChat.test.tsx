@@ -117,10 +117,12 @@ it('changes from dock to a mobile dialog without losing the draft, traps Tab and
   expect(mobileInput.value).toBe('Continuar depois');
   expect(document.activeElement).toBe(mobileInput);
   const first = panel.querySelector<HTMLButtonElement>('button')!;
-  act(() => Simulate.keyDown(mobileInput, { key: 'Tab' })); // Send is disabled by cooldown.
+  const last = panel.querySelector<HTMLButtonElement>('[aria-label="Referenciar com @"]')!;
+  last.focus(); // Send is disabled by cooldown; reference is the last available control.
+  act(() => Simulate.keyDown(last, { key: 'Tab' }));
   expect(document.activeElement).toBe(first);
   act(() => Simulate.keyDown(first, { key: 'Tab', shiftKey: true }));
-  expect(document.activeElement).toBe(mobileInput);
+  expect(document.activeElement).toBe(last);
   const outsideEscape = vi.fn();
   window.addEventListener('keydown', outsideEscape);
   act(() => { mobileInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });

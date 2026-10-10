@@ -45,6 +45,7 @@
 .visual-input-wrap { position: relative; }
 .visual-composer textarea { width: 100%; display: block; background: transparent; resize: vertical; border: none; outline: none; padding: 12px 12px 5px; color: rgb(var(--text-primary)); line-height: 1.6; min-height: 61px; max-height: 150px; font-size: 12px; }
 .visual-composer textarea::placeholder { color: rgb(var(--text-faint)); }
+.visual-composer textarea:focus-visible { outline: none; }
 .visual-composer-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 8px 8px; }
 .visual-composer-tools { display: flex; align-items: center; min-width: 0; }
 .visual-key-hint { font-size: 9px; color: rgb(var(--text-faint)); margin-left: 5px; line-height: 1.4; max-width: 145px; }

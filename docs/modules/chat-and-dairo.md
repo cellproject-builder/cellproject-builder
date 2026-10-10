@@ -28,6 +28,8 @@ Histórico do chat pode ser reutilizado em novos turnos. Isso não é equivalent
 
 No desktop o chat pode ocupar um dock; em tela estreita usa diálogo com gestão de foco. O shell suspende o chat na superfície de Dynamic Board e durante maximização relevante. A IA do quadro usa seu [compositor próprio](./dynamic-board.md), não o chat geral.
 
+O compositor reserva toda a largura para o pedido, mostra fontes selecionadas acima do texto e alinha anexar/`@` à esquerda e enviar/parar à direita. No celular, essas ações têm alvos de 44 px. O foco do texto é indicado pela borda arredondada do conjunto, sem um segundo retângulo interno; botões mantêm indicação de foco para navegação por teclado. A orientação sobre anexos e referências continua disponível aos leitores de tela.
+
 ## Pipeline e fronteiras
 
 | Etapa | Responsável |
