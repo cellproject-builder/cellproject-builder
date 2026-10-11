@@ -1,10 +1,28 @@
 import { webcrypto } from 'node:crypto';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { createVault, unlockVault, recoverVault, validateHeader, type CipherEnvelope } from './crypto';
+import { b64, unb64, createVault, unlockVault, recoverVault, validateHeader, type CipherEnvelope } from './crypto';
 
 beforeAll(() => vi.stubGlobal('crypto', webcrypto));
 const owner = '00000000-0000-4000-8000-000000000001';
 const secret = 'test-only phrase never used by a real account';
+
+describe('canonical binary envelopes', () => {
+  it('preserves every byte value across an encoding chunk boundary', () => {
+    const bytes = new Uint8Array(8193);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = i % 256;
+    expect(unb64(b64(bytes), bytes.length)).toEqual(bytes);
+    expect(unb64('/w==', 1)).toEqual(new Uint8Array([255]));
+    expect(unb64('', 0)).toEqual(new Uint8Array());
+  });
+  it('rejects noncanonical padding, invalid alphabet and decoded bytes above the limit', () => {
+    for (const value of ['/x==', 'Zh==', 'Zg=', 'Zg', ' Zg==', 'Zg==\n', '_w==', 'AA=A', 'é===']) {
+      expect(() => unb64(value)).toThrow('Envelope criptografado inválido');
+    }
+    expect(unb64('AAAA', 3)).toEqual(new Uint8Array(3));
+    expect(() => unb64('AAAA', 2)).toThrow('Envelope criptografado inválido');
+    expect(() => unb64('AA==', 0)).toThrow('Envelope criptografado inválido');
+  });
+});
 describe('client-only encrypted vault', () => {
   it('encrypts content with fresh nonces and only unlocks with the separate secret', async () => {
     const created = await createVault(owner, secret);

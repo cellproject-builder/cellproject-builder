@@ -17,8 +17,12 @@ export function b64(bytes: ArrayBuffer | Uint8Array): string {
 }
 export function unb64(value: string, limit = MAX_CIPHER_BYTES): Uint8Array<ArrayBuffer> {
   if (typeof value !== 'string' || value.length > Math.ceil(limit / 3) * 4 || value.length % 4 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value)) throw new Error('Envelope criptografado inválido.');
-  const bytes = Uint8Array.from(atob(value), c => c.charCodeAt(0));
-  if (bytes.length > limit || b64(bytes) !== value) throw new Error('Envelope criptografado inválido.'); return bytes;
+  const binary = atob(value);
+  if (binary.length > limit) throw new Error('Envelope criptografado inválido.');
+  // Avoid an iterable-sized intermediate array when decoding large media/backups.
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  if (b64(bytes) !== value) throw new Error('Envelope criptografado inválido.'); return bytes;
 }
 export function validateCipher(value: unknown, max = MAX_CIPHER_BYTES): CipherEnvelope {
   if (!exact(value, ['v', 'iv', 'data']) || value.v !== 1 || typeof value.iv !== 'string' || typeof value.data !== 'string' || unb64(value.iv, 12).length !== 12 || unb64(value.data, max).length < 16) throw new Error('Envelope criptografado inválido.');
