@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useChatStore } from './store';
 import { useChatPresentation } from './presentation';
 
@@ -7,12 +7,15 @@ const ChatDockContext = createContext<{
   setTarget: (target: HTMLDivElement | null) => void;
   fullTarget: HTMLDivElement | null;
   setFullTarget: (target: HTMLDivElement | null) => void;
+  canvasTarget: HTMLDivElement | null;
+  setCanvasTarget: (target: HTMLDivElement | null) => void;
 } | null>(null);
 
 export function AssistantChatDockProvider({ children }: { children: ReactNode }) {
   const [target, setTarget] = useState<HTMLDivElement | null>(null);
   const [fullTarget, setFullTarget] = useState<HTMLDivElement | null>(null);
-  const value = useMemo(() => ({ target, setTarget, fullTarget, setFullTarget }), [target, fullTarget]);
+  const [canvasTarget, setCanvasTarget] = useState<HTMLDivElement | null>(null);
+  const value = useMemo(() => ({ target, setTarget, fullTarget, setFullTarget, canvasTarget, setCanvasTarget }), [target, fullTarget, canvasTarget]);
   return <ChatDockContext.Provider value={value}>{children}</ChatDockContext.Provider>;
 }
 
@@ -30,3 +33,28 @@ export function FullChatDock() {
   return <div ref={dock?.setFullTarget} className={`dd-chat-full-host ${expanded ? 'is-open' : ''}`} />;
 }
 export function useFullChatDockTarget() { return useContext(ChatDockContext)?.fullTarget ?? null; }
+
+/** Outside the transformed node layer: anchored to the visible canvas, never a graph node. */
+export function CanvasChatDock() {
+  const dock = useContext(ChatDockContext);
+  const host = useRef<HTMLDivElement | null>(null);
+  const setCanvasTarget = dock?.setCanvasTarget;
+  const registerTarget = useCallback((target: HTMLDivElement | null) => { host.current = target; setCanvasTarget?.(target); }, [setCanvasTarget]);
+  const [viewport, setViewport] = useState({ inset: 0, height: 0 });
+  useEffect(() => {
+    const visual = window.visualViewport, parent = host.current?.parentElement;
+    const measure = () => {
+      const inset = Math.max(0, window.innerHeight - (visual?.height ?? window.innerHeight) - (visual?.offsetTop ?? 0));
+      const height = Math.max(180, Math.min(parent?.clientHeight || window.innerHeight, (visual?.height ?? window.innerHeight) - 80));
+      setViewport(current => current.inset === inset && current.height === height ? current : { inset, height });
+    };
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    if (parent) observer?.observe(parent);
+    window.addEventListener('resize', measure); visual?.addEventListener('resize', measure); visual?.addEventListener('scroll', measure);
+    return () => { observer?.disconnect(); window.removeEventListener('resize', measure); visual?.removeEventListener('resize', measure); visual?.removeEventListener('scroll', measure); };
+  }, []);
+  const style = { '--dd-chat-keyboard-inset': `${viewport.inset}px`, '--dd-chat-available-height': `${viewport.height || 600}px` } as CSSProperties;
+  return <div ref={registerTarget} className="dd-chat-canvas-host" data-keyboard-open={viewport.inset > 100 || undefined} style={style} />;
+}
+export function useCanvasChatDockTarget() { return useContext(ChatDockContext)?.canvasTarget ?? null; }

@@ -5,6 +5,7 @@ import { currentLocaleAIName } from '@/i18n';
 import { captureChatTurnContext, type ChatTurnContext } from '@/chat/turnContext';
 import { CHAT_FALLBACK_CONTEXT_TOKENS, ChatContextBudgetError, estimateChatTextTokens, estimateChatTokens } from '@/chat/contextBudget';
 import type { NoteEditBaseline } from '../noteEditBaseline';
+import type { PlannerEditBaseline } from '../plannerEditBaseline';
 
 export const WORKSPACE_AGENT_ID = 'dynamic-diary-workspace';
 export const WORKSPACE_AGENT_MAX_STEPS = 16;
@@ -23,6 +24,7 @@ export interface WorkspaceAgentOptions {
   contextProjectId?: string | null;
   turnContext?: ChatTurnContext;
   noteEditBaseline?: NoteEditBaseline | null;
+  plannerEditBaseline?: PlannerEditBaseline | null;
   contextBudget?: WorkspaceContextBudget;
   signal: AbortSignal;
   model?: LanguageModel;
@@ -124,6 +126,7 @@ export function createWorkspaceAgent(options: WorkspaceAgentOptions) {
       contextProjectId: currentProjectId,
       turnContext: snapshot,
       noteEditBaseline: options.noteEditBaseline,
+      plannerEditBaseline: options.plannerEditBaseline,
     }),
     stopWhen: [stepCountIs(WORKSPACE_AGENT_MAX_STEPS), () => !!rateError],
     prepareStep: async ({ messages }) => {

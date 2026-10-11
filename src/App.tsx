@@ -15,10 +15,11 @@ import { PRODUCT_NAME } from '@/brand';
 import { Toaster, toast } from '@/components/ui/Toast';
 import { Workspace } from '@/workspace/Workspace';
 import { useWorkspaceStore } from '@/workspace/store';
-import { PlannerChatDock } from '@/chat/AssistantChatDock';
 import { useChatStore } from '@/chat/store';
 import { useKBStore } from '@/kb/store';
 import { useChatReferenceHandoff } from '@/references/chatHandoff';
+import { useChatPresentation } from '@/chat/presentation';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 // Route-split: the marketing page is only shown on /landing, so app users
 // never download it and /landing visitors don't pull the whole app.
 const LandingPage = lazy(() =>
@@ -45,13 +46,12 @@ function useStoresHydrated(): boolean {
   return hydrated;
 }
 
-// Atalhos de uma letra só valem fora de campos editáveis, sem modificadores e
-// sem diálogo aberto (modo leitura, sheet mobile, modais).
-function isTypingTarget(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
-  const tag = el.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+// A focused control or conversation owns its keys, including SVG descendants.
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return (target as HTMLElement).isContentEditable || !!target.closest(
+    'input,textarea,select,button,a[href],summary,[contenteditable]:not([contenteditable="false"]),[role="button"],[role="menuitem"],[role="tab"],[role="option"],[role="textbox"],[role="combobox"],[role="slider"],[role="spinbutton"],.dd-chat',
+  );
 }
 
 const LENS_KEYS = {
@@ -64,11 +64,12 @@ const LENS_KEYS = {
 
 // Atalhos globais: t = tutor, g = grafo, 1-5 = lentes (só no grafo).
 export function handleAppShortcut(
-  e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'target'>,
+  e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'target'> & Partial<Pick<KeyboardEvent, 'defaultPrevented' | 'isComposing'>>,
 ): void {
   if (useWorkspaceStore.getState().surface !== 'planner') return;
+  if (e.defaultPrevented || e.isComposing || useChatPresentation.getState().expanded) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
-  if (isTypingTarget(e.target)) return;
+  if (isInteractiveTarget(e.target)) return;
   // Superfície modal aberta (modo leitura, sheet mobile): atalhos de uma
   // letra trocariam a view e desmontariam o overlay no meio da leitura.
   if (document.querySelector('[aria-modal="true"]')) return;
@@ -100,6 +101,7 @@ export default function App() {
   const project = useGraphStore((s) => s.project);
   const viewMode = useGraphStore((s) => s.viewMode);
   const chatOpen = useChatStore((s) => s.open);
+  const isMobile = useIsMobile();
   const surface = useWorkspaceStore((s) => s.surface);
   const referenceHandoff = useChatReferenceHandoff((s) => s.pending);
   const tr = useT();
@@ -163,8 +165,7 @@ export default function App() {
             ) : (
               <>
                 <GraphCanvas maximized={canvasMaximized} onToggleMaximized={() => setMaximized(value => !value)} />
-                <DetailPanel suspended={chatOpen || canvasMaximized} />
-                <PlannerChatDock />
+                <DetailPanel suspended={canvasMaximized || isMobile && chatOpen} />
               </>
             )}
           </div>

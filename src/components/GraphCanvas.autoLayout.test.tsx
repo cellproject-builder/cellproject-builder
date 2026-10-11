@@ -11,6 +11,7 @@ import { GraphCanvas } from './GraphCanvas';
 import { setVisualArtifactLink } from '@/visuals/domain';
 import { useLocaleStore } from '@/i18n';
 import { useVisualPopupStore } from '@/visuals/ui/uiStore';
+import { useChatPresentation } from '@/chat/presentation';
 
 interface FlowProps {
   nodes: Node[];
@@ -173,6 +174,7 @@ beforeEach(() => {
   flow.props = null; flow.measured = {}; flow.initialized = true; flow.setViewport.mockClear();
   bridge.render.mockClear();
   flow.mobile = false;
+  useChatPresentation.setState({ expanded: false });
   vi.stubGlobal('ResizeObserver', class {
     constructor(callback: () => void) { notifyResize = callback; }
     observe() {}
@@ -190,6 +192,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   act(() => root.unmount()); host.remove();
+  useChatPresentation.setState({ expanded: false });
   vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers();
 });
 
@@ -416,6 +419,48 @@ describe('GraphCanvas automatic layout integration', () => {
     expect(flow.setViewport).toHaveBeenLastCalledWith(expect.any(Object), { duration: 300 });
   });
 
+  it.each([
+    ['selection', false], ['center', false], ['selection', true], ['center', true],
+  ] as const)('keeps an explicit %s visible above the open canvas conversation (mobile: %s)', (request, mobile) => {
+    flow.mobile = mobile;
+    resize(mobile ? 480 : 1100, 650);
+    choose('manual');
+    const original = savedPositions();
+    const requestFocus = () => {
+      act(() => {
+        const state = useGraphStore.getState();
+        if (request === 'selection') state.selectNode('first');
+        else state.requestCenter('first');
+      });
+      advance();
+      return flow.setViewport.mock.calls.at(-1)![0] as { x: number; y: number; zoom: number };
+    };
+    const unobscured = requestFocus();
+    const chat = document.createElement('section');
+    chat.className = 'dd-chat is-canvas';
+    canvas().querySelector('.dd-chat-canvas-host')!.append(chat);
+    vi.spyOn(canvas(), 'getBoundingClientRect').mockImplementation(() => ({
+      x: 40, y: 100, left: 40, top: 100, right: width + 40, bottom: height + 100,
+      width, height, toJSON: () => ({}),
+    }));
+    let chatTop = 475;
+    vi.spyOn(chat, 'getBoundingClientRect').mockImplementation(() => ({
+      x: 70, y: chatTop, left: 70, top: chatTop, right: width + 10, bottom: 725,
+      width: width - 60, height: 725 - chatTop, toJSON: () => ({}),
+    }));
+    for (chatTop of [475, 425]) {
+      const viewport = requestFocus();
+      const selected = flow.props!.nodes.find(node => node.id === 'first')!;
+      const size = flow.measured.first ?? DEFAULT_NODE_DIMENSIONS;
+      const top = selected.position.y * viewport.zoom + viewport.y;
+      expect(top).toBeGreaterThanOrEqual(0);
+      expect(top + size.height * viewport.zoom).toBeLessThan(chatTop - 100);
+    }
+    chat.remove();
+    expect(requestFocus()).toEqual(unobscured);
+    expect(savedPositions()).toEqual(original);
+  });
+
   it.each(analyticalLenses)('keeps %s readable when an image is far from the plan', lens => {
     addCrossLink();
     act(() => useGraphStore.setState(state => ({ project: { ...state.project!, visuals: {
@@ -512,6 +557,28 @@ describe('GraphCanvas automatic layout integration', () => {
     } finally { overlay.remove(); }
     act(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })));
     expect(canvas().dataset.canvasMaximized).toBe('false');
+  });
+
+  it.each([false, true])('leaves the hidden planner alone when Escape comes from outside expanded chat (maximized: %s)', maximized => {
+    maximizableCanvas();
+    if (maximized) act(() => host.querySelector<HTMLButtonElement>('button[aria-label="Maximize canvas"]')!.click());
+    act(() => {
+      useGraphStore.getState().selectNode('first');
+      useChatPresentation.setState({ expanded: true });
+    });
+    const sidebarButton = document.createElement('button');
+    document.body.append(sidebarButton);
+    const escape = () => act(() => sidebarButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })));
+    try {
+      sidebarButton.focus();
+      escape();
+      expect(useGraphStore.getState().selectedNodeId).toBe('first');
+      expect(canvas().dataset.canvasMaximized).toBe(String(maximized));
+      act(() => useChatPresentation.setState({ expanded: false }));
+      escape();
+      if (maximized) expect(canvas().dataset.canvasMaximized).toBe('false');
+      else expect(useGraphStore.getState().selectedNodeId).toBeNull();
+    } finally { sidebarButton.remove(); }
   });
 
   it('closes a visual popup first even when Escape comes from outside the popup', () => {

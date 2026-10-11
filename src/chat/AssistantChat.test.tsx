@@ -5,9 +5,9 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useConfigStore } from '@/config/store';
 import { useLocaleStore } from '@/i18n';
 import { runAssistant } from '@/ai/assistant';
-import { useGraphStore } from '@/store';
+import { CRITERION_UNLOCK_MS, useGraphStore } from '@/store';
 import { AssistantChat } from './AssistantChat';
-import { AssistantChatDockProvider, PlannerChatDock, FullChatDock } from './AssistantChatDock';
+import { AssistantChatDockProvider, PlannerChatDock, FullChatDock, CanvasChatDock } from './AssistantChatDock';
 import { useChatPresentation } from './presentation';
 import { flushChatPersistence, useChatStore } from './store';
 import { flushWorkspacePersistence, useWorkspaceStore } from '@/workspace/store';
@@ -19,6 +19,8 @@ import { buildDemoProject } from '@/data/demoProject';
 import { capturePlanner, initializeWorkspace, openPlanner } from '@/workspace/planner';
 import { applyPlanStructure, planRevision } from '@/ai/planStructure';
 import { useChatFocusStore } from './turnContext';
+import * as projectSearchContext from '@/visuals/projectSearchContext';
+import { componentFitSchema } from '@/visuals/componentFit';
 
 vi.mock('@/ai/assistant', () => ({ runAssistant: vi.fn() }));
 vi.mock('@/visuals/controller', () => ({ addChatImageReference: vi.fn() }));
@@ -39,6 +41,10 @@ it('shows audit and undo when a structural batch applied but saving failed', asy
   expect(host.querySelector('.dd-chat-plan-changes')?.textContent).toMatch(/gravação|salv/);
   const retry = [...host.querySelectorAll<HTMLButtonElement>('.dd-chat-plan-changes button')].find(button => button.textContent === 'Tentar salvar novamente')!;
   await act(async () => { Simulate.click(retry); await flushWorkspacePersistence(); });
+  expect(host.querySelector('.dd-chat-plan-changes')?.textContent).not.toContain('a gravação falhou');
+  act(() => Simulate.click(host.querySelector<HTMLButtonElement>('[aria-label="Expandir chat"]')!));
+  expect(host.querySelector('.dd-chat-plan-changes')?.textContent).not.toContain('a gravação falhou');
+  act(() => Simulate.click(host.querySelector<HTMLButtonElement>('[aria-label="Recolher chat"]')!));
   expect(host.querySelector('.dd-chat-plan-changes')?.textContent).not.toContain('a gravação falhou');
   const undo = [...host.querySelectorAll<HTMLButtonElement>('.dd-chat-plan-changes button')].find(button => button.textContent === 'Desfazer estrutura')!;
   expect(undo.disabled).toBe(false);
@@ -78,6 +84,102 @@ function PlannerHarness({ planner = true }: { planner?: boolean }) {
     <AssistantChat />
   </AssistantChatDockProvider>;
 }
+
+function CanvasHarness({ suspended = false }: { suspended?: boolean }) {
+  return <AssistantChatDockProvider><FullChatDock />
+    <div data-testid="canvas"><button>Canvas control</button><CanvasChatDock />
+      <input aria-label="Manual plan edit" defaultValue="My draft" />
+    </div><AssistantChat suspended={suspended} />
+  </AssistantChatDockProvider>;
+}
+
+it('anchors the entry and one nonmodal conversation inside the canvas, even when maximized', () => {
+  useChatStore.setState({ open: false });
+  act(() => root.render(<CanvasHarness suspended />));
+  const canvas = host.querySelector('[data-testid=canvas]')!;
+  const entry = canvas.querySelector<HTMLButtonElement>('.dd-chat-trigger')!;
+  expect(entry).not.toBeNull();
+  expect(entry.textContent).toContain('Conversar com o plano');
+  act(() => Simulate.click(entry));
+  expect(canvas.querySelector('.dd-chat.is-canvas')).not.toBeNull();
+  expect(host.querySelectorAll('.dd-chat-composer')).toHaveLength(1);
+  expect(canvas.querySelector('.dd-chat')?.getAttribute('aria-modal')).not.toBe('true');
+  expect(host.querySelector('.dd-chat-scrim')).toBeNull();
+});
+
+it('preserves a canvas draft, manual editor and history across collapse and full conversation', () => {
+  useChatStore.setState({ messages: [{ id: 'context', role: 'assistant', text: 'Plan conversation', createdAt: 1 }] });
+  act(() => root.render(<CanvasHarness />));
+  const editor = host.querySelector<HTMLInputElement>('[aria-label="Manual plan edit"]')!;
+  editor.value = 'Human edit in progress';
+  const composer = host.querySelector<HTMLTextAreaElement>('.dd-chat-composer textarea')!;
+  act(() => Simulate.change(composer, { target: { value: 'Refine this plan without sending yet' } } as never));
+  act(() => Simulate.click(host.querySelector<HTMLButtonElement>('[aria-label="Fechar chat"]')!));
+  expect(host.querySelector('.dd-chat-trigger')?.textContent).toContain('Continuar rascunho');
+  act(() => Simulate.click(host.querySelector<HTMLButtonElement>('.dd-chat-trigger')!));
+  act(() => Simulate.click(host.querySelector<HTMLButtonElement>('[aria-label="Expandir chat"]')!));
+  expect(host.querySelector('.dd-chat-full-host .dd-chat-composer textarea')?.textContent).toBe('Refine this plan without sending yet');
+  act(() => Simulate.click(host.querySelector<HTMLButtonElement>('[aria-label="Recolher chat"]')!));
+  expect(host.querySelector('.dd-chat-canvas-host .dd-chat-composer textarea')?.textContent).toBe('Refine this plan without sending yet');
+  expect(host.querySelector('.dd-chat-message')?.textContent).toContain('Plan conversation');
+  expect(host.querySelector('[aria-label="Manual plan edit"]')).toBe(editor);
+  expect(editor.value).toBe('Human edit in progress');
+});
+
+it('opens the centered entry by shortcut and returns keyboard focus after Escape', () => {
+  useChatStore.setState({ open: false });
+  act(() => root.render(<CanvasHarness />));
+  act(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true })));
+  const composer = host.querySelector<HTMLTextAreaElement>('.dd-chat-composer textarea')!;
+  expect(document.activeElement).toBe(composer);
+  act(() => Simulate.keyDown(composer, { key: 'Escape' }));
+  expect(host.querySelector('.dd-chat')).toBeNull();
+  expect(document.activeElement).toBe(host.querySelector('.dd-chat-trigger'));
+});
+
+it('keeps the tablet or mobile canvas conversation nonmodal and collapsible', () => {
+  viewport.mobile = true;
+  act(() => root.render(<CanvasHarness />));
+  const canvasControl = host.querySelector<HTMLButtonElement>('[data-testid=canvas]>button')!;
+  act(() => canvasControl.focus());
+  expect(document.activeElement).toBe(canvasControl);
+  expect(host.querySelector('.dd-chat.is-canvas')).not.toBeNull();
+  expect(host.querySelector('.dd-chat-scrim')).toBeNull();
+  expect(host.querySelector('.dd-chat')?.getAttribute('role')).toBe('complementary');
+});
+
+it('tracks the visible mobile viewport to keep the canvas entry above the keyboard', () => {
+  const viewport = Object.assign(new EventTarget(), { height: window.innerHeight - 250, offsetTop: 0 });
+  const original = Object.getOwnPropertyDescriptor(window, 'visualViewport');
+  Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport });
+  try {
+    act(() => root.render(<CanvasHarness />));
+    const dock = host.querySelector<HTMLElement>('.dd-chat-canvas-host')!;
+    expect(dock.style.getPropertyValue('--dd-chat-keyboard-inset')).toBe('250px');
+    viewport.height += 100;
+    act(() => viewport.dispatchEvent(new Event('resize')));
+    expect(dock.style.getPropertyValue('--dd-chat-keyboard-inset')).toBe('150px');
+  } finally {
+    act(() => root.unmount()); root = createRoot(host);
+    if (original) Object.defineProperty(window, 'visualViewport', original);
+    else Reflect.deleteProperty(window, 'visualViewport');
+  }
+});
+
+it('keeps an unsaved receipt resolved after undo and moving the conversation to expanded mode', async () => {
+  initializeWorkspace();
+  const projectId = useWorkspaceStore.getState().createProject('Undo without retry'); openPlanner(projectId);
+  useGraphStore.getState().loadDemoProject();
+  const before = useGraphStore.getState().project!;
+  const result = applyPlanStructure({ projectId, revision: planRevision(before), reason: 'Ensaio', operations: [{ kind: 'add', key: 'bench', parentId: before.rootId, name: 'Bancada', nodeKind: 'passo', oQue: 'Comparar', porQue: 'Investigar' }] });
+  useChatStore.setState({ messages: [{ id: 'unsaved', role: 'assistant', text: '', createdAt: 1, actions: [{ id: 'a', name: 'planner_structure', action: 'planner_structure', status: 'error', result: { applied: true, saved: false, result } }] }] });
+  act(() => root.render(<CanvasHarness />));
+  await act(async () => { Simulate.click([...host.querySelectorAll<HTMLButtonElement>('.dd-chat-plan-changes button')].find(button => button.textContent === 'Desfazer estrutura')!); await flushWorkspacePersistence(); await flushChatPersistence(); });
+  act(() => Simulate.click(host.querySelector<HTMLButtonElement>('[aria-label="Expandir chat"]')!));
+  expect(host.querySelector('.dd-chat-plan-changes')?.textContent).toContain('Desfeito');
+  expect(host.querySelector('.dd-chat-plan-changes')?.textContent).not.toContain('a gravação falhou');
+  expect(useGraphStore.getState().project).toBe(before);
+});
 
 it.each([
   ['pt-BR', 'Pesquise, crie um diagrama ou revise esta nota…'],
@@ -499,6 +601,58 @@ it('renders every image search in chat and selecting one inserts the real canvas
   expect(host.querySelector('.dd-chat-reference-chip')?.textContent).toContain(carouselImage.title);
   expect(useVisualPopupStore.getState().searchOpen).toBe(false);
   expect(runAssistant).not.toHaveBeenCalled();
+});
+
+it('reuses historic image parsing and context checks while typing and streaming another response', () => {
+  const projectId = imageProject();
+  const searchInput = { text: 'Arduino Uno', mentions: [], attachments: [] };
+  const contextRevision = projectSearchContext.chatImageSearchRevision(projectId, searchInput);
+  const message = imageSearchMessage(projectId);
+  const result = { ...message.actions[0].result, input: searchInput, contextRevision, fits: [{ imageId: carouselImage.id, status: 'unknown', productName: 'Arduino Uno', checks: [], unknowns: [] }] };
+  const revisionChecks = vi.spyOn(projectSearchContext, 'chatImageSearchRevision');
+  const fitParsing = vi.spyOn(componentFitSchema, 'safeParse');
+  useChatStore.setState({ messages: [{ ...message, actions: [{ ...message.actions[0], result }] }, { id: 'streaming', role: 'assistant', text: 'A', createdAt: Date.now() }], running: true });
+  act(() => root.render(<AssistantChat />));
+  const revisionsBefore = revisionChecks.mock.calls.length, parsesBefore = fitParsing.mock.calls.length;
+  expect(revisionsBefore).toBeGreaterThan(0); expect(parsesBefore).toBeGreaterThan(0);
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  act(() => Simulate.change(input, { target: { value: 'Minha próxima pergunta' } } as never));
+  act(() => { useChatStore.setState(state => ({ messages: state.messages.map(entry => entry.id === 'streaming' ? { ...entry, text: 'A resposta está chegando' } : entry) })); });
+  expect(revisionChecks).toHaveBeenCalledTimes(revisionsBefore);
+  expect(fitParsing).toHaveBeenCalledTimes(parsesBefore);
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('Minha próxima pergunta');
+  expect(host.querySelector('.dd-chat-image-results')).not.toBeNull();
+});
+
+it('invalidates a historic image search when content changes inside the same plan', () => {
+  const projectId = imageProject(), plan = useGraphStore.getState().project!;
+  const searchInput = { text: 'Arduino Uno', mentions: [], attachments: [] };
+  const contextRevision = projectSearchContext.chatImageSearchRevision(projectId, searchInput);
+  const message = imageSearchMessage(projectId);
+  useChatStore.setState({ messages: [{ ...message, actions: [{ ...message.actions[0], result: { ...message.actions[0].result, planId: plan.id, input: searchInput, contextRevision } }] }] });
+  act(() => root.render(<AssistantChat />));
+  expect(host.querySelector<HTMLButtonElement>('[aria-label="Escolher Arduino Uno R3"]')?.disabled).toBe(false);
+  act(() => { useGraphStore.getState().updateNode(plan.rootId, { notes: 'Nova alimentação: 12 V' }, { commit: true }); });
+  expect(useGraphStore.getState().project?.id).toBe(plan.id);
+  expect(host.querySelector<HTMLButtonElement>('[aria-label="Escolher Arduino Uno R3"]')?.disabled).toBe(true);
+  expect(host.textContent).toContain('Os requisitos ou as referências mudaram');
+  expect(addChatImageReference).not.toHaveBeenCalled();
+});
+
+it('invalidates a historic image search when a referenced criterion becomes visible after its grace period', () => {
+  vi.useFakeTimers();
+  const projectId = imageProject(), plan = useGraphStore.getState().project!;
+  const node = { ...plan.nodes[plan.rootId], comoConfirmar: 'Verificar tensão de 5 V', comoConfirmarUsuarioAt: Date.now(), confirmado: false, takenAsKnown: false };
+  useGraphStore.setState({ project: { ...plan, nodes: { ...plan.nodes, [node.id]: node } } });
+  const searchInput = { text: 'Arduino Uno', mentions: [{ id: node.id, kind: 'node' as const, label: node.name, detail: '', fingerprint: '' }], attachments: [] };
+  const contextRevision = projectSearchContext.chatImageSearchRevision(projectId, searchInput);
+  const message = imageSearchMessage(projectId);
+  useChatStore.setState({ messages: [{ ...message, actions: [{ ...message.actions[0], result: { ...message.actions[0].result, planId: plan.id, input: searchInput, contextRevision } }] }] });
+  act(() => root.render(<AssistantChat />));
+  expect(host.querySelector<HTMLButtonElement>('[aria-label="Escolher Arduino Uno R3"]')?.disabled).toBe(false);
+  act(() => { vi.advanceTimersByTime(CRITERION_UNLOCK_MS + 1); });
+  expect(host.querySelector<HTMLButtonElement>('[aria-label="Escolher Arduino Uno R3"]')?.disabled).toBe(true);
+  expect(host.textContent).toContain('Os requisitos ou as referências mudaram');
 });
 
 it('shows historic image searches after a project switch without adding images to the new plan', () => {

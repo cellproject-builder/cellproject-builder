@@ -20,6 +20,7 @@ import { normalizeChatSession, normalizeInactiveSessions, tombstoneConversation 
 import { ChatContextBudgetError, prepareChatContext, type ChatCompactionCheckpoint, type ChatContextUsage } from './contextBudget';
 import { captureChatTurnContext, type ChatTurnContext } from './turnContext';
 import { captureNoteEditBaseline } from '@/ai/noteEditBaseline';
+import { capturePlannerEditBaseline } from '@/ai/plannerEditBaseline';
 
 export interface ChatMessage { id: string; role: 'user' | 'assistant'; text: string; createdAt: number; actions?: AssistantActionEvent[]; interrupted?: boolean; references?: ChatReferenceSnapshot[]; referenceProjectId?: string | null; files?: PlanFile[]; intake?: PlanIntake; turnContext?: ChatTurnContext }
 export interface ChatContextObservation { modelKey: string; inputTokens: number; historyMessageCount: number }
@@ -167,6 +168,7 @@ export async function sendChatMessage(value: string, options?: { references?: Ch
   const projectId = options?.projectId !== undefined ? options.projectId : captured.projectId;
   const turnContext = options?.projectId !== undefined && projectId !== captured.projectId ? Object.freeze({ ...captured, projectId }) : captured;
   const noteEditBaseline = captureNoteEditBaseline(turnContext);
+  const plannerEditBaseline = capturePlannerEditBaseline(turnContext, projectId);
   let references: ChatReferenceSnapshot[];
   let files: PlanFile[];
   try { references = resolveChatReferences(options?.references ?? [], projectId); files = zFiles(options?.files ?? []); }
@@ -266,7 +268,7 @@ export async function sendChatMessage(value: string, options?: { references?: Ch
     assertModel();
     history = carryAdditionalAudits(prepared.history);
     useChatStore.setState({ pendingHistory: history, compacting: false, compaction: prepared.checkpoint, contextUsage: prepared.usage, ...(prepared.usage.compacted ? { contextObservation: null } : {}) });
-    const result = await runAssistant({ messages: history, userText: text, signal: active.signal, contextProjectId: projectId, turnContext, noteEditBaseline,
+    const result = await runAssistant({ messages: history, userText: text, signal: active.signal, contextProjectId: projectId, turnContext, noteEditBaseline, plannerEditBaseline,
       contextBudget: { contextWindowTokens: prepared.usage.contextWindowTokens, fixedTokens },
       onText: queueText,
       onAction: (event) => {
@@ -324,7 +326,7 @@ function zFiles(files: PlanFile[]) { if (files.length > 12) throw new Error('att
 export function markChatStructureUndone(undoId: string) {
   useChatStore.setState(state => ({ messages: state.messages.map(message => ({ ...message, actions: message.actions?.map(action => {
     const original = action.result;
-    const wrapped = original && typeof original === 'object' && 'applied' in original && original.applied === true && 'saved' in original && original.saved === false && 'result' in original;
+    const wrapped = original && typeof original === 'object' && 'applied' in original && original.applied === true && 'saved' in original && typeof original.saved === 'boolean' && 'result' in original;
     const result = wrapped ? original.result : original;
     if (action.name !== 'planner_structure' || !result || typeof result !== 'object' || !('undoId' in result) || result.undoId !== undoId) return action;
     return { ...action, result: wrapped ? { ...original, result: { ...result, undone: true } } : { ...result, undone: true } };

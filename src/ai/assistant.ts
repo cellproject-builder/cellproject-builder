@@ -6,6 +6,7 @@ import { currentModelIds } from './client';
 import { useConfigStore } from '@/config/store';
 import { ChatContextBudgetError } from '@/chat/contextBudget';
 import type { NoteEditBaseline } from './noteEditBaseline';
+import type { PlannerEditBaseline } from './plannerEditBaseline';
 
 export interface AssistantRun {
   messages: ModelMessage[];
@@ -13,6 +14,7 @@ export interface AssistantRun {
   contextProjectId?: string | null;
   turnContext?: ChatTurnContext;
   noteEditBaseline?: NoteEditBaseline | null;
+  plannerEditBaseline?: PlannerEditBaseline | null;
   contextBudget?: WorkspaceContextBudget;
   signal: AbortSignal;
   model?: LanguageModel;

@@ -41,6 +41,7 @@ import {
 import './DetailPanel.css';
 import { NodeFileSources } from '@/attachments/NodeFileSources';
 import { normalizePlanningIntent } from '@/planningIntent';
+import { registerPendingPlannerEdit, type PlannerEditTarget } from '@/chat/plannerEdits';
 
 // Até 15 nomes que o usuário já sabe/fez — a IA não repete esses passos.
 const knownElsewhereFor = (project: Project, nodeId: string): string[] =>
@@ -120,7 +121,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
   const [confirmingNoSignal, setConfirmingNoSignal] = useState(false);
   const [readingOpen, setReadingOpen] = useState(false);
   // These unsubmitted fields belong to the current project, even when it reuses node IDs.
-  useEffect(() => { setNoteDraft(''); setRuleDraft(''); }, [project?.id]);
+  useEffect(() => { setNoteDraft(''); setRuleDraft(''); noteOwnership.markDirty(false); ruleOwnership.markDirty(false); }, [project?.id]);
   // selectionVersion bumps on every selectNode — so tapping the SAME node
   // again on mobile re-opens a sheet the user had swiped away.
   // Célula que já tem explicação detalhada abre mostrando ela — sem clique
@@ -138,6 +139,8 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
   }, [project?.id, selectedId, selectionVersion]);
 
   const node = project && selectedId ? project.nodes[selectedId] ?? null : null;
+  const noteOwnership = usePlannerDraftOwnership(project && node ? { planId: project.id, nodeId: node.id, field: 'history' } : null);
+  const ruleOwnership = usePlannerDraftOwnership(project && node ? { planId: project.id, nodeId: node.id, field: 'rules' } : null);
 
   // O grafo precisa saber se o sheet cobre a metade de baixo (enquadramento).
   const setMobileSheetOpen = useGraphStore((s) => s.setMobileSheetOpen);
@@ -375,6 +378,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
     if (!noteDraft.trim()) return;
     addManualHistory(node.id, noteDraft.trim());
     setNoteDraft('');
+    noteOwnership.markDirty(false);
   };
 
   // Só as sugestões DESTE nó seguram o decompor — as de outro nó estacionam.
@@ -514,6 +518,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
         </span>
       </div>
       <NameInput
+        editTarget={{ planId: project.id, nodeId: node.id, field: 'name' }}
         audioScope={`project:${project.id}:node:${node.id}:name`}
         key={JSON.stringify([project.id, node.id, 'name'])}
         value={node.name}
@@ -635,6 +640,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
           </p>
         )}
         <EduField
+          editTarget={{ planId: project.id, nodeId: node.id, field: 'oQue' }}
           audioScope={`project:${project.id}:node:${node.id}:what`}
           key={JSON.stringify([project.id, node.id, 'oQue'])}
           label={tr.detail.whatIs}
@@ -643,6 +649,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
           onCommit={(v) => updateNode(node.id, { oQue: v }, { commit: true })}
         />
         <EduField
+          editTarget={{ planId: project.id, nodeId: node.id, field: 'porQue' }}
           audioScope={`project:${project.id}:node:${node.id}:why`}
           key={JSON.stringify([project.id, node.id, 'porQue'])}
           label={tr.detail.whyNeeded}
@@ -682,11 +689,12 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
           <div className="flex gap-1.5">
             <AudioTextInput key={JSON.stringify([project.id, node.id, 'rule'])} audioScope={`project:${project.id}:node:${node.id}:rule`} audioWrapperClassName="flex-1 min-w-0" name="rule"
               value={ruleDraft}
-              onChange={(e) => setRuleDraft(e.target.value)}
+              onChange={(e) => { setRuleDraft(e.target.value); ruleOwnership.markDirty(!!e.target.value.trim()); }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && ruleDraft.trim()) {
                   addRule(ruleDraft);
                   setRuleDraft('');
+                  ruleOwnership.markDirty(false);
                 }
               }}
               placeholder={tr.detail.rulesAddPlaceholder}
@@ -697,6 +705,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
                 if (ruleDraft.trim()) {
                   addRule(ruleDraft);
                   setRuleDraft('');
+                  ruleOwnership.markDirty(false);
                 }
               }}
               disabled={!ruleDraft.trim()}
@@ -824,6 +833,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
             <div className="label mb-1.5">{tr.detail.notes}</div>
             <NodeFileSources ids={node.sourceAttachmentIds} />
             <NotesField
+              editTarget={{ planId: project.id, nodeId: node.id, field: 'notes' }}
               audioScope={`project:${project.id}:node:${node.id}:notes`}
               key={JSON.stringify([project.id, node.id, 'notes'])}
               value={node.notes}
@@ -851,7 +861,7 @@ export function DetailPanel({ suspended = false }: { suspended?: boolean }) {
             <div className="flex gap-1.5 mt-2.5">
               <AudioTextInput key={JSON.stringify([project.id, node.id, 'decision-note'])} audioScope={`project:${project.id}:node:${node.id}:decision-note`} audioWrapperClassName="flex-1 min-w-0" name="decision-note"
                 value={noteDraft}
-                onChange={(e) => setNoteDraft(e.target.value)}
+                onChange={(e) => { setNoteDraft(e.target.value); noteOwnership.markDirty(!!e.target.value.trim()); }}
                 onKeyDown={(e) => e.key === 'Enter' && recordNote()}
                 placeholder={tr.detail.recordDecision}
                 className="field flex-1 min-w-0"
@@ -1156,12 +1166,29 @@ function NodeMenu({
 // então renomear ou editar gera UMA entrada de histórico, não uma por tecla.
 // ---------------------------------------------------------------------------
 
+function usePlannerDraftOwnership(target: PlannerEditTarget | null) {
+  const release = useRef<(() => void) | null>(null);
+  const dirty = useRef(false);
+  const markDirty = (pending: boolean) => {
+    dirty.current = pending;
+    if (pending && target && !release.current) release.current = registerPendingPlannerEdit(target);
+    else if (!pending) { release.current?.(); release.current = null; }
+  };
+  useEffect(() => {
+    if (dirty.current && target && !release.current) release.current = registerPendingPlannerEdit(target);
+    return () => { release.current?.(); release.current = null; };
+  }, [target?.planId, target?.nodeId, target?.field]);
+  return { dirty, markDirty };
+}
+
 function NameInput({
+  editTarget,
   audioScope,
   value,
   onCommit,
   ariaLabel,
 }: {
+  editTarget: PlannerEditTarget;
   value: string;
   onCommit: (v: string) => void;
   ariaLabel: string;
@@ -1170,13 +1197,15 @@ function NameInput({
   const [draft, setDraft] = useState(value);
   const focusedRef = useRef(false);
   const revertRef = useRef(false);
+  const { dirty, markDirty } = usePlannerDraftOwnership(editTarget);
   // Mudança externa (desfazer, IA) enquanto não está editando: acompanha.
   useEffect(() => {
-    if (!focusedRef.current) setDraft(value);
+    if (!focusedRef.current || !dirty.current) setDraft(value);
   }, [value]);
 
   const commit = () => {
     focusedRef.current = false;
+    markDirty(false);
     if (revertRef.current) {
       revertRef.current = false;
       setDraft(value);
@@ -1196,7 +1225,7 @@ function NameInput({
       value={draft}
       aria-label={ariaLabel}
       onFocus={() => (focusedRef.current = true)}
-      onChange={(e) => setDraft(e.target.value)}
+      onChange={(e) => { setDraft(e.target.value); markDirty(e.target.value.trim() !== value); }}
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
@@ -1225,11 +1254,13 @@ function useAutosize(ref: RefObject<HTMLTextAreaElement>, value: string, active:
 }
 
 function NotesField({
+  editTarget,
   audioScope,
   value,
   placeholder,
   onCommit,
 }: {
+  editTarget: PlannerEditTarget;
   value: string;
   placeholder: string;
   audioScope: string;
@@ -1238,18 +1269,20 @@ function NotesField({
   const [draft, setDraft] = useState(value);
   const focusedRef = useRef(false);
   const ref = useRef<HTMLTextAreaElement>(null);
+  const { dirty, markDirty } = usePlannerDraftOwnership(editTarget);
   useAutosize(ref, draft, true);
   useEffect(() => {
-    if (!focusedRef.current) setDraft(value);
+    if (!focusedRef.current || !dirty.current) setDraft(value);
   }, [value]);
   return (
     <AudioTextarea audioScope={audioScope} name="node-text"
       ref={ref}
       value={draft}
       onFocus={() => (focusedRef.current = true)}
-      onChange={(e) => setDraft(e.target.value)}
+      onChange={(e) => { setDraft(e.target.value); markDirty(e.target.value !== value); }}
       onBlur={() => {
         focusedRef.current = false;
+        markDirty(false);
         if (draft !== value) onCommit(draft);
       }}
       rows={2}
@@ -1260,6 +1293,7 @@ function NotesField({
 }
 
 interface EduFieldProps {
+  editTarget: PlannerEditTarget;
   audioScope: string;
   label: string;
   value: string;
@@ -1269,15 +1303,16 @@ interface EduFieldProps {
 
 // Texto lido por padrão; ✎ abre a edição (textarea que cresce com o texto,
 // salva no blur, Esc desfaz).
-function EduField({ label, value, onCommit, tr, audioScope }: EduFieldProps) {
+function EduField({ label, value, onCommit, tr, audioScope, editTarget }: EduFieldProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const ref = useRef<HTMLTextAreaElement>(null);
   const revertRef = useRef(false);
+  const { dirty, markDirty } = usePlannerDraftOwnership(editTarget);
   useAutosize(ref, draft, editing);
 
   useEffect(() => {
-    if (!editing) setDraft(value);
+    if (!editing || !dirty.current) setDraft(value);
   }, [value, editing]);
 
   useEffect(() => {
@@ -1290,6 +1325,7 @@ function EduField({ label, value, onCommit, tr, audioScope }: EduFieldProps) {
 
   const finish = () => {
     setEditing(false);
+    markDirty(false);
     if (revertRef.current) {
       revertRef.current = false;
       setDraft(value);
@@ -1306,7 +1342,7 @@ function EduField({ label, value, onCommit, tr, audioScope }: EduFieldProps) {
         ref={ref}
         value={draft}
         aria-label={label}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => { setDraft(e.target.value); markDirty(e.target.value.trim() !== value.trim()); }}
         onBlur={finish}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {

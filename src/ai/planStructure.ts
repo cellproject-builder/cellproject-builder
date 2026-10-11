@@ -9,6 +9,7 @@ import { requestWorkspaceUI } from '@/workspace/uiRequests';
 import { projectFiles } from '@/attachments/projectFiles';
 import { sourceFingerprint } from '@/attachments/files';
 import type { PlannerSnapshot } from '@/workspace/types';
+import { assertPlannerEditsCommitted } from './plannerEditBaseline';
 
 const id = z.string().min(1).max(100), text = z.string().max(8000);
 const provenance = { sourceIds: z.array(id).max(12).optional() };
@@ -29,6 +30,7 @@ export function canUndoPlanStructure(projectId: string, undoId: string) {
 }
 export function applyPlanStructure(raw: unknown) {
   const input = planStructureSchema.parse(raw);
+  assertPlannerEditsCommitted(input.projectId);
   if (plannerBusy()) throw new Error('plannerBusy');
   const before = readPlanner(input.projectId).project;
   if (!before || planRevision(before) !== input.revision) throw new Error('planChanged');
@@ -97,6 +99,7 @@ export function applyPlanStructure(raw: unknown) {
   return { changed: true, projectId: input.projectId, planId: after.id, undoId, reason: input.reason, changes, added };
 }
 export function undoPlanStructure(projectId: string, undoId: string) {
+  assertPlannerEditsCommitted(projectId);
   if (plannerBusy()) throw new Error('plannerBusy');
   if (!canUndoPlanStructure(projectId, undoId)) throw new Error('planChanged');
   const entry = undoEntries.get(undoId)!;

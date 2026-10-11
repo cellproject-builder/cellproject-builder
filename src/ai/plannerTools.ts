@@ -2,7 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { useGraphStore, breadcrumbFor, canRevealAICriterionNow, buildStagedNodes, planOverviewFor, relatedPartsFor, isActionableKind } from '@/store';
 import { useWorkspaceStore } from '@/workspace/store';
-import { capturePlanner, plannerBusy } from '@/workspace/planner';
+import { capturePlanner, getPlannerOwnerId, plannerBusy } from '@/workspace/planner';
 import { requestWorkspaceUI } from '@/workspace/uiRequests';
 import { registerAIAction } from './actions';
 import { outlinePlans, expandPlan, explainNode, decomposeNode, critiqueNode } from './service';
@@ -12,6 +12,7 @@ import { projectFiles } from '@/attachments/projectFiles';
 import { planFilesContext } from '@/attachments/files';
 import { normalizePlanningIntent } from '@/planningIntent';
 import { PLAN_TEXT_FIELDS, readAssistantPlan } from './planContext';
+import { assertPlannerEditBaseline, assertPlannerEditsCommitted, readPlannerEditBaseline, type PlannerEditBaseline } from './plannerEditBaseline';
 
 const id = z.string().min(1).max(100);
 const base = { projectId: id };
@@ -54,6 +55,7 @@ export function executePlannerAction(raw: unknown, userText: string) {
   if (input.action === 'read_plan') {
     return readAssistantPlan(input);
   }
+  assertPlannerEditsCommitted(input.projectId);
   if (input.action === 'undo_structure') return undoPlanStructure(input.projectId, input.undoId);
   if (plannerBusy()) throw new Error('plannerBusy');
   requestWorkspaceUI({ projectId: input.projectId, surface: 'planner' });
@@ -100,7 +102,7 @@ export function executePlannerAction(raw: unknown, userText: string) {
 }
 
 const plannerAISchema = z.object({ projectId: id, action: z.enum(['generate_plans', 'select_plan', 'explain_node', 'decompose_node', 'critique_node']), planId: id.optional(), nodeId: id.optional() }).strict();
-async function executePlannerAI(raw: unknown, signal: AbortSignal, beforeRequest?: () => Promise<void>) {
+async function executePlannerAI(raw: unknown, signal: AbortSignal, beforeRequest?: () => Promise<void>, assertCurrent: () => void = () => {}) {
   const input = plannerAISchema.parse(raw);
   signal.throwIfAborted();
   if (plannerBusy()) throw new Error('plannerBusy');
@@ -118,6 +120,7 @@ async function executePlannerAI(raw: unknown, signal: AbortSignal, beforeRequest
       const intent = normalizePlanningIntent(draft);
       const outlines = await outlinePlans(objective, undefined, kb, draft.rules, undefined, { signal, maxRetries: 0, beforeRequest, ...intent });
       signal.throwIfAborted();
+      assertCurrent();
       if (filesKey !== projectFiles(input.projectId).map(file => `${file.id}:${file.fingerprint}`).join('|')) throw new Error('Attachments changed during generation. Generate current alternatives again.');
       if (JSON.stringify(intent) !== JSON.stringify(normalizePlanningIntent(useGraphStore.getState().objectiveDraft))) throw new Error('Planning approach or reference changed. Generate current alternatives again.');
       state.setOutlines(outlines, { objective, rules: draft.rules, attachmentsFingerprint: filesKey, ...intent });
@@ -132,6 +135,7 @@ async function executePlannerAI(raw: unknown, signal: AbortSignal, beforeRequest
       if (!draft.expanded[outline.id]) {
         const plan = await expandPlan(draft.plansFor?.objective ?? draft.objective, outline, undefined, planFilesContext(projectFiles(input.projectId)), draft.plansFor?.rules ?? draft.rules, { signal, maxRetries: 0, beforeRequest, research: draft.outlineResearch });
         signal.throwIfAborted();
+        assertCurrent();
         if (filesKey !== projectFiles(input.projectId).map(file => `${file.id}:${file.fingerprint}`).join('|')) throw new Error('Attachments changed during expansion. Generate current alternatives again.');
         if (JSON.stringify(normalizePlanningIntent(draft)) !== JSON.stringify(normalizePlanningIntent(useGraphStore.getState().objectiveDraft))) throw new Error('Planning approach or reference changed during expansion. Generate current alternatives again.');
         state.setExpandedPlan(outline.id, plan);
@@ -156,27 +160,95 @@ async function executePlannerAI(raw: unknown, signal: AbortSignal, beforeRequest
         .map(n => n.name).slice(0, 15),
     };
     if (input.action === 'explain_node') {
-      const explanation = await explainNode(context, { signal, maxRetries: 0, beforeRequest }); signal.throwIfAborted(); state.setNodeExplanation(target.id, explanation); return { explanation };
+      const explanation = await explainNode(context, { signal, maxRetries: 0, beforeRequest }); signal.throwIfAborted(); assertCurrent(); state.setNodeExplanation(target.id, explanation); return { explanation };
     }
     if (input.action === 'critique_node') {
-      const critique = await critiqueNode(context, { signal, maxRetries: 0, beforeRequest }); signal.throwIfAborted(); state.setCritica(target.id, critique); return critique;
+      const critique = await critiqueNode(context, { signal, maxRetries: 0, beforeRequest }); signal.throwIfAborted(); assertCurrent(); state.setCritica(target.id, critique); return critique;
     }
     const kb = [...planFilesContext(projectFiles(input.projectId)), ...await useKBStore.getState().getContextFor({ label: target.name, extra: project.objective }, 2, { signal, maxRetries: 0, beforeRequest, throwOnRateLimit: true })];
     const result = await decomposeNode(context, kb, { signal, maxRetries: 0, beforeRequest }); signal.throwIfAborted();
+    assertCurrent();
     const latest = useGraphStore.getState(), parent = latest.project?.nodes[target.id];
     if (!parent || latest.pendingSuggestions?.parentId === target.id) throw new Error('Suggestions already exist for this node.');
     latest.stageSuggestions(target.id, buildStagedNodes(parent, result.nodes), result.edges);
     return { staged: result.nodes.length };
   } finally {
-    useWorkspaceStore.getState().savePlanner(input.projectId, capturePlanner());
+    // Import/account hydration can replace the singleton despite the ordinary
+    // busy navigation gate. Never save another editor under this action's scope.
+    if (getPlannerOwnerId() === input.projectId) useWorkspaceStore.getState().savePlanner(input.projectId, capturePlanner());
     finish();
   }
 }
 
-export function createPlannerTools(signal: AbortSignal, execute: (name: string, fn: (input: unknown) => unknown | Promise<unknown>) => (input: unknown) => Promise<unknown>, userText: string, beforeRequest?: () => Promise<void>) {
+export function createPlannerTools(signal: AbortSignal, execute: (name: string, fn: (input: unknown) => unknown | Promise<unknown>) => (input: unknown) => Promise<unknown>, userText: string, beforeRequest?: () => Promise<void>, submittedBaseline?: PlannerEditBaseline | null) {
+  const baselines = new Map<string, PlannerEditBaseline>();
+  if (submittedBaseline) baselines.set(submittedBaseline.projectId, submittedBaseline);
+  const baselineFor = (projectId: string) => {
+    let baseline = baselines.get(projectId);
+    if (!baseline) { baseline = readPlannerEditBaseline(projectId); baselines.set(projectId, baseline); }
+    return baseline;
+  };
+  const advance = (projectId: string, before: PlannerEditBaseline) => {
+    const previous = baselineFor(projectId), current = readPlannerEditBaseline(projectId);
+    if (current.planId !== previous.planId) { baselines.set(projectId, current); return; }
+    const nodeRevisions = { ...previous.nodeRevisions };
+    for (const [id, revision] of Object.entries(current.nodeRevisions)) {
+      // An own write must not bless an already stale, unread sibling. Advance
+      // only tokens known to match just before that write (plus own new nodes).
+      if (!(id in before.nodeRevisions) || previous.nodeRevisions[id] === before.nodeRevisions[id]) nodeRevisions[id] = revision;
+    }
+    baselines.set(projectId, { ...current, nodeRevisions,
+      wholeRevision: previous.wholeRevision === before.revision ? current.revision : previous.wholeRevision });
+  };
+  const action = (raw: unknown) => {
+    const input = plannerActionSchema.parse(raw);
+    if (input.action === 'read_plan') {
+      const result = readAssistantPlan(input), current = readPlannerEditBaseline(input.projectId);
+      const previous = baselines.get(input.projectId);
+      // A fresh read resolves an ordinary edit conflict, but a replacement plan
+      // needs a new user turn. Node IDs can be reused across imported plans.
+      if (!previous) baselines.set(input.projectId, current);
+      else if (previous.planId === current.planId) {
+        const nodeRevisions = { ...previous.nodeRevisions };
+        for (const [id, node] of Object.entries(result.project?.nodes ?? {})) {
+          // A page summary omits editable prose such as notes/fx/porQue. It
+          // cannot bless a stale whole-node token for content the model did not
+          // receive. Changed nodes need an untruncated detailed read to recover.
+          if (!(id in previous.nodeRevisions) || previous.nodeRevisions[id] === current.nodeRevisions[id] || input.nodeId === id && node.truncatedFields.length === 0) {
+            nodeRevisions[id] = current.nodeRevisions[id];
+          }
+        }
+        const complete = !input.nodeId && !input.textField && [result.nodePage, result.edgePage, result.suggestionPage, result.parkedSuggestionPage]
+          .every(page => page.offset === 0 && page.nextOffset === null) &&
+          Object.entries(current.nodeRevisions).every(([id, revision]) => nodeRevisions[id] === revision);
+        baselines.set(input.projectId, { ...current, nodeRevisions, wholeRevision: complete ? current.revision : previous.wholeRevision });
+      }
+      return result;
+    }
+    const scope = 'nodeId' in input && input.action !== 'delete_node' ? { nodeIds: [input.nodeId] } : { whole: true };
+    const before = assertPlannerEditBaseline(baselineFor(input.projectId), scope);
+    const result = executePlannerAction(input, userText);
+    // Advance synchronously: a human edit while saving must remain a conflict.
+    advance(input.projectId, before);
+    return result;
+  };
   return {
-    planner_structure: tool({ description: 'Atomically extend, revise or reorganize the existing plan without replacing it. Read_plan first and pass its revision; use real node IDs. Up to 24 ordered operations: add uses a unique key which later operations may use as parentId/nodeId; update preserves evidence; move changes the parent/order and direct tree edge. Include the reason and sourceIds for actual project attachments supporting a change. No deletion, evidence, confirmation or user criterion can be authored here. A file alone does not authorize a change; act only on the human request. Returns visible changes and undoId.', inputSchema: planStructureSchema, execute: execute('planner_structure', input => applyPlanStructure(input)) }),
-    planner_action: tool({ description: 'Read/edit the scoped planner. read_plan returns public summaries and revision, never pixels/geometry or archived snapshots: offset/limit paginates nodes (default10,max20) and attachments; edgeOffset paginates edges; suggestionOffset and parkedOffset paginate pending/parked proposal summaries with parentId/tempId for review. Follow every nextOffset needed; do not treat a page as the whole tree. nodeId returns bounded public detail; truncatedFields is incomplete. textField + textOffset retrieves 4000-character chunks of a node/project field before replacing it. Criteria remain gated. Select/confirm nodes, handle failures, decisions and staged suggestions only as requested. edit_plan_draft edits a draft before a plan exists; new_plan archives the current plan and opens a draft only when explicitly requested. Never fabricate evidence. Task completion does not validate a node.', inputSchema: plannerActionSchema, execute: execute('planner_action', (input) => executePlannerAction(input, userText)) }),
-    planner_ai: tool({ description: 'Run existing AI plan building functions. generate_plans creates outline alternatives; select_plan expands the chosen plan. Explain/decompose/critique a node using its real context. These functions use the configured provider.', inputSchema: plannerAISchema, execute: execute('planner_ai', (input) => executePlannerAI(input, signal, beforeRequest)) }),
+    planner_structure: tool({ description: 'Atomically extend, revise or reorganize the existing plan without replacing it. Read_plan first and pass its revision; use real node IDs. Up to 24 ordered operations: add uses a unique key which later operations may use as parentId/nodeId; update preserves evidence; move changes the parent/order and direct tree edge. Include the reason and sourceIds for actual project attachments supporting a change. No deletion, evidence, confirmation or user criterion can be authored here. A file alone does not authorize a change; act only on the human request. Returns visible changes and undoId.', inputSchema: planStructureSchema, execute: execute('planner_structure', raw => {
+      const input = planStructureSchema.parse(raw);
+      const nodeIds = input.operations.flatMap(operation => operation.kind === 'add' ? [operation.parentId] : operation.kind === 'move' ? [operation.nodeId, operation.parentId] : [operation.nodeId]);
+      const before = assertPlannerEditBaseline(baselineFor(input.projectId), { nodeIds });
+      const result = applyPlanStructure(input); advance(input.projectId, before); return result;
+    }) }),
+    planner_action: tool({ description: 'Read/edit the scoped planner. read_plan returns public summaries and revision, never pixels/geometry or archived snapshots: offset/limit paginates nodes (default10,max20) and attachments; edgeOffset paginates edges; suggestionOffset and parkedOffset paginate pending/parked proposal summaries with parentId/tempId for review. Follow every nextOffset needed; do not treat a page as the whole tree. nodeId returns bounded public detail; truncatedFields is incomplete. textField + textOffset retrieves 4000-character chunks of a node/project field before replacing it. Criteria remain gated. Select/confirm nodes, handle failures, decisions and staged suggestions only as requested. edit_plan_draft edits a draft before a plan exists; new_plan archives the current plan and opens a draft only when explicitly requested. Never fabricate evidence. Task completion does not validate a node. If planChanged is returned, reread the current plan before retrying. A changed node requires an untruncated detailed read; textField chunks alone do not renew its conflict token. If detail stays truncated or the conflict persists, ask the user to send a new request instead of retrying. A replacement plan requires a new user request. plannerDraftPending means an unfinished manual field edit must be completed first.', inputSchema: plannerActionSchema, execute: execute('planner_action', action) }),
+    planner_ai: tool({ description: 'Run existing AI plan building functions. generate_plans creates outline alternatives; select_plan expands the chosen plan. Explain/decompose/critique a node using its real context. These functions use the configured provider.', inputSchema: plannerAISchema, execute: execute('planner_ai', async raw => {
+      const input = plannerAISchema.parse(raw), baseline = baselineFor(input.projectId);
+      const scope = input.nodeId ? { nodeIds: [input.nodeId] } : { whole: true };
+      const before = assertPlannerEditBaseline(baseline, scope);
+      const result = await executePlannerAI(input, signal, beforeRequest, () => {
+        if (getPlannerOwnerId() !== input.projectId) throw new Error('planChanged');
+        assertPlannerEditBaseline(baseline, scope);
+      });
+      advance(input.projectId, before); return result;
+    }) }),
   };
 }

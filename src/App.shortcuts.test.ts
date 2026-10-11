@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { handleAppShortcut } from './App';
 import { useGraphStore } from './store';
 import { useWorkspaceStore } from './workspace/store';
+import { useChatPresentation } from './chat/presentation';
 import { fallbackClassifyAIError } from './hooks/useAIAction';
 import type { AIPlan } from './types';
 
@@ -25,9 +26,11 @@ describe('global shortcuts', () => {
     useGraphStore.getState().resetProject();
     useGraphStore.getState().createProjectFromPlan('obj', 'Atalhos', plan);
     useWorkspaceStore.getState().navigate('planner');
+    useChatPresentation.getState().setExpanded(false);
   });
   afterEach(() => {
     document.body.innerHTML = '';
+    useChatPresentation.getState().setExpanded(false);
   });
 
   it('g / t switch views from a neutral target', () => {
@@ -66,6 +69,47 @@ describe('global shortcuts', () => {
     key('g');
     key('3');
     expect(useGraphStore.getState().lens).toBe('risk');
+  });
+
+  it('leaves keys already handled by another interaction alone', () => {
+    key('g', document.body, { defaultPrevented: true });
+    expect(useGraphStore.getState().viewMode).toBe('tutor');
+  });
+
+  it('does not act on composition keys', () => {
+    key('g', document.body, { isComposing: true });
+    expect(useGraphStore.getState().viewMode).toBe('tutor');
+  });
+
+  it('keeps button, link and custom-control keys out of planner shortcuts', () => {
+    key('g');
+    for (const markup of ['<button><svg><path /></svg></button>', '<a href="#">Link</a>', '<summary>Details</summary>', '<div role="button"><span>Control</span></div>']) {
+      document.body.innerHTML = markup;
+      const target = document.body.querySelector('path, span, a, summary')!;
+      key('t', target);
+      key('3', target);
+      expect(useGraphStore.getState().viewMode).toBe('graph');
+      expect(useGraphStore.getState().lens).toBe('structure');
+    }
+  });
+
+  it('does not change the planner from focused conversation content', () => {
+    key('g');
+    document.body.innerHTML = '<section class="dd-chat"><article tabindex="0">Response</article></section>';
+    const response = document.querySelector('article')!;
+    key('t', response);
+    key('3', response);
+    expect(useGraphStore.getState().viewMode).toBe('graph');
+    expect(useGraphStore.getState().lens).toBe('structure');
+  });
+
+  it('does not change the hidden planner while expanded conversation is active', () => {
+    key('g');
+    useChatPresentation.getState().setExpanded(true);
+    key('t');
+    key('3');
+    expect(useGraphStore.getState().viewMode).toBe('graph');
+    expect(useGraphStore.getState().lens).toBe('structure');
   });
 
   it('does nothing while a modal dialog is open', () => {

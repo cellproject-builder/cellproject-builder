@@ -4,6 +4,7 @@ Relatórios registram um recorte datado: comandos, observações e limites. Eles
 
 | Relatório | Recorte |
 | --- | --- |
+| [Conversa e edição do plano — 11/10/2026](planner-conversation-2026-10-11.md) | Entrada central com referência ao modo avançado da Megavale, conflitos de revisão, rascunhos manuais, undo e bateria integrada |
 | [Controles, notas e anexos — 11/10/2026](canvas-controls-attachments-2026-10-11.md) | Reconstrução da barra compartilhada, editor silencioso, cartões padrão, cabeçalho único e biblioteca de originais com leitor PDF |
 | [Layout completo de execução — 11/10/2026](execution-layout-2026-10-11.md) | Moldura, cabeçalho fixo, colunas/faixas, sprint em foco, opções móveis e revisão independente |
 | [Kanban, lista e Scrum — 11/10/2026](execution-workspace-design-2026-10-11.md) | Apresentação compartilhada com referência ao Workspace Mega Vale, regressões funcionais e conferência responsiva |

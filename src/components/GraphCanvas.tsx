@@ -43,6 +43,8 @@ import { VisualArtifactNode } from '@/visuals/rendering/VisualArtifactNode';
 import { VisualLinkEdge } from '@/visuals/rendering/VisualLinkEdge';
 import { VisualWorkspaceBridge } from '@/visuals/VisualWorkspaceBridge';
 import { PlannerInkLayer } from '@/ink/PlannerInkLayer';
+import { CanvasChatDock } from '@/chat/AssistantChatDock';
+import { useChatPresentation } from '@/chat/presentation';
 import { useVisualPopupStore } from '@/visuals/ui/uiStore';
 import './planner-mobile.css';
 
@@ -496,8 +498,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
     [layout],
   );
 
-  // Área livre do canvas: o cromo flutuante (botões no topo, zoom à
-  // esquerda) e, no mobile, o sheet que cobre a metade de baixo.
+  // Área livre do canvas: cromo flutuante, conversa e sheet de detalhe.
   const safeArea = useCallback(() => {
     const el = containerRef.current;
     const W = el?.clientWidth ?? window.innerWidth;
@@ -519,6 +520,13 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       if (rect && sheetTop !== undefined && sheetTop < rect.bottom) {
         bottom = Math.max(bottom, rect.bottom - sheetTop + 8);
       }
+    }
+    const canvasRect = el?.getBoundingClientRect();
+    const chatRect = el?.querySelector('.dd-chat.is-canvas')?.getBoundingClientRect();
+    if (canvasRect && chatRect && chatRect.width > 0 && chatRect.height > 0
+      && chatRect.left < canvasRect.right && chatRect.right > canvasRect.left
+      && chatRect.top < canvasRect.bottom && chatRect.bottom > canvasRect.top) {
+      bottom = Math.max(bottom, canvasRect.bottom - chatRect.top + 12);
     }
     return {
       W,
@@ -857,6 +865,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (useChatPresentation.getState().expanded) return;
       if (isTypingTarget(e.target)) return;
       if (document.querySelector('[aria-modal="true"]')) return;
       const popup = [...document.querySelectorAll<HTMLElement>('[data-visual-popup]')]
@@ -1437,6 +1446,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       </ReactFlow>
       {project && <VisualWorkspaceBridge project={project} containerRef={containerRef} selectedArtifactId={selectedVisualId?.slice(7) ?? null} onSelectArtifact={selectVisualArtifact} />}
       {project && <PlannerInkLayer key={project.id} project={project} containerRef={containerRef} />}
+      <CanvasChatDock />
     </div>
   );
 }

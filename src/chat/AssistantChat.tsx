@@ -1,4 +1,4 @@
-import { memo, useEffect, useId, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocaleStore } from '@/i18n';
 import { getActiveConfig, useConfigStore } from '@/config/store';
@@ -11,35 +11,20 @@ import { ChatBubbleIcon, EnterFullScreenIcon, ExitFullScreenIcon, HistoryIcon } 
 import { ExplanationContent } from '@/components/Markdown';
 import { actionLabel, chatEn, chatPt } from './messages';
 import { chatCooldownUntil, retryChatPersistence, sendChatMessage, stopChat, useChatStore } from './store';
-import { useChatDockTarget, useFullChatDockTarget } from './AssistantChatDock';
+import { useChatDockTarget, useFullChatDockTarget, useCanvasChatDockTarget } from './AssistantChatDock';
 import { useChatPresentation } from './presentation';
 import { ChatHistory } from './ChatHistory';
 import { captureChatTurnContext, useChatFocusStore } from './turnContext';
 import './chat.css';
-import { useVisualPopupStore } from '@/visuals/ui/uiStore';
 import { ChatComposer } from './ChatComposer';
 import { CHAT_REFERENCE_LIMIT, chatReferenceError, listChatReferences, resolveChatReferenceTarget, resolveChatReferences, type ChatReferenceTarget } from './references';
 import { consumeChatReferenceHandoff, useChatReferenceHandoff } from '@/references/chatHandoff';
 import { addChatImageReference } from '@/visuals/controller';
 import type { ImageReference, VisualPromptInput } from '@/visuals/types';
-import { ChatImageCarousel } from './ChatImageCarousel';
 import type { PlanFile } from '@/attachments/files';
 import { intakeLabel } from '@/ai/planIntake';
 import { ChatPlanChanges } from './ChatPlanChanges';
-import { componentFitSchema } from '@/visuals/componentFit';
-import { chatImageSearchRevision } from '@/visuals/projectSearchContext';
-import type { ChatImageGroup } from './ChatImageCarousel';
-
-function imageSearchResult(value: unknown) {
-  if (!value || typeof value !== 'object') return null;
-  const result = value as { projectId?: unknown; planId?: unknown; imageReferences?: unknown; input?: VisualPromptInput; contextRevision?: unknown; groups?: unknown; fits?: unknown; searchUncertainty?: unknown; contextPartial?: unknown };
-  if (typeof result.projectId !== 'string' || !Array.isArray(result.imageReferences)) return null;
-  if (!result.imageReferences.every(item => item && typeof item === 'object' && typeof item.id === 'string' && typeof item.title === 'string' && typeof item.imageUrl === 'string' && typeof item.sourcePageUrl === 'string')) return null;
-  const images = result.imageReferences as ImageReference[];
-  const groups = Array.isArray(result.groups) ? result.groups.slice(0, 8).filter((group): group is ChatImageGroup => group && typeof group.id === 'string' && typeof group.label === 'string' && group.label.length <= 200 && Array.isArray(group.imageIds) && group.imageIds.length <= 12 && group.imageIds.every((id: unknown) => typeof id === 'string' && images.some(image => image.id === id))) : [];
-  const fits = Array.isArray(result.fits) ? result.fits.slice(0, 12).flatMap(value => { const parsed = componentFitSchema.safeParse(value); return parsed.success && images.some(image => image.id === parsed.data.imageId) ? [parsed.data] : []; }) : [];
-  return { projectId: result.projectId, planId: typeof result.planId === 'string' ? result.planId : undefined, images, input: result.input, groups, fits, contextRevision: typeof result.contextRevision === 'string' ? result.contextRevision : undefined, searchUncertainty: typeof result.searchUncertainty === 'string' ? result.searchUncertainty.slice(0, 300) : '', contextPartial: result.contextPartial === true };
-}
+import { ChatVisualActions } from './ChatVisualActions';
 
 function ChatIcon() { return <ChatBubbleIcon size={20} />; }
 const ChatMarkdown = memo(ExplanationContent);
@@ -50,17 +35,20 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   const setExpanded = useChatPresentation(s => s.setExpanded);
   const fullTarget = useFullChatDockTarget();
   const dockTarget = useChatDockTarget();
+  const canvasTarget = useCanvasChatDockTarget();
   const mobile = useIsMobile();
-  const docked = !!dockTarget && !mobile && !expanded;
+  const canvas = !!canvasTarget && !expanded;
+  const docked = !!dockTarget && !canvas && !mobile && !expanded;
+  const modal = mobile && !canvas && !expanded;
   const ready = useConfigStore(() => Boolean(getActiveConfig()?.config.apiKey.trim()));
   const model = useConfigStore(() => getActiveConfig()?.config.mainModel ?? null);
-  const projectId = useWorkspaceStore((s) => s.activeProjectId), projects = useWorkspaceStore((s) => s.projects);
+  useWorkspaceStore((s) => s.activeProjectId); useWorkspaceStore((s) => s.projects);
   useWorkspaceStore(s => s.notes); useWorkspaceStore(s => s.tasks); // Re-evaluate documentary context when project records change.
   useWorkspaceStore(s => s.surface); useWorkspaceStore(s => s.activeBoardId); useWorkspaceStore(s => s.boards);
   useChatFocusStore();
   useGraphStore(s => s.selectedNodeId); useGraphStore(s => s.viewMode); useGraphStore(s => s.lens);
   const turnContext = captureChatTurnContext();
-  const planId = useGraphStore(state => state.project?.id);
+  useGraphStore(state => state.project?.id);
   const [input, setInput] = useState('');
   const [references, setReferences] = useState<ChatReferenceTarget[]>([]);
   const [files, setFiles] = useState<PlanFile[]>([]), [filesBusy, setFilesBusy] = useState(false);
@@ -117,19 +105,29 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   }, [cooldownUntil]);
   const titleId = useId(), inputRef = useRef<HTMLTextAreaElement>(null), bottomRef = useRef<HTMLDivElement>(null), triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
+  // Keyboard entry matches the reference without opening over a pen merely passing by.
+  useEffect(() => {
+    if (!canvasTarget || expanded) return;
+    const shortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || event.altKey || !(event.ctrlKey || event.metaKey) || !event.shiftKey || event.code !== 'Space' && event.key !== ' ') return;
+      if (document.querySelector('[aria-modal="true"]')) return;
+      event.preventDefault(); useChatStore.getState().setOpen(!useChatStore.getState().open);
+    };
+    window.addEventListener('keydown', shortcut);
+    return () => window.removeEventListener('keydown', shortcut);
+  }, [canvasTarget, expanded]);
   const wasOpen = useRef(false);
   useEffect(() => {
-    if (suspended && !expanded) return;
+    if (suspended && !expanded && !canvas) return;
     const otherModal = [...document.querySelectorAll('[aria-modal="true"]')].some((el) => el !== panelRef.current);
     if (!otherModal) {
       if (state.open) (inputRef.current?.disabled ? panelRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])') : inputRef.current)?.focus();
       else if (wasOpen.current) triggerRef.current?.focus();
     }
     wasOpen.current = state.open;
-  }, [state.open, dockTarget, fullTarget, expanded, mobile, titleId, suspended]);
-  useEffect(() => { if (state.open && (!suspended || expanded)) bottomRef.current?.scrollIntoView({ block: 'nearest' }); }, [state.messages, state.open, dockTarget, fullTarget, expanded, mobile, suspended]);
-  if (suspended && !expanded) return null;
-  const close = () => { setExpanded(false); state.setOpen(false); };
+  }, [state.open, dockTarget, fullTarget, canvasTarget, canvas, expanded, mobile, titleId, suspended]);
+  useEffect(() => { if (state.open && (!suspended || expanded || canvas)) bottomRef.current?.scrollIntoView({ block: 'nearest' }); }, [state.messages, state.open, dockTarget, fullTarget, canvas, expanded, mobile, suspended]);
+  const close = useCallback(() => { setExpanded(false); state.setOpen(false); }, [setExpanded, state.setOpen]);
   const send = () => {
     if ((!input.trim() && !files.length) || historyOpen && (mobile || !expanded) || filesBusy || state.running || state.archivedAt || imageChoiceRunning.current || !ready || !state.hydrated || cooldownUntil > Date.now()) return;
     try { resolveChatReferences(references, contextProjectId); }
@@ -137,7 +135,7 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
     const value = input; void sendChatMessage(value, { references, files, turnContext: captureChatTurnContext() });
     setInput(''); setReferences([]); setFiles([]); setReferenceError('');
   };
-  const chooseImage = async (image: ImageReference, sourceProjectId: string, options: { useAs3D: boolean }, linkedNodeId?: string, expectedPlanId?: string, searchContext?: { expectedContextRevision: string; searchInput: VisualPromptInput }) => {
+  const chooseImage = useCallback(async (image: ImageReference, sourceProjectId: string, options: { useAs3D: boolean }, linkedNodeId?: string, expectedPlanId?: string, searchContext?: { expectedContextRevision: string; searchInput: VisualPromptInput }) => {
     if (imageChoiceRunning.current) throw new Error('chatImageBusy');
     const sessionId = useChatStore.getState().sessionId;
     function validateDraft() {
@@ -163,7 +161,8 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
       setReferenceError('');
       if (options.useAs3D) useChatStore.getState().setOpen(false); else inputRef.current?.focus();
     } finally { imageChoiceRunning.current = false; if (mounted.current) setChoosingImage(false); }
-  };
+  }, []);
+  if (suspended && !expanded && !canvas) return null;
   const screenLabels = english ? { projects: 'Projects', overview: 'Overview', kanban: 'Tasks', scrum: 'Sprints', notes: 'Notes', planner: 'Plan builder', boards: 'Dynamic Board' } : { projects: 'Projetos', overview: 'Visão geral', kanban: 'Tarefas', scrum: 'Sprints', notes: 'Notas', planner: 'Construtor de planos', boards: 'Dynamic Board' };
   const focusLabel = turnContext.nodeName || turnContext.noteTitle || turnContext.boardTitle;
   const contextLabel = [screenLabels[turnContext.surface], turnContext.projectName, focusLabel].filter(Boolean).join(' · ');
@@ -174,10 +173,10 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   const examples = noteContext ? (english ? ['Research references for this note', 'Create a diagram to explain this note', 'Revise the text of this note'] : ['Pesquise referências para esta nota', 'Crie um diagrama para explicar esta nota', 'Revise o texto desta nota']) : [tr.exampleProject, tr.exampleNote, tr.exampleReview];
   const actionsDisabled = state.running || !state.hydrated || state.loadFailed || !!state.archivedAt || !!state.deletedAt;
   const budgetHint = state.contextUsage && [english ? 'Estimated context usage. Automatic compaction at 60%; full messages remain in history.' : 'Uso estimado do contexto. Compactação automática aos 60%; as mensagens completas continuam no histórico.', state.contextUsage.contextWindowSource === 'fallback' ? (english ? `Conservative application budget: ${state.contextUsage.contextWindowTokens.toLocaleString('en')} tokens; actual model window is unknown.` : `Orçamento conservador da aplicação: ${state.contextUsage.contextWindowTokens.toLocaleString('pt-BR')} tokens; a janela real do modelo é desconhecida.`) : ''].filter(Boolean).join(' ');
-  const panel = state.open && <section ref={panelRef} id={`${titleId}-panel`} className={`dd-chat ${docked ? 'is-docked' : ''} ${mobile && !expanded ? 'is-modal' : ''} ${expanded ? 'is-expanded' : ''}`} role={docked || expanded ? 'complementary' : 'dialog'} aria-modal={mobile && !expanded || undefined} aria-labelledby={titleId} onKeyDown={(e) => {
+  const panel = state.open && <section ref={panelRef} id={`${titleId}-panel`} className={`dd-chat ${canvas ? 'is-canvas' : ''} ${!state.messages.length && !historyOpen ? 'is-empty' : ''} ${historyOpen ? 'has-history' : ''} ${docked ? 'is-docked' : ''} ${modal ? 'is-modal' : ''} ${expanded ? 'is-expanded' : ''}`} role={docked || canvas || expanded ? 'complementary' : 'dialog'} aria-modal={modal || undefined} aria-labelledby={titleId} onKeyDown={(e) => {
     if (e.defaultPrevented || e.nativeEvent.isComposing) return;
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
-    if (mobile && !expanded && e.key === 'Tab') {
+    if (modal && e.key === 'Tab') {
       const items = [...e.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])')].filter(item => !item.closest('[hidden]'));
       const first = items[0], last = items[items.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
@@ -201,28 +200,7 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
           {message.intake && <small className="dd-chat-intake" title={message.intake.status === 'classified' ? (english ? `Model confidence: ${Math.round(message.intake.classification.confidence * 100)}%. Advisory only.` : `Confiança do modelo: ${Math.round(message.intake.classification.confidence * 100)}%. Classificação orientativa.`) : (english ? 'The assistant continues without a TypeSafe classification.' : 'O assistente continua sem classificação do TypeSafe.')}>{intakeLabel(message.intake, english)}</small>}
           {message.actions?.filter(action => action.name === 'planner_structure' && (action.status === 'done' || action.status === 'error')).map(action => <ChatPlanChanges key={action.id} result={action.result} english={english} disabled={actionsDisabled} />)}
           {message.interrupted && <small className="dd-chat-interrupted">{tr.interrupted}</small>}
-          {message.actions?.filter(action => action.name === 'visual_action' && action.action === 'search_images' && action.status === 'done').map(action => {
-            const result = imageSearchResult(action.result);
-            if (!result) return null;
-            const exists = Boolean(projects[result.projectId]);
-            let contextChanged = false;
-            if (result.contextRevision && result.input && exists && projectId === result.projectId && (!result.planId || planId === result.planId)) {
-              try { contextChanged = chatImageSearchRevision(result.projectId, result.input) !== result.contextRevision; } catch { contextChanged = true; }
-            }
-            const linkedNodeId = Array.isArray(result.input?.mentions) ? result.input.mentions.find(mention => mention?.kind === 'node' && typeof mention.id === 'string')?.id : undefined;
-            return <ChatImageCarousel key={action.id} results={result.images} projectId={result.projectId} english={english} disabled={actionsDisabled || choosingImage}
-              groups={result.groups} fits={result.fits} searchUncertainty={result.searchUncertainty} contextPartial={result.contextPartial}
-              unavailable={!exists ? 'projectRemoved' : projectId !== result.projectId ? 'projectChanged' : result.planId && result.planId !== planId ? 'planChanged' : contextChanged ? 'contextChanged' : undefined}
-              onChoose={(image, options) => chooseImage(image, result.projectId, options, linkedNodeId, result.planId, result.contextRevision && result.input ? { expectedContextRevision: result.contextRevision, searchInput: result.input } : undefined)}
-              onOpenProject={exists ? () => requestWorkspaceUI({ surface: 'planner', projectId: result.projectId }) : undefined} />;
-          })}
-          {message.actions?.filter(action => action.name === 'visual_action' && (action.action === 'generate_model' || action.action === 'search_images' && !imageSearchResult(action.result)) && ['done', 'awaiting_approval'].includes(action.status)).slice(-1).map(action => {
-            const result = action.result as { projectId?: string } | undefined;
-            return result?.projectId && projects[result.projectId] ? <button key={action.id} className="ws-button" onClick={() => {
-              requestWorkspaceUI({ surface: 'planner', projectId: result.projectId });
-              useVisualPopupStore.getState().open(action.action === 'search_images' ? 'search' : 'model'); close();
-            }}>{english ? 'Open on canvas' : 'Abrir no canvas'}</button> : null;
-          })}
+          <ChatVisualActions actions={message.actions} english={english} disabled={actionsDisabled || choosingImage} onChoose={chooseImage} onClose={close} />
         </article>)}<div ref={bottomRef} />
       </div>
       {!ready && <button className="dd-chat-configure ws-button primary" onClick={() => requestWorkspaceUI({ settings: true })}>{tr.settings}<Icon name="arrow" size={16} /></button>}
@@ -231,9 +209,10 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
       <ChatComposer text={input} onText={setInput} references={references} onReferences={next => { setReferences(next); setReferenceError(''); }} files={files} onFiles={setFiles} onFilesBusy={setFilesBusy} scopeKey={`${state.sessionId}:${contextProjectId}`} projectId={contextProjectId} inputRef={inputRef} english={english} placeholder={composerPlaceholder} sendLabel={tr.send} stopLabel={tr.stop} disabled={!state.hydrated || !!state.archivedAt} canSend={(!!input.trim() || !!files.length) && !filesBusy && ready && state.hydrated && !state.archivedAt && !choosingImage && cooldownSeconds <= 0} running={state.running} onSubmit={send} onStop={stopChat} />
       </div></div>
     </section>;
+  const trigger = <button ref={triggerRef} className={`dd-chat-trigger ${canvas ? 'is-canvas-entry' : ''} ${state.running ? 'is-working' : ''} ${state.open && (canvas || docked || mobile || expanded) ? 'is-hidden' : ''}`} onClick={() => state.setOpen(!state.open)} aria-expanded={state.open} aria-controls={state.open ? `${titleId}-panel` : undefined} aria-label={tr.open} title={canvas ? 'Ctrl/⌘ + Shift + Space' : tr.open}><ChatIcon />{canvas && <span>{input.trim() || references.length || files.length ? (english ? 'Continue draft' : 'Continuar rascunho') : (english ? 'Talk about the plan' : 'Conversar com o plano')}</span>}{state.running && <i />}</button>;
   return <>
-    <button ref={triggerRef} className={`dd-chat-trigger ${state.running ? 'is-working' : ''} ${state.open && (docked || mobile || expanded) ? 'is-hidden' : ''}`} onClick={() => state.setOpen(!state.open)} aria-expanded={state.open} aria-controls={state.open ? `${titleId}-panel` : undefined} aria-label={tr.open} title={tr.open}><ChatIcon />{state.running && <i />}</button>
-    {state.open && mobile && !expanded && <div className="dd-chat-scrim" aria-hidden="true" onClick={close} />}
-    {expanded && fullTarget ? createPortal(panel, fullTarget) : docked && dockTarget ? createPortal(panel, dockTarget) : panel}
+    {canvasTarget && !expanded ? createPortal(<>{trigger}{panel}</>, canvasTarget) : trigger}
+    {state.open && modal && <div className="dd-chat-scrim" aria-hidden="true" onClick={close} />}
+    {canvas ? null : expanded && fullTarget ? createPortal(panel, fullTarget) : docked && dockTarget ? createPortal(panel, dockTarget) : panel}
   </>;
 }

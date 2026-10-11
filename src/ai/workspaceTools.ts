@@ -17,6 +17,7 @@ import { summarizeBoard } from '@/boards/summary';
 import type { BoardDocument } from '@/boards/model';
 import { captureChatTurnContext, type ChatTurnContext } from '@/chat/turnContext';
 import { captureNoteEditBaseline, noteTextSnapshot, type NoteEditBaseline } from './noteEditBaseline';
+import { capturePlannerEditBaseline, type PlannerEditBaseline } from './plannerEditBaseline';
 
 const id = z.string().min(1).max(100);
 const text = z.string().max(100_000);
@@ -128,11 +129,12 @@ export async function executeWorkspaceAction(raw: unknown, signal?: AbortSignal)
 }
 
 export interface AssistantActionEvent { id: string; name: string; action: string; status: 'running' | 'done' | 'error' | 'awaiting_approval'; detail?: string; result?: unknown }
-export function createAssistantTools(signal: AbortSignal, onAction: (event: AssistantActionEvent) => void, userText: string, control?: { beforeRequest: () => Promise<void>; onRateLimit: (error: unknown) => void; assertActive?: () => void; contextProjectId?: string | null; turnContext?: ChatTurnContext; noteEditBaseline?: NoteEditBaseline | null }) {
+export function createAssistantTools(signal: AbortSignal, onAction: (event: AssistantActionEvent) => void, userText: string, control?: { beforeRequest: () => Promise<void>; onRateLimit: (error: unknown) => void; assertActive?: () => void; contextProjectId?: string | null; turnContext?: ChatTurnContext; noteEditBaseline?: NoteEditBaseline | null; plannerEditBaseline?: PlannerEditBaseline | null }) {
   const turnContext = control?.turnContext ?? captureChatTurnContext();
   const contextProjectId = control?.contextProjectId !== undefined ? control.contextProjectId : turnContext.projectId;
   const focusedNoteId = turnContext.surface === 'notes' ? turnContext.noteId : null;
   let noteEditBaseline = control?.noteEditBaseline !== undefined ? control.noteEditBaseline : captureNoteEditBaseline(turnContext);
+  const plannerEditBaseline = control?.plannerEditBaseline !== undefined ? control.plannerEditBaseline : capturePlannerEditBaseline(turnContext, contextProjectId);
   const executeContextAction = async (raw: unknown) => {
     const input = workspaceActionSchema.parse(raw);
     const focusedWrite = focusedNoteId && (input.action === 'update_note' || input.action === 'append_note_block') && input.id === focusedNoteId;
@@ -192,7 +194,7 @@ export function createAssistantTools(signal: AbortSignal, onAction: (event: Assi
       return { ...result, visibleProjectId: turnContext.visibleProjectId, currentProjectId: contextProjectId, surface: turnContext.surface, noteId: turnContext.noteId, boardId: turnContext.boardId };
     }) }),
     workspace_action: tool({ description: 'Perform an application action through its validated store. create_note/update_note text replaces the body; append_note_block appends. Updating the focused note from Notes rejects changed text or identity since submission; report the conflict and preserve the human edits. Append preserves current blocks. Comments are attached to tasks/issues. Navigation can open a noteId, taskId, or boardId with surface=boards; boards cannot be combined with projectId/noteId/taskId. Board objects cannot be edited by these tools. Do only actions requested by the user.', inputSchema: workspaceActionSchema, execute: execute('workspace_action', executeContextAction) }),
-    ...createPlannerTools(signal, execute, userText, control?.beforeRequest),
+    ...createPlannerTools(signal, execute, userText, control?.beforeRequest, plannerEditBaseline),
     ...createVisualTools(signal, execute, control?.beforeRequest, userText),
     ...createNoteTools(signal, execute, control?.beforeRequest, turnContext),
   };
