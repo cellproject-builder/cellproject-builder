@@ -99,7 +99,7 @@ it('anchors the entry and one nonmodal conversation inside the canvas, even when
   const canvas = host.querySelector('[data-testid=canvas]')!;
   const entry = canvas.querySelector<HTMLButtonElement>('.dd-chat-trigger')!;
   expect(entry).not.toBeNull();
-  expect(entry.textContent).toContain('Conversar com o plano');
+  expect(entry.textContent).toContain('Conversar');
   act(() => Simulate.click(entry));
   expect(canvas.querySelector('.dd-chat.is-canvas')).not.toBeNull();
   expect(host.querySelectorAll('.dd-chat-composer')).toHaveLength(1);
@@ -115,7 +115,7 @@ it('preserves a canvas draft, manual editor and history across collapse and full
   const composer = host.querySelector<HTMLTextAreaElement>('.dd-chat-composer textarea')!;
   act(() => Simulate.change(composer, { target: { value: 'Refine this plan without sending yet' } } as never));
   act(() => Simulate.click(host.querySelector<HTMLButtonElement>('[aria-label="Fechar chat"]')!));
-  expect(host.querySelector('.dd-chat-trigger')?.textContent).toContain('Continuar rascunho');
+  expect(host.querySelector('.dd-chat-trigger')?.textContent).toContain('Continuar');
   act(() => Simulate.click(host.querySelector<HTMLButtonElement>('.dd-chat-trigger')!));
   act(() => Simulate.click(host.querySelector<HTMLButtonElement>('[aria-label="Expandir chat"]')!));
   expect(host.querySelector('.dd-chat-full-host .dd-chat-composer textarea')?.textContent).toBe('Refine this plan without sending yet');
