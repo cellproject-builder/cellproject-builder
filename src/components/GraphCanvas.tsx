@@ -1008,6 +1008,14 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       const previous = new Map(current.map(node => [node.id, node]));
       return computedNodes.map(node => {
         const live = previous.get(node.id);
+        if (node.type === 'concept' && live?.type === 'concept') {
+          // React Flow drops measured dimensions and handle bounds when a new
+          // controlled node omits them. Selection must not remeasure the plan.
+          if (live.data === node.data && live.selected === node.selected && live.draggable === node.draggable
+            && live.position.x === node.position.x && live.position.y === node.position.y) return live;
+          // Content/layout still update; ResizeObserver can replace this size.
+          return { ...node, measured: live.measured };
+        }
         // Keep active geometry during background edits. Selection has one
         // canvas owner, so saving cannot accidentally restore a drag group.
         if (node.type !== 'visual' || !live) return node;

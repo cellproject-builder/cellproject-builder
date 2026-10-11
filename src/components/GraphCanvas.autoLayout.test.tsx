@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Edge, Node, NodeChange } from '@xyflow/react';
+import { adoptUserNodes, type InternalNodeBase } from '@xyflow/system';
 import type { ConceptNodeData, Project } from '@/types';
 import { useGraphStore, type Lens } from '@/store';
 import { DEFAULT_NODE_DIMENSIONS } from '@/graph/autoLayout';
@@ -188,6 +189,64 @@ afterEach(() => {
 });
 
 describe('GraphCanvas automatic layout integration', () => {
+  it.each([3, 500])('preserves measured React Flow nodes and unrelated identities across selection in a %s-node plan', count => {
+    if (count > 3) {
+      const project = fixture();
+      for (let index = 3; index < count; index++) {
+        const id = `load-${index}`;
+        project.nodes[id] = { ...project.nodes.first, id, name: id, kind: 'recurso', order: index };
+      }
+      act(() => useGraphStore.setState({ project }));
+    }
+    measureDisplayedNodes();
+    const displayed = positions(), persisted = savedPositions();
+    const lookup = new Map<string, InternalNodeBase<Node>>();
+    const parents = new Map<string, Map<string, InternalNodeBase<Node>>>();
+    expect(adoptUserNodes(flow.props!.nodes, lookup, parents).nodesInitialized).toBe(true);
+    // Handle bounds normally arrive with the real ResizeObserver measurement.
+    for (const node of lookup.values()) node.internals.handleBounds = { source: [], target: [] };
+    for (const selected of ['first', 'second']) {
+      const previous = new Map(flow.props!.nodes.map(node => [node.id, node]));
+      const internals = new Map(lookup);
+      act(() => useGraphStore.getState().selectNode(selected));
+      for (const node of flow.props!.nodes) {
+        const before = previous.get(node.id)!;
+        expect(node.measured, node.id).toEqual(before.measured);
+        expect(node.selected, node.id).toBe(node.id === selected);
+        if (before.selected === node.selected) expect(node, node.id).toBe(before);
+      }
+      // Exercise React Flow's actual adoption logic, not a mock of its cache.
+      expect(adoptUserNodes(flow.props!.nodes, lookup, parents).nodesInitialized).toBe(true);
+      for (const node of flow.props!.nodes) {
+        expect(lookup.get(node.id)!.internals.handleBounds, node.id).toBe(internals.get(node.id)!.internals.handleBounds);
+        if (node === previous.get(node.id)) expect(lookup.get(node.id), node.id).toBe(internals.get(node.id));
+      }
+    }
+    expect(positions()).toEqual(displayed);
+    expect(savedPositions()).toEqual(persisted);
+  });
+
+  it('updates changed concept content while retaining measurements and accepting later ResizeObserver sizes', () => {
+    measureDisplayedNodes();
+    const previous = new Map(flow.props!.nodes.map(node => [node.id, node]));
+    act(() => useGraphStore.setState(state => ({ project: { ...state.project!, nodes: { ...state.project!.nodes,
+      first: { ...state.project!.nodes.first, name: 'Conteúdo atualizado' },
+    } } })));
+    const changed = flow.props!.nodes.find(node => node.id === 'first')!;
+    expect(changed).not.toBe(previous.get('first'));
+    expect(changed.data.name).toBe('Conteúdo atualizado');
+    expect(changed.measured).toEqual(previous.get('first')!.measured);
+    expect(flow.props!.nodes.find(node => node.id === 'second')).toBe(previous.get('second'));
+    act(() => flow.props!.onNodesChange([{ type: 'dimensions', id: 'first', dimensions: { width: 300, height: 420 } }]));
+    expect(flow.props!.nodes.find(node => node.id === 'first')!.measured).toEqual({ width: 300, height: 420 });
+    const enlarged = positions();
+    act(() => useGraphStore.getState().selectNode('second'));
+    expect(flow.props!.nodes.find(node => node.id === 'first')!.measured).toEqual({ width: 300, height: 420 });
+    act(() => flow.props!.onNodesChange([{ type: 'dimensions', id: 'first', dimensions: { width: 250, height: 80 } }]));
+    expect(flow.props!.nodes.find(node => node.id === 'first')!.measured).toEqual({ width: 250, height: 80 });
+    expect(positions()).toEqual(enlarged);
+  });
+
   it('keeps visual tools idle during concept hover and still delivers artifact selection', () => {
     const initialRenders = bridge.render.mock.calls.length;
     act(() => flow.props!.onNodeMouseEnter({} as React.MouseEvent, flow.props!.nodes.find(node => node.id === 'first')!));

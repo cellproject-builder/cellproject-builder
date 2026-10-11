@@ -12,10 +12,11 @@ import { useArtifactClipboard } from './useArtifactClipboard';
 import type { VisualArtifact } from './types';
 
 let host: HTMLDivElement, root: Root;
+const selectArtifact = vi.fn<(id: string | null) => void>();
 function Fixture() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>('original');
-  useArtifactClipboard({ containerRef, projectId: 'clipboard-plan', selectedArtifactId: selected, onSelectArtifact: setSelected, english: true });
+  useArtifactClipboard({ containerRef, projectId: 'clipboard-plan', selectedArtifactId: selected, onSelectArtifact: id => { setSelected(id); selectArtifact(id); }, english: true });
   return <><div ref={containerRef} data-canvas><span>Object</span><textarea /></div><input aria-label="Chat" /><output>{selected}</output></>;
 }
 function clipboard() {
@@ -30,6 +31,7 @@ async function event(type: string, target: Element, data = clipboard()) {
 }
 beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  selectArtifact.mockClear();
   await Promise.all([useGraphStore.persist.rehydrate(), useWorkspaceStore.persist.rehydrate()]);
   useWorkspaceStore.setState({ projects: {}, notes: {}, activeProjectId: null, legacyImported: true });
   useGraphStore.setState({ project: { ...buildDemoProject(), id: 'clipboard-plan' } }); initializeWorkspace();
@@ -53,7 +55,10 @@ it('copies the selection through native clipboard events and selects each pasted
   expect((await event('paste', document.body, data)).defaultPrevented).toBe(true);
   const artifacts = getVisualWorkspace(useGraphStore.getState().project).artifacts;
   expect(artifacts).toHaveLength(3);
-  await act(async () => { await vi.waitFor(() => expect(host.querySelector('output')?.textContent).toBe(artifacts[2].id)); });
+  // The hook selects after durable saves. Wait for that callback inside act,
+  // then inspect the DOM after act has committed its pending React updates.
+  await act(async () => { await vi.waitFor(() => expect(selectArtifact).toHaveBeenLastCalledWith(artifacts[2].id)); });
+  expect(host.querySelector('output')?.textContent).toBe(artifacts[2].id);
   expect(artifacts.map(a => a.label)).toEqual(['Motor', 'Motor', 'Motor']);
 });
 

@@ -1,4 +1,5 @@
 import { webcrypto } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createVault, sessionFromDeviceKey, type VaultHeader, type VaultSession } from '../vault/crypto';
 import { OFFLINE_DATABASE, OfflineRepository, acquireOfflineLease, authorizeOffline, readOfflineAuthorization, revokeOfflineAuthorization } from './repository';
@@ -32,17 +33,26 @@ async function putRaw(key: IDBValidKey, value: unknown, storeName = 'records') {
 }
 const recordKey = (session: VaultSession, slot: string) => JSON.stringify([session.ownerId, session.header.id, slot]);
 
-it('decodes a large v3 workspace body once for each encrypted offline readback', async () => {
+it.each([false, true])('decodes a large v3 workspace body once for each encrypted offline readback (native %s)', async native => {
   const vault = await createVault(crypto.randomUUID(), 'synthetic offline large body phrase'), repository = new OfflineRepository(vault.session);
   const value = { version: 3, state: { notes: { large: { content: 'x'.repeat(3_500_000) } } } };
-  const decode = vi.spyOn(globalThis, 'atob');
+  const original = Object.getOwnPropertyDescriptor(Uint8Array, 'fromBase64');
+  Object.defineProperty(Uint8Array, 'fromBase64', { configurable: true, writable: true, value: native
+    ? original?.value ?? ((body: string) => new Uint8Array(Buffer.from(body, 'base64'))) : undefined });
+  const fallbackDecode = vi.spyOn(globalThis, 'atob');
+  const decode = native ? vi.spyOn(Uint8Array as typeof Uint8Array & { fromBase64(body: string): Uint8Array }, 'fromBase64') : fallbackDecode;
   try {
     await repository.write('runtime', value);
     expect(decode.mock.calls.filter(([body]) => body.length > 1_000_000).length).toBe(1);
+    if (native) expect(fallbackDecode).not.toHaveBeenCalled();
     decode.mockClear();
     expect(await repository.read('runtime')).toEqual(value);
     expect(decode.mock.calls.filter(([body]) => body.length > 1_000_000).length).toBe(1);
-  } finally { decode.mockRestore(); vault.session.dispose(); }
+    if (native) expect(fallbackDecode).not.toHaveBeenCalled();
+  } finally {
+    decode.mockRestore(); if (native) fallbackDecode.mockRestore(); vault.session.dispose();
+    if (original) Object.defineProperty(Uint8Array, 'fromBase64', original); else Reflect.deleteProperty(Uint8Array, 'fromBase64');
+  }
 }, 15000);
 
 it('reopens encrypted JSON in a new repository without persisting the private content', async () => {

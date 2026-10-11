@@ -66,7 +66,8 @@ async function measure(kind: 'selection'|'viewport'|'typing') {
     if (kind === 'viewport') {
       const store = useWorkspaceStore.getState(), document = store.boards[board.id].document;
       const viewport = { x: i * 5, y: 0, zoom: .8 + i % 2 * .01 };
-      if ('updateBoardViewport' in store) (store as unknown as { updateBoardViewport(id:string, viewport:typeof document.viewport):void }).updateBoardViewport(board.id, viewport);
+      const updateViewport = (store as unknown as { updateBoardViewport?: (id:string, viewport:typeof document.viewport) => void }).updateBoardViewport;
+      if (typeof updateViewport === 'function') updateViewport(board.id, viewport);
       else store.updateBoard(board.id, { document: { ...document, viewport } });
     }
     if (kind === 'typing') {
@@ -80,7 +81,7 @@ async function measure(kind: 'selection'|'viewport'|'typing') {
   result.textContent = `${kind}: aguardando persistência`;
   await flushGraphPersistence(); await flushWorkspacePersistence(); await frame();
   observer.disconnect();
-  result.textContent = JSON.stringify({ kind, iterations:60, elapsedMs: Math.round(performance.now()-started), synchronousUpdateP50:+percentile(cpu,.5).toFixed(2), synchronousUpdateP95:+percentile(cpu,.95).toFixed(2), frameP50:+percentile(frames,.5).toFixed(2), frameP95:+percentile(frames,.95).toFixed(2), longTasks:longTasks.length, longTaskMax:+Math.max(0,...longTasks).toFixed(2) });
+  result.textContent = JSON.stringify({ kind, iterations:60, elapsedMs: Math.round(performance.now()-started), synchronousUpdateP50:+percentile(cpu,.5).toFixed(2), synchronousUpdateP95:+percentile(cpu,.95).toFixed(2), frameP50:+percentile(frames,.5).toFixed(2), frameP95:+percentile(frames,.95).toFixed(2), longTasks:longTasks.length, longTaskMax:+Math.max(0,...longTasks).toFixed(2), environment:{ userAgent:navigator.userAgent, width:innerWidth, height:innerHeight, dpr:devicePixelRatio } });
   for (const button of controls.querySelectorAll('button')) button.disabled = false;
 }
 for (const kind of ['selection','viewport','typing'] as const) {

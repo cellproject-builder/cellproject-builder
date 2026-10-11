@@ -7,22 +7,40 @@ export interface VaultHeader {
 }
 export const MAX_CIPHER_BYTES = 96 * 1024 * 1024;
 const encoder = new TextEncoder(), decoder = new TextDecoder('utf-8', { fatal: true });
+const base64Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+type NativeBase64Array = Uint8Array & { toBase64?: () => string };
+type NativeBase64Constructor = Uint8ArrayConstructor & { fromBase64?: (value: string, options: { alphabet: 'base64'; lastChunkHandling: 'strict' }) => Uint8Array<ArrayBuffer> };
 function exact(value: unknown, keys: string[]): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).sort().join(',') === keys.sort().join(',');
 }
 export function b64(bytes: ArrayBuffer | Uint8Array): string {
-  const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes); let value = '';
-  for (let i = 0; i < data.length; i += 8192) value += String.fromCharCode(...data.subarray(i, i + 8192));
-  return btoa(value);
+  const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes), native = (data as NativeBase64Array).toBase64;
+  if (typeof native === 'function') return native.call(data);
+  // A multiple of three keeps padding in the final chunk and bounds binary-string copies.
+  const chunks: string[] = [];
+  for (let i = 0; i < data.length; i += 8190) chunks.push(btoa(String.fromCharCode(...data.subarray(i, i + 8190))));
+  return chunks.join('');
 }
 export function unb64(value: string, limit = MAX_CIPHER_BYTES): Uint8Array<ArrayBuffer> {
-  if (typeof value !== 'string' || value.length > Math.ceil(limit / 3) * 4 || value.length % 4 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value)) throw new Error('Envelope criptografado inválido.');
+  if (typeof value !== 'string' || value.length > Math.ceil(limit / 3) * 4 || value.length % 4) throw new Error('Envelope criptografado inválido.');
+  const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0;
+  const length = value.length / 4 * 3 - padding;
+  // Canonical base64 has terminal padding only and zero unused bits in its last sextet.
+  // Check this before either decoder: the native strict mode still permits whitespace.
+  if (length > limit || /[^A-Za-z0-9+/=]/.test(value) || value.indexOf('=') !== (padding ? value.length - padding : -1)
+    || (padding && (base64Alphabet.indexOf(value[value.length - padding - 1]) & (padding === 2 ? 15 : 3)))) throw new Error('Envelope criptografado inválido.');
+  const native = (Uint8Array as NativeBase64Constructor).fromBase64;
+  if (typeof native === 'function') {
+    const bytes = native.call(Uint8Array, value, { alphabet: 'base64', lastChunkHandling: 'strict' });
+    if (bytes.length !== length) throw new Error('Envelope criptografado inválido.');
+    return bytes;
+  }
   const binary = atob(value);
-  if (binary.length > limit) throw new Error('Envelope criptografado inválido.');
+  if (binary.length !== length) throw new Error('Envelope criptografado inválido.');
   // Avoid an iterable-sized intermediate array when decoding large media/backups.
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  if (b64(bytes) !== value) throw new Error('Envelope criptografado inválido.'); return bytes;
+  return bytes;
 }
 function parseCipher(value: unknown, max = MAX_CIPHER_BYTES): { iv: Uint8Array<ArrayBuffer>; data: Uint8Array<ArrayBuffer> } {
   if (!exact(value, ['v', 'iv', 'data']) || value.v !== 1 || typeof value.iv !== 'string' || typeof value.data !== 'string') throw new Error('Envelope criptografado inválido.');

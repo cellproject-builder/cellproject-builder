@@ -20,8 +20,8 @@ import '@/index.css';
 
 declare const __INTERACTION_VARIANT__: 'baseline' | 'candidate';
 type Scenario = 'poll' | 'write';
-type Counts = { runtimeCheckpoints: number; transportCheckpoints: number; workspaceWrites: number; vaultGets: number; vaultPuts: number; configGets: number; largeBase64Decodes: number; largeBase64Encodes: number };
-type Result = { variant: string; kind: Scenario; iterations: number; documentBytes: number; modelCount: number; elapsedMs: number; synchronousUpdateP50: number; synchronousUpdateP95: number; frameP50: number; frameP95: number; frameMax: number; longTasks: number; longTaskTotal: number; longTaskMax: number; counts: Counts; durableVerified: boolean };
+type Counts = { runtimeCheckpoints: number; transportCheckpoints: number; workspaceWrites: number; vaultGets: number; vaultPuts: number; configGets: number; largeBase64Decodes: number; largeBase64Encodes: number; base64EncodeInputBytes: number; base64DecodeInputCharacters: number };
+type Result = { variant: string; kind: Scenario; iterations: number; documentBytes: number; modelCount: number; elapsedMs: number; synchronousUpdateP50: number; synchronousUpdateP95: number; frameP50: number; frameP95: number; frameMax: number; longTasks: number; longTaskTotal: number; longTaskMax: number; counts: Counts; durableVerified: boolean; environment: object };
 declare global {
   interface Window {
     __encryptedInteractionFixture?: { ready: boolean; run(kind: Scenario): Promise<Result>; cleanup(): Promise<void>; lastResult?: Result; documentBytes: number; ownerId: string; vaultId: string };
@@ -32,7 +32,7 @@ const controls = document.getElementById('encrypted-controls')!;
 const output = document.createElement('output');
 output.setAttribute('aria-label', 'Resultado cifrado de desempenho');
 output.style.cssText = 'display:block;white-space:pre-wrap';
-const counts = (): Counts => ({ runtimeCheckpoints: 0, transportCheckpoints: 0, workspaceWrites: 0, vaultGets: 0, vaultPuts: 0, configGets: 0, largeBase64Decodes: 0, largeBase64Encodes: 0 });
+const counts = (): Counts => ({ runtimeCheckpoints: 0, transportCheckpoints: 0, workspaceWrites: 0, vaultGets: 0, vaultPuts: 0, configGets: 0, largeBase64Decodes: 0, largeBase64Encodes: 0, base64EncodeInputBytes: 0, base64DecodeInputCharacters: 0 });
 const percentile = (values: number[], p: number) => [...values].sort((a, b) => a - b)[Math.floor((values.length - 1) * p)] ?? 0;
 const rounded = (value: number) => +value.toFixed(2);
 const frame = () => new Promise<number>((resolve, reject) => {
@@ -43,6 +43,11 @@ const delay = (milliseconds: number) => new Promise<void>(resolve => setTimeout(
 let measuring = false, busy = false, cleaned = false, edits = 0, checkpointCounts = counts();
 let app: Root | undefined, session: VaultSession | undefined, repository: OfflineRepository | undefined, transport: VaultTransport | undefined, runtime: CloudRuntime | undefined, releaseLease: (() => void) | null = null;
 const nativeAtob = globalThis.atob, nativeBtoa = globalThis.btoa;
+const byteArray = Uint8Array as unknown as { fromBase64?: (value: string, options?: unknown) => Uint8Array };
+const bytePrototype = Uint8Array.prototype as unknown as { toBase64?: (options?: unknown) => string };
+const nativeFromBase64 = byteArray.fromBase64, nativeToBase64 = bytePrototype.toBase64;
+const countDecode = (size: number) => { if (measuring) { checkpointCounts.base64DecodeInputCharacters += size; if (size > 1024) checkpointCounts.largeBase64Decodes++; } };
+const countEncode = (size: number) => { if (measuring) { checkpointCounts.base64EncodeInputBytes += size; if (size > 1024) checkpointCounts.largeBase64Encodes++; } };
 
 async function cleanup() {
   if (busy) throw new Error('Aguarde a medição antes de limpar o cofre sintético.');
@@ -59,6 +64,8 @@ async function cleanup() {
     await repository?.settled();
     transport?.dispose(); session?.dispose(); releaseLease?.(); releaseLease = null;
     globalThis.atob = nativeAtob; globalThis.btoa = nativeBtoa;
+    if (nativeFromBase64) byteArray.fromBase64 = nativeFromBase64;
+    if (nativeToBase64) bytePrototype.toBase64 = nativeToBase64;
     cleaned = true;
     if (window.__encryptedInteractionFixture) window.__encryptedInteractionFixture.ready = false;
     output.textContent = 'Cofre sintético removido. Reabra a página para outra sessão.';
@@ -148,8 +155,10 @@ async function setup() {
   for (let i = 0; i < 20; i++) await frame();
   await flushWorkspacePersistence(); await repository.settled();
 
-  globalThis.atob = value => { if (measuring && value.length > 1024) checkpointCounts.largeBase64Decodes++; return nativeAtob.call(globalThis, value); };
-  globalThis.btoa = value => { if (measuring && value.length > 1024) checkpointCounts.largeBase64Encodes++; return nativeBtoa.call(globalThis, value); };
+  globalThis.atob = value => { countDecode(value.length); return nativeAtob.call(globalThis, value); };
+  globalThis.btoa = value => { countEncode(value.length); return nativeBtoa.call(globalThis, value); };
+  if (nativeFromBase64) byteArray.fromBase64 = function(value, options) { countDecode(value.length); return nativeFromBase64.call(Uint8Array, value, options); };
+  if (nativeToBase64) bytePrototype.toBase64 = function(this: Uint8Array, options) { countEncode(this.byteLength); return nativeToBase64.call(this, options); };
 
   async function measure(kind: Scenario): Promise<Result> {
     if (busy || cleaned) throw new Error('A fixture está ocupada ou foi removida.');
@@ -197,7 +206,7 @@ async function setup() {
       const savedValue = saved?.confirmed.documents.find(doc => doc.key === 'cellproject-workspace')?.value;
       if (!savedValue || savedValue !== runtime!.get('cellproject-workspace')) throw new Error('O checkpoint cifrado não confirma o workspace final.');
       if (kind === 'write' && JSON.parse(savedValue).state.notes[note.id].blocks[0].text !== `Edição sintética ${edits}`) throw new Error('A edição final não foi preservada.');
-      const result: Result = { variant: __INTERACTION_VARIANT__, kind, iterations: kind === 'poll' ? 3 : 10, documentBytes, modelCount, elapsedMs: rounded(elapsedMs), synchronousUpdateP50: rounded(percentile(cpu, .5)), synchronousUpdateP95: rounded(percentile(cpu, .95)), frameP50: rounded(percentile(frames, .5)), frameP95: rounded(percentile(frames, .95)), frameMax: rounded(Math.max(0, ...frames)), longTasks: longTasks.length, longTaskTotal: rounded(longTasks.reduce((sum, value) => sum + value, 0)), longTaskMax: rounded(Math.max(0, ...longTasks)), counts: measuredCounts, durableVerified: true };
+      const result: Result = { variant: __INTERACTION_VARIANT__, kind, iterations: kind === 'poll' ? 3 : 10, documentBytes, modelCount, elapsedMs: rounded(elapsedMs), synchronousUpdateP50: rounded(percentile(cpu, .5)), synchronousUpdateP95: rounded(percentile(cpu, .95)), frameP50: rounded(percentile(frames, .5)), frameP95: rounded(percentile(frames, .95)), frameMax: rounded(Math.max(0, ...frames)), longTasks: longTasks.length, longTaskTotal: rounded(longTasks.reduce((sum, value) => sum + value, 0)), longTaskMax: rounded(Math.max(0, ...longTasks)), counts: measuredCounts, durableVerified: true, environment: { userAgent:navigator.userAgent, width:innerWidth, height:innerHeight, dpr:devicePixelRatio, nativeBase64Encode:typeof (Uint8Array.prototype as unknown as { toBase64?: unknown }).toBase64 === 'function', nativeBase64Decode:typeof (Uint8Array as unknown as { fromBase64?: unknown }).fromBase64 === 'function' } };
       window.__encryptedInteractionFixture!.lastResult = result;
       output.textContent = JSON.stringify(result, null, 2);
       return result;
