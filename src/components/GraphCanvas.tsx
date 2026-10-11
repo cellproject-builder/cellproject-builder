@@ -631,7 +631,10 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       const st = useGraphStore.getState();
       const proj = st.project;
       if (!el || !proj) return;
-      const all = getNodes().filter((n) => !n.hidden && !n.id.startsWith(SUGGESTION_PREFIX));
+      // Visuals keep their user-placed coordinates from Structure. They must
+      // not shrink an analytical lens to fit a distant image/model.
+      const all = getNodes().filter((n) => !n.hidden && !n.id.startsWith(SUGGESTION_PREFIX)
+        && (st.lens === 'structure' || n.type !== 'visual'));
       if (all.length === 0) return;
       const a = safeArea();
       // Origem e tamanho da área livre (descontado o cromo flutuante).
@@ -690,6 +693,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   // cancelar um enquadramento já pedido. Só a desmontagem limpa.
   const camTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingCameraFrame = useRef<{ lens: Lens; action: () => void } | null>(null);
   const schedule = useCallback(
     (slot: { current: ReturnType<typeof setTimeout> | null }, fn: () => void, ms: number) => {
       if (slot.current) clearTimeout(slot.current);
@@ -740,8 +744,8 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   useEffect(() => {
     if (didInitialFrame.current || initialTarget || !nodesInitialized) return;
     didInitialFrame.current = true;
-    schedule(camTimer, () => frameOverview(0, layoutMode !== 'manual'), 30);
-  }, [nodesInitialized, initialTarget, frameOverview, schedule, layoutMode]);
+    schedule(camTimer, () => frameOverview(0, lens === 'structure' && layoutMode !== 'manual'), 30);
+  }, [nodesInitialized, initialTarget, frameOverview, schedule, layoutMode, lens]);
 
   // Reframe after the actual canvas changes (sidebar, inspector, chat or device
   // rotation), allowing React Flow to measure the newly arranged cards first.
@@ -763,7 +767,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
     lastReframeInputs.current = reframeInputs;
     schedule(camTimer, () => {
       if (useGraphStore.getState().pendingSuggestions) frameStaging();
-      else frameOverview(200, true);
+      else frameOverview(200, lens === 'structure');
     }, 180);
   }, [canvasSize.width, canvasSize.height, layoutMode, reframeInputs, nodesInitialized, frameOverview, frameStaging, schedule]);
 
@@ -782,7 +786,11 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
     let action: (() => void) | null = null;
 
     if (lens !== p.lens) {
-      action = () => frameOverview(350, layoutMode !== 'manual');
+      // The new lens first replaces and measures its nodes. A fixed delay can
+      // see the old bounds (or no bounds), especially with Manual selected.
+      if (camTimer.current) clearTimeout(camTimer.current);
+      camTimer.current = null;
+      pendingCameraFrame.current = { lens, action: () => frameOverview(350) };
     } else if (focusVersion !== p.focusVersion && focusedParentId && project) {
       const ids = [
         focusedParentId,
@@ -803,7 +811,13 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
     }
     clickedInCanvasRef.current = false;
     selectedByDragRef.current = false;
-    if (action) schedule(camTimer, action, 60);
+    if (action) {
+      // A user's explicit focus supersedes the lens overview, but must also
+      // wait for usable bounds instead of being lost during measurement.
+      if (camTimer.current) clearTimeout(camTimer.current);
+      camTimer.current = null;
+      pendingCameraFrame.current = { lens, action };
+    }
   }, [
     lens,
     focusVersion,
@@ -1053,6 +1067,20 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
     );
   }, [nodes, layout, lens]);
 
+  useEffect(() => {
+    const request = pendingCameraFrame.current;
+    if (!request || request.lens !== lens || !nodesInitialized) return;
+    // useNodesInitialized may still describe the previous render. Wait until
+    // our controlled node list has adopted this lens as well as being measured.
+    const displayed = new Map(nodes.map(node => [node.id, node]));
+    if (nodes.length !== computedNodes.length || computedNodes.some(node => displayed.get(node.id)?.data !== node.data)) return;
+    schedule(camTimer, () => {
+      if (pendingCameraFrame.current !== request || useGraphStore.getState().lens !== lens) return;
+      pendingCameraFrame.current = null;
+      request.action();
+    }, 30);
+  }, [lens, nodes, computedNodes, nodesInitialized, focusVersion, selectionVersion, centerRequest, canvasSize.width, canvasSize.height, frameOverview, schedule]);
+
   // -------------------------------------------------------------------------
   // Arestas
   // -------------------------------------------------------------------------
@@ -1181,6 +1209,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   }, [project, layout, lens, pending, isMobile, selectedId, hoveredId, adaptive, orientation]);
 
   const onNodeDragStart = useCallback((_event?: React.MouseEvent, node?: Node) => {
+    pendingCameraFrame.current = null;
     if (camTimer.current) clearTimeout(camTimer.current);
     camTimer.current = null;
     if (node?.type === 'visual') return;

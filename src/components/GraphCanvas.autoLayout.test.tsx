@@ -4,7 +4,7 @@ import { Simulate } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Edge, Node, NodeChange } from '@xyflow/react';
 import type { ConceptNodeData, Project } from '@/types';
-import { useGraphStore } from '@/store';
+import { useGraphStore, type Lens } from '@/store';
 import { DEFAULT_NODE_DIMENSIONS } from '@/graph/autoLayout';
 import { GraphCanvas } from './GraphCanvas';
 import { setVisualArtifactLink } from '@/visuals/domain';
@@ -35,6 +35,8 @@ vi.mock('@xyflow/react', async () => {
   const getNodes = () => (flow.props?.nodes ?? []).map((node) => ({ ...node, measured: sizeOf(node.id) }));
   const getNode = (id: string) => getNodes().find((node) => node.id === id);
   const getNodesBounds = (ids: string[]) => {
+    // A lens replaces the displayed nodes before React Flow has measured them.
+    if (!flow.initialized) return { x: 0, y: 0, width: 0, height: 0 };
     const nodes = ids.map(getNode).filter((node): node is NonNullable<typeof node> => !!node);
     const x = Math.min(...nodes.map((node) => node.position.x));
     const y = Math.min(...nodes.map((node) => node.position.y));
@@ -122,6 +124,36 @@ function expectGraphInsideCanvas() {
   }
 }
 
+const analyticalLenses: Lens[] = ['flow', 'risk', 'state', 'connections'];
+function addCrossLink() {
+  act(() => useGraphStore.setState(state => ({ project: { ...state.project!, edges: {
+    ...state.project!.edges,
+    dependency: { id: 'dependency', source: 'first', target: 'second', kind: 'direct' },
+  } } })));
+}
+function measureDisplayedNodes() {
+  flow.initialized = true;
+  act(() => flow.props!.onNodesChange(flow.props!.nodes.map(node => ({
+    type: 'dimensions' as const, id: node.id,
+    dimensions: node.type === 'columnHeader'
+      ? { width: Number(node.data.width), height: 32 }
+      : { width: node.width ?? DEFAULT_NODE_DIMENSIONS.width, height: node.height ?? 120 },
+  }))));
+}
+function expectVisibleParts(lens: Lens) {
+  const viewport = flow.setViewport.mock.calls.at(-1)![0] as { x: number; y: number; zoom: number };
+  const visible = (node: Node) => {
+    const size = flow.measured[node.id] ?? DEFAULT_NODE_DIMENSIONS;
+    const left = node.position.x * viewport.zoom + viewport.x;
+    const top = node.position.y * viewport.zoom + viewport.y;
+    return left < width && top < height && left + size.width * viewport.zoom > 0 && top + size.height * viewport.zoom > 0;
+  };
+  expect(flow.props!.nodes.some(node => node.type === 'concept' && visible(node))).toBe(true);
+  if (lens !== 'connections') {
+    expect(flow.props!.nodes.some(node => node.type === 'columnHeader' && visible(node))).toBe(true);
+  }
+}
+
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   vi.useFakeTimers(); vi.setSystemTime(100_000);
@@ -149,6 +181,102 @@ afterEach(() => {
 });
 
 describe('GraphCanvas automatic layout integration', () => {
+  it.each(analyticalLenses)('reframes Manual → %s after delayed node measurement', lens => {
+    addCrossLink();
+    choose('manual');
+    const original = savedPositions();
+    flow.initialized = false;
+    act(() => useGraphStore.getState().setLens(lens));
+    advance();
+    // The first camera request elapsed while its new bounds were unavailable.
+    flow.setViewport.mockClear();
+    measureDisplayedNodes();
+    advance();
+    expect(flow.setViewport).toHaveBeenCalled();
+    expectVisibleParts(lens);
+    expect(savedPositions()).toEqual(original);
+    expect(canvas().dataset.layoutMode).toBe('manual');
+  });
+
+  it.each(['selection', 'focus', 'center'] as const)('honors an explicit %s request while a lens waits for measurement', request => {
+    addCrossLink();
+    choose('manual');
+    flow.initialized = false;
+    act(() => useGraphStore.getState().setLens('risk'));
+    act(() => {
+      const state = useGraphStore.getState();
+      if (request === 'selection') state.selectNode('first');
+      else if (request === 'focus') state.focusNode('first');
+      else state.requestCenter('first');
+    });
+    flow.setViewport.mockClear();
+    measureDisplayedNodes();
+    advance();
+    // centerOn focuses the requested concept; overview would use duration 350.
+    expect(flow.setViewport).toHaveBeenLastCalledWith(expect.any(Object), { duration: 300 });
+    const focusedViewport = flow.setViewport.mock.calls.at(-1)![0];
+    flow.setViewport.mockClear();
+    act(() => {
+      const state = useGraphStore.getState();
+      if (request === 'selection') state.selectNode('first');
+      else if (request === 'focus') state.focusNode('first');
+      else state.requestCenter('first');
+    });
+    advance();
+    expect(flow.setViewport).toHaveBeenLastCalledWith(focusedViewport, { duration: 300 });
+  });
+
+  it('does not rearm a cancelled lens frame when Manual dragging reports dimensions', () => {
+    addCrossLink();
+    choose('manual');
+    act(() => useGraphStore.getState().setLens('risk'));
+    measureDisplayedNodes();
+    advance();
+    flow.initialized = false;
+    act(() => useGraphStore.getState().setLens('structure'));
+    measureDisplayedNodes();
+    flow.setViewport.mockClear();
+    const first = flow.props!.nodes.find(node => node.id === 'first')!;
+    act(() => flow.props!.onNodeDragStart(undefined, first));
+    act(() => flow.props!.onNodesChange([
+      { type: 'dimensions', id: 'first', dimensions: { width: 300, height: 160 } },
+      { type: 'position', id: 'first', position: { x: first.position.x + 10, y: first.position.y }, dragging: true },
+    ]));
+    advance();
+    expect(canvas().dataset.layoutMode).toBe('manual');
+    expect(flow.setViewport).not.toHaveBeenCalled();
+  });
+
+  it('keeps an explicit focus queued when the inspector resizes a Manual canvas before measurement settles', () => {
+    choose('manual');
+    flow.setViewport.mockClear();
+    act(() => useGraphStore.getState().requestCenter('first'));
+    resize(850, 650);
+    expect(flow.setViewport).toHaveBeenLastCalledWith(expect.any(Object), { duration: 300 });
+  });
+
+  it.each(analyticalLenses)('keeps %s readable when an image is far from the plan', lens => {
+    addCrossLink();
+    act(() => useGraphStore.setState(state => ({ project: { ...state.project!, visuals: {
+      version: 1, mode: 'approval', proposals: [],
+      drafts: { search: { text: '', mentions: [], attachments: [] }, model: { text: '', mentions: [], attachments: [] } },
+      artifacts: [{ id: 'distant-photo', label: 'ESP32', kind: 'image', x: 100_000, y: 100_000,
+        width: 280, height: 220, mediaId: 'test-photo', source: null, scene: null,
+        revisions: [{ scene: null, mediaId: 'test-photo', createdAt: 1 }], revisionIndex: 0 }],
+    } } })));
+    advance();
+    const original = savedPositions();
+    flow.setViewport.mockClear();
+    act(() => useGraphStore.getState().setLens(lens));
+    measureDisplayedNodes();
+    advance();
+    expect(flow.setViewport).toHaveBeenCalled();
+    expect(flow.setViewport.mock.calls.at(-1)![0].zoom).toBeGreaterThanOrEqual(0.5);
+    expectVisibleParts(lens);
+    expect(savedPositions()).toEqual(original);
+    expect(useGraphStore.getState().project!.visuals!.artifacts[0]).toMatchObject({ x: 100_000, y: 100_000 });
+  });
+
   function maximizableCanvas() {
     useLocaleStore.setState({ locale: 'en' });
     function Harness() {

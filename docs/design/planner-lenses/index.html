@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dynamic Diary · lentes do plano</title><link rel="stylesheet" href="/src/index.css"></head>
+<body><div id="root"></div><script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import '@xyflow/react/dist/style.css';
+import { CloudRuntime, configureCloud } from '/src/cloud/runtime.ts';
+const documents = new Map();
+configureCloud(new CloudRuntime({documents:[],media:[]}, async (input, init) => {
+  if (init?.method !== 'PUT') throw new Error('Local fixture: remote services disabled.');
+  const key = decodeURIComponent(String(input).split('/').at(-1));
+  const {value} = JSON.parse(init.body), revision = (documents.get(key)?.revision ?? 0) + 1;
+  documents.set(key,{key,value,revision}); return Response.json({revision});
+}));
+const [{default:App},{useGraphStore},{useWorkspaceStore},{capturePlanner},{useLocaleStore},{initializeTheme}] = await Promise.all([
+  import('/src/App.tsx'), import('/src/store.ts'), import('/src/workspace/store.ts'),
+  import('/src/workspace/planner.ts'), import('/src/i18n/index.ts'), import('/src/theme.ts'),
+]);
+await Promise.all([useGraphStore.persist.rehydrate(),useWorkspaceStore.persist.rehydrate()]);
+useLocaleStore.setState({locale:'pt-BR'}); initializeTheme();
+useGraphStore.getState().loadDemoProject();
+const graph=useGraphStore.getState();
+useGraphStore.setState({project:{...graph.project,manualLayout:true}, selectedNodeId:null,focusedParentId:null});
+const id=useWorkspaceStore.getState().createProject('QA · lentes do plano');
+useWorkspaceStore.getState().savePlanner(id,capturePlanner());
+useWorkspaceStore.getState().selectProject(id); useWorkspaceStore.getState().navigate('planner');
+createRoot(document.getElementById('root')).render(React.createElement(App));
+</script></body></html>

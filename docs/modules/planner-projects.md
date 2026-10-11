@@ -34,6 +34,8 @@ O ciclo de investigação e o acompanhamento de tarefas são relacionados por re
 
 Na visão geral, [ProjectDescription.tsx](../../src/workspace/ProjectDescription.tsx) apresenta objetivos extensos como prévia textual de até três linhas. A ação de leitura abre o conteúdo completo em uma região com rolagem, reutilizando Markdown para títulos, listas, tabelas e links, com capitalização técnica preservada. O trecho exibido não é um resumo gerado por IA nem substitui o objetivo salvo. Títulos e breadcrumbs longos têm truncamento visual independente do ícone, sem encurtar o valor persistido. O [ensaio visual local](../design/project-overview/index.html) usa somente dados sintéticos.
 
+As lentes Fluxo, Risco, Estado e Conexões usam posições derivadas, preservando a organização salva na Estrutura. A troca espera a adoção e medição dos cards antes de enquadrar, inclusive no modo Manual. Imagens e modelos mantêm suas posições, mas ficam fora dos limites usados pela câmera dessas lentes, para que referências distantes não tornem o plano ilegível. As [regressões de câmera](../../src/components/GraphCanvas.autoLayout.test.tsx) cobrem medição atrasada e artefatos distantes; o [ensaio de lentes](../design/planner-lenses/index.html) usa a demonstração com persistência em memória.
+
 | Camada | Responsabilidade |
 | --- | --- |
 | Entrada e shell | [Projects.tsx](../../src/workspace/Projects.tsx) apresenta projetos e formulários; [Workspace.tsx](../../src/workspace/Workspace.tsx) coordena superfícies, visão geral, navegação e retorno à origem das tarefas. |
