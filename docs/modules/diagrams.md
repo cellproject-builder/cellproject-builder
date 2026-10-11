@@ -36,6 +36,8 @@ Essa validação é **um piso de presença**, não uma certificação de cobertu
 
 O [ensaio de nomenclatura de 11/10/2026](../reports/diagram-labels-2026-10-11.md) registra regressões, primeira resposta real sem reparo, capturas e limites da inspeção desktop/móvel.
 
+Na revisão de um artefato, o piso também confere os valores de controles preservados que serão efetivamente exibidos, antes de gravar a substituição. Um novo default legível não pode mascarar o único rótulo recortado pelo valor anterior. A rejeição conserva o artefato e seu histórico.
+
 ## Uso e integrações
 
 ### Plano e chat

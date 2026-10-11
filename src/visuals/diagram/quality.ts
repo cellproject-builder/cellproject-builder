@@ -9,7 +9,13 @@ export class DiagramLabelsMissingError extends Error {
  * documents remain readable, and labels are never guessed from internal IDs. */
 export function parseGeneratedDiagram(raw: unknown, allowedNodes?: string[]): DiagramV1 {
   const diagram = parseDiagram(raw, allowedNodes);
-  const hasLabel = resolveDiagramElements(diagram, {}).some(element => {
+  assertGeneratedDiagramLabels(diagram);
+  return diagram;
+}
+
+/** Revisions may retain user values instead of rendering the new defaults. */
+export function assertGeneratedDiagramLabels(diagram: DiagramV1, values: Record<string, number> = {}): void {
+  const hasLabel = resolveDiagramElements(diagram, values).some(element => {
     if (element.type !== 'text' || !/[\p{L}\p{N}]/u.test(element.text ?? '')) return false;
     // Text uses SVG's default start anchor and alphabetic baseline in v1.
     if (element.x! >= diagram.viewBox[2] || element.y! <= 0) return false;
@@ -18,5 +24,4 @@ export function parseGeneratedDiagram(raw: unknown, allowedNodes?: string[]): Di
     return (fill?.alpha ?? 0) > 0 || (stroke?.alpha ?? 0) > 0;
   });
   if (!hasLabel) throw new DiagramLabelsMissingError();
-  return diagram;
 }

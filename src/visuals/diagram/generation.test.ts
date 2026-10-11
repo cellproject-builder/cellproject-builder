@@ -51,6 +51,24 @@ it('keeps the current diagram intact when a revision removes all visible nomencl
   expect(getVisualWorkspace(useGraphStore.getState().project).artifacts[0]).toMatchObject({ diagram: original.diagram, revisionIndex: 0 });
   expect(generateText).toHaveBeenCalledTimes(2);
 });
+it.each([
+  { attribute: 'x' as const, retained: 1, multiplier: 460 },
+  { attribute: 'y' as const, retained: 0, multiplier: 24 },
+])('checks revision labels with the retained $attribute parameter before applying', async ({ attribute, retained, multiplier }) => {
+  const source = { version: 1 as const, title: 'Posição', explanation: 'Exemplo', assumptions: ['Sintético'], viewBox: [0, 0, 460, 220],
+    parameters: [{ id: 'position', label: 'Posição', min: 0, max: 1, step: .1, value: .5, unit: '' }],
+    constants: {}, calculations: [], bindings: [], elements: [{ id: 'name', type: 'text', x: 30, y: 24, text: 'Controle' }] };
+  vi.mocked(generateText).mockResolvedValue({ ...response(), text: JSON.stringify(source) });
+  const proposal = await generateVisualDiagram(input, { signal: new AbortController().signal });
+  const original = applyVisualProposal(proposal.id);
+  setDiagramParameter(original.id, 'position', retained);
+  const before = structuredClone(getVisualWorkspace(useGraphStore.getState().project).artifacts[0]);
+  const replacement = { ...source, bindings: [{ elementId: 'name', attribute, valueId: 'position', multiplier, offset: 0, decimals: 0, suffix: '' }] };
+  vi.mocked(generateText).mockResolvedValue({ ...response(), text: JSON.stringify(replacement) });
+  await expect(reviseVisualDiagram(original.id, { ...input, text: 'Revisar a posição' }, { signal: new AbortController().signal })).rejects.toBeInstanceOf(DiagramLabelsMissingError);
+  expect(getVisualWorkspace(useGraphStore.getState().project).artifacts[0]).toEqual(before);
+  expect(generateText).toHaveBeenCalledTimes(2);
+});
 it('keeps changed context stale and refuses invalid payloads without applying or silently retrying', async () => {
   const valid = response();
   vi.mocked(generateText).mockImplementation(async () => { useGraphStore.setState(state => ({ project: { ...state.project!, objective: 'Requisito mudou' } })); return valid; });

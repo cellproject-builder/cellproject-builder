@@ -26,3 +26,9 @@ O SVG foi inspecionado com o `DiagramView` real em viewport desktop 1280 × 900 
 ## Limites
 
 Uma chamada com pedido explícito de nomes não prova consistência em todos os pedidos ou modelos. O piso detecta ausência total de nomenclatura, mas não certifica cobertura de cada peça, caixas de glifos, sobreposição, contraste sobre todo path ou verdade das ligações. IDs e canais desta amostra são ilustrativos; não há validação elétrica ou física. A documentação atual do contrato está no [módulo de diagramas](../modules/diagrams.md).
+
+## Revisão extra — 11/10/2026
+
+Três revisores independentes examinaram contratos/serviços, interface e protocolo/evidências. Foi confirmado um defeito: uma revisão podia ser validada com defaults novos e depois aplicada com valores de controles antigos que recortavam seu único rótulo. A correção confere o estado efetivo preservado antes da gravação; se rejeitada, a revisão não modifica o documento, os valores ou o histórico.
+
+As duas regressões (`x` na borda direita e baseline `y=0`) falharam antes da correção e passaram depois. A suíte relacionada passou com **161 testes em 12 arquivos**; a revisão independente da correção passou com 23 testes direcionados. A checagem do protocolo original passou com 5 testes, sem nova inferência paga. Interface e integridade/proveniência da primeira resposta não apresentaram outros achados acionáveis. Esta revisão não repetiu a bateria completa do gateway nem o ensaio em aparelho físico.

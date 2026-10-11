@@ -10,7 +10,7 @@ import { readVisualMedia } from '../media';
 import { artifactSchema } from '../normalize';
 import type { DiagramV1 } from './model';
 import { buildDiagramSystem } from './prompt';
-import { DiagramLabelsMissingError, parseGeneratedDiagram } from './quality';
+import { assertGeneratedDiagramLabels, DiagramLabelsMissingError, parseGeneratedDiagram } from './quality';
 import type { VisualArtifact, VisualDiagramProposal, VisualPromptInput } from '../types';
 import type { VisualSceneOptions } from '../generation';
 
@@ -74,6 +74,7 @@ export async function reviseVisualDiagram(id: string, input: VisualPromptInput, 
     const revisions = current.revisions.slice(0, current.revisionIndex + 1);
     revisions[revisions.length - 1] = { ...revisions[revisions.length - 1], diagram: current.diagram, diagramValues: current.diagramValues ?? {}, label: current.label };
     const diagramValues = Object.fromEntries(result.diagram.parameters.flatMap(p => { const value = current.diagramValues?.[p.id]; return value !== undefined && value >= p.min && value <= p.max ? [[p.id, value]] : []; }));
+    assertGeneratedDiagramLabels(result.diagram, diagramValues);
     revisions.push({ scene: null, mediaId: null, createdAt: Date.now(), diagram: result.diagram, diagramValues, label: result.diagram.title, input: result.input, contextFingerprint: result.contextFingerprint, referencedMediaIds: result.referencedMediaIds });
     const revised = artifactSchema.parse({ ...current, label: result.diagram.title, diagram: result.diagram, diagramValues, revisions, revisionIndex: revisions.length - 1 });
     mutateVisualWorkspace(w => ({ ...w, artifacts: w.artifacts.map(a => a.id === id ? revised : a) }), guard.scope);

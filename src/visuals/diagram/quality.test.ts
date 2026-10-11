@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseDiagram, type DiagramV1 } from './model';
 import { torqueDiagram } from './fixture';
-import { parseGeneratedDiagram } from './quality';
+import { assertGeneratedDiagramLabels, parseGeneratedDiagram } from './quality';
 
 const drawing = (): DiagramV1 => ({ ...torqueDiagram(), parameters: [], constants: {}, calculations: [], bindings: [],
   elements: [{ id: 'controller', type: 'rect', x: 30, y: 30, width: 100, height: 80, fill: 'none', stroke: '#ffffff' }] });
@@ -45,6 +45,19 @@ describe('explanatory diagram generation', () => {
     const diagram = torqueDiagram('private-node', 'test');
     expect(() => parseGeneratedDiagram(diagram, [])).toThrow('diagramUnknownNode');
     expect(() => parseGeneratedDiagram({ ...diagram, onClick: 'alert(1)' })).toThrow();
+  });
+
+  it('checks effective label positions without mutating defaults or retained values', () => {
+    const diagram = drawing();
+    diagram.parameters = [{ id: 'position', label: 'Posição', min: 0, max: 1, step: .1, value: .5, unit: '' }];
+    diagram.elements.push({ id: 'name', type: 'text', x: 30, y: 24, text: 'Controle' });
+    diagram.bindings = [{ elementId: 'name', attribute: 'x', valueId: 'position', multiplier: 460, offset: 0, decimals: 0, suffix: '' }];
+    const before = structuredClone(diagram), values = { position: 1 };
+    expect(() => assertGeneratedDiagramLabels(diagram)).not.toThrow();
+    expect(() => assertGeneratedDiagramLabels(diagram, values)).toThrow('diagramLabelsMissing');
+    expect(() => assertGeneratedDiagramLabels(diagram, { position: .7 })).not.toThrow();
+    expect(diagram).toEqual(before);
+    expect(values).toEqual({ position: 1 });
   });
 
   it('checks default bound label positions, without rejecting a readable initial state for other parameter extremes', () => {
