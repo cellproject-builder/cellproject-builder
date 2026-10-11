@@ -16,8 +16,11 @@ interface FlowProps {
   edges: Edge[];
   children?: ReactNode;
   onNodeDragStart: (event?: React.MouseEvent, node?: Node) => void;
+  onNodeMouseEnter: (event: React.MouseEvent, node: Node) => void;
   onNodesChange: (changes: NodeChange[]) => void;
 }
+type BridgeProps = { selectedArtifactId: string | null; onSelectArtifact(id: string | null): void };
+const bridge = vi.hoisted(() => ({ render: vi.fn<(props: BridgeProps) => void>() }));
 const flow = vi.hoisted(() => ({
   props: null as FlowProps | null,
   setViewport: vi.fn(),
@@ -72,7 +75,10 @@ vi.mock('@xyflow/react', async () => {
 vi.mock('./ConceptNode', () => ({ ConceptNode: () => null, SIDE_HANDLE: { sourceLeft: 'sl', sourceRight: 'sr', targetLeft: 'tl', targetRight: 'tr' } }));
 vi.mock('@/hooks/useMediaQuery', () => ({ useIsMobile: () => flow.mobile }));
 vi.mock('./suggestionActions', () => ({ discardSuggestionsWithUndo: vi.fn(), acceptSuggestionsWithUndo: vi.fn() }));
-vi.mock('@/visuals/VisualWorkspaceBridge', () => ({ VisualWorkspaceBridge: () => null }));
+vi.mock('@/visuals/VisualWorkspaceBridge', async () => {
+  const { memo } = await import('react');
+  return { VisualWorkspaceBridge: memo((props: BridgeProps) => { bridge.render(props); return null; }) };
+});
 vi.mock('@/ink/PlannerInkLayer', () => ({ PlannerInkLayer: () => null }));
 vi.mock('@/visuals/rendering/VisualArtifactNode', () => ({ VisualArtifactNode: () => null }));
 
@@ -159,6 +165,7 @@ beforeEach(() => {
   vi.useFakeTimers(); vi.setSystemTime(100_000);
   width = 1100; height = 650;
   flow.props = null; flow.measured = {}; flow.initialized = true; flow.setViewport.mockClear();
+  bridge.render.mockClear();
   flow.mobile = false;
   vi.stubGlobal('ResizeObserver', class {
     constructor(callback: () => void) { notifyResize = callback; }
@@ -181,6 +188,17 @@ afterEach(() => {
 });
 
 describe('GraphCanvas automatic layout integration', () => {
+  it('keeps visual tools idle during concept hover and still delivers artifact selection', () => {
+    const initialRenders = bridge.render.mock.calls.length;
+    act(() => flow.props!.onNodeMouseEnter({} as React.MouseEvent, flow.props!.nodes.find(node => node.id === 'first')!));
+    expect(bridge.render).toHaveBeenCalledTimes(initialRenders);
+    const selectArtifact = bridge.render.mock.calls.at(-1)![0].onSelectArtifact;
+    act(() => selectArtifact('photo'));
+    expect(bridge.render.mock.calls.at(-1)![0].selectedArtifactId).toBe('photo');
+    act(() => selectArtifact(null));
+    expect(bridge.render.mock.calls.at(-1)![0].selectedArtifactId).toBeNull();
+  });
+
   it('retains concept data while selection or visual drafts change, but updates changed domain gates', () => {
     const dataBefore = new Map(flow.props!.nodes.map(node => [node.id, node.data]));
     act(() => useGraphStore.getState().selectNode('first'));

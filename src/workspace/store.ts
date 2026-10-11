@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, type StateStorage } from 'zustand/middleware';
 import { createWorkspaceStorage, IndexedDbWorkspaceRepository, workspaceRepository } from '@/data/workspaceRepository';
-import { createSelectiveJSONStorage } from '@/data/selectiveJSONStorage';
+import { createSelectiveJSONStorage, isDeferredJSONStorage } from '@/data/selectiveJSONStorage';
 import { getCloudRuntime } from '@/cloud/runtime';
 import { nanoid } from 'nanoid';
 import { noteCanvasSchema } from './noteCanvasModel';
@@ -9,7 +9,7 @@ import { noteInkSchema } from './noteInkModel';
 import { assertNoteImageBudget } from './noteImages';
 import { validatePersistedNoteCanvases } from './noteCanvasPersistence';
 import { projectAppearanceSchema, type ProjectAppearance } from './project-appearance/projectAppearance';
-import { assertBoardWorkspaceImageBudget, boardRecordSchema, createBoardDocument, validatePersistedBoards, type BoardRecord } from '@/boards/model';
+import { assertBoardWorkspaceImageBudget, boardDocumentSchema, boardRecordSchema, createBoardDocument, validatePersistedBoards, type BoardDocument, type BoardRecord } from '@/boards/model';
 import { TASK_STATUSES, type ManagedProject, type Task, type TaskInput, type TaskComment, type Sprint, type SprintInput, type Note, type Folder, type PlannerSnapshot, type Surface } from './types';
 
 let writes: Promise<void> = Promise.resolve();
@@ -43,11 +43,54 @@ const storage: StateStorage = {
   },
   removeItem: (key) => workspaceRepository.removeItem(key),
 };
+/** Retain the destination before deferring serialization; never route a draft to another account. */
+function captureWorkspaceStorage(): StateStorage {
+  const owner = getCloudRuntime();
+  const assertOwner = () => { if (getCloudRuntime() !== owner) throw new Error('A sessão de persistência mudou. Preserve o rascunho antes de continuar.'); };
+  return {
+    getItem: key => { assertOwner(); return storage.getItem(key); },
+    removeItem: key => { assertOwner(); return storage.removeItem(key); },
+    setItem: (key, value) => {
+      if (owner) return (async () => {
+        assertOwner();
+        await owner.write(key, value);
+        assertOwner();
+        const status = owner.getSnapshot();
+        // A confirmed encrypted checkpoint is durable while remote synchronization is pending.
+        if (status.localSaved === true && !status.localSaving && !status.localError) return;
+        // write() retains drafts on failure and can resolve without a server acknowledgement.
+        await owner.flush(); assertOwner();
+      })();
+      const next = writes.then(() => localWorkspaceStorage.setItem(key, value));
+      writes = next.then(() => { lastWriteError = null; }, (error: unknown) => { lastWriteError = error; });
+      return next;
+    },
+  };
+}
 export const flushWorkspacePersistence = async () => {
+  const owner = getCloudRuntime();
+  const assertOwner = () => { if (getCloudRuntime() !== owner) throw new Error('A sessão de persistência mudou. Preserve o rascunho antes de continuar.'); };
+  const adapter = useWorkspaceStore.persist.getOptions().storage;
+  if (isDeferredJSONStorage(adapter)) await adapter.flush();
+  assertOwner();
   await writes;
+  assertOwner();
   if (lastWriteError) throw lastWriteError;
-  await getCloudRuntime()?.flush();
+  await owner?.flush();
+  assertOwner();
 };
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  const flushLocal = () => { if (!getCloudRuntime()) void flushWorkspacePersistence().catch(() => {}); };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushLocal(); });
+  window.addEventListener('pagehide', flushLocal);
+  window.addEventListener('beforeunload', event => {
+    if (getCloudRuntime()) return;
+    const adapter = useWorkspaceStore.persist.getOptions().storage;
+    if (isDeferredJSONStorage(adapter) && adapter.hasPending()) {
+      flushLocal(); event.preventDefault(); event.returnValue = '';
+    }
+  });
+}
 const required = (text: string) => {
   if (!text.trim()) throw new Error('required');
   return text.trim();
@@ -58,6 +101,7 @@ const commentBody = (body: string) => {
 };
 const validDate = (date: string) => /^\d{4}-\d{2}-\d{2}$/.test(date) &&
   Number.isFinite(Date.parse(date)) && new Date(date).toISOString().slice(0, 10) === date;
+const boardMetadataSchema = boardRecordSchema.omit({ document: true });
 
 export interface WorkspaceState {
   boards: Record<string, BoardRecord>;
@@ -74,6 +118,7 @@ export interface WorkspaceState {
   createBoard: (title?: string) => string;
   openBoard: (id: string) => void;
   updateBoard: (id: string, patch: Partial<Pick<BoardRecord, 'title' | 'archived' | 'document'>>) => void;
+  updateBoardViewport: (id: string, viewport: BoardDocument['viewport']) => void;
   createProject: (name: string, objective?: string, appearance?: ProjectAppearance) => string;
   updateProject: (id: string, patch: Partial<Pick<ManagedProject, 'name' | 'objective' | 'archived' | 'appearance'>>) => void;
   selectProject: (id: string) => void;
@@ -107,16 +152,16 @@ function checkTask(state: WorkspaceState, task: Task) {
     if (!sprint || sprint.projectId !== task.projectId || sprint.status === 'completed') throw new Error('invalidSprint');
   }
 }
-function checkNote(state: WorkspaceState, note: Note) {
-  if (note.ink !== undefined) noteInkSchema.parse(note.ink);
-  if (note.canvas) {
+function checkNote(state: WorkspaceState, note: Note, unchangedVisuals?: { ink: boolean; canvas: boolean }) {
+  if (note.ink !== undefined && !unchangedVisuals?.ink) noteInkSchema.parse(note.ink);
+  if (note.canvas !== undefined && !unchangedVisuals?.canvas) {
     noteCanvasSchema.parse(note.canvas);
     assertNoteImageBudget(Object.values(state.notes).filter(item => item.id !== note.id), {}, note.canvas.items.flatMap(item => item.kind === 'image' ? [item.src] : []));
   }
   if (note.projectId && !state.projects[note.projectId]) throw new Error('projectMissing');
   if (note.folderId && !state.folders[note.folderId]) throw new Error('folderMissing');
   if (note.taskId && (!state.tasks[note.taskId] || state.tasks[note.taskId].projectId !== note.projectId)) throw new Error('invalidTask');
-  assertBoardWorkspaceImageBudget(state.boards ?? {}, { ...state.notes, [note.id]: note });
+  if (!unchangedVisuals?.canvas) assertBoardWorkspaceImageBudget(state.boards ?? {}, { ...state.notes, [note.id]: note });
 }
 
 export const useWorkspaceStore = create<WorkspaceState>()(persist((set, get) => ({
@@ -136,10 +181,25 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set, get) => 
   updateBoard: (id, patch) => set(state => {
     const board = state.boards[id];
     if (!board) throw new Error('boardMissing');
+    // Metadata cannot change images or document content. An explicit document,
+    // including the same reference, must still cross the complete boundary.
+    if (!Object.hasOwn(patch, 'document')) {
+      const { document, ...metadata } = board;
+      const next = boardMetadataSchema.parse({ ...metadata, ...patch, id: board.id, createdAt: board.createdAt, updatedAt: Date.now() });
+      return { boards: { ...state.boards, [id]: { ...next, document } } };
+    }
     const next = boardRecordSchema.parse({ ...board, ...patch, id: board.id, createdAt: board.createdAt, updatedAt: Date.now() });
     const boards = { ...state.boards, [id]: next };
     assertBoardWorkspaceImageBudget(boards, state.notes);
     return { boards };
+  }),
+  updateBoardViewport: (id, viewport) => set(state => {
+    const board = state.boards[id];
+    if (!board) throw new Error('boardMissing');
+    if (board.archived || state.activeBoardId !== id) throw new Error('boardContextChanged');
+    const next = boardDocumentSchema.shape.viewport.parse(viewport), previous = board.document.viewport;
+    if (previous.x === next.x && previous.y === next.y && previous.zoom === next.zoom) return state;
+    return { boards: { ...state.boards, [id]: { ...board, document: { ...board.document, viewport: next }, updatedAt: boardRecordSchema.shape.updatedAt.parse(Date.now()) } } };
   }),
   createProject: (name, objective = '', appearance) => {
     const id = nanoid(10), now = Date.now();
@@ -258,7 +318,12 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set, get) => 
     const note = s.notes[id];
     if (!note) throw new Error('noteMissing');
     const next = { ...note, ...patch, updatedAt: Date.now() };
-    checkNote(s, next);
+    // Text/ownership edits reuse the existing validated immutable documents.
+    // An explicitly supplied visual payload still validates, even by identity.
+    checkNote(s, next, {
+      ink: !Object.hasOwn(patch, 'ink') && next.ink === note.ink,
+      canvas: !Object.hasOwn(patch, 'canvas') && next.canvas === note.canvas,
+    });
     return { notes: { ...s.notes, [id]: next } };
   }),
   trashNote: (id) => set((s) => s.notes[id] ? { notes: { ...s.notes, [id]: { ...s.notes[id], deletedAt: Date.now(), updatedAt: Date.now() } } } : s),
@@ -275,7 +340,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set, get) => 
   }),
 }), {
   name: 'cellproject-workspace', version: 2,
-  storage: createSelectiveJSONStorage(() => storage, { scope: getCloudRuntime }),
+  storage: createSelectiveJSONStorage(() => storage, { scope: getCloudRuntime, deferMs: 200, captureStorage: captureWorkspaceStorage }),
   partialize: ({ projects, tasks, comments, sprints, notes, folders, boards, legacyImported }) => ({ projects, tasks, comments, sprints, notes, folders, boards, legacyImported }),
   migrate: (persisted) => ({ ...(persisted as Partial<WorkspaceState>), comments: (persisted as Partial<WorkspaceState>).comments ?? {}, boards: (persisted as Partial<WorkspaceState>).boards === undefined ? {} : (persisted as Partial<WorkspaceState>).boards }),
   merge: (persisted, current) => {

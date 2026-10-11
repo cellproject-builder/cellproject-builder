@@ -1,5 +1,5 @@
 import { AudioTextarea, AudioTextInput } from '@/audio/AudioField';
-import { useContext, useEffect, useLayoutEffect, useRef, useState, type ComponentPropsWithoutRef } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentPropsWithoutRef } from 'react';
 import { nanoid } from 'nanoid';
 import { EnterFullScreenIcon, ExitFullScreenIcon, Pencil1Icon, ImageIcon, MagicWandIcon } from '@/components/ui/SoftIcons';
 import { useLocaleStore, useT } from '@/i18n';
@@ -14,7 +14,12 @@ import { NotesLibrary, type NoteFilter } from './NotesLibrary';
 import { PageHeaderContext } from './PageHeader';
 import { NoteNotebook, type NoteNotebookTools } from './NoteNotebook';
 import { NoteInkOverlay } from './NoteInkOverlay';
+import { isDeferredJSONStorage, type JSONPersistenceSnapshot } from '@/data/selectiveJSONStorage';
 import './NotesNotebook.css';
+
+const noPersistenceSubscription = () => () => {};
+const immediatePersistenceSnapshot: JSONPersistenceSnapshot = { pending: false, error: null, revision: 0, savedRevision: 0 };
+const immediatePersistence = () => immediatePersistenceSnapshot;
 
 function AutoText(props: ComponentPropsWithoutRef<typeof AudioTextarea>) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -51,7 +56,11 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
   const [notebookVisible, setNotebookVisible] = useState(!!note.canvas);
   const [drawing, setDrawing] = useState(false);
   const notebook = useRef<NoteNotebookTools>(null);
-  const [saveState, setSaveState] = useState<'saving' | 'saved' | 'error'>('saving');
+  const [immediateSaveState, setSaveState] = useState<'saving' | 'saved' | 'error'>('saving');
+  const persistence = useWorkspaceStore.persist.getOptions().storage;
+  const deferred = isDeferredJSONStorage(persistence) ? persistence : undefined;
+  const persistenceState = useSyncExternalStore(deferred?.subscribe ?? noPersistenceSubscription, deferred?.getSnapshot ?? immediatePersistence);
+  const saveState = deferred ? persistenceState.error ? 'error' : persistenceState.pending ? 'saving' : 'saved' : immediateSaveState;
   const editorRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null), inkToolsRef = useRef<HTMLDivElement>(null);
   const trashed = note.deletedAt !== null;
@@ -71,11 +80,13 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
     patch({ blocks: note.blocks.filter((b) => b.id !== id) }); setActiveBlock(previous.id); focusBlock(previous.id);
   };
   useEffect(() => {
+    // Deferred adapters publish acknowledgement; observing it must not force a flush per keystroke.
+    if (deferred) return;
     let current = true;
     setSaveState('saving');
     void flushWorkspacePersistence().then(() => { if (current) setSaveState('saved'); }).catch(() => { if (current) setSaveState('error'); });
     return () => { current = false; };
-  }, [note]);
+  }, [note, deferred]);
   return <section className={`ws-note-editor${drawing ? ' is-drawing' : ''}`} ref={editorRef}>
     <ExpandedChrome expanded={maximized} label={note.title || tr.untitled} english={english} onRestore={onToggleMaximized}>
     <div className="ws-note-toolbar">
@@ -154,7 +165,8 @@ export function Notes({ projectId = null, initialNoteId = null, onMaximizedChang
   }, [maximized]);
   const scoped = Object.values(notes).filter((n) => !projectId || n.projectId === projectId);
   const candidates = scoped.filter((n) => filter === 'trash' ? n.deletedAt !== null : n.deletedAt === null && (filter !== 'pinned' || n.pinned));
-  const visible = candidates.filter((n) => `${n.title} ${n.blocks.map((b) => b.text).join(' ')}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt);
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const visible = (normalizedQuery ? candidates.filter((n) => `${n.title} ${n.blocks.map((b) => b.text).join(' ')}`.toLocaleLowerCase().includes(normalizedQuery)) : candidates).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt);
   const selected = candidates.find((n) => n.id === selectedId) ?? visible[0];
   useEffect(() => { if (!selected) setMaximized(false); }, [selected]);
   const changeFilter = (value: NoteFilter) => { setFilter(value); setSelectedId(null); setMobileEditor(false); };

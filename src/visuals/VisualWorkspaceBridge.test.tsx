@@ -6,7 +6,8 @@ import { useGraphStore } from '@/store';
 import { useWorkspaceStore } from '@/workspace/store';
 import { initializeWorkspace } from '@/workspace/planner';
 import { useLocaleStore } from '@/i18n';
-import { getVisualWorkspace, mutateVisualWorkspace } from './domain';
+import { findMentionTarget, getVisualWorkspace, mutateVisualWorkspace } from './domain';
+import { useVisualSessionStore } from './ui/sessionStore';
 import { addLocalImage, addReferenceImage } from './media';
 import { VisualWorkspaceBridge } from './VisualWorkspaceBridge';
 import { REFERENCE_DRAG_TYPE } from './drag';
@@ -20,6 +21,10 @@ vi.mock('./controller', () => ({
   applyModelAtViewport: vi.fn(), runVisualGeneration: vi.fn(), runVisualSearch: vi.fn(),
 }));
 vi.mock('./ui/TabbedVisualExplorer', () => ({ TabbedVisualExplorer: () => null }));
+vi.mock('./domain', async importOriginal => {
+  const actual = await importOriginal<typeof import('./domain')>();
+  return { ...actual, findMentionTarget: vi.fn(actual.findMentionTarget) };
+});
 vi.mock('./media', () => ({ addLocalImage: vi.fn(), addReferenceImage: vi.fn(), attachVisualFile: vi.fn(), readVisualMedia: vi.fn() }));
 vi.mock('./clipboard', () => ({ copyVisualReference: vi.fn(), referenceFromClipboard: vi.fn() }));
 vi.mock('./search', () => ({ reviewVisualReference: vi.fn() }));
@@ -53,6 +58,8 @@ beforeEach(async () => {
   useGraphStore.setState({ project: { ...buildDemoProject(), id: 'plan-a' }, selectedNodeId: null });
   initializeWorkspace(); useLocaleStore.setState({ locale: 'pt-BR' }); nextId = 1;
   mocks.warn.mockReset();
+  useVisualSessionStore.getState().reset();
+  vi.mocked(findMentionTarget).mockClear();
   mocks.screenToFlowPosition.mockImplementation(({ x, y }) => ({ x: (x - 100) / 2, y: (y - 50) / 2 }));
   vi.mocked(addReferenceImage).mockReset().mockImplementation(async (ref, point) => {
     const image = artifact(ref, point);
@@ -70,6 +77,39 @@ beforeEach(async () => {
   await act(async () => root.render(<VisualWorkspaceBridge project={useGraphStore.getState().project!} containerRef={{ current: container }} />));
 });
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
+
+describe('idle visual tools', () => {
+  it('does not resolve selected-node context while studios are closed', async () => {
+    const project = useGraphStore.getState().project!;
+    await act(async () => useGraphStore.setState({ selectedNodeId: project.rootId }));
+    expect(findMentionTarget).not.toHaveBeenCalled();
+  });
+
+  it('does not rerender a stable bridge when the parent canvas hovers an edge', async () => {
+    const project = useGraphStore.getState().project!;
+    await act(async () => {
+      useGraphStore.setState({ selectedNodeId: project.rootId });
+      useVisualSessionStore.getState().newTab('model');
+    });
+    vi.mocked(findMentionTarget).mockClear();
+    const ref = { current: container };
+    await act(async () => root.render(<VisualWorkspaceBridge project={project} containerRef={ref} />));
+    vi.mocked(findMentionTarget).mockClear();
+    await act(async () => root.render(<VisualWorkspaceBridge project={project} containerRef={ref} />));
+    expect(findMentionTarget).not.toHaveBeenCalled();
+  });
+
+  it('resolves the current selection when a studio opens and changes selection', async () => {
+    const project = useGraphStore.getState().project!;
+    await act(async () => useGraphStore.setState({ selectedNodeId: project.rootId }));
+    vi.mocked(findMentionTarget).mockClear();
+    await act(async () => useVisualSessionStore.getState().newTab('model'));
+    expect(findMentionTarget).toHaveBeenCalledWith(project.rootId, 'node');
+    const other = Object.keys(project.nodes).find(id => id !== project.rootId)!;
+    await act(async () => useGraphStore.setState({ selectedNodeId: other }));
+    expect(findMentionTarget).toHaveBeenLastCalledWith(other, 'node');
+  });
+});
 
 describe('native image placement', () => {
   it('keeps the grabbed point under the cursor using decoded artifact bounds despite different search dimensions', async () => {

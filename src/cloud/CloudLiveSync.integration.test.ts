@@ -1,12 +1,12 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { CloudRuntime, configureCloud, type CloudSnapshot } from './runtime';
-import { useWorkspaceStore, ensureWorkspaceHydrated } from '@/workspace/store';
+import { useWorkspaceStore, ensureWorkspaceHydrated, flushWorkspacePersistence } from '@/workspace/store';
 import { flushGraphPersistence } from '@/store';
 import { applyRemoteCanvasDocuments } from './CloudLiveSync';
 import { createBoardDocument } from '@/boards/model';
 import { createNoteInk } from '@/workspace/noteInkModel';
 
-afterEach(async () => { await flushGraphPersistence(); configureCloud(null); });
+afterEach(async () => { await flushGraphPersistence(); await flushWorkspacePersistence(); configureCloud(null); });
 
 it('applies real Zustand workspace ink without an echo, restores persistence, and writes the next edit against the remote revision', async () => {
   const initial = { projects: {}, tasks: {}, comments: {}, sprints: {}, notes: {}, folders: {}, boards: { b: { id: 'b', title: 'Board', archived: false, createdAt: 1, updatedAt: 1, document: createBoardDocument() } }, legacyImported: true };
@@ -19,7 +19,7 @@ it('applies real Zustand workspace ink without an echo, restores persistence, an
   const fetcher = vi.fn<typeof fetch>(async (_path, init) => Response.json(init?.method === 'PUT' ? { revision: ++revision } : remote));
   const runtime = new CloudRuntime({ documents: [{ key: 'cellproject-workspace', value: JSON.stringify({ version: 2, state: initial }), revision: 1 }], media: [] }, fetcher);
   configureCloud(runtime); await ensureWorkspaceHydrated();
-  useWorkspaceStore.setState({ activeBoardId: 'b', surface: 'boards' }); await runtime.flush();
+  useWorkspaceStore.setState({ activeBoardId: 'b', surface: 'boards' }); await flushWorkspacePersistence();
   const calls = fetcher.mock.calls.length;
   await runtime.refreshRemote({ keys: ['cellproject-workspace'], apply: applyRemoteCanvasDocuments });
   expect(fetcher).toHaveBeenCalledTimes(calls + 1);
@@ -27,7 +27,7 @@ it('applies real Zustand workspace ink without an echo, restores persistence, an
   expect(useWorkspaceStore.getState().notes.n.blocks[0].text).toBe('Preserved typed content');
   expect(useWorkspaceStore.getState()).toMatchObject({ activeBoardId: 'b', surface: 'boards' });
   expect(useWorkspaceStore.getState().boards.b.document.items).toHaveLength(1);
-  revision = 5; useWorkspaceStore.getState().updateBoard('b', { title: 'Actual next edit' }); await runtime.flush();
+  revision = 5; useWorkspaceStore.getState().updateBoard('b', { title: 'Actual next edit' }); await flushWorkspacePersistence();
   expect(fetcher).toHaveBeenCalledTimes(calls + 2);
   expect(JSON.parse(String(fetcher.mock.calls.at(-1)?.[1]?.body)).baseRevision).toBe(5);
   expect(runtime.getSnapshot().pending).toBe(0);
@@ -48,15 +48,15 @@ it('preserves tablet board edits through successive saves from a stale PC store 
   });
   const runtime = new CloudRuntime({ documents: [{ key: 'cellproject-workspace', value: JSON.stringify({ version: 2, state: initial }), revision: 1 }], media: [] }, fetcher, undefined, async () => current);
   configureCloud(runtime); await useWorkspaceStore.persist.rehydrate();
-  useWorkspaceStore.getState().updateBoard('a', { title: 'PC first' }); await runtime.flush();
+  useWorkspaceStore.getState().updateBoard('a', { title: 'PC first' }); await flushWorkspacePersistence();
   // Canonical merge waits for idle application; the active editor still owns its snapshot.
   expect(useWorkspaceStore.getState().boards.b.title).toBe('B');
-  useWorkspaceStore.getState().updateBoard('a', { title: 'PC next' }); await runtime.flush();
+  useWorkspaceStore.getState().updateBoard('a', { title: 'PC next' }); await flushWorkspacePersistence();
   expect(JSON.parse(current.documents[0].value).state.boards).toMatchObject({ a: { title: 'PC next' }, b: { title: 'Tablet' } });
   const before = fetcher.mock.calls.length;
   const applied = await runtime.refreshRemote({ keys: ['cellproject-workspace'], apply: applyRemoteCanvasDocuments });
   expect(applied).toHaveLength(1); expect(fetcher).toHaveBeenCalledTimes(before);
   expect(useWorkspaceStore.getState().boards).toMatchObject({ a: { title: 'PC next' }, b: { title: 'Tablet' } });
-  useWorkspaceStore.getState().updateBoard('a', { title: 'PC after idle' }); await runtime.flush();
+  useWorkspaceStore.getState().updateBoard('a', { title: 'PC after idle' }); await flushWorkspacePersistence();
   expect(JSON.parse(current.documents[0].value).state.boards.b.title).toBe('Tablet');
 });

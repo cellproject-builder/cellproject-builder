@@ -20,6 +20,7 @@ import { createNoteCanvas } from '@/workspace/noteCanvasModel';
 import { useWorkspaceStore } from '@/workspace/store';
 import { LiveInkChannel, configureLiveInk } from '@/ink/live';
 import { sessionFromDeviceKey, type VaultHeader } from './vault/crypto';
+import { createSelectiveJSONStorage, isDeferredJSONStorage } from '@/data/selectiveJSONStorage';
 
 const board = () => ({ id: 'board', title: 'Board', archived: false, createdAt: 1, updatedAt: 1, document: createBoardDocument() });
 const project = () => ({ id: 'plan', name: 'Plan', objective: '', rootId: 'root', nodes: { root: { id: 'root', name: 'Root', parentId: null } }, edges: {}, createdAt: 1, updatedAt: 1 });
@@ -32,6 +33,21 @@ beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
 afterEach(() => { configureLiveInk(null); vi.useRealTimers(); vi.restoreAllMocks(); document.body.innerHTML = ''; });
+
+it('blocks remote refresh while a local envelope awaits serialization or acknowledgement', async () => {
+  let finish!: () => void;
+  const save = vi.fn(() => new Promise<void>(resolve => { finish = resolve; }));
+  const storage = createSelectiveJSONStorage(() => ({ getItem: () => null, setItem: save, removeItem: () => {} }), { deferMs: 200 })!;
+  if (!isDeferredJSONStorage(storage)) throw new Error('deferred adapter missing');
+  const write = storage.setItem('cellproject-workspace', { state: { content: 'local draft' }, version: 2 });
+  try {
+    expect(cloudCanvasIdle()).toBe(false);
+    const flushing = storage.flush(); await Promise.resolve();
+    expect(cloudCanvasIdle()).toBe(false);
+    finish(); await Promise.all([write, flushing]);
+    expect(cloudCanvasIdle()).toBe(true);
+  } finally { save.mockImplementation(() => Promise.resolve()); finish?.(); await storage.flush(); }
+});
 
 it('applies remote board strokes and notebook strokes while preserving the local view and selection', () => {
   const remote = workspace();

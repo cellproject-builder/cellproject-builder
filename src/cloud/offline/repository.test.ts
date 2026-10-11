@@ -32,6 +32,19 @@ async function putRaw(key: IDBValidKey, value: unknown, storeName = 'records') {
 }
 const recordKey = (session: VaultSession, slot: string) => JSON.stringify([session.ownerId, session.header.id, slot]);
 
+it('decodes a large v3 workspace body once for each encrypted offline readback', async () => {
+  const vault = await createVault(crypto.randomUUID(), 'synthetic offline large body phrase'), repository = new OfflineRepository(vault.session);
+  const value = { version: 3, state: { notes: { large: { content: 'x'.repeat(3_500_000) } } } };
+  const decode = vi.spyOn(globalThis, 'atob');
+  try {
+    await repository.write('runtime', value);
+    expect(decode.mock.calls.filter(([body]) => body.length > 1_000_000).length).toBe(1);
+    decode.mockClear();
+    expect(await repository.read('runtime')).toEqual(value);
+    expect(decode.mock.calls.filter(([body]) => body.length > 1_000_000).length).toBe(1);
+  } finally { decode.mockRestore(); vault.session.dispose(); }
+}, 15000);
+
 it('reopens encrypted JSON in a new repository without persisting the private content', async () => {
   const vault = await createVault(crypto.randomUUID(), 'synthetic offline repository phrase');
   const repository = new OfflineRepository(vault.session), value = { note: 'PRIVATE OFFLINE NOTE', queue: [{ operationId: 'pending-1', value: 'PRIVATE DRAFT' }] };
@@ -81,6 +94,22 @@ it('rejects a different complete header and tampered ciphertext', async () => {
   await putRaw(key, { ...stored, cipher: { ...(stored.cipher as object), iv: 'AAAAAAAAAAAAAAAA' } });
   await expect(repository.read('runtime')).rejects.toThrow();
   vault.session.dispose(); changedSession.dispose();
+});
+
+it('rejects every malformed cipher before decryption and preserves the original offline record', async () => {
+  const vault = await createVault(crypto.randomUUID(), 'synthetic offline invalid cipher phrase'), repository = new OfflineRepository(vault.session);
+  await repository.write('runtime', { text: 'preserved' });
+  const key = recordKey(vault.session, 'runtime'), stored = (await rawRecords()).find(([id]) => id === key)![1];
+  const cipher = stored.cipher as Record<string, unknown>, decrypt = vi.spyOn(crypto.subtle, 'decrypt');
+  try {
+    for (const invalid of [null, {}, { ...cipher, v: 2 }, { ...cipher, extra: true }, { ...cipher, iv: 'AAAA' }, { ...cipher, data: 'AAAA' }]) {
+      await putRaw(key, { ...stored, cipher: invalid });
+      await expect(repository.read('runtime')).rejects.toThrow('Envelope criptografado inválido');
+    }
+    expect(decrypt).not.toHaveBeenCalled();
+    await putRaw(key, stored); expect(await repository.read('runtime')).toEqual({ text: 'preserved' });
+    vault.session.dispose(); await expect(repository.read('runtime')).rejects.toThrow('bloqueado');
+  } finally { decrypt.mockRestore(); vault.session.dispose(); }
 });
 
 it('authenticates the complete header fingerprint even if outer metadata is rewritten', async () => {

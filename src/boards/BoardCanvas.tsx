@@ -80,7 +80,10 @@ function Canvas({boardId,onBack,english=false,onMaximizedChange}:Props) {
     const latest=current();if(!alive.current||!latest||latest.archived||useWorkspaceStore.getState().activeBoardId!==boardId)return;
     const previous=latest.document.viewport;
     if(previous.x===viewport.x&&previous.y===viewport.y&&previous.zoom===viewport.zoom)return;
-    safely(()=>save({...latest.document,viewport},false));
+    safely(()=>{
+      useWorkspaceStore.getState().updateBoardViewport(boardId,viewport);
+      ownedDocument.current=current()?.document;setError('');
+    });
   };
   const changeView=async(action:()=>Promise<unknown>)=>{
     try{await action();saveViewport(api.getViewport());}
@@ -131,8 +134,7 @@ function Canvas({boardId,onBack,english=false,onMaximizedChange}:Props) {
   },[boardId]);
   useEffect(()=>{
     // Whole-document undo snapshots cannot safely cross a remote replacement.
-    if(board?.document!==ownedDocument.current){history.current={past:[],future:[]};ownedDocument.current=board?.document;refresh(value=>value+1);}
-    setLive({});
+    if(board?.document!==ownedDocument.current){history.current={past:[],future:[]};ownedDocument.current=board?.document;setLive({});refresh(value=>value+1);}
   },[board?.document]);
   useEffect(()=>{setTitle(board?.title??'');},[board?.title]);
   const nodes=useMemo<Node<BoardNodeData>[]>(()=>board?.document.items.map(item=>{

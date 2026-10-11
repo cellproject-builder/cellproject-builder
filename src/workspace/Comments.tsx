@@ -1,9 +1,14 @@
 import { AudioTextarea } from '@/audio/AudioField';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, useSyncExternalStore } from 'react';
 import { useLocaleStore, useT } from '@/i18n';
 import { flushWorkspacePersistence, useWorkspaceStore } from './store';
 import { attempt, Icon } from './ui';
+import { isDeferredJSONStorage, type JSONPersistenceSnapshot } from '@/data/selectiveJSONStorage';
 import './Comments.css';
+
+const noSubscription = () => () => {};
+const immediateSnapshot: JSONPersistenceSnapshot = { pending: false, error: null, revision: 0, savedRevision: 0 };
+const getImmediateSnapshot = () => immediateSnapshot;
 
 export function Comments({ taskId }: { taskId: string }) {
   const tr = useT().workspace;
@@ -13,22 +18,27 @@ export function Comments({ taskId }: { taskId: string }) {
   const [body, setBody] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState('');
-  const [saveState, setSaveState] = useState<'saving' | 'saved' | 'error'>('saving');
+  const [immediateSaveState, setSaveState] = useState<'saving' | 'saved' | 'error'>('saving');
+  const storage = useWorkspaceStore.persist.getOptions().storage;
+  const deferred = isDeferredJSONStorage(storage) ? storage : undefined;
+  const persistence = useSyncExternalStore(deferred?.subscribe ?? noSubscription, deferred?.getSnapshot ?? getImmediateSnapshot);
+  const saveState = deferred ? persistence.error ? 'error' : persistence.pending ? 'saving' : 'saved' : immediateSaveState;
   const thread = Object.values(comments).filter((comment) => comment.taskId === taskId).sort((a, b) => a.createdAt - b.createdAt);
   const dates = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' });
 
   useEffect(() => {
+    if (deferred) return;
     let current = true;
     setSaveState('saving');
     void flushWorkspacePersistence().then(() => { if (current) setSaveState('saved'); }).catch(() => { if (current) setSaveState('error'); });
     return () => { current = false; };
-  }, [comments]);
+  }, [comments, deferred]);
 
   return <section className="ws-comments" aria-labelledby={headingId}>
     <header className="ws-comments-heading">
       <h3 id={headingId}>{tr.comments}<span className="ws-count">{thread.length}</span></h3>
       <span className={`ws-comments-save ${saveState === 'error' ? 'save-error' : ''}`} role="status">{saveState === 'saved' ? tr.saved : saveState === 'error' ? tr.saveFailed : tr.saving}</span>
-      {saveState === 'error' && <button type="button" className="ws-icon-button" aria-label={tr.retrySave} title={tr.retrySave} onClick={() => attempt(() => useWorkspaceStore.setState({ comments: { ...useWorkspaceStore.getState().comments } }))}><Icon name="scrum" size={15} /></button>}
+      {saveState === 'error' && <button type="button" className="ws-icon-button" aria-label={tr.retrySave} title={tr.retrySave} onClick={() => { if (deferred) void flushWorkspacePersistence().catch(() => {}); else attempt(() => useWorkspaceStore.setState({ comments: { ...useWorkspaceStore.getState().comments } })); }}><Icon name="scrum" size={15} /></button>}
     </header>
     {thread.length ? <div className="ws-comments-list">{thread.map((comment) => <article className="ws-comment" key={comment.id}>
       <div className="ws-comment-heading">

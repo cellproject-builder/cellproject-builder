@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLocaleStore } from '@/i18n';
 import { useWorkspaceStore as store, flushWorkspacePersistence } from './store';
 import { Notes } from './Notes';
+import { createSelectiveJSONStorage, isDeferredJSONStorage } from '@/data/selectiveJSONStorage';
 
 let root: Root;
 let host: HTMLDivElement;
@@ -19,6 +20,52 @@ beforeEach(async () => {
 afterEach(() => { act(() => root.unmount()); host.remove(); vi.restoreAllMocks(); });
 
 describe('note editing', () => {
+  it('does not scan full note bodies when no search is requested', async () => {
+    const noteId = store.getState().createNote({ title: 'Pesquisa' });
+    store.getState().updateNote(noteId, { blocks: [{ id: 'body', type: 'text', text: 'CORPO_UNICO_LARGO preservado' }] });
+    const lowercase = vi.spyOn(String.prototype, 'toLocaleLowerCase');
+    await act(async () => { root.render(<Notes initialNoteId={noteId} />); await flushWorkspacePersistence(); });
+    expect(lowercase.mock.contexts.some(value => String(value).includes('CORPO_UNICO_LARGO'))).toBe(false);
+    act(() => Simulate.change(host.querySelector('[aria-label="Buscar notas"]')!, { target: { value: 'preservado' } } as never));
+    expect(lowercase.mock.contexts.some(value => String(value).includes('CORPO_UNICO_LARGO'))).toBe(true);
+    expect(host.querySelector('.ws-note-preview')?.textContent).toContain('Pesquisa');
+  });
+
+  it('observes deferred save acknowledgement without flushing on every edit', async () => {
+    const original = store.persist.getOptions().storage;
+    let finish!: () => void;
+    const write = vi.fn(() => new Promise<void>(resolve => { finish = resolve; }));
+    const storage = createSelectiveJSONStorage(() => ({ getItem: () => null, setItem: write, removeItem: () => {} }), { deferMs: 200 })!;
+    if (!isDeferredJSONStorage(storage)) throw new Error('deferred adapter missing');
+    // Rendering speed must not decide whether the adapter's scheduling timer fires.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const flush = vi.spyOn(storage, 'flush');
+    store.persist.setOptions({ storage });
+    try {
+      const noteId = store.getState().createNote({ title: 'Original' });
+      await act(async () => { root.render(<Notes initialNoteId={noteId} />); });
+      expect(flush).not.toHaveBeenCalled();
+      expect(write).not.toHaveBeenCalled();
+      expect(host.querySelector('[role="status"]')?.textContent).toBe('Salvando…');
+      let saving!: Promise<void>; await act(async () => { saving = storage.flush(); await Promise.resolve(); });
+      expect(host.querySelector('[role="status"]')?.textContent).toBe('Salvando…');
+      await act(async () => { finish(); await saving; });
+      expect(host.querySelector('[role="status"]')?.textContent).toBe('Salvo');
+      flush.mockClear();
+      act(() => Simulate.change(host.querySelector('[aria-label="Título da nota"]')!, { target: { value: 'Mais uma edição' } } as never));
+      expect(flush).not.toHaveBeenCalled();
+      expect(write).toHaveBeenCalledOnce();
+      expect(host.querySelector('[role="status"]')?.textContent).toBe('Salvando…');
+      await act(async () => { const last = storage.flush(); await Promise.resolve(); finish(); await last; });
+      expect(host.querySelector('[role="status"]')?.textContent).toBe('Salvo');
+    } finally {
+      write.mockImplementation(() => Promise.resolve()); finish?.();
+      await storage.flush().catch(() => {});
+      store.persist.setOptions({ storage: original });
+      vi.useRealTimers();
+    }
+  });
+
   it('maximizes and restores the same editor without losing text, selection or library search', async () => {
     const noteId = store.getState().createNote({ title: 'Reunião de revisão' });
     const blocks = store.getState().notes[noteId].blocks.map((block) => ({ ...block, text: 'Um parágrafo em edição.' }));

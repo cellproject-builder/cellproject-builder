@@ -1,7 +1,8 @@
 import { useGraphStore, canRevealAICriterionNow } from '@/store';
 import { useWorkspaceStore } from '@/workspace/store';
 import { getPlannerOwnerId } from '@/workspace/planner';
-import type { Project } from '@/types';
+import type { ConceptNodeData, Project } from '@/types';
+import type { Note } from '@/workspace/types';
 import type { MentionTarget, VisualArtifact, VisualPromptInput, VisualProposal, VisualWorkspace } from './types';
 
 import { EMPTY_VISUAL_WORKSPACE, sceneSchema } from './normalize';
@@ -97,51 +98,108 @@ function fingerprint(value: unknown): string {
   for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
   return `${text.length}:${(hash >>> 0).toString(16)}`;
 }
-function sources() {
-  const scope = currentVisualScope(), project = useGraphStore.getState().project!;
-  const notes = Object.values(useWorkspaceStore.getState().notes).filter(n => !n.deletedAt && (n.projectId === null || n.projectId === (scope.ownerId ?? project.id)));
-  const result: Array<{ target: MentionTarget; text: string }> = [];
-  for (const n of notes) {
+type VisualSource = { target: MentionTarget; text: string };
+type SourceContext = { scope: VisualScope; project: Project };
+type SourceRecord = { kind: 'note'; value: Note } | { kind: 'node'; value: ConceptNodeData } | { kind: 'image'; value: VisualArtifact };
+// Store updates replace source objects. Weak keys release obsolete documents and
+// let unrelated layout, selection and draft updates reuse immutable source bodies.
+const noteSources = new WeakMap<Note, VisualSource>();
+const nodeSources = new WeakMap<ConceptNodeData, { hidden?: VisualSource; revealed?: VisualSource }>();
+const imageSources = new WeakMap<VisualArtifact, VisualSource>();
+function sourceContext(): SourceContext {
+  return { scope: currentVisualScope(), project: useGraphStore.getState().project! };
+}
+function visibleNote(note: Note, { scope, project }: SourceContext) {
+  return !note.deletedAt && (note.projectId === null || note.projectId === (scope.ownerId ?? project.id));
+}
+function sourceLabel(record: SourceRecord) {
+  return record.kind === 'note' ? record.value.title || 'Nota sem título' : record.kind === 'node' ? record.value.name : record.value.label;
+}
+/** Preserve menu ordering without encoding bodies that are not requested. */
+function* sourceRecords(context: SourceContext): Generator<SourceRecord> {
+  for (const note of Object.values(useWorkspaceStore.getState().notes)) if (visibleNote(note, context)) yield { kind: 'note', value: note };
+  for (const node of Object.values(context.project.nodes)) yield { kind: 'node', value: node };
+  for (const image of getVisualWorkspace(context.project).artifacts) if (image.kind === 'image') yield { kind: 'image', value: image };
+}
+function encodeSource(record: SourceRecord): VisualSource {
+  if (record.kind === 'note') {
+    const n = record.value, cached = noteSources.get(n);
+    if (cached) return cached;
     const text = JSON.stringify({ title: n.title, blocks: n.blocks });
-    result.push({ target: { id: n.id, kind: 'note', label: n.title || 'Nota sem título', detail: n.projectId ? 'Nota do projeto' : 'Nota pessoal', fingerprint: fingerprint([text, n.updatedAt]) }, text });
+    const source: VisualSource = { target: { id: n.id, kind: 'note', label: sourceLabel(record), detail: n.projectId ? 'Nota do projeto' : 'Nota pessoal', fingerprint: fingerprint([text, n.updatedAt]) }, text };
+    noteSources.set(n, source); return source;
   }
-  for (const n of Object.values(project.nodes)) {
-    // Never serialize the full node: hidden independent assessment criteria stay hidden.
-    const revealed = canRevealAICriterionNow(n);
+  if (record.kind === 'node') {
+    const n = record.value;
+    // Visibility can change when the undo grace period expires, with the same
+    // object identity. Always check it before choosing a cached sanitized body.
+    const revealed = canRevealAICriterionNow(n), key = revealed ? 'revealed' : 'hidden';
+    const variants = nodeSources.get(n) ?? {}, cached = variants[key];
+    if (cached) return cached;
+    // Never expose the full node: hidden independent criteria stay hidden.
     const text = JSON.stringify({ name: n.name, kind: n.kind, oQue: n.oQue, porQue: n.porQue, notes: n.notes,
       ...(n.fx ? { fx: n.fx } : {}),
       ...(n.webResearch ? { webResearch: { query: n.webResearch.query, findings: n.webResearch.findings, sources: n.webResearch.sources.map(source => ({ title: source.title, url: source.url })), searchedAt: n.webResearch.searchedAt } } : {}),
       // A cached explanation may have been generated before a criterion was hidden again.
       ...(revealed ? { comoConfirmar: n.comoConfirmar, ...(n.explicacao ? { explicacao: n.explicacao } : {}) } : {}) });
-    result.push({ target: { id: n.id, kind: 'node', label: n.name, detail: n.kind, fingerprint: fingerprint([n, text]) }, text });
+    const source: VisualSource = { target: { id: n.id, kind: 'node', label: n.name, detail: n.kind, fingerprint: fingerprint([n, text]) }, text };
+    variants[key] = source; nodeSources.set(n, variants); return source;
   }
-  for (const a of getVisualWorkspace(project).artifacts.filter(a => a.kind === 'image')) {
-    const text = JSON.stringify({ label: a.label, source: a.source, revisionIndex: a.revisionIndex, mediaId: a.mediaId });
-    result.push({ target: { id: a.id, kind: 'image', label: a.label, detail: 'Imagem do plano', fingerprint: fingerprint(text) }, text });
+  const a = record.value, cached = imageSources.get(a);
+  if (cached) return cached;
+  const text = JSON.stringify({ label: a.label, source: a.source, revisionIndex: a.revisionIndex, mediaId: a.mediaId });
+  const source: VisualSource = { target: { id: a.id, kind: 'image', label: a.label, detail: 'Imagem do plano', fingerprint: fingerprint(text) }, text };
+  imageSources.set(a, source); return source;
+}
+/** Valid stores use IDs as keys; preserve exact resolution for older aliased keys. */
+function recordById<T extends { id: string }>(records: Record<string, T>, id: string): T | undefined {
+  const direct = Object.hasOwn(records, id) ? records[id] : undefined;
+  return direct?.id === id ? direct : Object.values(records).find(record => record.id === id);
+}
+function findSource(id: string, kind: MentionTarget['kind'], context: SourceContext): VisualSource | undefined {
+  if (kind === 'note') {
+    const note = recordById(useWorkspaceStore.getState().notes, id);
+    return note && visibleNote(note, context) ? encodeSource({ kind, value: note }) : undefined;
   }
-  return result;
+  if (kind === 'node') {
+    const node = recordById(context.project.nodes, id);
+    return node ? encodeSource({ kind, value: node }) : undefined;
+  }
+  if (kind !== 'image') return undefined;
+  const image = getVisualWorkspace(context.project).artifacts.find(artifact => artifact.kind === 'image' && artifact.id === id);
+  return image ? encodeSource({ kind, value: image }) : undefined;
+}
+function sources(context = sourceContext()): VisualSource[] {
+  return Array.from(sourceRecords(context), encodeSource);
 }
 /** Sanitized reference bodies shared by scoped visual workflows. */
 export const visualContextSources = sources;
 export function listMentionTargets(query: string): MentionTarget[] {
   if (!useGraphStore.getState().project) return [];
   const q = query.replace(/^@/, '').toLocaleLowerCase();
-  return sources().map(s => s.target).filter(t => t.label.toLocaleLowerCase().includes(q)).slice(0, 100);
+  const result: MentionTarget[] = [];
+  for (const record of sourceRecords(sourceContext())) {
+    if (!sourceLabel(record).toLocaleLowerCase().includes(q)) continue;
+    result.push({ ...encodeSource(record).target });
+    if (result.length === 100) break;
+  }
+  return result;
 }
 /** Exact ID resolution must not inherit the suggestion menu's 100-item limit. */
 export function findMentionTarget(id: string, kind: MentionTarget['kind']): MentionTarget | undefined {
-  return sources().find(source => source.target.id === id && source.target.kind === kind)?.target;
+  const source = findSource(id, kind, sourceContext());
+  return source ? { ...source.target } : undefined;
 }
 export function resolveVisualContext(input: VisualPromptInput): { text: string; fingerprint: string } {
   copyVisualInput(input);
-  const scope = currentVisualScope(), project = useGraphStore.getState().project!, available = sources();
+  const context = sourceContext(), { scope, project } = context;
   const selected = input.mentions.map(target => {
-    const source = available.find(s => s.target.id === target.id && s.target.kind === target.kind);
+    const source = findSource(target.id, target.kind, context);
     if (!source) throw new Error('visualSourceMissing');
     return source;
   });
   const attachments = input.attachments.map(a => ({ id: a.id, name: a.name, mime: a.mime, byteLength: a.byteLength, mediaId: a.mediaId, text: a.text }));
-  const branch = input.generationMode === 'advanced' ? advancedContextScope(project, input, available) : undefined;
+  const branch = input.generationMode === 'advanced' ? advancedContextScope(project, input, sources(context)) : undefined;
   const diagramNodes = input.artifactKind === 'diagram' ? Object.values(project.nodes).slice(0, 80).map(n => ({ id: n.id, parentId: n.parentId, name: n.name.slice(0, 160), kind: n.kind, oQue: n.oQue.slice(0, 300) })) : undefined;
   const serialized = JSON.stringify({ selected: selected.map(s => ({ id: s.target.id, kind: s.target.kind, label: s.target.label, text: s.text.slice(0, 8_000) })), attachments: attachments.map(a => ({ ...a, text: a.text?.slice(0, 12_000), imageNote: a.mime.startsWith('image/') ? (input.analyzeImages === true ? 'Análise dos pixels solicitada; a imagem será enviada separadamente.' : 'Referência textual; pixels não analisados.') : undefined })), project: { name: project.name, objective: project.objective, rules: project.rules, planApproach: project.planApproach, referenceTarget: project.referenceTarget }, ...(branch ? { planOutline: branch.outline } : {}), ...(diagramNodes ? { planNodes: diagramNodes, planNodesPartial: Object.keys(project.nodes).length > diagramNodes.length } : {}) });
   let text = serialized;

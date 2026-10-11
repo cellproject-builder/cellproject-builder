@@ -24,8 +24,16 @@ export function unb64(value: string, limit = MAX_CIPHER_BYTES): Uint8Array<Array
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   if (b64(bytes) !== value) throw new Error('Envelope criptografado inválido.'); return bytes;
 }
+function parseCipher(value: unknown, max = MAX_CIPHER_BYTES): { iv: Uint8Array<ArrayBuffer>; data: Uint8Array<ArrayBuffer> } {
+  if (!exact(value, ['v', 'iv', 'data']) || value.v !== 1 || typeof value.iv !== 'string' || typeof value.data !== 'string') throw new Error('Envelope criptografado inválido.');
+  const iv = unb64(value.iv, 12);
+  if (iv.length !== 12) throw new Error('Envelope criptografado inválido.');
+  const data = unb64(value.data, max);
+  if (data.length < 16) throw new Error('Envelope criptografado inválido.');
+  return { iv, data };
+}
 export function validateCipher(value: unknown, max = MAX_CIPHER_BYTES): CipherEnvelope {
-  if (!exact(value, ['v', 'iv', 'data']) || value.v !== 1 || typeof value.iv !== 'string' || typeof value.data !== 'string' || unb64(value.iv, 12).length !== 12 || unb64(value.data, max).length < 16) throw new Error('Envelope criptografado inválido.');
+  parseCipher(value, max);
   return value as unknown as CipherEnvelope;
 }
 export function validateHeader(value: unknown): VaultHeader {
@@ -46,8 +54,8 @@ async function encrypt(key: CryptoKey, bytes: Uint8Array<ArrayBuffer>, associate
   return { v: 1, iv: b64(iv), data: b64(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: associated, tagLength: 128 }, key, bytes)) };
 }
 async function decrypt(key: CryptoKey, envelope: CipherEnvelope, associated: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
-  validateCipher(envelope);
-  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(envelope.iv, 12), additionalData: associated, tagLength: 128 }, key, unb64(envelope.data)));
+  const { iv, data } = parseCipher(envelope);
+  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData: associated, tagLength: 128 }, key, data));
 }
 export class VaultSession {
   constructor(readonly ownerId: string, readonly header: VaultHeader, private key: CryptoKey | null) {}

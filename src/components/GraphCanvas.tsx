@@ -445,6 +445,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   // Plan context and the canvas selection are different: selecting a photo
   // retains its plan context without leaving that concept selected for drag.
   const [selectedVisualId, setSelectedVisualId] = useState<string | null>(null);
+  const selectVisualArtifact = useCallback((id: string | null) => setSelectedVisualId(id ? `visual:${id}` : null), []);
   useEffect(() => { setSelectedVisualId(null); }, [selectionVersion, project?.id]);
   const focusedParentId = useGraphStore((s) => s.focusedParentId);
   const focusVersion = useGraphStore((s) => s.focusVersion);
@@ -1464,7 +1465,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
           />
         )}
       </ReactFlow>
-      {project && <VisualWorkspaceBridge project={project} containerRef={containerRef} selectedArtifactId={selectedVisualId?.slice(7) ?? null} onSelectArtifact={id => setSelectedVisualId(id ? `visual:${id}` : null)} />}
+      {project && <VisualWorkspaceBridge project={project} containerRef={containerRef} selectedArtifactId={selectedVisualId?.slice(7) ?? null} onSelectArtifact={selectVisualArtifact} />}
       {project && <PlannerInkLayer key={project.id} project={project} containerRef={containerRef} />}
     </div>
   );

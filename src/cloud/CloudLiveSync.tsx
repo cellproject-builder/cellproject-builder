@@ -9,6 +9,7 @@ import { normalizeVisualWorkspace } from '@/visuals/normalize';
 import { getPlannerOwnerId, plannerBusy } from '@/workspace/planner';
 import { useWorkspaceStore } from '@/workspace/store';
 import { hasActiveDataIngestions } from './activity';
+import { hasDeferredPersistence } from '@/data/selectiveJSONStorage';
 import { CloudConflictError, CloudRuntime, type CloudDocument } from './runtime';
 
 const SYNC_KEYS = ['cellproject-workspace', 'cellproject-graph'] as const;
@@ -17,7 +18,7 @@ const record = (value: unknown): value is Record<string, unknown> => !!value && 
 
 /** No cross-device replacement while a local gesture, text edit, paid call or unsent draft owns the data. */
 export function cloudCanvasIdle(): boolean {
-  if (liveInkGestureActive() || hasActiveDataIngestions() || hasActiveAIActions() || hasPendingGraphPersistence() || plannerBusy() || useChatStore.getState().running) return false;
+  if (liveInkGestureActive() || hasActiveDataIngestions() || hasActiveAIActions() || hasPendingGraphPersistence() || hasDeferredPersistence() || plannerBusy() || useChatStore.getState().running) return false;
   const graph = useGraphStore.getState();
   if (Object.keys(graph.drafts).length || graph.objectiveDraft.generatingSince || graph.objectiveDraft.expansion) return false;
   const focused = document.activeElement;

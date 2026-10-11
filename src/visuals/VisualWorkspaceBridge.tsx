@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, useRef, lazy, Suspense, type RefObject } from 'react';
+import { memo, useEffect, useCallback, useState, useRef, lazy, Suspense, type RefObject } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { useLocaleStore } from '@/i18n';
 import { toast } from '@/components/ui/Toast';
@@ -9,6 +9,7 @@ import { getPlannerOwnerId } from '@/workspace/planner';
 import type { Project } from '@/types';
 import { TabbedVisualExplorer as VisualExplorer } from './ui/TabbedVisualExplorer';
 import { useVisualPopupStore } from './ui/uiStore';
+import { useVisualSessionStore } from './ui/sessionStore';
 import { getVisualWorkspace, listMentionTargets, findMentionTarget, saveVisualDraft, setVisualMode, watchVisualScope, mutateVisualWorkspace, rejectVisualProposal, removeVisualProposalHistory } from './domain';
 import { addLocalImage, addReferenceImage, attachVisualFile, readVisualMedia } from './media';
 import { applyModelAtViewport, runVisualGeneration, runVisualSearch, setVisualPlacementResolver, useVisualSearchStore } from './controller';
@@ -24,10 +25,13 @@ import './visual-drop.css';
 
 const VisualCanvasLayer = lazy(() => import('./rendering/VisualCanvasLayer').then(module => ({ default: module.VisualCanvasLayer })));
 
-export function VisualWorkspaceBridge({ project, containerRef, selectedArtifactId = null, onSelectArtifact }: { project: Project; containerRef: RefObject<HTMLDivElement>; selectedArtifactId?: string | null; onSelectArtifact?: (id: string | null) => void }) {
+export const VisualWorkspaceBridge = memo(function VisualWorkspaceBridge({ project, containerRef, selectedArtifactId = null, onSelectArtifact }: { project: Project; containerRef: RefObject<HTMLDivElement>; selectedArtifactId?: string | null; onSelectArtifact?: (id: string | null) => void }) {
   const api = useReactFlow();
   const workspace = getVisualWorkspace(project);
-  const selectedNodeId = useGraphStore(state => state.selectedNodeId);
+  // Selection is only context for an interactive studio. Closed tools must not
+  // rebuild their context on every canvas selection or parent hover render.
+  const studioVisible = useVisualSessionStore(state => state.windows.some(window => !window.hidden && !window.minimized));
+  const selectedNodeId = useGraphStore(state => studioVisible ? state.selectedNodeId : null);
   const en = useLocaleStore(state => state.locale) === 'en';
   useArtifactClipboard({ containerRef, projectId: project.id, selectedArtifactId, onSelectArtifact, english: en });
   const search = useVisualSearchStore(state => state.search);
@@ -163,4 +167,4 @@ export function VisualWorkspaceBridge({ project, containerRef, selectedArtifactI
       onDiscuss={references => requestChatReferences(getPlannerOwnerId(), references)}
       onCopyImage={reference => copyVisualReference(reference, project.id)} />
   </>;
-}
+});

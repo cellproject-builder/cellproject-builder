@@ -1,5 +1,5 @@
 import type { CloudProvider } from '../runtime';
-import { validateCipher, validateHeader, type CipherEnvelope, type VaultHeader, type VaultSession } from '../vault/crypto';
+import { validateHeader, type CipherEnvelope, type VaultHeader, type VaultSession } from '../vault/crypto';
 
 export const OFFLINE_DATABASE = 'dynamic-diary-offline';
 const RECORDS = 'records', AUTHORIZATION = 'authorization', ACTIVE = 'active';
@@ -61,7 +61,8 @@ export class OfflineRepository {
   private async decode(slot: string, value: unknown): Promise<string> {
     this.available();
     if (!object(value) || Object.keys(value).sort().join(',') !== 'cipher,fingerprint,ownerId,slot,vaultId,version' || value.version !== 1 || value.ownerId !== this.ownerId || value.vaultId !== this.vaultId || value.slot !== slot || value.fingerprint !== await this.fingerprint()) throw new Error('A cópia offline não corresponde a esta conta, cofre e conteúdo.');
-    const sealed: unknown = JSON.parse(await this.session.openText(validateCipher(value.cipher), `offline:${slot}`));
+    // openText validates the complete envelope and canonical bytes before decrypting.
+    const sealed: unknown = JSON.parse(await this.session.openText(value.cipher as CipherEnvelope, `offline:${slot}`));
     // Authenticate the header binding inside the cipher too: editable IDB
     // metadata must not transplant a slot to another header using the same key.
     if (!object(sealed) || Object.keys(sealed).sort().join(',') !== 'content,fingerprint' || sealed.fingerprint !== value.fingerprint || typeof sealed.content !== 'string') throw new Error('O vínculo cifrado da cópia offline é inválido.');

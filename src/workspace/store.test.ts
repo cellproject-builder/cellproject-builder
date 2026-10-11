@@ -42,7 +42,7 @@ describe('notebook hydration boundary', () => {
     try {
       const hydration = store.persist.rehydrate();
       const first = ensureWorkspaceHydrated(), second = ensureWorkspaceHydrated();
-      expect(read).toHaveBeenCalledOnce();
+      await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
       release(saved!);
       await Promise.all([hydration, first, second]);
       expect(read).toHaveBeenCalledOnce();

@@ -1,6 +1,6 @@
 import { webcrypto } from 'node:crypto';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { b64, unb64, createVault, unlockVault, recoverVault, validateHeader, type CipherEnvelope } from './crypto';
+import { b64, unb64, createVault, unlockVault, recoverVault, validateCipher, validateHeader, MAX_CIPHER_BYTES, type CipherEnvelope } from './crypto';
 
 beforeAll(() => vi.stubGlobal('crypto', webcrypto));
 const owner = '00000000-0000-4000-8000-000000000001';
@@ -22,8 +22,25 @@ describe('canonical binary envelopes', () => {
     expect(() => unb64('AAAA', 2)).toThrow('Envelope criptografado inválido');
     expect(() => unb64('AA==', 0)).toThrow('Envelope criptografado inválido');
   });
+  it('preserves the validated envelope identity and exact cipher byte limits', () => {
+    const envelope: CipherEnvelope = { v: 1, iv: b64(new Uint8Array(12)), data: b64(new Uint8Array(16)) };
+    expect(validateCipher(envelope, 16)).toBe(envelope);
+    expect(() => validateCipher(envelope, 15)).toThrow('Envelope criptografado inválido');
+    expect(() => validateCipher({ ...envelope, data: b64(new Uint8Array(17)) }, 16)).toThrow('Envelope criptografado inválido');
+    expect(() => validateCipher({ ...envelope, data: b64(new Uint8Array(15)) }, 16)).toThrow('Envelope criptografado inválido');
+    expect(() => validateCipher({ ...envelope, data: envelope.data.slice(0, -3) + 'B==' }, 16)).toThrow('Envelope criptografado inválido');
+  });
 });
 describe('client-only encrypted vault', () => {
+  it('decodes and canonically validates a cipher body once when opening it', async () => {
+    const created = await createVault(owner, secret), text = 'synthetic content '.repeat(8193);
+    const envelope = await created.session.seal(text, 'decode-once');
+    const decode = vi.spyOn(globalThis, 'atob');
+    try {
+      expect(await created.session.openText(envelope, 'decode-once')).toBe(text);
+      expect(decode.mock.calls.filter(([value]) => value === envelope.data).length).toBe(1);
+    } finally { decode.mockRestore(); created.session.dispose(); }
+  });
   it('encrypts content with fresh nonces and only unlocks with the separate secret', async () => {
     const created = await createVault(owner, secret);
     const a = await created.session.seal('private project title', 'manifest:1');
@@ -54,7 +71,14 @@ describe('client-only encrypted vault', () => {
     const created = await createVault(owner, secret);
     expect(() => validateHeader({ ...created.header, kdf: { ...created.header.kdf, iterations: 1 } })).toThrow();
     expect(() => validateHeader({ ...created.header, untrusted: 'plaintext' })).toThrow();
+    const sealed = await created.session.seal('data', 'backup'), decrypt = vi.spyOn(crypto.subtle, 'decrypt');
+    try {
+      await expect(created.session.openText({ ...sealed, untrusted: true } as CipherEnvelope, 'backup')).rejects.toThrow('Envelope criptografado inválido');
+      await expect(created.session.openText({ ...sealed, data: 'A'.repeat(Math.ceil(MAX_CIPHER_BYTES / 3) * 4 + 4) }, 'backup')).rejects.toThrow('Envelope criptografado inválido');
+      expect(decrypt).not.toHaveBeenCalled();
+    } finally { decrypt.mockRestore(); }
     created.session.dispose(); await expect(created.session.seal('data', 'backup')).rejects.toThrow('bloqueado');
+    await expect(created.session.openText(sealed, 'backup')).rejects.toThrow('bloqueado');
     await expect(createVault(owner, 'short')).rejects.toThrow('12');
   });
 });

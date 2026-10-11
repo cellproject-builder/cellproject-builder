@@ -7,14 +7,19 @@ vi.mock('@/chat/store', () => ({ useChatStore: { getState: () => ({ running: act
 vi.mock('@/workspace/planner', () => ({ plannerBusy: () => false, getPlannerOwnerId: () => null }));
 vi.mock('@/store', () => ({ hasPendingGraphPersistence: () => false, flushGraphPersistence: async () => {} }));
 vi.mock('@/workspace/store', () => ({ flushWorkspacePersistence: async () => {} }));
-import { CloudStatus } from './CloudStatus';
-import { CloudRuntime, configureCloud } from './runtime';
+import { CloudStatus, saveCurrentBackup } from './CloudStatus';
+import { CloudRuntime, configureCloud, getCloudRuntime } from './runtime';
 import { registerDataIngestion } from './activity';
 import { createVault } from './vault/crypto';
 import { rememberDeviceVault, readDeviceVault } from './vault/deviceKeys';
 import { configureVault, getVaultSession } from './vault/privacy';
 import * as rescue from './rescue';
 import * as offlineAuthorization from './offline/repository';
+import * as migration from './migration';
+import * as graphPersistence from '@/store';
+import * as workspacePersistence from '@/workspace/store';
+import * as chatPersistence from '@/chat/store';
+import { createSelectiveJSONStorage, isDeferredJSONStorage } from '@/data/selectiveJSONStorage';
 async function settle(assertion: () => void) {
   let last: unknown;
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -23,6 +28,187 @@ async function settle(assertion: () => void) {
   }
   throw last;
 }
+
+it('exports a complete backup when no deferred writes are pending', async () => {
+  vi.stubGlobal('crypto', webcrypto); activity.chatRunning = false;
+  const cloud = new CloudRuntime({ documents: [], media: [] }); configureCloud(cloud);
+  const download = vi.spyOn(migration, 'downloadBackup').mockResolvedValue();
+  try {
+    await saveCurrentBackup(cloud);
+    expect(download).toHaveBeenCalledOnce();
+    expect(download.mock.calls[0][0]).toMatchObject({ format: 'cellproject-global-backup', documents: [] });
+  } finally { configureCloud(null); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
+});
+
+it('refuses to download an old account backup after its owner changes during capture', async () => {
+  vi.stubGlobal('crypto', webcrypto); activity.chatRunning = false;
+  const original = new CloudRuntime({ documents: [], media: [] }), replacement = new CloudRuntime({ documents: [], media: [] }); configureCloud(original);
+  let finish!: (value: Awaited<ReturnType<typeof migration.captureLegacyBackup>>) => void;
+  const capture = vi.spyOn(migration, 'captureLegacyBackup').mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const download = vi.spyOn(migration, 'downloadBackup').mockResolvedValue();
+  const pending = saveCurrentBackup(original);
+  try {
+    await vi.waitFor(() => expect(capture).toHaveBeenCalledOnce());
+    configureCloud(replacement);
+    finish({ format: 'cellproject-global-backup', version: 1, exportedAt: '', operationId: 'synthetic', manifestHash: '', documents: [], media: [] });
+    await expect(pending).rejects.toThrow('sessão de persistência mudou');
+    expect(download).not.toHaveBeenCalled(); expect(getCloudRuntime()).toBe(replacement);
+  } finally { configureCloud(null); original.dispose(); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
+});
+
+it('does not mark a backup complete when a draft changes during the asynchronous download', async () => {
+  vi.stubGlobal('crypto', webcrypto); activity.chatRunning = false;
+  const cloud = new CloudRuntime({ documents: [], media: [] }); configureCloud(cloud);
+  let finish!: () => void;
+  const download = vi.spyOn(migration, 'downloadBackup').mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const pending = saveCurrentBackup(cloud);
+  try {
+    await vi.waitFor(() => expect(download).toHaveBeenCalledOnce());
+    cloud.notifySessionExpired('api'); await cloud.write('dynamic_diary-theme', 'newer unsaved draft'); finish();
+    await expect(pending).rejects.toThrow('dados mudaram');
+    expect(cloud.get('dynamic_diary-theme')).toBe('newer unsaved draft');
+  } finally { finish?.(); configureCloud(null); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
+});
+
+it('retains a nondeferred draft written during the logout request', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  activity.chatRunning = false;
+  const cloud = new CloudRuntime({ documents: [], media: [] }); configureCloud(cloud);
+  vi.spyOn(offlineAuthorization, 'revokeOfflineAuthorization').mockResolvedValue();
+  let finish!: (value: Response) => void;
+  const logout = vi.fn(), fetcher = vi.fn<typeof fetch>(() => new Promise(resolve => { finish = resolve; }));
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId="owner" email="synthetic@example.test" fetcher={fetcher} onLogout={logout}/>));
+    await act(async () => host.querySelector('button')!.click());
+    await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Sair da conta')!.click());
+    await settle(() => expect(fetcher).toHaveBeenCalledOnce());
+    await act(async () => { cloud.notifySessionExpired('api'); await cloud.write('dynamic_diary-theme', 'typed during logout'); finish(Response.json({ signedOut: true })); });
+    await settle(() => expect(host.textContent).toContain('dados mudaram'));
+    expect(logout).not.toHaveBeenCalled(); expect(cloud.get('dynamic_diary-theme')).toBe('typed during logout');
+  } finally { await act(async () => root.unmount()); host.remove(); configureCloud(null); vi.restoreAllMocks(); }
+});
+
+it.each(['backup', 'rescue'] as const)('blocks %s when a retained graph draft has not reached the runtime', async action => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  vi.stubGlobal('crypto', webcrypto); activity.chatRunning = false;
+  const cloud = new CloudRuntime({ documents: [], media: [] }); configureCloud(cloud); cloud.notifySessionExpired('api');
+  vi.spyOn(graphPersistence, 'flushGraphPersistence').mockRejectedValue(new Error('Previous persistence owner'));
+  vi.spyOn(graphPersistence, 'hasPendingGraphPersistence').mockReturnValue(true);
+  const backup = vi.spyOn(migration, 'downloadBackup').mockResolvedValue();
+  const rescueDownload = vi.spyOn(rescue, 'downloadSessionRescue').mockImplementation(rescue.captureSessionRescue);
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    if (action === 'backup') await expect(saveCurrentBackup(cloud)).rejects.toThrow('alterações do plano');
+    else {
+      await act(async () => root.render(<CloudStatus runtime={cloud} userId="owner" email="synthetic@example.test" onLogout={() => {}}/>));
+      await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Baixar rascunhos de resgate (.json)')!.click());
+      await settle(() => expect(host.textContent).toContain('alterações do plano'));
+    }
+    expect(backup).not.toHaveBeenCalled(); expect(rescueDownload).not.toHaveBeenCalled();
+  } finally { await act(async () => root.unmount()); host.remove(); configureCloud(null); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
+});
+
+it('refuses rescue logout if a new graph draft is queued after the rescue download', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  vi.stubGlobal('crypto', webcrypto); activity.chatRunning = false;
+  const vault = await createVault(crypto.randomUUID(), 'synthetic graph-rescue logout phrase');
+  const cloud = new CloudRuntime({ documents: [], media: [] }, vi.fn(), () => vault.session.dispose()); configureCloud(cloud); configureVault(vault.session); cloud.notifySessionExpired('api');
+  const pending = vi.spyOn(graphPersistence, 'hasPendingGraphPersistence').mockReturnValue(false);
+  vi.spyOn(rescue, 'downloadSessionRescue').mockImplementation(rescue.captureSessionRescue);
+  const revoke = vi.spyOn(offlineAuthorization, 'revokeOfflineAuthorization').mockResolvedValue();
+  const logout = vi.fn(), fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ signedOut: true }));
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId={vault.session.ownerId} email="synthetic@example.test" fetcher={fetcher} onLogout={logout}/>));
+    await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Baixar rascunhos de resgate (.ddvault)')!.click());
+    await settle(() => expect([...host.querySelectorAll('button')].find(button => button.textContent === 'Sair após baixar resgate')?.disabled).toBe(false));
+    pending.mockReturnValue(true);
+    await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Sair após baixar resgate')!.click());
+    await settle(() => expect(host.textContent).toContain('alterações do plano'));
+    expect(revoke).not.toHaveBeenCalled(); expect(fetcher).not.toHaveBeenCalled(); expect(logout).not.toHaveBeenCalled();
+  } finally { await act(async () => root.unmount()); host.remove(); configureCloud(null); configureVault(null, false); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
+});
+
+it('does not log out a replacement account when the owner changes during local revocation', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  activity.chatRunning = false;
+  const original = new CloudRuntime({ documents: [], media: [] }), replacement = new CloudRuntime({ documents: [], media: [] }); configureCloud(original);
+  let finish!: () => void;
+  const revoke = vi.spyOn(offlineAuthorization, 'revokeOfflineAuthorization').mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const logout = vi.fn(), fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ signedOut: true }));
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={original} userId="original" email="synthetic@example.test" fetcher={fetcher} onLogout={logout}/>));
+    await act(async () => host.querySelector('button')!.click());
+    await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Sair da conta')!.click());
+    await settle(() => expect(revoke).toHaveBeenCalledOnce());
+    await act(async () => { configureCloud(replacement); finish(); });
+    await settle(() => expect(host.textContent).toContain('sessão de persistência mudou'));
+    expect(fetcher).not.toHaveBeenCalled(); expect(logout).not.toHaveBeenCalled(); expect(getCloudRuntime()).toBe(replacement);
+  } finally { finish?.(); await act(async () => root.unmount()); host.remove(); configureCloud(null); original.dispose(); vi.restoreAllMocks(); }
+});
+
+it('drains graph and chat into the rescue even if deferred workspace persistence fails', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  activity.chatRunning = false;
+  const cloud = new CloudRuntime({ documents: [], media: [] }); configureCloud(cloud); cloud.notifySessionExpired('api');
+  const save = vi.fn(async (key: string, value: string): Promise<void> => { await cloud.write(key, value); throw new Error('Checkpoint unavailable'); });
+  const storage = createSelectiveJSONStorage(() => ({ getItem: () => null, setItem: save, removeItem: () => {} }), { deferMs: 200, scope: () => cloud })!;
+  if (!isDeferredJSONStorage(storage)) throw new Error('deferred adapter missing');
+  const pending = storage.setItem('cellproject-workspace', { state: { notes: [] }, version: 2 });
+  await expect(storage.flush()).rejects.toThrow('Checkpoint unavailable'); await expect(pending).rejects.toThrow();
+  const graph = JSON.stringify({ state: { projects: [{ id: 'latest-graph' }] }, version: 1 });
+  const chat = JSON.stringify({ state: { messages: [{ text: 'latest-chat' }] }, version: 1 });
+  const graphFlush = vi.spyOn(graphPersistence, 'flushGraphPersistence').mockImplementation(() => cloud.write('cellproject-graph', graph));
+  const chatFlush = vi.spyOn(chatPersistence, 'flushChatPersistence').mockImplementation(() => cloud.write('dynamic_diary-chat', chat));
+  vi.spyOn(workspacePersistence, 'flushWorkspacePersistence').mockImplementation(() => storage.flush());
+  const download = vi.spyOn(rescue, 'downloadSessionRescue').mockImplementation(rescue.captureSessionRescue);
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId="owner" email="synthetic@example.test" onLogout={() => {}}/>));
+    await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Baixar rascunhos de resgate (.json)')!.click());
+    await settle(() => expect(graphFlush).toHaveBeenCalledOnce());
+    expect(chatFlush).toHaveBeenCalledOnce(); expect(download).toHaveBeenCalledOnce();
+    const exported = await download.mock.results[0].value;
+    expect(exported.documents).toEqual(expect.arrayContaining([{ key: 'cellproject-graph', value: graph }, { key: 'dynamic_diary-chat', value: chat }]));
+    expect(storage.hasPending()).toBe(true);
+  } finally {
+    save.mockResolvedValue(undefined); await act(async () => { await storage.flush(); root.unmount(); });
+    host.remove(); configureCloud(null); vi.restoreAllMocks();
+  }
+});
+
+it('marks deferred edits as unsaved and drains them before logout', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  activity.chatRunning = false;
+  const events: string[] = [];
+  let finish!: () => void;
+  const save = vi.fn(() => new Promise<void>(resolve => { events.push('write'); finish = resolve; }));
+  const storage = createSelectiveJSONStorage(() => ({ getItem: () => null, setItem: save, removeItem: () => {} }), { deferMs: 200 })!;
+  if (!isDeferredJSONStorage(storage)) throw new Error('deferred adapter missing');
+  vi.spyOn(workspacePersistence, 'flushWorkspacePersistence').mockImplementation(() => storage.flush());
+  const cloud = new CloudRuntime({ documents: [], media: [] }); configureCloud(cloud);
+  const logout = vi.fn(), fetcher = vi.fn<typeof fetch>(async () => { events.push('logout'); return Response.json({ signedOut: true }); });
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId="owner" email="synthetic@example.test" fetcher={fetcher} onLogout={logout}/>));
+    act(() => { storage.setItem('cellproject-workspace', { state: { text: 'unsent' }, version: 2 }); });
+    expect(host.querySelector('.cloud-status-indicator')?.getAttribute('aria-label')).toContain('Salvando');
+    const unload = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(true);
+    await act(async () => host.querySelector<HTMLButtonElement>('.cloud-status-indicator')!.click());
+    await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Sair da conta')!.click());
+    await settle(() => expect(events).toEqual(['write']));
+    expect(logout).not.toHaveBeenCalled();
+    await act(async () => { finish(); });
+    await settle(() => expect(logout).toHaveBeenCalledOnce());
+    expect(events).toEqual(['write', 'logout']);
+  } finally {
+    save.mockImplementation(() => Promise.resolve()); finish?.(); await act(async () => { await storage.flush(); root.unmount(); });
+    host.remove(); configureCloud(null); vi.restoreAllMocks();
+  }
+});
 
 it('keeps a durable offline draft quiet and distinguishes it from a cloud confirmation', async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -177,6 +363,7 @@ it('lets the user retry a conflict against the retained draft without reloading 
 
 it('blocks complete backup, rescue and logout while chat or a file ingestion is running', async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  activity.chatRunning = true;
   const cloud = new CloudRuntime({ documents: [], media: [] }); configureCloud(cloud); cloud.notifySessionExpired('api');
   const logout = vi.fn(), fetcher = vi.spyOn(globalThis, 'fetch');
   const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
@@ -232,7 +419,7 @@ it('revokes offline reopening before remote logout and preserves a durable pendi
 });
 it('keeps the current session open and skips remote logout if local revocation cannot be confirmed', async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true; activity.chatRunning = false;
-  const cloud = new CloudRuntime({ documents: [], media: [] });
+  const cloud = new CloudRuntime({ documents: [], media: [] }); configureCloud(cloud);
   const revoke = vi.spyOn(offlineAuthorization, 'revokeOfflineAuthorization').mockRejectedValue(new Error('Falha ao revogar a abertura offline'));
   const logout = vi.fn(), fetcher = vi.fn<typeof fetch>();
   const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
@@ -242,7 +429,7 @@ it('keeps the current session open and skips remote logout if local revocation c
     await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Sair da conta')!.click());
     await settle(() => expect(host.textContent).toContain('Falha ao revogar'));
     expect(revoke).toHaveBeenCalledOnce(); expect(fetcher).not.toHaveBeenCalled(); expect(logout).not.toHaveBeenCalled();
-  } finally { await act(async () => root.unmount()); host.remove(); cloud.dispose(); vi.restoreAllMocks(); }
+  } finally { await act(async () => root.unmount()); host.remove(); configureCloud(null); vi.restoreAllMocks(); }
 });
 it('allows an explicit encrypted rescue before logout when the device checkpoint cannot be saved', async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true; vi.stubGlobal('crypto', webcrypto); activity.chatRunning = false;
@@ -250,16 +437,29 @@ it('allows an explicit encrypted rescue before logout when the device checkpoint
   const persistence = { read: async <T,>() => null as T | null, write: async () => { throw new Error('Sem espaço no aparelho'); }, remove: async () => {} };
   const cloud = new CloudRuntime({ documents: [], media: [] }, vi.fn(), () => vault.session.dispose(), undefined, { persistence, networkReady: () => false });
   configureCloud(cloud); configureVault(vault.session); await cloud.write('dynamic_diary-theme', 'pending dark');
+  const save = vi.fn(async (key: string, value: string) => { await cloud.write(key, value); await cloud.flush(); });
+  const storage = createSelectiveJSONStorage(() => ({ getItem: () => null, setItem: save, removeItem: () => {} }), { deferMs: 200, scope: () => cloud, captureStorage: () => ({ getItem: () => null, setItem: save, removeItem: () => {} }) })!;
+  if (!isDeferredJSONStorage(storage)) throw new Error('deferred adapter missing');
+  const pending = storage.setItem('cellproject-workspace', { state: { text: 'Preservar no resgate' }, version: 2 });
+  await expect(storage.flush()).rejects.toThrow(); await expect(pending).rejects.toThrow();
   vi.spyOn(rescue, 'downloadSessionRescue').mockImplementation(rescue.captureSessionRescue);
-  const logout = vi.fn(), fetcher = vi.fn<typeof fetch>(async () => Response.json({ signedOut: true }));
+  const logout = vi.fn(), fetcher = vi.fn<typeof fetch>().mockRejectedValueOnce(new Error('logout offline')).mockResolvedValue(Response.json({ signedOut: true }));
   const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
   try {
     await act(async () => root.render(<CloudStatus runtime={cloud} userId={vault.session.ownerId} email="wylgnerbossman@gmail.com" fetcher={fetcher} onLogout={logout}/>));
     await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Baixar rascunhos de resgate (.ddvault)')!.click());
     await settle(() => expect([...host.querySelectorAll('button')].find(button => button.textContent === 'Sair após baixar resgate')?.disabled).toBe(false));
     await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Sair após baixar resgate')!.click());
+    await settle(() => expect(host.textContent).toContain('logout offline'));
+    expect(storage.hasPending()).toBe(true); expect(logout).not.toHaveBeenCalled();
+    await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Sair após baixar resgate')!.click());
     await settle(() => expect(logout).toHaveBeenCalledOnce());
-  } finally { await act(async () => root.unmount()); host.remove(); configureCloud(null); configureVault(null, false); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
+    expect(storage.hasPending()).toBe(false);
+  } finally {
+    save.mockResolvedValue();
+    await act(async () => { await storage.flush(); root.unmount(); });
+    host.remove(); configureCloud(null); configureVault(null, false); vi.restoreAllMocks(); vi.unstubAllGlobals();
+  }
 });
 it('allows logout after an explicit partial rescue with a pending failed write, preserving it if logout fails', async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true; vi.stubGlobal('crypto', webcrypto); activity.chatRunning = false;

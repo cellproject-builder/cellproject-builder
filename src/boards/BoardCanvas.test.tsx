@@ -21,8 +21,8 @@ vi.mock('./BoardItemNode',()=>({BoardItemNode:()=>null}));
 vi.mock('./BoardComposer',()=>({BoardComposer:()=>null}));
 vi.mock('@/visuals/rendering/VisualCanvasLayer',()=>({VisualCanvasLayer:()=>null}));
 let host:HTMLDivElement,root:Root,id:string;
-beforeEach(()=>{vi.clearAllMocks();flow.viewport={x:0,y:0,zoom:1};flow.setViewport.mockImplementation(async next=>{flow.viewport=next;return true;});(globalThis as {IS_REACT_ACT_ENVIRONMENT?:boolean}).IS_REACT_ACT_ENVIRONMENT=true;useWorkspaceStore.setState({boards:{},activeBoardId:null,projects:{},notes:{},surface:'boards'});id=useWorkspaceStore.getState().createBoard('Sketch');host=document.createElement('div');document.body.append(host);root=createRoot(host);act(()=>root.render(<BoardCanvas boardId={id} onBack={vi.fn()}/>));});
-afterEach(()=>{act(()=>root.unmount());configureLiveInk(null);configureCloud(null);host.remove();});
+beforeEach(async()=>{await flushWorkspacePersistence();vi.clearAllMocks();flow.viewport={x:0,y:0,zoom:1};flow.setViewport.mockImplementation(async next=>{flow.viewport=next;return true;});(globalThis as {IS_REACT_ACT_ENVIRONMENT?:boolean}).IS_REACT_ACT_ENVIRONMENT=true;useWorkspaceStore.setState({boards:{},activeBoardId:null,projects:{},notes:{},surface:'boards'});id=useWorkspaceStore.getState().createBoard('Sketch');host=document.createElement('div');document.body.append(host);root=createRoot(host);act(()=>root.render(<BoardCanvas boardId={id} onBack={vi.fn()}/>));});
+afterEach(async()=>{act(()=>root.unmount());await flushWorkspacePersistence();configureLiveInk(null);configureCloud(null);host.remove();});
 const openPalette=()=>{const trigger=host.querySelector<HTMLButtonElement>('[data-ink-palette-trigger]');if(trigger?.getAttribute('aria-expanded')==='false')act(()=>trigger.click());};
 const click=(label:string)=>{if(!host.querySelector(`[aria-label="${label}"]`))openPalette();act(()=>Simulate.click(host.querySelector(`[aria-label="${label}"]`)!));};
 const key=(key:string,options:Record<string,unknown>={})=>act(()=>Simulate.keyDown(host.querySelector('[data-board-canvas]')!,{key,...options}));
@@ -36,47 +36,62 @@ const cloudBoard=async()=>{
   configureCloud(runtime);return {runtime,fetcher};
 };
 it('does not write a workspace snapshot when an unchanged title loses focus before navigation',async()=>{
-  const {runtime,fetcher}=await cloudBoard(),before=useWorkspaceStore.getState().boards[id];
+  const {fetcher}=await cloudBoard(),before=useWorkspaceStore.getState().boards[id];
   const input=host.querySelector<HTMLInputElement>('input[aria-label="Nome do quadro"]')!;
   act(()=>Simulate.blur(input));
   act(()=>{input.value=' Sketch ';Simulate.change(input);});
   act(()=>Simulate.blur(input));click('Voltar aos quadros');
-  await runtime.flush();
+  await flushWorkspacePersistence();
   expect(useWorkspaceStore.getState().boards[id]).toBe(before);expect(input.value).toBe('Sketch');
   expect(fetcher).not.toHaveBeenCalled();
 });
 it.each([null,undefined])('does not write a workspace snapshot for a programmatic viewport callback with event %s',async event=>{
-  const {runtime,fetcher}=await cloudBoard(),before=useWorkspaceStore.getState().boards[id];
-  act(()=>flow.props.onMoveEnd(event,{x:80,y:90,zoom:2}));await runtime.flush();
+  const {fetcher}=await cloudBoard(),before=useWorkspaceStore.getState().boards[id];
+  act(()=>flow.props.onMoveEnd(event,{x:80,y:90,zoom:2}));await flushWorkspacePersistence();
   expect(useWorkspaceStore.getState().boards[id]).toBe(before);expect(fetcher).not.toHaveBeenCalled();
 });
 it('does not write a workspace snapshot for an unchanged user viewport',async()=>{
-  const {runtime,fetcher}=await cloudBoard(),before=useWorkspaceStore.getState().boards[id];
-  act(()=>flow.props.onMoveEnd(new MouseEvent('mouseup'),{...before.document.viewport}));await runtime.flush();
+  const {fetcher}=await cloudBoard(),before=useWorkspaceStore.getState().boards[id];
+  act(()=>flow.props.onMoveEnd(new MouseEvent('mouseup'),{...before.document.viewport}));await flushWorkspacePersistence();
   expect(useWorkspaceStore.getState().boards[id]).toBe(before);expect(fetcher).not.toHaveBeenCalled();
 });
 it('saves a changed user viewport once and preserves the board contents',async()=>{
-  click('Adicionar cartão');const {runtime,fetcher}=await cloudBoard(),before=items(),viewport={x:80,y:90,zoom:2};
-  act(()=>flow.props.onMoveEnd(new MouseEvent('mouseup'),viewport));await runtime.flush();
+  click('Adicionar cartão');const {fetcher}=await cloudBoard(),before=items(),viewport={x:80,y:90,zoom:2};
+  act(()=>flow.props.onMoveEnd(new MouseEvent('mouseup'),viewport));await flushWorkspacePersistence();
   expect(useWorkspaceStore.getState().boards[id].document.viewport).toEqual(viewport);expect(items()).toEqual(before);
   expect(fetcher).toHaveBeenCalledOnce();
 });
+it('pans a 100000 point board without reparsing or replacing its renderable contents',()=>{
+  const document=useWorkspaceStore.getState().boards[id].document;
+  act(()=>{useWorkspaceStore.getState().updateBoard(id,{document:{...document,items:Array.from({length:25},(_,index)=>({id:`ink-${index}`,kind:'drawing',x:0,y:0,width:100,height:100,points:Array.from({length:4000},(_,point)=>({x:point%100,y:Math.floor(point/100),pressure:.5})),color:'#abcdef',widthStroke:2}))}});});
+  const before=useWorkspaceStore.getState().boards[id].document,rendered=flow.props.nodes;
+  act(()=>flow.props.onMoveEnd(new MouseEvent('mouseup'),{x:80,y:90,zoom:2}));
+  const after=useWorkspaceStore.getState().boards[id].document;
+  expect(after.viewport).toEqual({x:80,y:90,zoom:2});expect(after.items===before.items).toBe(true);expect(after.edges===before.edges).toBe(true);
+  expect(flow.props.nodes===rendered).toBe(true);
+});
+it('keeps local undo and redo available after a mouse viewport change without undoing the view',()=>{
+  click('Adicionar cartão');const viewport={x:80,y:90,zoom:2};
+  act(()=>flow.props.onMoveEnd(new MouseEvent('mouseup'),viewport));
+  key('z',{ctrlKey:true});expect(items()).toHaveLength(0);expect(useWorkspaceStore.getState().boards[id].document.viewport).toEqual(viewport);
+  key('y',{ctrlKey:true});expect(items()).toHaveLength(1);expect(useWorkspaceStore.getState().boards[id].document.viewport).toEqual(viewport);
+});
 it('ignores a delayed viewport callback after navigating away from the board',async()=>{
-  const {runtime,fetcher}=await cloudBoard(),before=useWorkspaceStore.getState().boards[id];
+  const {fetcher}=await cloudBoard(),before=useWorkspaceStore.getState().boards[id];
   act(()=>{useWorkspaceStore.setState({activeBoardId:null});});
-  act(()=>flow.props.onMoveEnd(new MouseEvent('mouseup'),{x:80,y:90,zoom:2}));await runtime.flush();
+  act(()=>flow.props.onMoveEnd(new MouseEvent('mouseup'),{x:80,y:90,zoom:2}));await flushWorkspacePersistence();
   expect(useWorkspaceStore.getState().boards[id]).toBe(before);expect(fetcher).not.toHaveBeenCalled();
 });
 it.each(['Aproximar','Afastar'])('saves an explicitly requested %s without a mouse viewport event',async label=>{
-  const {runtime,fetcher}=await cloudBoard(),viewport={x:50,y:40,zoom:label==='Aproximar'?1.2:.8};
+  const {fetcher}=await cloudBoard(),viewport={x:50,y:40,zoom:label==='Aproximar'?1.2:.8};
   flow.viewport=viewport;
-  await act(async()=>{Simulate.click(host.querySelector(`[aria-label="${label}"]`)!);});await runtime.flush();
+  await act(async()=>{Simulate.click(host.querySelector(`[aria-label="${label}"]`)!);});await flushWorkspacePersistence();
   expect(useWorkspaceStore.getState().boards[id].document.viewport).toEqual(viewport);expect(fetcher).toHaveBeenCalledOnce();
 });
 it('saves an explicitly requested fit after its passive viewport callback without a second write',async()=>{
-  const {runtime,fetcher}=await cloudBoard(),viewport={x:50,y:40,zoom:.8};
+  const {fetcher}=await cloudBoard(),viewport={x:50,y:40,zoom:.8};
   flow.fitView.mockImplementationOnce(async()=>{flow.viewport=viewport;flow.props.onMoveEnd(undefined,viewport);return true;});
-  await act(async()=>{Simulate.click(host.querySelector('[aria-label="Enquadrar objetos"]')!);});await runtime.flush();
+  await act(async()=>{Simulate.click(host.querySelector('[aria-label="Enquadrar objetos"]')!);});await flushWorkspacePersistence();
   expect(useWorkspaceStore.getState().boards[id].document.viewport).toEqual(viewport);expect(fetcher).toHaveBeenCalledOnce();
 });
 it('offers drawing, stroke erasing, and lasso selection modes',()=>{
