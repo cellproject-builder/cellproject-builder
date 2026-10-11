@@ -116,9 +116,14 @@ function resize(nextWidth: number, nextHeight: number) {
   advance();
 }
 function choose(mode: string) {
-  const select = host.querySelector<HTMLSelectElement>('select[name="graph-layout"]')!;
-  act(() => { select.value = mode; Simulate.change(select); });
+  const button = host.querySelector<HTMLButtonElement>(`button[data-layout-choice="${mode}"]`)!;
+  act(() => button.click());
   advance();
+}
+function tidy(flush = true) {
+  const button = [...host.querySelectorAll('button')].find(item => /Tidy tree|Organizar árvore/.test(`${item.getAttribute('aria-label')} ${item.textContent}`))!;
+  act(() => button.click());
+  if (flush) advance();
 }
 function expectGraphInsideCanvas() {
   const viewport = flow.setViewport.mock.calls.at(-1)![0] as { x: number; y: number; zoom: number };
@@ -189,6 +194,72 @@ afterEach(() => {
 });
 
 describe('GraphCanvas automatic layout integration', () => {
+  it.each(['horizontal', 'vertical'] as const)('keeps the chosen %s orientation when organizing the tree', mode => {
+    resize(mode === 'horizontal' ? 480 : 1100, mode === 'horizontal' ? 850 : 650);
+    choose(mode);
+    tidy();
+    expect(canvas().dataset.layoutMode).toBe(mode);
+    expect(canvas().dataset.orientation).toBe(mode);
+    expect(savedPositions()).toEqual(positions());
+    expectGraphInsideCanvas();
+  });
+
+  it('organizes a manually edited vertical tree in its current orientation', () => {
+    choose('vertical');
+    choose('manual');
+    tidy();
+    expect(canvas().dataset.layoutMode).toBe('vertical');
+    expect(canvas().dataset.orientation).toBe('vertical');
+    expect(useGraphStore.getState().project!.manualLayout).toBe(false);
+    expectGraphInsideCanvas();
+  });
+
+  it('cancels an organization camera request when the user immediately chooses Manual', () => {
+    flow.setViewport.mockClear();
+    tidy(false);
+    choose('manual');
+    expect(canvas().dataset.layoutMode).toBe('manual');
+    expect(flow.setViewport).not.toHaveBeenCalled();
+  });
+
+  it('frames only the organized tree while keeping a distant artifact in place', () => {
+    act(() => useGraphStore.setState(state => ({ project: { ...state.project!, visuals: {
+      version: 1, mode: 'approval', proposals: [],
+      drafts: { search: { text: '', mentions: [], attachments: [] }, model: { text: '', mentions: [], attachments: [] } },
+      artifacts: [{ id: 'distant-photo', label: 'ESP32', kind: 'image', x: 100_000, y: 100_000,
+        width: 280, height: 220, mediaId: 'test-photo', source: null, scene: null,
+        revisions: [{ scene: null, mediaId: 'test-photo', createdAt: 1 }], revisionIndex: 0 }],
+    } } })));
+    advance();
+    tidy();
+    expect(flow.setViewport.mock.calls.at(-1)![0].zoom).toBeGreaterThan(0.5);
+    expect(canvas().dataset.layoutMode).toBe('auto');
+    expect(useGraphStore.getState().project!.visuals!.artifacts[0]).toMatchObject({ x: 100_000, y: 100_000 });
+    const fit = [...host.querySelectorAll('button')].find(item => /Ver o grafo inteiro|Show the whole graph/.test(item.getAttribute('aria-label') ?? ''))!;
+    expect(fit).toBeDefined();
+    act(() => fit.click());
+    expect(flow.setViewport.mock.calls.at(-1)![0].zoom).toBeLessThan(0.1);
+  });
+
+  it('waits for the full tree to be measured when organizing from an analytical view', () => {
+    const project = fixture();
+    for (let index = 0; index < 30; index++) {
+      const id = `deep-${index}`;
+      project.nodes[id] = { ...project.nodes.first, id, name: id, parentId: index ? `deep-${index - 1}` : 'first' };
+    }
+    act(() => useGraphStore.setState({ project, lens: 'risk' }));
+    advance();
+    flow.initialized = false;
+    flow.setViewport.mockClear();
+    tidy();
+    expect(useGraphStore.getState().lens).toBe('structure');
+    expect(flow.setViewport).not.toHaveBeenCalled();
+    measureDisplayedNodes();
+    advance();
+    expectGraphInsideCanvas();
+    expect(flow.setViewport.mock.calls.at(-1)![0].zoom).toBeLessThan(0.18);
+  });
+
   it.each([3, 500])('preserves measured React Flow nodes and unrelated identities across selection in a %s-node plan', count => {
     if (count > 3) {
       const project = fixture();
@@ -376,6 +447,21 @@ describe('GraphCanvas automatic layout integration', () => {
     act(() => root.render(<Harness />));
     advance();
   }
+
+  it('keeps all analytical views reachable from the expanded desktop controls', () => {
+    maximizableCanvas();
+    act(() => host.querySelector<HTMLButtonElement>('button[aria-label="Maximize canvas"]')!.click());
+    act(() => host.querySelector<HTMLButtonElement>('[aria-label="Show controls"]')!.click());
+    const select = host.querySelector<HTMLSelectElement>('select[name="lens"]')!;
+    expect(select).not.toBeNull();
+    for (const lens of analyticalLenses) {
+      act(() => { select.value = lens; Simulate.change(select); });
+      measureDisplayedNodes();
+      advance();
+      expect(useGraphStore.getState().lens).toBe(lens);
+      expect(host.querySelector('.planner-canvas-toolbar')?.closest('[hidden]')).toBeNull();
+    }
+  });
 
   it('maximizes and restores the same canvas without losing manual positions or selection', () => {
     maximizableCanvas();

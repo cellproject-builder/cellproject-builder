@@ -10,15 +10,6 @@
 .expanded-chrome.is-expanded .db-header-brand { display:none; }
 .expanded-chrome.is-expanded .ws-note-toolbar { margin:0; border:0; box-shadow:none; background:transparent; flex-wrap:wrap; }
 .expanded-chrome.is-expanded .ws-note-ink-tools-host { border:0; }
-.expanded-chrome.is-expanded .planner-canvas-toolbar { position:static; display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0!important; width:auto; border:0; box-shadow:none; background:transparent; padding:8px; }
-.expanded-chrome.is-expanded .planner-legend { margin-left:0; }
-.expanded-chrome.is-expanded .planner-legend:has(.planner-legend-details) { flex-basis:100%; }
-.expanded-chrome.is-expanded .planner-legend-details { position:static; width:auto; max-width:100%; transform-origin:top; }
-@media (max-width:767px) {
-  .expanded-chrome.is-expanded .planner-lens-select { width:auto; min-width:0; flex:1; }
-  .expanded-chrome.is-expanded .planner-layout-select { order:1; }
-  .expanded-chrome.is-expanded .planner-legend:has(.planner-legend-details) { order:2; }
-}
 @media (pointer:coarse),(max-width:700px) {
   .expanded-chrome-trigger { width:44px; height:44px; }
   .expanded-chrome.is-expanded>.expanded-chrome-panel { max-width:min(660px,calc(100vw - 76px)); }

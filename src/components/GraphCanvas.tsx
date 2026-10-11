@@ -31,6 +31,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useReviewingParents } from '@/hooks/useReviewingParents';
 import { useT, useLocaleStore } from '@/i18n';
 import { ExpandedChrome } from '@/components/ui/ExpandedChrome';
+import { PlannerCanvasControls } from './PlannerCanvasControls';
 import type { Messages } from '@/i18n';
 import { ConceptNode, SIDE_HANDLE } from './ConceptNode';
 import { discardSuggestionsWithUndo, acceptSuggestionsWithUndo } from './suggestionActions';
@@ -72,15 +73,6 @@ const ColumnHeaderNode = memo(function ColumnHeaderNode({ data }: NodeProps) {
 });
 
 const nodeTypes = { concept: ConceptNode, columnHeader: ColumnHeaderNode, visual: VisualArtifactNode };
-
-const MOBILE_LENSES: Lens[] = ['structure', 'flow', 'risk', 'state', 'connections'];
-const LENS_LABEL_KEY = {
-  structure: 'lensStructure',
-  flow: 'lensFlow',
-  risk: 'lensRisk',
-  state: 'lensState',
-  connections: 'lensConnections',
-} as const satisfies Record<Lens, string>;
 
 // 'direct' é a sequência comum (passo → próximo): neutra, para as cores
 // guardarem significado para o que é exceção.
@@ -624,7 +616,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   // fica no zoom mínimo legível e ancora no começo (topo da raiz na Estrutura,
   // canto superior esquerdo nas colunas, centro nas Conexões).
   const frameOverview = useCallback(
-    (duration = 350, whole = false) => {
+    (duration = 350, whole = false, includeVisuals = true) => {
       const el = containerRef.current;
       const st = useGraphStore.getState();
       const proj = st.project;
@@ -632,7 +624,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       // Visuals keep their user-placed coordinates from Structure. They must
       // not shrink an analytical lens to fit a distant image/model.
       const all = getNodes().filter((n) => !n.hidden && !n.id.startsWith(SUGGESTION_PREFIX)
-        && (st.lens === 'structure' || n.type !== 'visual'));
+        && (n.type !== 'visual' || (includeVisuals && st.lens === 'structure')));
       if (all.length === 0) return;
       const a = safeArea();
       // Origem e tamanho da área livre (descontado o cromo flutuante).
@@ -691,7 +683,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   // cancelar um enquadramento já pedido. Só a desmontagem limpa.
   const camTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingCameraFrame = useRef<{ lens: Lens; action: () => void } | null>(null);
+  const pendingCameraFrame = useRef<{ lens: Lens; action: () => void; source?: 'tidy' } | null>(null);
   const schedule = useCallback(
     (slot: { current: ReturnType<typeof setTimeout> | null }, fn: () => void, ms: number) => {
       if (slot.current) clearTimeout(slot.current);
@@ -765,7 +757,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
     lastReframeInputs.current = reframeInputs;
     schedule(camTimer, () => {
       if (useGraphStore.getState().pendingSuggestions) frameStaging();
-      else frameOverview(200, lens === 'structure');
+      else frameOverview(200, lens === 'structure', false);
     }, 180);
   }, [canvasSize.width, canvasSize.height, layoutMode, reframeInputs, nodesInitialized, frameOverview, frameStaging, schedule]);
 
@@ -788,7 +780,11 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       // see the old bounds (or no bounds), especially with Manual selected.
       if (camTimer.current) clearTimeout(camTimer.current);
       camTimer.current = null;
-      pendingCameraFrame.current = { lens, action: () => frameOverview(350) };
+      // Organizing may already have queued a full-tree frame for this lens.
+      // Keep that explicit request while the replacement nodes are measured.
+      if (pendingCameraFrame.current?.lens !== lens) {
+        pendingCameraFrame.current = { lens, action: () => frameOverview(350) };
+      }
     } else if (focusVersion !== p.focusVersion && focusedParentId && project) {
       const ids = [
         focusedParentId,
@@ -885,15 +881,17 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
     return () => window.removeEventListener('keydown', onKey);
   }, [selectNode, maximized, onToggleMaximized]);
 
-  // Tidy tree: recompute positions for the whole decomposition and persist
-  // them (structure lens shows stored positions, so switch to it).
+  // Organize in the chosen direction, preserving a manual tree's last direction.
+  // Frame only the tree after its replacement nodes have been adopted/measured.
   const handleTidy = useCallback(() => {
     if (!project) return;
-    applyLayoutPositions(computeAdaptiveTreeLayout(project, canvasSize.orientation, dimensions));
-    setLayoutMode('auto');
+    if (camTimer.current) clearTimeout(camTimer.current);
+    camTimer.current = null;
+    pendingCameraFrame.current = { lens: 'structure', source: 'tidy', action: () => frameOverview(350, true, false) };
+    applyLayoutPositions(computeAdaptiveTreeLayout(project, orientation, dimensions));
+    setLayoutMode(layoutMode === 'manual' ? orientation : layoutMode);
     if (lens !== 'structure') setLens('structure');
-    else schedule(camTimer, () => frameOverview(350, true), 50);
-  }, [project, lens, canvasSize.orientation, dimensions, applyLayoutPositions, setLens, frameOverview, schedule]);
+  }, [project, lens, layoutMode, orientation, dimensions, applyLayoutPositions, setLens, frameOverview]);
 
   // -------------------------------------------------------------------------
   // Nós
@@ -1222,6 +1220,11 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   }, [adaptive, layout, orientation, applyLayoutPositions, project, selectNode]);
 
   const changeLayoutMode = useCallback((next: GraphLayoutMode) => {
+    if (next === 'manual' && pendingCameraFrame.current?.source === 'tidy') {
+      pendingCameraFrame.current = null;
+      if (camTimer.current) clearTimeout(camTimer.current);
+      camTimer.current = null;
+    }
     if (next === 'manual' && adaptive && layout && project) {
       applyLayoutPositions(layout.positions);
       // Manual is a saved user choice, just like a completed card drag.
@@ -1313,7 +1316,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
         {/* Controles próprios: no mobile os botões têm 44px de alvo de toque.
             No desktop eles moram numa pílula de vidro no topo (junto do
             "Organizar"), fora da área dos cards. */}
-        {isMobile && (
+        {isMobile && !maximized && (
           <Controls showZoom={false} showFitView={false} showInteractive={false}>
             {zoomButtons.map((b) => (
               <ControlButton
@@ -1332,54 +1335,13 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
         <Panel
           ref={toolbarRef}
           position="top-left"
-          className={`planner-canvas-toolbar flex flex-wrap items-center gap-2 !mr-3 w-[calc(100%-24px)] ${isMobile ? 'bar-solid border rounded-card shadow-mac p-1' : ''}`}
+          className="planner-controls-panel"
         >
-          <button
-            onClick={handleTidy}
-            title={tr.graph.tidyTitle}
-            aria-label={tr.graph.tidy}
-            className={`planner-tidy tap btn text-text-primary ${isMobile ? 'btn-ghost btn-icon' : 'glass shadow-mac hover:bg-bg-elevated/60'}`}
-          >
-            <TidyIcon />
-            {!isMobile && canvasSize.width >= 540 && tr.graph.tidy}
-          </button>
-          {isMobile && (
-            <select name="lens" value={lens} onChange={(e) => setLens(e.target.value as Lens)}
-              aria-label={tr.topBar.lensSelectAria}
-              className="planner-lens-select tap h-9 min-w-0 rounded-control bg-transparent pl-2 pr-6 text-control text-text-primary border-0">
-              {MOBILE_LENSES.map((l) => <option key={l} value={l}>{tr.topBar[LENS_LABEL_KEY[l]]}</option>)}
-            </select>
-          )}
-          {lens === 'structure' && (
-            <select name="graph-layout" value={layoutMode}
-              onChange={(e) => changeLayoutMode(e.target.value as GraphLayoutMode)}
-              aria-label={tr.graph.layoutMode} title={tr.graph.layoutHint}
-              className={`planner-layout-select tap min-w-0 max-w-full rounded-control pl-2.5 pr-7 text-control text-text-primary ${isMobile ? 'h-11 bg-transparent border-0' : 'h-8 glass border shadow-mac'}`}>
-              <option value="auto">{tr.graph.layoutAuto} · {canvasSize.orientation === 'horizontal' ? tr.graph.layoutHorizontal : tr.graph.layoutVertical}</option>
-              <option value="horizontal">{tr.graph.layoutHorizontal}</option>
-              <option value="vertical">{tr.graph.layoutVertical}</option>
-              <option value="manual">{tr.graph.layoutManual}</option>
-            </select>
-          )}
-          {!isMobile && (
-            <div role="group" aria-label={tr.graph.zoomGroup} className="glass border rounded-control shadow-mac flex items-center p-0.5">
-              {zoomButtons.map((b) => (
-                <button key={b.glyph} onClick={b.onClick} title={b.label} aria-label={b.label}
-                  className="tap btn btn-ghost btn-icon !h-7 !w-7 text-[15px] leading-none text-text-primary">
-                  <span aria-hidden>{b.glyph}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {onToggleMaximized && <button type="button" onClick={onToggleMaximized}
-            aria-label={maximized ? tr.graph.restoreCanvas : tr.graph.maximizeCanvas}
-            title={maximized ? tr.graph.restoreCanvas : tr.graph.maximizeCanvas} aria-pressed={maximized}
-            className={`planner-maximize tap btn btn-icon text-text-primary ${isMobile ? 'btn-ghost' : 'glass border shadow-mac hover:bg-bg-elevated/60'}`}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d={maximized ? 'M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5' : 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5'} />
-            </svg>
-          </button>}
-          <div className="planner-legend ml-auto"><EdgeLegend key={lens} tr={tr} inBar={isMobile} /></div>
+          <PlannerCanvasControls tr={tr} lens={lens} onLensChange={setLens}
+            layoutMode={layoutMode} onLayoutChange={changeLayoutMode} orientation={orientation} onTidy={handleTidy}
+            zoomButtons={zoomButtons} maximized={maximized} onToggleMaximized={onToggleMaximized}
+            isMobile={isMobile} canvasWidth={canvasSize.width}
+            legend={<EdgeLegend key={lens} tr={tr} inBar={isMobile || maximized} />} />
         </Panel>
         </ExpandedChrome>
         {pending && pending.nodes.length > 0 && (
@@ -1476,17 +1438,6 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       {project && <VisualWorkspaceBridge project={project} containerRef={containerRef} selectedArtifactId={selectedVisualId?.slice(7) ?? null} onSelectArtifact={selectVisualArtifact} />}
       {project && <PlannerInkLayer key={project.id} project={project} containerRef={containerRef} />}
     </div>
-  );
-}
-
-function TidyIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden className="shrink-0 text-text-muted">
-      <rect x="6" y="1.5" width="4" height="3" rx="1" stroke="currentColor" strokeWidth="1.3" />
-      <rect x="1.5" y="11.5" width="4" height="3" rx="1" stroke="currentColor" strokeWidth="1.3" />
-      <rect x="10.5" y="11.5" width="4" height="3" rx="1" stroke="currentColor" strokeWidth="1.3" />
-      <path d="M8 4.5V8M3.5 11.5V8h9v3.5" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-    </svg>
   );
 }
 

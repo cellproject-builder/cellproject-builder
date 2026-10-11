@@ -1,0 +1,103 @@
+/* This is the content of the React Flow Panel, with no viewport positioning. */
+.planner-controls-panel { width:fit-content; max-width:calc(100% - 24px); margin:12px; }
+.expanded-chrome.is-expanded .planner-controls-panel { position:static!important; width:100%; max-width:100%; margin:0!important; padding:0; }
+.planner-canvas-toolbar.planner-controls {
+  --planner-control-size:32px;
+  position:static; display:flex; flex-wrap:wrap; align-items:center; gap:6px;
+  width:max-content; max-width:min(100%,var(--planner-controls-available,calc(100vw - 24px)));
+  margin:0!important; padding:5px; box-sizing:border-box;
+  border:1px solid rgb(var(--border-base)/.65); border-radius:12px;
+  background:rgb(var(--bg-secondary)/.96); color:rgb(var(--text-primary));
+  box-shadow:0 2px 10px rgb(0 0 0/.1);
+}
+.planner-controls :is(button,select) { font:inherit; font-size:12px; color:inherit; touch-action:manipulation; }
+.planner-controls button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:var(--planner-control-size); padding:0 8px; border:1px solid transparent; border-radius:7px; background:transparent; cursor:pointer; }
+.planner-controls button:hover { background:rgb(var(--bg-elevated)/.7); }
+.planner-controls :is(button,select):focus-visible { outline:2px solid rgb(var(--ai-accent)); outline-offset:2px; }
+.planner-controls svg { flex:none; }
+.planner-controls-label { display:none; color:rgb(var(--text-muted)); font-size:11px; font-weight:500; line-height:1.4; }
+.planner-controls-lens { display:flex; align-items:center; gap:6px; min-width:0; }
+.planner-controls-lens select { width:132px; max-width:100%; min-width:0; min-height:var(--planner-control-size); padding:0 24px 0 8px; border:1px solid rgb(var(--border-base)/.55); border-radius:7px; background:rgb(var(--bg-primary)); }
+.planner-controls-layout { min-width:0; }
+.planner-controls-layout-buttons { display:grid; grid-template-columns:repeat(4,max-content); gap:3px; padding:2px; border:1px solid rgb(var(--border-base)/.45); border-radius:9px; background:rgb(var(--bg-primary)/.5); }
+.planner-controls-layout-buttons button { flex-direction:column; gap:0; min-width:0; padding-inline:7px; font-size:11px; line-height:1.35; }
+.planner-controls-layout-buttons button small { color:rgb(var(--text-muted)); font-size:10px; }
+.planner-controls-layout-buttons button[aria-pressed=true] { border-color:rgb(var(--border-base)/.7); background:rgb(var(--bg-elevated)); box-shadow:0 1px 3px rgb(0 0 0/.1); }
+.planner-controls-actions { display:flex; align-items:center; gap:6px; min-width:0; }
+.planner-controls-tidy { white-space:nowrap; }
+.planner-controls-zoom { display:flex; flex:none; align-items:center; gap:1px; border:1px solid rgb(var(--border-base)/.45); border-radius:8px; }
+.planner-controls-zoom button { width:var(--planner-control-size); padding:0; font-size:16px; line-height:1; }
+.planner-controls .planner-controls-maximize { flex:none; width:var(--planner-control-size); padding:0; }
+.planner-controls-legend { flex:none; min-width:0; }
+.planner-controls-legend>div>button { margin:0; border:0; box-shadow:none; background:transparent; }
+/* The normal narrow toolbar reserves one row for actions and one for layout. */
+.planner-canvas-toolbar.planner-controls.is-narrow:not(.is-compact) {
+  display:grid; grid-template-columns:minmax(0,1fr) auto;
+  grid-template-areas:'actions legend' 'layout layout';
+  width:min(440px,var(--planner-controls-available,calc(100vw - 24px))); gap:4px; padding:4px;
+}
+.planner-canvas-toolbar.planner-controls.is-narrow.has-lens:not(.is-compact) {
+  grid-template-columns:minmax(80px,1fr) auto auto;
+  grid-template-areas:'lens actions legend' 'layout layout layout';
+}
+.planner-controls.is-narrow:not(.is-compact) .planner-controls-lens { grid-area:lens; }
+.planner-controls.is-narrow:not(.is-compact) .planner-controls-lens select { width:100%; }
+.planner-controls.is-narrow:not(.is-compact) .planner-controls-actions { grid-area:actions; }
+.planner-controls.is-narrow:not(.is-compact) .planner-controls-layout { grid-area:layout; }
+.planner-controls.is-narrow:not(.is-compact) .planner-controls-layout-buttons { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.planner-controls.is-narrow:not(.is-compact) .planner-controls-layout-buttons button { padding-inline:2px; }
+.planner-controls.is-narrow:not(.is-compact) .planner-controls-tidy { width:var(--planner-control-size); padding:0; }
+.planner-controls.is-narrow:not(.is-compact) .planner-controls-tidy>span { display:none; }
+.planner-controls.is-narrow:not(.is-compact) .planner-controls-legend { grid-area:legend; }
+.planner-controls.is-narrow:not(.is-compact) .planner-controls-legend>div>button { width:var(--planner-control-size); padding:0; }
+.planner-controls.is-narrow:not(.is-compact) .planner-controls-legend .planner-legend-label,
+.planner-controls.is-narrow:not(.is-compact) .planner-controls-legend>div>button>svg:last-child { display:none; }
+.planner-controls.is-narrow:not(.is-compact) .planner-controls-legend .planner-legend-symbol { display:block; }
+
+/* A maximized canvas gets a small palette rather than a compressed wide bar. */
+.planner-canvas-toolbar.planner-controls.is-compact,
+.expanded-chrome.is-expanded .planner-canvas-toolbar.planner-controls {
+  display:grid; grid-template-columns:minmax(0,1fr); align-items:stretch; gap:10px;
+  width:300px; max-width:min(100%,var(--planner-controls-available,calc(100vw - 24px)));
+  padding:8px; border:0; box-shadow:none; background:transparent;
+}
+.planner-controls.is-compact .planner-controls-label,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-label { display:block; }
+.planner-controls.is-compact .planner-controls-lens,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-lens { display:grid; gap:4px; }
+.planner-controls.is-compact .planner-controls-lens select,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-lens select { width:100%; }
+.planner-controls.is-compact .planner-controls-layout,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-layout { display:grid; gap:4px; }
+.planner-controls.is-compact .planner-controls-layout-buttons,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-layout-buttons { grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; }
+.planner-controls.is-compact .planner-controls-layout-buttons button,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-layout-buttons button { font-size:12px; }
+.planner-controls.is-compact .planner-controls-actions,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-actions { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; padding-top:8px; border-top:1px solid rgb(var(--border-base)/.45); }
+.planner-controls.is-compact .planner-controls-tidy,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-tidy { grid-column:1 / -1; border-color:rgb(var(--border-base)/.5); background:rgb(var(--bg-primary)/.5); }
+.planner-controls.is-compact .planner-controls-zoom,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-zoom { justify-self:start; }
+.planner-controls.is-compact .planner-controls-maximize,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-maximize { justify-self:end; }
+.planner-controls.is-compact .planner-controls-legend,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-legend { padding-top:4px; border-top:1px solid rgb(var(--border-base)/.45); }
+.planner-controls.is-compact .planner-controls-legend>div>button,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-legend>div>button { justify-content:flex-start; width:100%; padding-inline:8px; }
+.planner-controls.is-compact .planner-controls-legend .planner-legend-label,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-legend .planner-legend-label { display:inline; }
+.planner-controls.is-compact .planner-controls-legend .planner-legend-symbol,
+.expanded-chrome.is-expanded .planner-controls .planner-controls-legend .planner-legend-symbol { display:block; }
+.planner-controls.is-compact .planner-legend-details,
+.expanded-chrome.is-expanded .planner-controls .planner-legend-details { position:static; width:100%; max-width:100%; max-height:45dvh; margin-top:6px; overflow:auto; transform-origin:top; }
+.planner-canvas-toolbar.planner-controls.is-touch { --planner-control-size:44px; }
+.planner-controls.is-touch select { font-size:16px; }
+@media (pointer:coarse) {
+  .planner-canvas-toolbar.planner-controls { --planner-control-size:44px; }
+  .planner-controls select { font-size:16px; }
+}
+@media (forced-colors:active) {
+  .planner-canvas-toolbar.planner-controls, .planner-controls :is(button,select), .planner-controls-layout-buttons, .planner-controls-zoom { border-color:CanvasText; }
+  .planner-controls-layout-buttons button[aria-pressed=true] { outline:2px solid Highlight; outline-offset:-2px; }
+}

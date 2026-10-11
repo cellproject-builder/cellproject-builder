@@ -10,6 +10,7 @@ export function ExpandedChrome({ expanded, label, english = false, onRestore, ch
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const root = useRef<HTMLDivElement>(null), panel = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null), suppressFocus = useRef(false);
   const panelId = useId();
@@ -20,6 +21,7 @@ export function ExpandedChrome({ expanded, label, english = false, onRestore, ch
   };
   useLayoutEffect(() => {
     setOpen(false);
+    setPinned(false);
     if (expanded && panel.current?.contains(document.activeElement)) {
       previousFocus.current = document.activeElement as HTMLElement;
       focusTrigger();
@@ -32,6 +34,7 @@ export function ExpandedChrome({ expanded, label, english = false, onRestore, ch
     const dismiss = (event: PointerEvent) => {
       if (event.target instanceof Node && !root.current?.contains(event.target)) {
         setOpen(false);
+        setPinned(false);
         if (panel.current?.contains(document.activeElement)) focusTrigger();
       }
     };
@@ -40,12 +43,12 @@ export function ExpandedChrome({ expanded, label, english = false, onRestore, ch
   }, [expanded, open]);
   return <div ref={root} className={`expanded-chrome${expanded ? ' is-expanded' : ''}${expanded && open ? ' is-open' : ''}`}
     onPointerEnter={event => { if (expanded && event.pointerType !== 'touch') setOpen(true); }}
-    onPointerLeave={() => { if (!panel.current?.contains(document.activeElement)) setOpen(false); }}
+    onPointerLeave={() => { if (!pinned && !panel.current?.contains(document.activeElement)) setOpen(false); }}
     onFocusCapture={event => {
       // Portals bubble through React; only our actual controls reveal this panel.
       if (expanded && !suppressFocus.current && root.current?.contains(event.target)) setOpen(true);
     }}
-    onBlurCapture={event => { if (!root.current?.contains(event.relatedTarget as Node | null)) setOpen(false); }}
+    onBlurCapture={event => { if (!pinned && !root.current?.contains(event.relatedTarget as Node | null)) setOpen(false); }}
     onKeyDown={event => {
       if (!expanded || event.key !== 'Escape' || event.defaultPrevented || event.nativeEvent.isComposing ||
         !root.current?.contains(event.target as Node)) return;
@@ -53,12 +56,15 @@ export function ExpandedChrome({ expanded, label, english = false, onRestore, ch
         .some(dialog => !dialog.closest('[hidden]') && getComputedStyle(dialog).display !== 'none' && getComputedStyle(dialog).visibility !== 'hidden');
       if (visibleDialog) return;
       event.preventDefault(); event.stopPropagation();
-      if (open) { setOpen(false); focusTrigger(); } else onRestore();
+      if (open) { setOpen(false); setPinned(false); focusTrigger(); } else onRestore();
     }}>
     <button ref={trigger} type="button" className="expanded-chrome-trigger" hidden={!expanded}
       aria-label={english ? 'Show controls' : 'Mostrar controles'} aria-expanded={expanded && open}
       aria-controls={panelId} title={`${label} · ${english ? 'Show controls' : 'Mostrar controles'}`}
-      onClick={() => setOpen(true)}>
+      onClick={() => {
+        if (pinned) { setOpen(false); setPinned(false); focusTrigger(); }
+        else { setOpen(true); setPinned(true); }
+      }}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
         <path d="M4 6h16M4 12h16M4 18h16"/><path d="M8 4v4m8 2v4M10 16v4"/>
       </svg>

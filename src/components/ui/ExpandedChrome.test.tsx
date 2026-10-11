@@ -15,6 +15,7 @@ afterEach(() => { act(() => root.unmount()); host.remove(); });
 function render(expanded = true, portal?: HTMLElement) {
   act(() => root.render(<ExpandedChrome expanded={expanded} label="Sketch" onRestore={restore}>
     <input aria-label="Title" defaultValue="Preserved" />
+    <select aria-label="Orientation" defaultValue="auto"><option value="auto">Auto</option><option value="vertical">Vertical</option></select>
     <button onClick={restore}>Restore</button>
     {portal && createPortal(<input aria-label="Dialog input" />, portal)}
   </ExpandedChrome>));
@@ -76,4 +77,66 @@ it('does not reveal or consume Escape from a portaled dialog', () => {
     const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
     act(() => input.dispatchEvent(event)); expect(event.defaultPrevented).toBe(false); expect(restore).not.toHaveBeenCalled();
   } finally { portal.remove(); }
+});
+it('keeps explicitly opened controls visible after the pointer leaves', () => {
+  render();
+  act(() => trigger().click());
+  act(() => Simulate.pointerLeave(trigger().parentElement!));
+  expect(hidden()).toBe(false);
+  expect(trigger().getAttribute('aria-expanded')).toBe('true');
+});
+it('keeps explicitly opened controls visible while a native picker temporarily loses focus', () => {
+  render();
+  act(() => trigger().click());
+  const select = host.querySelector<HTMLSelectElement>('[aria-label="Orientation"]')!;
+  act(() => select.focus());
+  act(() => select.blur());
+  expect(hidden()).toBe(false);
+  act(() => { select.value = 'vertical'; Simulate.change(select); });
+  expect(select.value).toBe('vertical');
+  expect(hidden()).toBe(false);
+});
+it('lets the trigger close explicitly opened controls without its focus reopening them', () => {
+  render();
+  act(() => trigger().focus());
+  act(() => trigger().click());
+  act(() => title().focus());
+  act(() => trigger().click());
+  expect(hidden()).toBe(true);
+  expect(document.activeElement).toBe(trigger());
+  expect(trigger().getAttribute('aria-expanded')).toBe('false');
+});
+it('releases the explicit open state when dismissed outside so later hover remains temporary', () => {
+  render();
+  act(() => trigger().click());
+  act(() => title().focus());
+  pointer(document.body);
+  expect(hidden()).toBe(true);
+  expect(document.activeElement).toBe(trigger());
+  act(() => Simulate.pointerEnter(trigger().parentElement!, { pointerType: 'mouse' } as never));
+  expect(hidden()).toBe(false);
+  act(() => Simulate.pointerLeave(trigger().parentElement!));
+  expect(hidden()).toBe(true);
+});
+it('dismisses explicitly opened controls with Escape before a second Escape restores the surface', () => {
+  render();
+  act(() => trigger().click());
+  act(() => title().focus());
+  const escape = () => act(() => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })));
+  escape();
+  expect(hidden()).toBe(true);
+  expect(document.activeElement).toBe(trigger());
+  expect(restore).not.toHaveBeenCalled();
+  escape();
+  expect(restore).toHaveBeenCalledOnce();
+});
+it('clears explicit opening when restoring and maximizing again', () => {
+  render();
+  act(() => trigger().click());
+  render(false);
+  render(true);
+  expect(hidden()).toBe(true);
+  act(() => Simulate.pointerEnter(trigger().parentElement!, { pointerType: 'mouse' } as never));
+  act(() => Simulate.pointerLeave(trigger().parentElement!));
+  expect(hidden()).toBe(true);
 });
