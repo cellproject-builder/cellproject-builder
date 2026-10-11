@@ -38,6 +38,14 @@ O [ensaio de nomenclatura de 11/10/2026](../reports/diagram-labels-2026-10-11.md
 
 Na revisão de um artefato, o piso também confere os valores de controles preservados que serão efetivamente exibidos, antes de gravar a substituição. Um novo default legível não pode mascarar o único rótulo recortado pelo valor anterior. A rejeição conserva o artefato e seu histórico.
 
+### Indisponibilidade temporária do provedor
+
+No estúdio, erros de capacidade como `NoCapacity`, a recusa por demanda máxima em horário de pico e respostas 429/503 recebem orientação localizada. Quando o provedor informa `Retry-After`, a mensagem apresenta o tempo de espera. O pedido e as referências `@` permanecem no compositor; a pessoa pode tentar novamente pelo mesmo botão **Gerar diagrama**. Nenhuma proposta parcial é aplicada e não há repetição paga automática.
+
+A classificação em [rateLimit.ts](../../src/ai/rateLimit.ts) lê apenas campos conhecidos de erro e respeita a precedência de autenticação e créditos. Não interpreta conteúdo do pedido como erro de capacidade. A apresentação em [strings.ts](../../src/visuals/ui/strings.ts) preserva os erros próprios de contexto e validação. [strings.test.tsx](../../src/visuals/ui/strings.test.tsx) exercita a mensagem da captura, wrappers do SDK, espera informada e nova tentativa com prompt vazio e nó selecionado.
+
+Esse tratamento não aumenta a capacidade contratada nem comprova que o tamanho do contexto causou a recusa. A mudança de 11/10/2026 mantém o modelo, o orçamento de saída, a gramática e o piso de nomenclatura existentes. O teste de recuperação simula o provedor; não demonstra disponibilidade de uma nova inferência real.
+
 ## Uso e integrações
 
 ### Plano e chat

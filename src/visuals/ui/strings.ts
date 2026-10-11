@@ -1,4 +1,5 @@
 import { useLocaleStore } from '@/i18n';
+import { readRateLimit } from '@/ai/rateLimit';
 import { VisualAssemblyError, assemblyErrorMessage } from '../advancedErrors';
 
 const en = {
@@ -47,6 +48,8 @@ const en = {
   proposals: 'Proposals', apply: 'Apply to canvas', applied: 'Applied', stale: 'Context changed · generate again', objects: 'objects',
   reject: 'Reject', rejectProposal: 'Reject proposal', proposalRejected: 'Proposal rejected.', proposalAlreadyApplied: 'This proposal has already been applied to the canvas.',
   failed: 'Something went wrong. Please try again.', baseFailed: 'Image added. Select it with @ in the 3D studio to use it as a reference.',
+  providerBusy: 'The AI provider is temporarily busy. Your request and references are preserved. Try again in a moment.',
+  providerBusyWait: (seconds: number) => `The AI provider is temporarily busy. Your request and references are preserved. Wait ${seconds} s before trying again.`,
   invalidFile: 'Use PNG, JPEG, WebP, PDF, TXT or MD files.', drag: 'Drag onto the canvas', preview: 'Preview', previewUnavailable: 'Preview unavailable',
   fileTooLarge: 'Each attachment must be 10 MB or smaller.', fileInvalid: 'This file is empty, damaged or does not match its format.',
   inputLimit: 'Use up to 20 context items, 8 attachments and 12,000 characters.', contextChanged: 'The selected context changed. Review your references and generate again.',
@@ -101,6 +104,8 @@ const pt: Strings = {
   proposals: 'Propostas', apply: 'Aplicar ao canvas', applied: 'Aplicado', stale: 'Contexto alterado · gere novamente', objects: 'objetos',
   reject: 'Recusar', rejectProposal: 'Recusar proposta', proposalRejected: 'Proposta recusada.', proposalAlreadyApplied: 'Esta proposta já foi aplicada ao canvas.',
   failed: 'Algo deu errado. Tente novamente.', baseFailed: 'Imagem adicionada. Selecione-a com @ no estúdio 3D para usá-la como referência.',
+  providerBusy: 'O provedor de IA está temporariamente ocupado. Seu pedido e suas referências foram mantidos. Tente novamente em instantes.',
+  providerBusyWait: (seconds: number) => `O provedor de IA está temporariamente ocupado. Seu pedido e suas referências foram mantidos. Aguarde ${seconds} s antes de tentar novamente.`,
   invalidFile: 'Use arquivos PNG, JPEG, WebP, PDF, TXT ou MD.', drag: 'Arraste para o canvas', preview: 'Prévia', previewUnavailable: 'Prévia indisponível',
   fileTooLarge: 'Cada anexo deve ter no máximo 10 MB.', fileInvalid: 'O arquivo está vazio, danificado ou não corresponde ao formato.',
   inputLimit: 'Use até 20 itens de contexto, 8 anexos e 12.000 caracteres.', contextChanged: 'O contexto selecionado mudou. Revise as referências e gere novamente.',
@@ -127,5 +132,9 @@ export function visualError(reason: unknown, s: Strings): string {
     visualRefinementStale: s.refinementOutdated, visualRefinementInvalid: s.refinementInvalid,
     visualVisionUnsupported: s.visionUnsupported, visualVisionImageRequired: s.visionImageRequired, visualVisionLimit: s.visionLimit, visualImageTooLarge: s.visionLimit,
   };
-  return known[message] || message || s.failed;
+  if (known[message]) return known[message];
+  const limit = readRateLimit(reason);
+  if (limit && !limit.quotaExhausted) return limit.retryAfterMs !== undefined && limit.retryAfterMs > 0
+    ? s.providerBusyWait(Math.ceil(limit.retryAfterMs / 1000)) : s.providerBusy;
+  return message || s.failed;
 }

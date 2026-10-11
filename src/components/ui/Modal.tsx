@@ -50,7 +50,7 @@ export function Modal({
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (e.target instanceof Element && e.target.closest('.audio-field-popup')) return;
+        if (e.target instanceof Element && e.target.closest('.audio-field-popup, .audio-field[data-audio-active=true]')) return;
         e.stopPropagation();
         onCloseRef.current();
         return;
