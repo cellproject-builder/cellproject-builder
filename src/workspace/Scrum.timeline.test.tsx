@@ -23,9 +23,10 @@ describe('Scrum timeline navigation', () => {
   it('opens completed history and focuses the selected sprint without changing its data', async () => {
     const sprintId = store.getState().createSprint(projectId, { name: 'Completed cycle', goal: '', startDate: '2026-10-01', endDate: '2026-10-05' });
     store.getState().startSprint(sprintId);
-    store.getState().createTask(projectId, { title: 'Delivered work', sprintId, status: 'done' });
+    const taskId = store.getState().createTask(projectId, { title: 'Delivered work', sprintId, status: 'done' });
     store.getState().completeSprint(sprintId);
-    await act(async () => { root.render(<Scrum projectId={projectId} onEdit={() => {}} onAdd={() => {}} />); await flushWorkspacePersistence(); });
+    const onEdit = vi.fn();
+    await act(async () => { root.render(<Scrum projectId={projectId} onEdit={onEdit} onAdd={() => {}} />); await flushWorkspacePersistence(); });
     const history = host.querySelector<HTMLDetailsElement>('details')!;
     const scroll = vi.fn(); history.scrollIntoView = scroll;
     expect(history.open).toBe(false);
@@ -39,5 +40,31 @@ describe('Scrum timeline navigation', () => {
     expect(scroll).toHaveBeenCalledOnce();
     expect(store.getState().sprints[sprintId].status).toBe('completed');
     expect(history.textContent).toContain('Delivered work');
+    expect(history.querySelector('select')).toBeNull();
+    expect(history.querySelector('[aria-label="Status: Done"]')).not.toBeNull();
+    act(() => Simulate.click(history.querySelector<HTMLButtonElement>('button')!));
+    expect(onEdit).toHaveBeenCalledWith(store.getState().tasks[taskId]);
+  });
+
+  it('keeps task assignment editable and updates sprint progress from the shared task status', async () => {
+    const sprintId = store.getState().createSprint(projectId, { name: 'Delivery cycle', goal: '', startDate: '2026-10-08', endDate: '2026-10-22' });
+    store.getState().createTask(projectId, { title: 'Delivered work', sprintId, status: 'done' });
+    const taskId = store.getState().createTask(projectId, { title: 'Next delivery' });
+    await act(async () => { root.render(<Scrum projectId={projectId} onEdit={() => {}} onAdd={() => {}} />); await flushWorkspacePersistence(); });
+    const progress = host.querySelector<HTMLProgressElement>('progress[aria-label="Delivery cycle: Completed"]')!;
+    expect(progress.value).toBe(1);
+    expect(progress.max).toBe(1);
+
+    const assignment = host.querySelector<HTMLSelectElement>('select[aria-label="Assign sprint: Next delivery"]')!;
+    act(() => { assignment.value = sprintId; Simulate.change(assignment); });
+    expect(store.getState().tasks[taskId].sprintId).toBe(sprintId);
+    expect(progress.value).toBe(1);
+    expect(progress.max).toBe(2);
+
+    const status = host.querySelector<HTMLSelectElement>('select[aria-label="Status: Next delivery"]')!;
+    act(() => { status.value = 'done'; Simulate.change(status); });
+    expect(store.getState().tasks[taskId].status).toBe('done');
+    expect(progress.value).toBe(2);
+    expect(progress.getAttribute('aria-valuetext')).toBe('2/2 completed');
   });
 });

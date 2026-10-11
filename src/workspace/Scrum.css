@@ -1,0 +1,84 @@
+/* Sprint collections share the task anatomy and tokens of the execution views. */
+.ws-page.ws-scrum-page { min-width:0; }
+.ws-scrum-page>.ws-panel, .ws-scrum-page>.ws-history { min-width:0; }
+.ws-scrum-page .ws-panel-heading {
+  gap:var(--ws-space-4);
+  min-height:56px;
+  padding:var(--ws-space-3) var(--ws-space-4);
+}
+.ws-scrum-page .ws-panel-heading h2, .ws-scrum-page .ws-history>h2 {
+  display:flex; align-items:center; gap:var(--ws-space-2);
+  min-width:0;
+  font-size:var(--ws-text-sm); font-weight:var(--ws-weight-semibold); line-height:20px;
+  overflow-wrap:anywhere;
+}
+.ws-scrum-page .ws-count {
+  flex:none;
+  padding:0;
+  border-radius:0;
+  background:none;
+  font-size:var(--ws-text-xs);
+  font-variant-numeric:tabular-nums;
+}
+.ws-scrum-page .ws-scrum-tasks { min-width:0; padding:0 var(--ws-space-2) var(--ws-space-2); }
+.ws-scrum-page .ws-sprint-assignment { width:100%; min-width:0; font-size:var(--ws-text-xs); }
+.ws-scrum-page .ws-inline-empty { padding:var(--ws-space-3) var(--ws-space-4) var(--ws-space-4); }
+.ws-scrum-page .ws-sprint { margin-top:var(--ws-space-4); scroll-margin-top:var(--ws-space-4); }
+.ws-scrum-page .ws-sprint.is-active { border-color:rgb(var(--accent)/.35); }
+.ws-scrum-page .ws-sprint:focus-visible { outline:2px solid var(--ws-focus); outline-offset:3px; }
+.ws-scrum-page .ws-sprint-heading { flex:1; min-width:0; }
+.ws-scrum-page .ws-sprint-title { display:flex; flex-wrap:wrap; align-items:center; gap:var(--ws-space-2); }
+.ws-scrum-page .ws-sprint-title h2 { min-width:0; }
+.ws-scrum-page .ws-badge { flex:none; padding:2px var(--ws-space-2); font-size:var(--ws-text-caption); line-height:18px; }
+.ws-scrum-page .ws-date-range { margin-top:var(--ws-space-1); font-size:var(--ws-text-xs); line-height:18px; }
+.ws-scrum-page .ws-sprint-goal { padding:0 var(--ws-space-4) var(--ws-space-3); font-size:var(--ws-text-sm); line-height:1.6; overflow-wrap:anywhere; }
+.ws-scrum-page .ws-sprint-progress {
+  display:flex; align-items:center; gap:var(--ws-space-3);
+  padding:0 var(--ws-space-4) var(--ws-space-3);
+  color:rgb(var(--text-muted)); font-size:var(--ws-text-xs); line-height:18px;
+  font-variant-numeric:tabular-nums;
+}
+.ws-scrum-page .ws-sprint-progress>span { flex:none; }
+.ws-scrum-page .ws-sprint-progress progress {
+  appearance:none; display:block; flex:1; min-width:0; max-width:180px; height:4px;
+  overflow:hidden; border:0; border-radius:var(--ws-radius-control);
+  background:rgb(var(--border-base)/.3); color:rgb(var(--accent)); accent-color:rgb(var(--accent));
+}
+.ws-scrum-page .ws-sprint-progress progress::-webkit-progress-bar { background:rgb(var(--border-base)/.3); border-radius:inherit; }
+.ws-scrum-page .ws-sprint-progress progress::-webkit-progress-value { background:rgb(var(--accent)); border-radius:inherit; }
+.ws-scrum-page .ws-sprint-progress progress::-moz-progress-bar { background:rgb(var(--accent)); border-radius:inherit; }
+.ws-scrum-page .ws-sprint-footnote { padding:var(--ws-space-3) var(--ws-space-4); line-height:1.6; }
+.ws-scrum-page .ws-history { margin-top:var(--ws-space-6); }
+.ws-scrum-page .ws-history>h2 { margin-bottom:var(--ws-space-3); }
+.ws-scrum-page .ws-history details { margin-bottom:var(--ws-space-2); scroll-margin-top:var(--ws-space-4); }
+.ws-scrum-page .ws-history summary {
+  display:flex; align-items:center; gap:var(--ws-space-3); min-width:0; min-height:48px;
+  padding:var(--ws-space-3) var(--ws-space-4); font-size:var(--ws-text-sm);
+  list-style:none;
+}
+.ws-scrum-page .ws-history summary::-webkit-details-marker { display:none; }
+.ws-scrum-page .ws-history summary::before {
+  content:''; flex:none; width:6px; height:6px;
+  border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor;
+  color:rgb(var(--text-muted)); transform:rotate(-45deg);
+}
+.ws-scrum-page .ws-history details[open]>summary::before { transform:rotate(45deg); }
+.ws-scrum-page .ws-history summary span { float:none; }
+.ws-scrum-page .ws-history summary .ws-sprint-history-name {
+  display:flex; align-items:center; gap:var(--ws-space-2); flex:1; min-width:0;
+  color:rgb(var(--text-primary)); font-size:var(--ws-text-sm); font-weight:var(--ws-weight-medium);
+  overflow-wrap:anywhere;
+}
+.ws-scrum-page .ws-sprint-history-meta { flex:none; font-size:var(--ws-text-xs); line-height:18px; }
+@container workspace-page (max-width:600px) {
+  .ws-scrum-page .ws-panel-heading { flex-wrap:wrap; gap:var(--ws-space-3); }
+  .ws-scrum-page .ws-sprint-heading { flex-basis:100%; }
+  .ws-scrum-page .ws-history summary { flex-wrap:wrap; gap:var(--ws-space-2); }
+  .ws-scrum-page .ws-sprint-history-meta { flex-basis:100%; padding-left:calc(var(--ws-space-2) + 6px); }
+}
+@media (pointer:coarse) {
+  .ws-scrum-page :is(.ws-button,.ws-select) { min-height:44px; }
+}
+@media (forced-colors:active) {
+  .ws-scrum-page .ws-sprint-progress progress { appearance:auto; }
+}

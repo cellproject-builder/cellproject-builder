@@ -35,7 +35,7 @@ export function Board({ projectId, onEdit, onAdd }: { projectId: string; onEdit:
     setView(next); setOver(null);
     writePreference(VIEW_KEY, next);
   };
-  return <div className="ws-page ws-board-page">
+  return <div className="ws-page ws-board-page ws-execution-page">
     <PageHeader title={tr.kanban} controls={<>
       <label className="ws-search"><Icon name="search" /><input aria-label={tr.searchTasks} placeholder={tr.searchTasks} value={query} onChange={(e) => setQuery(e.target.value)} /></label>
       <select className="ws-select" aria-label={tr.priority} value={priority} onChange={(e) => setPriority(e.target.value)}><option value="">{tr.allPriorities}</option>{(['low', 'medium', 'high'] as const).map((p) => <option key={p} value={p}>{tr[p]}</option>)}</select>
@@ -46,7 +46,7 @@ export function Board({ projectId, onEdit, onAdd }: { projectId: string; onEdit:
     </>} actions={<button className="ws-button primary" onClick={() => onAdd()}><PlusIcon aria-hidden="true" />{tr.newTask}</button>} />
     {tasks.length === 0 && (query || priority) ? <Empty icon="kanban" title={tr.noResults} hint={tr.noResultsHint} /> : view === 'list' ?
       <TaskList tasks={tasks} onEdit={onEdit} onAdd={onAdd} commentCounts={commentCounts} /> :
-      <div className="ws-board">{TASK_STATUSES.map((status) => {
+      <div className="ws-board" role="region" aria-label={tr.boardView} tabIndex={0}>{TASK_STATUSES.map((status) => {
       const column = tasks.filter((t) => t.status === status).sort((a, b) => a.createdAt - b.createdAt);
       return <section key={status} aria-label={tr[status]} className={`ws-column ${over === status ? 'drag-over' : ''}`} onDragOver={(e) => { if (e.dataTransfer.types.includes(TASK_DRAG_TYPE)) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setOver(status); } }} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(null); }} onDrop={(e) => {
         e.preventDefault(); setOver(null);
@@ -54,7 +54,7 @@ export function Board({ projectId, onEdit, onAdd }: { projectId: string; onEdit:
         if (allTasks[id]?.projectId === projectId && allTasks[id].status !== status) attempt(() => useWorkspaceStore.getState().updateTask(id, { status }));
       }}>
         <div className="ws-column-heading"><StatusIcon status={status} /><h2>{tr[status]}</h2><span className="ws-count">{column.length}</span><button className="ws-icon-button" aria-label={`${tr.addTask} · ${tr[status]}`} onClick={() => onAdd(status)}><PlusIcon aria-hidden="true" /></button></div>
-        <div className="ws-column-content">
+        <div className="ws-column-content" role="region" aria-label={tr[status]} tabIndex={0}>
           {column.map((task) => <TaskCard key={task.id} task={task} commentCount={commentCounts[task.id] ?? 0} onEdit={onEdit} onDragEnd={() => setOver(null)} />)}
           {!column.length && <p className="ws-column-empty">{tr.emptyColumn}</p>}
           <button className="ws-column-add" onClick={() => onAdd(status)}><PlusIcon aria-hidden="true" />{tr.addTask}</button>

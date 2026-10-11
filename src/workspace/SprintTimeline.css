@@ -1,51 +1,53 @@
-.ws-sprint-timeline { margin-bottom:26px; }
-.ws-timeline-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; padding:22px 24px 8px; }
-.ws-timeline-heading h2 { font-size:15px; font-weight:600; }
-.ws-timeline-heading p { font-size:11px; color:rgb(var(--text-muted)); line-height:1.65; margin-top:7px; max-width:530px; }
-.ws-timeline-legend { display:flex; flex-wrap:wrap; gap:13px; font-size:10px; color:rgb(var(--text-muted)); padding-top:3px; }
-.ws-timeline-legend>span { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
-.ws-timeline-legend>span::before { content:''; width:6px; height:6px; border-radius:50%; background:rgb(var(--text-muted)); }
-.ws-timeline-legend>.active::before { background:rgb(var(--accent)); }
-.ws-timeline-legend>.completed::before { background:rgb(var(--state-done)); }
-.ws-timeline-scroll { overflow-x:auto; overscroll-behavior-x:contain; padding:0 24px 18px; }
-.ws-timeline-calendar { position:relative; min-width:760px; }
-.ws-timeline-axis, .ws-timeline-row { display:grid; grid-template-columns:166px minmax(0,1fr); gap:24px; padding-right:12px; }
-.ws-timeline-axis { height:64px; align-items:end; color:rgb(var(--text-faint)); font-size:10px; }
-.ws-timeline-axis>span { padding-bottom:12px; }
-.ws-timeline-axis>div { position:relative; height:30px; }
-.ws-timeline-axis time { position:absolute; bottom:12px; transform:translateX(-50%); white-space:nowrap; }
-.ws-timeline-axis time.first { transform:none; }
-.ws-timeline-axis time.last { transform:translateX(-100%); }
-.ws-timeline-guides { position:absolute; left:190px; right:12px; top:64px; bottom:0; pointer-events:none; z-index:2; }
-.ws-timeline-guides>i { position:absolute; height:100%; border-left:1px solid rgb(var(--border-base)/.28); }
-.ws-timeline-today { position:absolute; height:100%; border-left:2px solid rgb(var(--conf-mid)/.8); }
-.ws-timeline-today>span { position:absolute; top:-57px; left:-1px; transform:translateX(-50%); padding:4px 8px; border-radius:6px; font-size:10px; font-weight:650; line-height:1.4; color:rgb(var(--conf-mid)); background:rgb(var(--bg-elevated)); border:1px solid rgb(var(--conf-mid)/.3); white-space:nowrap; }
-.ws-timeline-row { position:relative; width:100%; min-height:88px; align-items:center; text-align:left; border-top:1px solid rgb(var(--border-base)/.3); --sprint-line:var(--text-muted); }
-.ws-timeline-row.active { --sprint-line:var(--accent); }
-.ws-timeline-row.completed { --sprint-line:var(--state-done); }
-.ws-timeline-row:hover { background:rgb(var(--bg-elevated)/.35); }
-.ws-timeline-row:focus-visible { outline:2px solid rgb(var(--accent)); outline-offset:-2px; border-radius:6px; }
-.ws-timeline-label { display:flex; flex-direction:column; gap:6px; min-width:0; padding:12px 0; }
-.ws-timeline-label strong { font-size:12px; font-weight:550; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.ws-timeline-label small { color:rgb(var(--text-muted)); font-size:10px; }
-.ws-timeline-track { position:relative; display:block; min-width:0; height:88px; }
-.ws-timeline-bar { position:absolute; left:var(--sprint-start); width:var(--sprint-width); min-width:2px; height:24px; top:30px; background:rgb(var(--sprint-line)/.18); border:1px solid rgb(var(--sprint-line)/.4); border-radius:5px; }
-.ws-timeline-boundary { position:absolute; height:42px; top:21px; border-left:2px solid rgb(var(--sprint-line)/.9); }
-.ws-timeline-boundary.start { left:var(--sprint-start); }
-.ws-timeline-boundary.end { left:var(--sprint-end); transform:translateX(-2px); }
-.ws-timeline-boundary-date { position:absolute; white-space:nowrap; font-size:9px; line-height:16px; color:rgb(var(--text-muted)); }
-.ws-timeline-boundary-date.start { top:1px; left:clamp(0px,var(--sprint-start),calc(100% - 120px)); }
-.ws-timeline-boundary-date.end { bottom:1px; left:clamp(120px,var(--sprint-end),100%); transform:translateX(-100%); }
-.ws-sprint:focus-visible { outline:2px solid rgb(var(--accent)); outline-offset:3px; }
-@media (max-width:900px) {
-  .ws-timeline-heading { flex-wrap:wrap; gap:12px; }
+.ws-scrum-page .ws-sprint-timeline {
+  --ws-timeline-label-width:148px;
+  --ws-timeline-gap:var(--ws-space-4);
+  --ws-timeline-axis-height:56px;
+  --ws-timeline-row-height:72px;
+  min-width:0;
+  margin-bottom:var(--ws-space-4);
 }
-@media (max-width:700px) {
-  .ws-timeline-heading { padding:18px 18px 8px; }
-  .ws-timeline-scroll { padding-left:18px; padding-right:18px; }
-  .ws-timeline-heading p { max-width:100%; }
+.ws-scrum-page .ws-timeline-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:var(--ws-space-4); padding:var(--ws-space-4) var(--ws-space-4) 0; }
+.ws-scrum-page .ws-timeline-heading>div { min-width:0; }
+.ws-scrum-page .ws-timeline-heading h2 { font-size:var(--ws-text-sm); font-weight:var(--ws-weight-semibold); }
+.ws-scrum-page .ws-timeline-heading p { font-size:var(--ws-text-xs); color:rgb(var(--text-muted)); line-height:1.6; margin-top:var(--ws-space-1); max-width:530px; }
+.ws-scrum-page .ws-timeline-legend { display:flex; flex-wrap:wrap; gap:var(--ws-space-3); font-size:var(--ws-text-caption); color:rgb(var(--text-muted)); padding-top:2px; }
+.ws-scrum-page .ws-timeline-legend>span { display:inline-flex; align-items:center; gap:var(--ws-space-1); white-space:nowrap; }
+.ws-scrum-page .ws-timeline-legend>span::before { content:''; width:6px; height:6px; border-radius:50%; background:rgb(var(--text-muted)); }
+.ws-scrum-page .ws-timeline-legend>.active::before { background:rgb(var(--accent)); }
+.ws-scrum-page .ws-timeline-legend>.completed::before { background:rgb(var(--state-done)); }
+.ws-scrum-page .ws-timeline-scroll { width:100%; max-width:100%; overflow-x:auto; overscroll-behavior-x:contain; padding:0 var(--ws-space-4) var(--ws-space-3); }
+.ws-scrum-page .ws-timeline-calendar { position:relative; min-width:760px; }
+.ws-scrum-page .ws-timeline-axis, .ws-scrum-page .ws-timeline-row { display:grid; grid-template-columns:var(--ws-timeline-label-width) minmax(0,1fr); gap:var(--ws-timeline-gap); padding-right:var(--ws-space-3); }
+.ws-scrum-page .ws-timeline-axis { height:var(--ws-timeline-axis-height); align-items:end; color:rgb(var(--text-muted)); font-size:var(--ws-text-caption); }
+.ws-scrum-page .ws-timeline-axis>span { padding-bottom:var(--ws-space-3); }
+.ws-scrum-page .ws-timeline-axis>div { position:relative; height:30px; }
+.ws-scrum-page .ws-timeline-axis time { position:absolute; bottom:var(--ws-space-3); transform:translateX(-50%); white-space:nowrap; }
+.ws-scrum-page .ws-timeline-axis time.first { transform:none; }
+.ws-scrum-page .ws-timeline-axis time.last { transform:translateX(-100%); }
+.ws-scrum-page .ws-timeline-guides { position:absolute; left:calc(var(--ws-timeline-label-width) + var(--ws-timeline-gap)); right:var(--ws-space-3); top:var(--ws-timeline-axis-height); bottom:0; pointer-events:none; z-index:2; }
+.ws-scrum-page .ws-timeline-guides>i { position:absolute; height:100%; border-left:1px solid rgb(var(--border-base)/.28); }
+.ws-scrum-page .ws-timeline-today { position:absolute; height:100%; border-left:2px solid rgb(var(--conf-mid)/.8); }
+.ws-scrum-page .ws-timeline-today>span { position:absolute; top:-52px; left:-1px; transform:translateX(-50%); padding:2px var(--ws-space-2); border-radius:var(--ws-radius-control); font-size:var(--ws-text-caption); font-weight:var(--ws-weight-semibold); line-height:18px; color:rgb(var(--conf-mid)); background:var(--ws-surface-raised); border:1px solid rgb(var(--conf-mid)/.3); white-space:nowrap; }
+.ws-scrum-page .ws-timeline-row { position:relative; width:100%; min-height:var(--ws-timeline-row-height); align-items:center; text-align:left; border-top:1px solid rgb(var(--border-base)/.3); --sprint-line:var(--text-muted); }
+.ws-scrum-page .ws-timeline-row.active { --sprint-line:var(--accent); }
+.ws-scrum-page .ws-timeline-row.completed { --sprint-line:var(--state-done); }
+.ws-scrum-page .ws-timeline-row:hover { background:var(--ws-surface-hover); }
+.ws-scrum-page .ws-timeline-row:focus-visible { outline:2px solid var(--ws-focus); outline-offset:-2px; border-radius:var(--ws-radius-control); }
+.ws-scrum-page .ws-timeline-label { display:flex; flex-direction:column; gap:var(--ws-space-1); min-width:0; padding:var(--ws-space-2) 0; }
+.ws-scrum-page .ws-timeline-label strong { font-size:var(--ws-text-xs); font-weight:var(--ws-weight-medium); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ws-scrum-page .ws-timeline-label small { color:rgb(var(--text-muted)); font-size:var(--ws-text-caption); }
+.ws-scrum-page .ws-timeline-track { position:relative; display:block; min-width:0; height:var(--ws-timeline-row-height); }
+.ws-scrum-page .ws-timeline-bar { position:absolute; left:var(--sprint-start); width:var(--sprint-width); min-width:2px; height:20px; top:26px; background:rgb(var(--sprint-line)/.18); border:1px solid rgb(var(--sprint-line)/.4); border-radius:var(--ws-radius-control); }
+.ws-scrum-page .ws-timeline-boundary { position:absolute; height:32px; top:20px; border-left:2px solid rgb(var(--sprint-line)/.9); }
+.ws-scrum-page .ws-timeline-boundary.start { left:var(--sprint-start); }
+.ws-scrum-page .ws-timeline-boundary.end { left:var(--sprint-end); transform:translateX(-2px); }
+.ws-scrum-page .ws-timeline-boundary-date { position:absolute; white-space:nowrap; font-size:var(--ws-text-caption); line-height:18px; color:rgb(var(--text-muted)); }
+.ws-scrum-page .ws-timeline-boundary-date.start { top:1px; left:clamp(0px,var(--sprint-start),calc(100% - 148px)); }
+.ws-scrum-page .ws-timeline-boundary-date.end { bottom:1px; left:clamp(148px,var(--sprint-end),100%); transform:translateX(-100%); }
+@container workspace-page (max-width:900px) {
+  .ws-scrum-page .ws-timeline-heading { flex-wrap:wrap; gap:var(--ws-space-2); }
 }
 @media (forced-colors:active) {
-  .ws-timeline-bar, .ws-timeline-boundary, .ws-timeline-today { forced-color-adjust:none; border-color:CanvasText; }
-  .ws-timeline-bar { background:Canvas; }
+  .ws-scrum-page :is(.ws-timeline-bar,.ws-timeline-boundary,.ws-timeline-today) { forced-color-adjust:none; border-color:CanvasText; }
+  .ws-scrum-page .ws-timeline-bar { background:Canvas; }
 }
