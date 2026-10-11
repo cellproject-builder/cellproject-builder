@@ -101,7 +101,9 @@ If the desired object cannot be resolved from the request or selected text, retu
   const known = identifierKey(input.text + '\n' + context + '\n' + (options.projectBackground ?? ''));
   // Explicit codes in either the overall query or an independent query cannot
   // disappear behind a broad alias, or migrate to another component's group.
-  for (const candidate of [{ query, target: undefined }, ...targets.map(target => ({ query: target.query, target }))]) {
+  // Independent queries establish ownership before the combined query checks it;
+  // a meaningful generic alias does not need to repeat its known model code.
+  for (const candidate of [...targets.map(target => ({ query: target.query, target })), { query, target: undefined }]) {
     for (const code of queryIdentifiers(candidate.query)) {
       const codeKey = identifierKey(code);
       if (!known.includes(codeKey)) throw new Error('visualSearchUnclear');

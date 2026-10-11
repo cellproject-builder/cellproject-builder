@@ -37,6 +37,58 @@ beforeEach(async () => {
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
 
 describe('independent visual studio tabs', () => {
+  it('preselects the captured canvas node and can search it without text', async () => {
+    const node: MentionTarget = { id: 'electronics', kind: 'node', label: 'ESP32, PCA9685 e USB serial', detail: 'Recurso', fingerprint: 'v1' };
+    props.onSearch = vi.fn(async () => []);
+    await act(async () => { root.render(<VisualExplorer {...props} />); useVisualPopupStore.getState().open('search', { text: '', mentions: [node], attachments: [] }); });
+    const panel = visible().find(panel => panel.dataset.visualPopup === 'search')!;
+    expect(panel.querySelector('.visual-chip')?.textContent).toContain(node.label);
+    expect(named(panel, 'Search').disabled).toBe(false);
+    await click(panel, 'Search');
+    expect(props.onSearch).toHaveBeenCalledWith(expect.objectContaining({ text: '', mentions: [node] }), expect.any(AbortSignal), expect.any(Function));
+  });
+
+  it('opens an unlinked search after deselection while preserving the previous draft in its tab', async () => {
+    const node: MentionTarget = { id: 'electronics', kind: 'node', label: 'Electronics', detail: 'Resource', fingerprint: 'v1' };
+    await act(async () => useVisualPopupStore.getState().open('search', { text: '', mentions: [node], attachments: [] }));
+    const first = visible().find(panel => panel.dataset.visualPopup === 'search')!;
+    await write(first, 'Keep this draft');
+    await click(first, 'Close image search');
+    await act(async () => useVisualPopupStore.getState().open('search', { text: '', mentions: [], attachments: [] }));
+    const panel = visible().find(panel => panel.dataset.visualPopup === 'search')!;
+    expect(panel.querySelector('.visual-chip')).toBeNull();
+    expect(named(panel, 'Search').disabled).toBe(true);
+    await act(async () => panel.querySelectorAll<HTMLButtonElement>('[role="tab"]')[0].click());
+    expect(visible().find(panel => panel.dataset.visualPopup === 'search')!.querySelector('textarea')?.value).toBe('Keep this draft');
+  });
+
+  it('uses current selection only for new search tabs and never rewrites a tab being edited', async () => {
+    const node: MentionTarget = { id: 'a', kind: 'node', label: 'Node A', detail: 'Resource', fingerprint: 'v1' };
+    props.selectedNode = node;
+    await act(async () => { root.render(<VisualExplorer {...props} />); useVisualPopupStore.getState().open('search', { text: '', mentions: [node], attachments: [] }); });
+    let panel = visible().find(panel => panel.dataset.visualPopup === 'search')!;
+    await write(panel, 'My draft');
+    props.selectedNode = { ...node, id: 'b', label: 'Node B' };
+    await act(async () => root.render(<VisualExplorer {...props} />));
+    expect(panel.querySelector('.visual-chip')?.textContent).toContain('Node A');
+    await click(panel, 'New tab');
+    panel = visible().find(panel => panel.dataset.visualPopup === 'search')!;
+    expect(panel.querySelector('.visual-chip')?.textContent).toContain('Node B');
+    expect(panel.querySelector('textarea')?.value).toBe('');
+  });
+
+  it('opens a captured selection requested before mount in exactly one search tab', async () => {
+    const node: MentionTarget = { id: 'selected', kind: 'node', label: 'Selected component', detail: 'Resource', fingerprint: 'v1' };
+    await act(async () => {
+      useGraphStore.setState({ project: graphProject('next-project') });
+      useVisualPopupStore.getState().open('search', { text: '', mentions: [node], attachments: [] });
+      root.render(<VisualExplorer {...props} projectId="next-project" workspace={workspace()} />);
+    });
+    const panel = visible().find(panel => panel.dataset.visualPopup === 'search')!;
+    expect(panel.querySelectorAll('[role="tab"]')).toHaveLength(1);
+    expect(panel.querySelector('.visual-chip')?.textContent).toContain(node.label);
+  });
+
   it('offers integrated tabs and starts a fresh request without overwriting the first', async () => {
     const first = visible()[0];
     expect(first.querySelector('[role="tablist"]')).not.toBeNull();

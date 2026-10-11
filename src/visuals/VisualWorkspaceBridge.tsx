@@ -153,7 +153,12 @@ export const VisualWorkspaceBridge = memo(function VisualWorkspaceBridge({ proje
     {dropHint && <div className="visual-drop-feedback" role="status"><span style={{ left: dropHint.x, top: dropHint.y }}><b aria-hidden>＋</b>{en ? 'Drop to add to the plan' : 'Solte para adicionar ao plano'}</span></div>}
     {workspace.artifacts.length > 0 && <Suspense fallback={null}><VisualCanvasLayer artifacts={workspace.artifacts} onAvailability={availability} /></Suspense>}
     <div className="visual-canvas-actions" aria-label={en ? 'Visual tools' : 'Ferramentas visuais'}>
-      <button type="button" aria-label={en ? 'Find images' : 'Buscar imagens'} title={en ? 'Find images' : 'Buscar imagens'} aria-haspopup="dialog" onClick={() => useVisualPopupStore.getState().open('search')}>
+      <button type="button" aria-label={en ? 'Find images' : 'Buscar imagens'} title={en ? 'Find images' : 'Buscar imagens'} aria-haspopup="dialog" onClick={() => {
+        // Capture selection at the user's action, without subscribing closed tools.
+        const id = useGraphStore.getState().selectedNodeId;
+        const node = id ? findMentionTarget(id, 'node') : undefined;
+        useVisualPopupStore.getState().open('search', { text: '', mentions: node ? [node] : [], attachments: [] });
+      }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.5"/><path d="m3 16 5-5 5 5 3-3 5 5"/></svg>
       </button>
       <button type="button" aria-label={en ? 'Generate 3D' : 'Gerar 3D'} title={en ? 'Generate 3D' : 'Gerar 3D'} aria-haspopup="dialog" onClick={() => useVisualPopupStore.getState().open('model')}>

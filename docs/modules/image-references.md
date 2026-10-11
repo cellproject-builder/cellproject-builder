@@ -22,7 +22,7 @@ O módulo encontra referências reais do objeto solicitado, preserva sua página
 
 ## Fluxo de uso
 
-1. Abra **Buscar imagens**, escreva o objeto ou selecione uma referência `@` cujo corpo contenha os componentes. Anexe texto/PDF quando necessário. Enter em uma sugestão de `@` seleciona a fonte, sem disparar a busca.
+1. Abra **Buscar imagens**. No construtor, o nó selecionado entra como referência; sem seleção, a busca abre sem vínculo. Um nó diferente inicia uma aba própria, preservando o pedido anterior. Alterar a seleção no canvas não reescreve a aba em edição. É possível remover a referência, escrever o objeto ou escolher outra fonte com `@`; anexe texto/PDF quando necessário. Uma referência ou anexo com conteúdo basta para buscar, sem texto adicional. Enter em uma sugestão de `@` seleciona a fonte, sem disparar a busca.
 2. Envie o pedido. A ferramenta mostra objeto interpretado, incerteza e consultas efetivamente usadas. Uma lista como placa e cabo deve gerar duas consultas, evitando transformar o pedido inteiro em “cabo para placa”.
 3. Examine os resultados na galeria. Pode navegar sem inserir, abrir a fonte, copiar a imagem, adicionar ao plano ou usar como base 3D. Falha de miniatura mantém a página de origem visível, mas bloqueia ações que necessitam dos bytes.
 4. No chat, os candidatos aparecem agrupados pelos itens solicitados, incluindo grupos sem imagens. A comparação documental apresenta requisitos, trechos, conflitos e informações ausentes. O clique humano é a etapa de inserção.

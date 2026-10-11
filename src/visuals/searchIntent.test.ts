@@ -112,6 +112,56 @@ describe('image search intent', () => {
     deps.generate.mockResolvedValue({ finishReason: 'stop', object: { ...object, targets: [{ ...object.targets[0], query: 'ESP32-S2 module' }, object.targets[1]] } });
     await expect(resolveImageSearchIntent(request, '', { signal: new AbortController().signal })).rejects.toThrow('visualSearchUnclear');
   });
+  it.each([false, true])('recovers known identifiers from each independent query before checking a reference-only combined query (reversed: %s)', async reversed => {
+    deps.config.mockReturnValue({ provider: 'test' });
+    const label = 'ESP32, PCA9685 e USB serial';
+    const request = { text: '', mentions: [{ id: 'electronics', kind: 'node' as const, label, detail: 'Recurso', fingerprint: 'v1' }], attachments: [] };
+    const context = JSON.stringify({ selected: [{ label, text: JSON.stringify({ name: label, oQue: 'ESP32 e PCA9685 já disponíveis; USB serial para comunicação.' }) }] });
+    const targets = [
+      { query: 'ESP32 development board', aliases: ['microcontroller board'], identifiers: [] as string[] },
+      { query: 'PCA9685 servo driver', aliases: ['servo driver'], identifiers: [] as string[] },
+      { query: 'USB serial adapter', aliases: ['USB serial adapter'], identifiers: [] as string[] },
+    ];
+    if (reversed) targets.reverse();
+    deps.generate.mockResolvedValue({ finishReason: 'stop', object: {
+      query: 'ESP32 development board PCA9685 servo driver USB serial adapter', label, targets, uncertainty: '', unresolved: false,
+    } });
+    const resolved = await resolveImageSearchIntent(request, context, { signal: new AbortController().signal });
+    expect(imageSearchQueries(resolved)).toEqual(targets.map(target => target.query));
+    expect(Object.fromEntries(resolved.targets!.map(target => [target.query, target.identifiers]))).toEqual({
+      'ESP32 development board': ['ESP32'], 'PCA9685 servo driver': ['PCA9685'], 'USB serial adapter': [],
+    });
+  });
+  it('rejects an invented code when recovering identifiers from independent reference-only queries', async () => {
+    deps.config.mockReturnValue({ provider: 'test' });
+    const label = 'ESP32, PCA9685 e USB serial';
+    const request = { text: '', mentions: [{ id: 'electronics', kind: 'node' as const, label, detail: 'Recurso', fingerprint: 'v1' }], attachments: [] };
+    deps.generate.mockResolvedValue({ finishReason: 'stop', object: {
+      query: 'ESP32-S3 development board PCA9685 servo driver USB serial adapter', label,
+      targets: [
+        { query: 'ESP32-S3 development board', aliases: ['microcontroller board'], identifiers: [] },
+        { query: 'PCA9685 servo driver', aliases: ['servo driver'], identifiers: [] },
+        { query: 'USB serial adapter', aliases: ['USB serial adapter'], identifiers: [] },
+      ], uncertainty: '', unresolved: false,
+    } });
+    const context = JSON.stringify({ selected: [{ label, text: 'ESP32 e PCA9685 já disponíveis; USB serial para comunicação.' }] });
+    await expect(resolveImageSearchIntent(request, context, { signal: new AbortController().signal })).rejects.toThrow('visualSearchUnclear');
+  });
+  it('rejects a known combined-query code when none of the independent targets identifies its owner', async () => {
+    deps.config.mockReturnValue({ provider: 'test' });
+    const label = 'ESP32, PCA9685 e USB serial';
+    const request = { text: '', mentions: [{ id: 'electronics', kind: 'node' as const, label, detail: 'Recurso', fingerprint: 'v1' }], attachments: [] };
+    deps.generate.mockResolvedValue({ finishReason: 'stop', object: {
+      query: 'ESP32 development board PCA9685 servo driver USB serial adapter', label,
+      targets: [
+        { query: 'microcontroller board', aliases: ['microcontroller board'], identifiers: [] },
+        { query: 'PCA9685 servo driver', aliases: ['servo driver'], identifiers: [] },
+        { query: 'USB serial adapter', aliases: ['USB serial adapter'], identifiers: [] },
+      ], uncertainty: '', unresolved: false,
+    } });
+    const context = JSON.stringify({ selected: [{ label, text: 'ESP32 e PCA9685 já disponíveis; USB serial para comunicação.' }] });
+    await expect(resolveImageSearchIntent(request, context, { signal: new AbortController().signal })).rejects.toThrow('visualSearchUnclear');
+  });
   it('rechecks cancellation after the request gate, before calling the model', async () => {
     deps.config.mockReturnValue({ provider: 'test' });
     const controller = new AbortController();

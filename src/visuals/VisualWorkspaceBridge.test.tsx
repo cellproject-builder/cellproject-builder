@@ -8,6 +8,7 @@ import { initializeWorkspace } from '@/workspace/planner';
 import { useLocaleStore } from '@/i18n';
 import { findMentionTarget, getVisualWorkspace, mutateVisualWorkspace } from './domain';
 import { useVisualSessionStore } from './ui/sessionStore';
+import { useVisualPopupStore } from './ui/uiStore';
 import { addLocalImage, addReferenceImage } from './media';
 import { VisualWorkspaceBridge } from './VisualWorkspaceBridge';
 import { REFERENCE_DRAG_TYPE } from './drag';
@@ -79,6 +80,20 @@ beforeEach(async () => {
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
 
 describe('idle visual tools', () => {
+  it('captures the selected node when opening image search without resolving closed-tool context', async () => {
+    const project = useGraphStore.getState().project!;
+    await act(async () => useGraphStore.setState({ selectedNodeId: project.rootId }));
+    vi.mocked(findMentionTarget).mockClear();
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Buscar imagens"]')!.click());
+    expect(useVisualPopupStore.getState().request).toMatchObject({ kind: 'search', input: { text: '', mentions: [{ id: project.rootId, kind: 'node' }], attachments: [] } });
+  });
+
+  it.each([null, 'deleted-node'])('opens image search without a reference when selection is %s', async selectedNodeId => {
+    await act(async () => useGraphStore.setState({ selectedNodeId }));
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Buscar imagens"]')!.click());
+    expect(useVisualPopupStore.getState().request).toMatchObject({ kind: 'search', input: { text: '', mentions: [], attachments: [] } });
+  });
+
   it('does not resolve selected-node context while studios are closed', async () => {
     const project = useGraphStore.getState().project!;
     await act(async () => useGraphStore.setState({ selectedNodeId: project.rootId }));

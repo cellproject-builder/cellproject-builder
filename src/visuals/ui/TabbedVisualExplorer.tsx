@@ -41,7 +41,8 @@ const VisualSession = memo(function VisualSession({ tab, window, order, historyP
       onInspector: id => actions.setInspector(tab.id, id), onActivity: activity => actions.setActivity(tab.id, activity),
       onFindReferences: input => { actions.newTab('search', { input }); },
       tabs: windowTabs ? <PopupTabs windowId={window.id} tabs={windowTabs.map(item => ({ ...item, label: title(item), artifactKind: item.draft.artifactKind }))}
-        activeTabId={window.activeTabId} onSelect={actions.activate} onNew={() => { actions.newTab(tab.kind, { windowId: window.id }); }}
+        activeTabId={window.activeTabId} onSelect={actions.activate} onNew={() => { actions.newTab(tab.kind, { windowId: window.id,
+          ...(tab.kind === 'search' ? { input: { text: '', mentions: props.selectedNode ? [props.selectedNode] : [], attachments: [] } } : {}) }); }}
         onClose={actions.closeTab} onDetach={actions.detach} onMove={actions.move} /> : undefined,
     }} />;
 }, (previous, next) => {
@@ -87,7 +88,8 @@ export function TabbedVisualExplorer(props: VisualExplorerProps) {
     const pending = request && scoped && request.id > (state.deliveries[props.projectId]?.requestId ?? 0);
     // A pending handoff creates its own tab below; do not prepend a blank tab.
     const modelHandoff = pending && (request.action === 'base' || request.action === 'inspect');
-    state.initialize(props.projectId, latest.current.workspace.drafts, [scoped && tools.searchOpen ? 'search' : '', scoped && tools.modelOpen && !modelHandoff ? 'model' : '']);
+    const searchHandoff = pending && request.action === 'open' && request.kind === 'search' && request.input;
+    state.initialize(props.projectId, latest.current.workspace.drafts, [scoped && tools.searchOpen && !searchHandoff ? 'search' : '', scoped && tools.modelOpen && !modelHandoff ? 'model' : '']);
     if (changed) {
       history.current.clear();
       const initialized = useVisualSessionStore.getState();
@@ -105,7 +107,15 @@ export function TabbedVisualExplorer(props: VisualExplorerProps) {
       if (!request || state.projectId !== props.projectId || request.projectId && request.projectId !== props.projectId) return;
       if (!state.consumeRequest(props.projectId, request.id)) return;
       const windows = state.windows.filter(window => window.kind === request.kind).sort((a, b) => b.order - a.order);
-      if (request.action === 'base' && request.modelBase) {
+      if (request.action === 'open' && request.kind === 'search' && request.input) {
+        // A different canvas selection starts its own search, preserving any
+        // running request, results and edited draft in the previous tab.
+        const window = windows[0], active = window && state.tabs[window.activeTabId];
+        const sameReferences = active && active.draft.mentions.length === request.input.mentions.length
+          && active.draft.mentions.every((mention, index) => mention.kind === request.input!.mentions[index].kind && mention.id === request.input!.mentions[index].id);
+        if (window && sameReferences) state.restoreWindow(window.id);
+        else state.newTab('search', { windowId: window?.id, input: request.input });
+      } else if (request.action === 'base' && request.modelBase) {
         // A reference handoff starts a new request instead of editing a running tab.
         const input = { text: '', mentions: [{ ...request.modelBase }], attachments: [] };
         state.newTab('model', { input });
