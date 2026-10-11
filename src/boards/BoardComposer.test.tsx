@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useConfigStore } from '@/config/store';
 import { useWorkspaceStore as store } from '@/workspace/store';
 import { torqueDiagram } from '@/visuals/diagram/fixture';
+import { DiagramLabelsMissingError } from '@/visuals/diagram/quality';
 import { BoardComposer } from './BoardComposer';
 import { generateBoardItem, searchBoardImages, importBoardReference } from './generation';
 import type { BoardItem } from './model';
@@ -45,6 +46,27 @@ it('references only items of the current board through @', async () => {
   const option = host.querySelector('[data-board-reference="card"]'); expect(option).not.toBeNull();
   act(() => Simulate.click(option!)); prompt('Desenhar essa ideia'); await submit();
   expect(generateBoardItem).toHaveBeenCalledWith(expect.objectContaining({ boardId, referenceIds: ['card'] }), expect.anything());
+});
+it.each([false, true])('explains missing diagram labels and retains the prompt and board references for retry (english=%s)', async english => {
+  await act(async () => root.render(<BoardComposer boardId={boardId} kind="diagram" onInsert={insert} onClose={close} english={english} />));
+  prompt('@'); act(() => Simulate.click(host.querySelector('[data-board-reference="card"]')!));
+  act(() => Simulate.change(host.querySelector('[type="checkbox"]')!, { target: { checked: false } } as never));
+  prompt('Nomear as peças e conexões');
+  vi.mocked(generateBoardItem).mockRejectedValueOnce(new DiagramLabelsMissingError());
+  await submit();
+  expect(host.querySelector('[role="alert"]')?.textContent).toBe(english
+    ? 'The drawing came without visible names or labels. Generate again to get an explanatory diagram.'
+    : 'O desenho veio sem nomes ou legendas visíveis. Gere novamente para obter um diagrama explicativo.');
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')!.value).toBe('Nomear as peças e conexões');
+  expect(host.querySelector<HTMLInputElement>('[type="checkbox"]')!.checked).toBe(false);
+  expect(host.querySelector('.board-reference-chips')?.textContent).toContain('Comparar torque');
+  expect(host.querySelector('[data-board-insert]')).toBeNull(); expect(insert).not.toHaveBeenCalled(); expect(close).not.toHaveBeenCalled();
+  await submit();
+  expect(vi.mocked(generateBoardItem).mock.calls.map(([input]) => input)).toEqual([
+    { boardId, prompt: 'Nomear as peças e conexões', useContent: false, referenceIds: ['card'], kind: 'diagram' },
+    { boardId, prompt: 'Nomear as peças e conexões', useContent: false, referenceIds: ['card'], kind: 'diagram' },
+  ]);
+  expect(host.querySelector('[role="alert"]')).toBeNull(); expect(host.querySelector('[data-board-insert]')).not.toBeNull();
 });
 it('minimizes without aborting generation and restores the completed preview', async () => {
   let resolve!: (item: BoardItem) => void;

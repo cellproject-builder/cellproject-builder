@@ -1,0 +1,11 @@
+import { buildDiagramSystem } from '../../src/visuals/diagram/prompt';
+
+export const diagramLabelsInstruction = `Crie em português um esquema funcional explicativo e estático para dois braços robóticos, com fundo transparente, viewBox [0,0,560,500] e até 100 elementos. Este é um estudo visual sintético, não uma pinagem de montagem nem um circuito executável.
+Inclua ESP32 (controle lógico), PCA9685 (controlador central), uma Fonte e um Capacitor, sem inventar ratings de tensão, corrente ou capacitância. Inclua exatamente 14 servos separados visualmente em dois grupos de sete: braço A e braço B. Cada grupo contém juntas J1, J2, J3, J4, J5, J6 e Garra.
+Os 14 rótulos visíveis devem identificar distintamente Servo A-J1, Servo A-J2, Servo A-J3, Servo A-J4, Servo A-J5, Servo A-J6, Servo A-Garra, Servo B-J1, Servo B-J2, Servo B-J3, Servo B-J4, Servo B-J5, Servo B-J6 e Servo B-Garra. Mostre também nomes visíveis ESP32, PCA9685, Fonte e Capacitor. Use rótulos de canal CH0 a CH13 somente como exemplos ilustrativos, sem afirmar uma pinagem verificada.
+Mostre relações funcionais de controle ESP32→PCA9685 e PCA9685→servos e de alimentação/filtragem, sem pinos físicos, bitolas ou instruções de ligação. Organize rotas para não encobrir os nomes. Use três cores de exemplo (ciano para controle lógico, âmbar para canais, rosa para energia) e uma Legenda visível explicando esses significados. Os textos dentro do SVG precisam explicar o desenho, não apenas os campos title/explanation. Dê preferência à leitura dos nomes sobre detalhes decorativos. Sliders são desnecessários; parameters/calculations/bindings podem estar vazios. Não use nodeId.
+Inclua texto curto visível: "Estudo visual · conexões ilustrativas, conferir documentação". Registre em assumptions que fonte, capacitor, interfaces e compatibilidade precisam de documentação/dimensionamento e que cores/canais são exemplos. Não certifique montagem, alimentação simultânea dos servos ou capacidade física. Não invente documentos nem medições.`;
+
+export function diagramLabelsRequest() {
+  return { system: buildDiagramSystem('plan'), prompt: JSON.stringify({ instruction: diagramLabelsInstruction, context: { synthetic: true, planNodes: [], sources: [], notice: 'Conteúdo sintético sem dados, nós, conta ou documentos do usuário.' } }) };
+}

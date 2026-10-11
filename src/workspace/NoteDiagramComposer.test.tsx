@@ -5,8 +5,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { generateText } from 'ai';
 import { useConfigStore } from '@/config/store';
 import { torqueDiagram } from '@/visuals/diagram/fixture';
+import { DiagramLabelsMissingError } from '@/visuals/diagram/quality';
 import { useWorkspaceStore as store } from './store';
 import { NoteDiagramComposer } from './NoteDiagramComposer';
+import * as noteDiagram from './noteDiagram';
 
 vi.mock('ai', () => ({ generateText: vi.fn() }));
 vi.mock('@/ai/client', () => ({ aiModel: {}, assertAIReady: vi.fn(), callOpts: () => ({ maxOutputTokens: 8000 }) }));
@@ -83,6 +85,26 @@ it('omits note context when its compact opt-in checkbox is unchecked', async () 
   act(() => Simulate.change(host.querySelector('[type="checkbox"]')!, { target: { checked: false } } as never));
   prompt('Fluxo abstrato'); await submit();
   expect(vi.mocked(generateText).mock.calls[0][0].prompt).not.toContain('Minha nota');
+});
+
+it.each([false, true])('explains missing diagram labels and retains the note request for retry (english=%s)', async english => {
+  await act(async () => root.render(<NoteDiagramComposer noteId={noteId} onInsert={inserted} onClose={closed} english={english} />));
+  const generate = vi.spyOn(noteDiagram, 'generateNoteDiagram').mockRejectedValueOnce(new DiagramLabelsMissingError());
+  vi.mocked(generateText).mockResolvedValue(response());
+  act(() => Simulate.change(host.querySelector('[type="checkbox"]')!, { target: { checked: false } } as never));
+  prompt('Nomear as peças e conexões'); await submit();
+  expect(host.querySelector('[role="alert"]')?.textContent).toBe(english
+    ? 'The drawing came without visible names or labels. Generate again to get an explanatory diagram.'
+    : 'O desenho veio sem nomes ou legendas visíveis. Gere novamente para obter um diagrama explicativo.');
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')!.value).toBe('Nomear as peças e conexões');
+  expect(host.querySelector<HTMLInputElement>('[type="checkbox"]')!.checked).toBe(false);
+  expect(host.querySelector('[data-note-diagram-insert]')).toBeNull(); expect(inserted).not.toHaveBeenCalled(); expect(closed).not.toHaveBeenCalled();
+  await submit();
+  expect(generate.mock.calls.map(([input]) => input)).toEqual([
+    { noteId, prompt: 'Nomear as peças e conexões', useContent: false },
+    { noteId, prompt: 'Nomear as peças e conexões', useContent: false },
+  ]);
+  expect(host.querySelector('[role="alert"]')).toBeNull(); expect(host.querySelector('[data-note-diagram-insert]')).not.toBeNull();
 });
 
 it('retains a failed insertion preview so the user does not lose the generated diagram', async () => {

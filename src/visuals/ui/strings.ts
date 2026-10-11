@@ -52,6 +52,7 @@ const en = {
   inputLimit: 'Use up to 20 context items, 8 attachments and 12,000 characters.', contextChanged: 'The selected context changed. Review your references and generate again.',
   projectChanged: 'The project changed. Run this request again in the current project.', missingMedia: 'A local reference is no longer available. Attach it again.',
   referenceUnavailable: 'This image reference is no longer available. Search again.', incomplete: 'The model response was incomplete. Try a simpler description.',
+  diagramLabelsMissing: 'The drawing came without visible names or labels. Generate again to get an explanatory diagram.',
 };
 type Strings = typeof en;
 const pt: Strings = {
@@ -105,6 +106,7 @@ const pt: Strings = {
   inputLimit: 'Use até 20 itens de contexto, 8 anexos e 12.000 caracteres.', contextChanged: 'O contexto selecionado mudou. Revise as referências e gere novamente.',
   projectChanged: 'O projeto mudou. Envie novamente no projeto atual.', missingMedia: 'Uma referência local não está mais disponível. Anexe-a novamente.',
   referenceUnavailable: 'Esta referência de imagem não está mais disponível. Busque novamente.', incomplete: 'A resposta do modelo ficou incompleta. Tente uma descrição mais simples.',
+  diagramLabelsMissing: 'O desenho veio sem nomes ou legendas visíveis. Gere novamente para obter um diagrama explicativo.',
 };
 export function useVisualStrings(): Strings { return useLocaleStore((s) => s.locale) === 'pt-BR' ? pt : en; }
 export function visualError(reason: unknown, s: Strings): string {
@@ -119,6 +121,7 @@ export function visualError(reason: unknown, s: Strings): string {
     visualArtifactRemoved: s.missingMedia, visualMediaMissing: s.missingMedia, visualImageFetchFailed: s.referenceUnavailable,
     visualReferenceUnregistered: s.referenceUnavailable, visualGenerationIncomplete: s.incomplete,
     visualAssemblyInvalid: s.assemblyInvalid,
+    diagramLabelsMissing: s.diagramLabelsMissing,
     visualDiagramInvalid: s.generate === 'Generate model' ? 'The diagram response was invalid or outside the supported limits. Refine the request and try again.' : 'O diagrama retornado é inválido ou excede os limites suportados. Ajuste o pedido e tente novamente.',
     visualSearchNeedsAI: s.searchNeedsAI, visualSearchUnclear: s.searchUnclear,
     visualRefinementStale: s.refinementOutdated, visualRefinementInvalid: s.refinementInvalid,

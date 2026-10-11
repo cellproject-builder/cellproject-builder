@@ -22,6 +22,7 @@ const pt = {
   cancel: 'Cancelar', insert: 'Inserir no quadro', apply: 'Aplicar ajuste', mention: 'Referenciar item', remove: 'Remover referência',
   refsEmpty: 'Nenhum item encontrado', changed: 'O quadro mudou. Gere novamente com o contexto atual.', failure: 'Não foi possível concluir. Confira a conexão e tente novamente.',
   invalid: 'O resultado veio inválido. Tente ajustar o pedido.', incomplete: 'O resultado veio incompleto. Tente um pedido menor.', missing: 'Uma referência não está mais disponível.',
+  diagramLabelsMissing: 'O desenho veio sem nomes ou legendas visíveis. Gere novamente para obter um diagrama explicativo.',
   configure: 'Configurar IA', noKey: 'Configure a IA para gerar.', restore: 'Restaurar', empty: 'Nenhuma imagem encontrada. Tente uma busca mais específica.',
   pixels: 'As imagens referenciadas serão enviadas à IA.', references: 'Referências do quadro', source: 'Abrir fonte', imageAdd: 'Adicionar imagem',
 };
@@ -32,6 +33,7 @@ const en: typeof pt = {
   cancel: 'Cancel', insert: 'Insert in board', apply: 'Apply adjustment', mention: 'Reference an item', remove: 'Remove reference',
   refsEmpty: 'No matching item', changed: 'The board changed. Generate again with its current context.', failure: 'Could not complete. Check your connection and try again.',
   invalid: 'The result was invalid. Try adjusting the request.', incomplete: 'The result was incomplete. Try a smaller request.', missing: 'A reference is no longer available.',
+  diagramLabelsMissing: 'The drawing came without visible names or labels. Generate again to get an explanatory diagram.',
   configure: 'Configure AI', noKey: 'Configure AI to generate.', restore: 'Restore', empty: 'No images found. Try a more specific search.',
   pixels: 'Referenced images will be sent to AI.', references: 'Board references', source: 'Open source', imageAdd: 'Add image',
 };
@@ -65,6 +67,7 @@ export function BoardComposer({ boardId, kind, itemId, onInsert, onClose, englis
   const close = () => { cancel(); latest.current.onClose(); };
   const errorText = (reason: unknown) => {
     const message = reason instanceof Error ? reason.message : '';
+    if (message === 'diagramLabelsMissing') return tr.diagramLabelsMissing;
     return message.includes('ContextChanged') ? tr.changed : message.includes('Incomplete') ? tr.incomplete : message.includes('Invalid') ? tr.invalid : message.includes('ReferenceMissing') ? tr.missing : tr.failure;
   };
   async function submit() {

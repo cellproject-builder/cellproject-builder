@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { generateObject, generateText } from 'ai';
 import { torqueDiagram } from '@/visuals/diagram/fixture';
+import { DiagramLabelsMissingError } from '@/visuals/diagram/quality';
 import { boardAISignature, generateBoardItem, searchBoardImages, importBoardReference } from './generation';
 
 const harness = vi.hoisted(() => ({ state: { boards: {} as Record<string, any>, activeBoardId: 'board' as string | null }, listeners: new Set<() => void>() }));
@@ -34,6 +35,16 @@ it('generates a validated transparent diagram from only this board without mutat
   expect(call.prompt).toContain('Minha oficina'); expect(call.prompt).toContain('Comparar torque');
   expect(call.prompt).not.toContain('PRIVATE_PIXELS'); expect(call.prompt).not.toContain('SEGREDO');
   expect(JSON.stringify(harness.state.boards)).toBe(before); expect(call.maxRetries).toBe(0);
+  expect(call.system).toContain('EXPLANATORY NOMENCLATURE');
+});
+it('refuses an unlabeled illustration without mutating the board or repairing the response', async () => {
+  const before = JSON.stringify(harness.state.boards), value = diagram();
+  value.elements = value.elements.filter(element => element.type !== 'text');
+  value.bindings = value.bindings.filter(binding => binding.elementId !== 'result');
+  vi.mocked(generateText).mockResolvedValue({ ...output(), text: JSON.stringify(value) });
+  await expect(request()).rejects.toBeInstanceOf(DiagramLabelsMissingError);
+  expect(JSON.stringify(harness.state.boards)).toBe(before);
+  expect(generateText).toHaveBeenCalledTimes(1);
 });
 it('ignores layout and drawing changes but rejects semantic changes, including changing back', async () => {
   const signature = boardAISignature('board', true);

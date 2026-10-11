@@ -26,6 +26,16 @@ O renderizador compartilhado adapta rótulos existentes e novos ao tema claro, e
 
 Essa proteção busca contraste mínimo de 4,5:1 no ponto de referência do rótulo. Não interpreta interiores de paths arbitrários nem garante contraste de um texto que atravessa fundos diferentes; também não garante tamanho/legibilidade após reduzir o zoom. A gramática e o documento persistido permanecem os mesmos. A regressão está em [DiagramView.test.tsx](../../src/visuals/diagram/DiagramView.test.tsx); a apresentação em [contrast.ts](../../src/visuals/diagram/contrast.ts) e [useDiagramPalette.ts](../../src/visuals/diagram/useDiagramPalette.ts).
 
+### Nomenclatura explicativa
+
+O guia compartilhado de geração exige nomes nos próprios elementos `text` do desenho, além do título e das premissas. Componentes principais, instâncias repetidas e relações devem ser identificáveis; cores e estilos que representam sinais precisam de legenda. As referências delimitam nomes, portas e especificações: um dado desconhecido deve aparecer como desconhecido, sem inventar pinagem. A composição deve reservar espaço e orçamento para rótulos antes dos detalhes decorativos e pintar os textos após corpos e conexões.
+
+Geração e revisão passam por [parseGeneratedDiagram](../../src/visuals/diagram/quality.ts). Esse piso exige ao menos um rótulo com letras ou números, pintura não transparente e âncora admitida na posição inicial. Texto vazio, transparência total, âncora na borda direita ou baseline na borda superior não satisfazem essa verificação conservadora; ela não mede a caixa dos glifos. O cálculo de bindings é considerado; título, IDs internos e texto apenas nas premissas não contam como nomenclatura no desenho. O erro aparece no compositor e preserva o pedido e o contexto para tentar novamente, sem inserir o resultado nem executar reparo pago automático.
+
+Essa validação é **um piso de presença**, não uma certificação de cobertura, precisão técnica, ausência de sobreposição ou legibilidade em todo zoom. Nomes não são deduzidos das formas. Documentos antigos continuam aceitos pelo parser de persistência/importação; não são reescritos nem rotulados automaticamente. A mudança vale para novos resultados e revisões no plano, Board e notas.
+
+O [ensaio de nomenclatura de 11/10/2026](../reports/diagram-labels-2026-10-11.md) registra regressões, primeira resposta real sem reparo, capturas e limites da inspeção desktop/móvel.
+
 ## Uso e integrações
 
 ### Plano e chat
@@ -142,6 +152,6 @@ A amostra de torque emprega simplificações. Uma pessoa pode verificar a aritm�
 
 ## Diagnóstico de modularização
 
-O núcleo `diagram/model.ts` e `DiagramView` já funcionam como contratos reutilizáveis. Geração do plano, nota e Board repete instruções de JSON, chamada textual, parse, detecção de truncamento e proibição de código. Uma extração futura de transporte/validação compartilhada pode reduzir divergências, mantendo **adaptadores de contexto e comandos de aplicação próprios**. Unificar o contexto dessas superfícies indiscriminadamente retiraria uma proteção existente.
+O núcleo `diagram/model.ts` e `DiagramView` já funcionam como contratos reutilizáveis. Plano, nota e Board compartilham `buildDiagramSystem` para instruções/schema e `parseGeneratedDiagram` para o piso de nomenclatura. Os serviços ainda mantêm transporte e tratamento de truncamento próprios. Uma extração futura desses trechos pode reduzir divergências, mantendo **adaptadores de contexto e comandos de aplicação próprios**. Unificar o contexto dessas superfícies indiscriminadamente retiraria uma proteção existente.
 
 A validação de paths é diferente da contenção geométrica numérica. Uma futura expansão de gramática precisa declarar quais limites são sintáticos, aritméticos, geométricos e de apresentação, acompanhada de fixtures e testes apropriados. React livre deve permanecer em fronteira explicitamente experimental até existir avaliação de recursos e isolamento compatível com o uso pretendido.

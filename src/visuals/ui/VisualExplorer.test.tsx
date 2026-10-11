@@ -7,6 +7,7 @@ import { useVisualPopupStore } from './uiStore';
 import type { ImageReference, MentionTarget, VisualProposal, VisualWorkspace } from '../types';
 import type { ModelRefinement } from '../refinement';
 import { torqueDiagram } from '../diagram/fixture';
+import { DiagramLabelsMissingError } from '../diagram/quality';
 
 vi.mock('./DecompositionPanel', () => ({ DecompositionPanel: ({ artifactId }: { artifactId: string }) => <div data-component-inspector={artifactId}>Existing model inspector</div> }));
 
@@ -90,6 +91,25 @@ describe('visual popup interaction', () => {
     expect(host.querySelector('.visual-proposal-text')?.textContent).toContain('elements');
     await click('Apply to canvas'); expect(props.onApply).toHaveBeenCalledWith('diagram-ready');
     await click('3D'); expect(props.onDraft).toHaveBeenLastCalledWith('model', expect.objectContaining({ artifactKind: 'model', mentions: [target, selectedNode] }));
+  });
+  it.each(['pt-BR', 'en'] as const)('explains missing diagram labels and retains the studio request and context for retry (%s)', async locale => {
+    const attachment = { id: 'diagram-spec', name: 'componentes.md', mime: 'text/markdown', byteLength: 80, mediaId: 'diagram-media', text: 'Fonte, controlador e servos.' };
+    const input = { text: 'Nomear as peças e conexões', artifactKind: 'diagram' as const, mentions: [target], attachments: [attachment] };
+    props.workspace = { ...empty(), drafts: { ...empty().drafts, model: input } };
+    props.onGenerate = vi.fn().mockRejectedValueOnce(new DiagramLabelsMissingError()).mockResolvedValue({ id: 'diagram-retry', projectId: 'p1', label: 'Peças identificadas', kind: 'diagram', scene: null, diagram: torqueDiagram(), status: 'ready', input, contextFingerprint: 'v1', createdAt: 1 });
+    await act(async () => { useLocaleStore.setState({ locale }); root.render(<VisualExplorer {...props} />); });
+    const generateLabel = locale === 'en' ? 'Generate diagram' : 'Gerar diagrama';
+    await click(generateLabel);
+    const panel = host.querySelector('[data-visual-popup="model"]')!;
+    expect(panel.querySelector('[role="alert"]')?.textContent).toBe(locale === 'en'
+      ? 'The drawing came without visible names or labels. Generate again to get an explanatory diagram.'
+      : 'O desenho veio sem nomes ou legendas visíveis. Gere novamente para obter um diagrama explicativo.');
+    expect(panel.querySelector<HTMLTextAreaElement>('textarea')!.value).toBe(input.text);
+    expect(panel.textContent).toContain(target.label); expect(panel.textContent).toContain(attachment.name);
+    expect(panel.querySelector('.visual-proposal')).toBeNull(); expect(props.onApply).not.toHaveBeenCalled();
+    await click(generateLabel);
+    expect(vi.mocked(props.onGenerate).mock.calls.map(([request]) => request)).toEqual([input, input]);
+    expect(panel.querySelector('[role="alert"]')).toBeNull(); expect(panel.textContent).toContain('Peças identificadas');
   });
   it('removes an applied proposal from history without invoking artifact removal, rejection or generation', async () => {
     const applied: VisualProposal = { id: 'applied-history', projectId: 'p1', label: 'Applied motor', status: 'applied', scene: { version: 1, label: 'Motor', objects: [] }, input: { text: 'Motor', mentions: [], attachments: [] }, contextFingerprint: 'context-v1', createdAt: 1 };

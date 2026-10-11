@@ -13,12 +13,14 @@ const pt = {
   title: 'Diagrama com IA', prompt: 'Descreva um diagrama…', content: 'Usar conteúdo da nota', generate: 'Gerar', again: 'Gerar novamente',
   insert: 'Inserir na nota', cancel: 'Cancelar', close: 'Fechar diagrama', working: 'Criando diagrama…', configure: 'Configurar IA', noKey: 'Configure a IA para gerar.',
   changed: 'A nota mudou. Gere novamente com o contexto atual.', invalid: 'O diagrama recebido é inválido. Tente ajustar o pedido.', incomplete: 'O diagrama veio incompleto. Tente um pedido menor.',
+  diagramLabelsMissing: 'O desenho veio sem nomes ou legendas visíveis. Gere novamente para obter um diagrama explicativo.',
   failure: 'Não foi possível gerar. Confira a conexão e tente novamente.', insertFailure: 'Não foi possível inserir. A prévia está preservada; tente novamente.',
 };
 const en: typeof pt = {
   title: 'AI diagram', prompt: 'Describe a diagram…', content: 'Use note content', generate: 'Generate', again: 'Generate again',
   insert: 'Insert in note', cancel: 'Cancel', close: 'Close diagram', working: 'Creating diagram…', configure: 'Configure AI', noKey: 'Configure AI to generate.',
   changed: 'The note changed. Generate again with its current content.', invalid: 'The returned diagram is invalid. Try adjusting the request.', incomplete: 'The diagram was incomplete. Try a smaller request.',
+  diagramLabelsMissing: 'The drawing came without visible names or labels. Generate again to get an explanatory diagram.',
   failure: 'Could not generate. Check your connection and try again.', insertFailure: 'Could not insert. Your preview is preserved; try again.',
 };
 type Context = { noteId: string; useContent: boolean; signature: string; changed: boolean };
@@ -66,6 +68,7 @@ export function NoteDiagramComposer({ noteId, onInsert, onClose, english = false
     } catch (reason) {
       if (generation !== sequence.current || controller.current !== call) return;
       if (source.changed || (reason instanceof Error && reason.message.includes('noteDiagramContextChanged'))) setStale(true);
+      else if (!call.signal.aborted && reason instanceof Error && reason.message === 'diagramLabelsMissing') setError(tr.diagramLabelsMissing);
       else if (!call.signal.aborted) setError(reason instanceof Error && reason.message.includes('noteDiagramIncomplete') ? tr.incomplete : reason instanceof Error && reason.message.includes('noteDiagramInvalid') ? tr.invalid : tr.failure);
     } finally {
       if (generation === sequence.current && controller.current === call) { controller.current = null; setRunning(false); }

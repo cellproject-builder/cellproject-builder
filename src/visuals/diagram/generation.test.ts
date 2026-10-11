@@ -5,6 +5,7 @@ import { buildDemoProject } from '@/data/demoProject';
 import { initializeWorkspace } from '@/workspace/planner';
 import { generateVisualDiagram, reviseVisualDiagram } from './generation';
 import { torqueDiagram } from './fixture';
+import { DiagramLabelsMissingError } from './quality';
 import { applyVisualProposal, getVisualWorkspace, revertVisualArtifact, setDiagramParameter, updateVisualArtifact } from '../domain';
 vi.mock('ai', () => ({ generateText: vi.fn() }));
 vi.mock('@/ai/client', () => ({ aiModel: {}, assertAIReady: vi.fn(), callOpts: () => ({ maxOutputTokens: 8000 }) }));
@@ -23,9 +24,32 @@ it('generates a bounded JSON document in the existing proposal cycle and respect
   expect(p).toMatchObject({ kind: 'diagram', scene: null, status: 'ready' }); expect(getVisualWorkspace(useGraphStore.getState().project).artifacts).toHaveLength(0);
   expect(vi.mocked(generateText).mock.calls[0][0]).toMatchObject({ maxRetries: 0 });
   expect(vi.mocked(generateText).mock.calls[0][0].system).toContain('not physical evidence');
+  expect(vi.mocked(generateText).mock.calls[0][0].system).toContain('EXPLANATORY NOMENCLATURE');
   useGraphStore.setState(state => ({ project: { ...state.project!, visuals: { ...state.project!.visuals!, mode: 'automatic' } } }));
   const applied = await generateVisualDiagram(input, { signal: new AbortController().signal });
   expect(applied.status).toBe('applied'); expect(getVisualWorkspace(useGraphStore.getState().project).artifacts[0].kind).toBe('diagram');
+});
+it('refuses an unlabeled generated illustration without storing, applying or repairing it', async () => {
+  const result = response(), diagram = JSON.parse(result.text);
+  diagram.elements = diagram.elements.filter((element: { type: string }) => element.type !== 'text');
+  diagram.bindings = diagram.bindings.filter((binding: { elementId: string }) => binding.elementId !== 'result');
+  vi.mocked(generateText).mockResolvedValue({ ...result, text: JSON.stringify(diagram) });
+  useGraphStore.setState(state => ({ project: { ...state.project!, visuals: { ...getVisualWorkspace(state.project), mode: 'automatic' } } }));
+  await expect(generateVisualDiagram(input, { signal: new AbortController().signal })).rejects.toBeInstanceOf(DiagramLabelsMissingError);
+  expect(getVisualWorkspace(useGraphStore.getState().project)).toMatchObject({ artifacts: [], proposals: [] });
+  expect(generateText).toHaveBeenCalledTimes(1);
+});
+it('keeps the current diagram intact when a revision removes all visible nomenclature', async () => {
+  vi.mocked(generateText).mockResolvedValue(response());
+  const proposal = await generateVisualDiagram(input, { signal: new AbortController().signal });
+  const original = applyVisualProposal(proposal.id);
+  const diagram = structuredClone(original.diagram!);
+  diagram.elements = diagram.elements.filter(element => element.type !== 'text');
+  diagram.bindings = diagram.bindings.filter(binding => binding.elementId !== 'result');
+  vi.mocked(generateText).mockResolvedValue({ ...response(), text: JSON.stringify(diagram) });
+  await expect(reviseVisualDiagram(original.id, { ...input, text: 'Revisar a explicação' }, { signal: new AbortController().signal })).rejects.toBeInstanceOf(DiagramLabelsMissingError);
+  expect(getVisualWorkspace(useGraphStore.getState().project).artifacts[0]).toMatchObject({ diagram: original.diagram, revisionIndex: 0 });
+  expect(generateText).toHaveBeenCalledTimes(2);
 });
 it('keeps changed context stale and refuses invalid payloads without applying or silently retrying', async () => {
   const valid = response();

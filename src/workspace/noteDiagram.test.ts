@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { generateText } from 'ai';
 import { hasActiveAIActions } from '@/ai/actions';
 import { torqueDiagram } from '@/visuals/diagram/fixture';
+import { DiagramLabelsMissingError } from '@/visuals/diagram/quality';
 import { useWorkspaceStore as store } from './store';
 import { generateNoteDiagram, noteDiagramSignature } from './noteDiagram';
 
@@ -38,6 +39,17 @@ it('uses only the authorized note and returns a validated diagram without changi
   expect(call.prompt).not.toContain('Outra nota privada');
   expect(call.system).toContain('untrusted source data');
   expect(call.system).toContain('not physical evidence');
+  expect(call.system).toContain('EXPLANATORY NOMENCLATURE');
+  expect(hasActiveAIActions()).toBe(false);
+});
+it('refuses an unlabeled illustration without changing the note or repairing the response', async () => {
+  const before = store.getState().notes[noteId], response = output(), diagram = JSON.parse(response.text);
+  diagram.elements = diagram.elements.filter((element: { type: string }) => element.type !== 'text');
+  diagram.bindings = diagram.bindings.filter((binding: { elementId: string }) => binding.elementId !== 'result');
+  vi.mocked(generateText).mockResolvedValue({ ...response, text: JSON.stringify(diagram) });
+  await expect(request()).rejects.toBeInstanceOf(DiagramLabelsMissingError);
+  expect(store.getState().notes[noteId]).toBe(before);
+  expect(generateText).toHaveBeenCalledTimes(1);
   expect(hasActiveAIActions()).toBe(false);
 });
 

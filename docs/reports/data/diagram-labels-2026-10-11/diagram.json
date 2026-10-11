@@ -1,0 +1,759 @@
+{
+  "version": 1,
+  "title": "Dois braços robóticos — relações funcionais",
+  "explanation": "Esquema estático e sintético: o ESP32 fornece controle lógico ao PCA9685, que distribui canais ilustrativos para 14 servos, agrupados em dois braços. A Fonte representa alimentação funcional do controlador e dos servos; o Capacitor representa filtragem associada à alimentação. Setas indicam o sentido funcional de controle, não uma pinagem. CH0–CH13 são apenas exemplos de distribuição, sem alocação verificada. As linhas de energia não certificam alimentação simultânea nem capacidade física.",
+  "assumptions": [
+    "Não foram fornecidos documentos, medições, pinagens ou especificações físicas; este desenho é um estudo visual sintético.",
+    "Fonte e capacitor precisam de documentação e dimensionamento; não são definidos tensão, corrente ou capacitância.",
+    "Interfaces, requisitos de alimentação e compatibilidade entre ESP32, PCA9685 e servos precisam ser definidos e conferidos na documentação.",
+    "Cores e canais CH0–CH13 são exemplos ilustrativos, não uma atribuição de canais ou pinagem verificada.",
+    "O desenho não certifica montagem, alimentação simultânea dos 14 servos ou capacidade física do conjunto."
+  ],
+  "viewBox": [
+    0,
+    0,
+    560,
+    500
+  ],
+  "parameters": [],
+  "constants": {},
+  "calculations": [],
+  "elements": [
+    {
+      "id": "esp_box",
+      "type": "rect",
+      "x": 20,
+      "y": 62,
+      "width": 140,
+      "height": 48,
+      "rx": 7,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1.5
+    },
+    {
+      "id": "pca_box",
+      "type": "rect",
+      "x": 208,
+      "y": 62,
+      "width": 160,
+      "height": 48,
+      "rx": 7,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1.5
+    },
+    {
+      "id": "source_box",
+      "type": "rect",
+      "x": 410,
+      "y": 62,
+      "width": 130,
+      "height": 48,
+      "rx": 7,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1.5
+    },
+    {
+      "id": "capacitor_box",
+      "type": "rect",
+      "x": 410,
+      "y": 136,
+      "width": 130,
+      "height": 40,
+      "rx": 7,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1.5
+    },
+    {
+      "id": "a_j1_box",
+      "type": "rect",
+      "x": 45,
+      "y": 210,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "a_j2_box",
+      "type": "rect",
+      "x": 45,
+      "y": 237,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "a_j3_box",
+      "type": "rect",
+      "x": 45,
+      "y": 264,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "a_j4_box",
+      "type": "rect",
+      "x": 45,
+      "y": 291,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "a_j5_box",
+      "type": "rect",
+      "x": 45,
+      "y": 318,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "a_j6_box",
+      "type": "rect",
+      "x": 45,
+      "y": 345,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "a_gripper_box",
+      "type": "rect",
+      "x": 45,
+      "y": 372,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "b_j1_box",
+      "type": "rect",
+      "x": 325,
+      "y": 210,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "b_j2_box",
+      "type": "rect",
+      "x": 325,
+      "y": 237,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "b_j3_box",
+      "type": "rect",
+      "x": 325,
+      "y": 264,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "b_j4_box",
+      "type": "rect",
+      "x": 325,
+      "y": 291,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "b_j5_box",
+      "type": "rect",
+      "x": 325,
+      "y": 318,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "b_j6_box",
+      "type": "rect",
+      "x": 325,
+      "y": 345,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "b_gripper_box",
+      "type": "rect",
+      "x": 325,
+      "y": 372,
+      "width": 215,
+      "height": 23,
+      "rx": 4,
+      "fill": "none",
+      "stroke": "currentColor",
+      "strokeWidth": 1
+    },
+    {
+      "id": "logic_relation",
+      "type": "path",
+      "d": "M160 86 H208 M198 80 L208 86 L198 92",
+      "fill": "none",
+      "stroke": "#0891B2",
+      "strokeWidth": 2.5
+    },
+    {
+      "id": "channel_distribution",
+      "type": "path",
+      "d": "M283 110 V184 M277 172 L283 182 L289 172 M28 184 H308 M28 184 V384 M308 184 V384",
+      "fill": "none",
+      "stroke": "#D99A16",
+      "strokeWidth": 2
+    },
+    {
+      "id": "a_channel_branches",
+      "type": "path",
+      "d": "M28 221.5 H45 M28 248.5 H45 M28 275.5 H45 M28 302.5 H45 M28 329.5 H45 M28 356.5 H45 M28 383.5 H45 M38 217 L45 221.5 L38 226",
+      "fill": "none",
+      "stroke": "#D99A16",
+      "strokeWidth": 2
+    },
+    {
+      "id": "b_channel_branches",
+      "type": "path",
+      "d": "M308 221.5 H325 M308 248.5 H325 M308 275.5 H325 M308 302.5 H325 M308 329.5 H325 M308 356.5 H325 M308 383.5 H325 M318 217 L325 221.5 L318 226",
+      "fill": "none",
+      "stroke": "#D99A16",
+      "strokeWidth": 2
+    },
+    {
+      "id": "energy_distribution",
+      "type": "path",
+      "d": "M475 110 V120 H550 V408 H274 V221.5 M386 120 V86 H368 M378 80 L368 86 L378 92",
+      "fill": "none",
+      "stroke": "#E35A91",
+      "strokeWidth": 2
+    },
+    {
+      "id": "filter_relation",
+      "type": "line",
+      "x1": 540,
+      "y1": 156,
+      "x2": 550,
+      "y2": 156,
+      "stroke": "#E35A91",
+      "strokeWidth": 2
+    },
+    {
+      "id": "a_energy_branches",
+      "type": "path",
+      "d": "M260 221.5 H274 M260 248.5 H274 M260 275.5 H274 M260 302.5 H274 M260 329.5 H274 M260 356.5 H274 M260 383.5 H274",
+      "fill": "none",
+      "stroke": "#E35A91",
+      "strokeWidth": 2
+    },
+    {
+      "id": "b_energy_branches",
+      "type": "path",
+      "d": "M540 221.5 H550 M540 248.5 H550 M540 275.5 H550 M540 302.5 H550 M540 329.5 H550 M540 356.5 H550 M540 383.5 H550",
+      "fill": "none",
+      "stroke": "#E35A91",
+      "strokeWidth": 2
+    },
+    {
+      "id": "legend_logic_mark",
+      "type": "line",
+      "x1": 20,
+      "y1": 459,
+      "x2": 36,
+      "y2": 459,
+      "stroke": "#0891B2",
+      "strokeWidth": 3
+    },
+    {
+      "id": "legend_channels_mark",
+      "type": "line",
+      "x1": 210,
+      "y1": 459,
+      "x2": 226,
+      "y2": 459,
+      "stroke": "#D99A16",
+      "strokeWidth": 3
+    },
+    {
+      "id": "legend_energy_mark",
+      "type": "line",
+      "x1": 429,
+      "y1": 459,
+      "x2": 445,
+      "y2": 459,
+      "stroke": "#E35A91",
+      "strokeWidth": 3
+    },
+    {
+      "id": "heading",
+      "type": "text",
+      "x": 20,
+      "y": 28,
+      "text": "Controle e energia · dois braços robóticos",
+      "fontSize": 20,
+      "fill": "currentColor"
+    },
+    {
+      "id": "esp_name",
+      "type": "text",
+      "x": 30,
+      "y": 83,
+      "text": "ESP32",
+      "fontSize": 19,
+      "fill": "currentColor"
+    },
+    {
+      "id": "esp_role",
+      "type": "text",
+      "x": 30,
+      "y": 101,
+      "text": "controle lógico",
+      "fontSize": 14,
+      "fill": "currentColor"
+    },
+    {
+      "id": "pca_name",
+      "type": "text",
+      "x": 218,
+      "y": 83,
+      "text": "PCA9685",
+      "fontSize": 19,
+      "fill": "currentColor"
+    },
+    {
+      "id": "pca_role",
+      "type": "text",
+      "x": 218,
+      "y": 101,
+      "text": "controlador central",
+      "fontSize": 14,
+      "fill": "currentColor"
+    },
+    {
+      "id": "source_name",
+      "type": "text",
+      "x": 420,
+      "y": 83,
+      "text": "Fonte",
+      "fontSize": 19,
+      "fill": "currentColor"
+    },
+    {
+      "id": "source_role",
+      "type": "text",
+      "x": 420,
+      "y": 101,
+      "text": "alimentação",
+      "fontSize": 14,
+      "fill": "currentColor"
+    },
+    {
+      "id": "capacitor_name",
+      "type": "text",
+      "x": 420,
+      "y": 153,
+      "text": "Capacitor",
+      "fontSize": 18,
+      "fill": "currentColor"
+    },
+    {
+      "id": "capacitor_role",
+      "type": "text",
+      "x": 420,
+      "y": 170,
+      "text": "filtragem",
+      "fontSize": 14,
+      "fill": "currentColor"
+    },
+    {
+      "id": "channel_function",
+      "type": "text",
+      "x": 40,
+      "y": 150,
+      "text": "Comandos aos servos",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "channel_uncertainty",
+      "type": "text",
+      "x": 40,
+      "y": 169,
+      "text": "canais ilustrativos",
+      "fontSize": 14,
+      "fill": "currentColor"
+    },
+    {
+      "id": "a_group",
+      "type": "text",
+      "x": 48,
+      "y": 202,
+      "text": "Braço A · 7 servos",
+      "fontSize": 18,
+      "fill": "currentColor"
+    },
+    {
+      "id": "b_group",
+      "type": "text",
+      "x": 328,
+      "y": 202,
+      "text": "Braço B · 7 servos",
+      "fontSize": 18,
+      "fill": "currentColor"
+    },
+    {
+      "id": "a_j1_name",
+      "type": "text",
+      "x": 54,
+      "y": 227,
+      "text": "Servo A-J1",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "a_j2_name",
+      "type": "text",
+      "x": 54,
+      "y": 254,
+      "text": "Servo A-J2",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "a_j3_name",
+      "type": "text",
+      "x": 54,
+      "y": 281,
+      "text": "Servo A-J3",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "a_j4_name",
+      "type": "text",
+      "x": 54,
+      "y": 308,
+      "text": "Servo A-J4",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "a_j5_name",
+      "type": "text",
+      "x": 54,
+      "y": 335,
+      "text": "Servo A-J5",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "a_j6_name",
+      "type": "text",
+      "x": 54,
+      "y": 362,
+      "text": "Servo A-J6",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "a_gripper_name",
+      "type": "text",
+      "x": 54,
+      "y": 389,
+      "text": "Servo A-Garra",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "b_j1_name",
+      "type": "text",
+      "x": 334,
+      "y": 227,
+      "text": "Servo B-J1",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "b_j2_name",
+      "type": "text",
+      "x": 334,
+      "y": 254,
+      "text": "Servo B-J2",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "b_j3_name",
+      "type": "text",
+      "x": 334,
+      "y": 281,
+      "text": "Servo B-J3",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "b_j4_name",
+      "type": "text",
+      "x": 334,
+      "y": 308,
+      "text": "Servo B-J4",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "b_j5_name",
+      "type": "text",
+      "x": 334,
+      "y": 335,
+      "text": "Servo B-J5",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "b_j6_name",
+      "type": "text",
+      "x": 334,
+      "y": 362,
+      "text": "Servo B-J6",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "b_gripper_name",
+      "type": "text",
+      "x": 334,
+      "y": 389,
+      "text": "Servo B-Garra",
+      "fontSize": 17,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch0",
+      "type": "text",
+      "x": 218,
+      "y": 226,
+      "text": "CH0",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch1",
+      "type": "text",
+      "x": 218,
+      "y": 253,
+      "text": "CH1",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch2",
+      "type": "text",
+      "x": 218,
+      "y": 280,
+      "text": "CH2",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch3",
+      "type": "text",
+      "x": 218,
+      "y": 307,
+      "text": "CH3",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch4",
+      "type": "text",
+      "x": 218,
+      "y": 334,
+      "text": "CH4",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch5",
+      "type": "text",
+      "x": 218,
+      "y": 361,
+      "text": "CH5",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch6",
+      "type": "text",
+      "x": 218,
+      "y": 388,
+      "text": "CH6",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch7",
+      "type": "text",
+      "x": 498,
+      "y": 226,
+      "text": "CH7",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch8",
+      "type": "text",
+      "x": 498,
+      "y": 253,
+      "text": "CH8",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch9",
+      "type": "text",
+      "x": 498,
+      "y": 280,
+      "text": "CH9",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch10",
+      "type": "text",
+      "x": 498,
+      "y": 307,
+      "text": "CH10",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch11",
+      "type": "text",
+      "x": 498,
+      "y": 334,
+      "text": "CH11",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch12",
+      "type": "text",
+      "x": 498,
+      "y": 361,
+      "text": "CH12",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "ch13",
+      "type": "text",
+      "x": 498,
+      "y": 388,
+      "text": "CH13",
+      "fontSize": 13,
+      "fill": "currentColor"
+    },
+    {
+      "id": "missing_specifications",
+      "type": "text",
+      "x": 20,
+      "y": 431,
+      "text": "Interfaces e dimensionamento a definir · sem pinos físicos",
+      "fontSize": 14,
+      "fill": "currentColor"
+    },
+    {
+      "id": "legend_title",
+      "type": "text",
+      "x": 20,
+      "y": 449,
+      "text": "Legenda",
+      "fontSize": 14,
+      "fill": "currentColor"
+    },
+    {
+      "id": "legend_logic",
+      "type": "text",
+      "x": 42,
+      "y": 465,
+      "text": "Controle lógico",
+      "fontSize": 14,
+      "fill": "currentColor"
+    },
+    {
+      "id": "legend_channels",
+      "type": "text",
+      "x": 232,
+      "y": 465,
+      "text": "Canais (exemplos)",
+      "fontSize": 14,
+      "fill": "currentColor"
+    },
+    {
+      "id": "legend_energy",
+      "type": "text",
+      "x": 451,
+      "y": 465,
+      "text": "Energia",
+      "fontSize": 14,
+      "fill": "currentColor"
+    },
+    {
+      "id": "visual_notice",
+      "type": "text",
+      "x": 20,
+      "y": 488,
+      "text": "Estudo visual · conexões ilustrativas, conferir documentação",
+      "fontSize": 14,
+      "fill": "currentColor"
+    }
+  ],
+  "bindings": []
+}
