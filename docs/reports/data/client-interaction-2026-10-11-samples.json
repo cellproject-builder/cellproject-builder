@@ -1,0 +1,92 @@
+{
+  "baselineCommit": "73e337432ef6cb7bbb8ba4352c5045e3a2197dc0",
+  "candidateCodeCommit": "2627abc68662175e7142f844f3d9282c6dab84fb",
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+    "os": "Windows x64",
+    "cpu": "13th Gen Intel Core i7-13650HX",
+    "physicalMemoryBytes": 34065997824,
+    "node": "v24.18.1",
+    "origin": "http://127.0.0.1:5198",
+    "width": 1280,
+    "height": 720,
+    "dpr": 1,
+    "observedDpr": { "plainAndEncryptedCandidate": 1.0000000298023224, "encryptedBaseline": 1.000000015894571 },
+    "emulation": "1280x720 deviceScaleFactor1, mobilefalse; encrypted baseline browser zoom compensated with1024x576 deviceScaleFactor1.25, producing the same CSS viewport/DPR",
+    "nativeBase64Encode": true,
+    "nativeBase64Decode": true,
+    "thermalOrPowerThrottling": "not instrumented"
+  },
+  "protocol": {
+    "samplesPerVariantCase": 3,
+    "plainLoad": "500 plan nodes;100000 ink points in note;100000 ink points and20 offscreen128-shape models in Board",
+    "encryptedLoad": { "initialDocumentBytes": 3145728, "modelCount": 20, "shapesPerModel": 128 },
+    "network": "blocked; encrypted server is in-memory fakefetch with real client crypto/IDB pipeline",
+    "excluded": "all warmup round0, all preliminary/profile rounds below0; stale warmup output caught by kind/ready checks and excluded; viewport differences were corrected before all round1-3 samples",
+    "order": "baseline/candidate in rounds1and3; candidate/baseline in round2",
+    "automation": "UI clicks; wait until buttons re-enabled and new matching-kind JSON;750ms polling; no tests/builds running during valid collection",
+    "units": "milliseconds, except operation counts and bytes/characters"
+  },
+  "plainFields": ["round","variant","kind","recordedAt","iterations","elapsedMs","synchronousUpdateP50","synchronousUpdateP95","frameP50","frameP95","longTasks","longTaskMax"],
+  "plain": [
+    [1,"baseline","selection","2026-10-11T16:17:43.624Z",60,17061,0.2,0.2,294,437.5,109,322],
+    [1,"candidate","selection","2026-10-11T16:17:46.573Z",60,1773,0.1,0.2,31.2,37.5,0,0],
+    [1,"baseline","viewport","2026-10-11T16:18:05.866Z",60,10940,111.3,121,156.2,187.6,60,179],
+    [1,"candidate","viewport","2026-10-11T16:18:08.912Z",60,2056,0.1,0.2,12.5,106.4,16,96],
+    [1,"baseline","typing","2026-10-11T16:18:18.945Z",60,9328,104,122.1,125.2,156.5,60,135],
+    [1,"candidate","typing","2026-10-11T16:18:21.016Z",60,1416,0.1,0.2,6.3,106.5,10,109],
+    [2,"candidate","selection","2026-10-11T16:19:09.872Z",60,1649,0.1,0.3,25,31.9,0,0],
+    [2,"baseline","selection","2026-10-11T16:19:29.084Z",60,17506,0.2,0.3,300.2,456.4,109,400],
+    [2,"candidate","viewport","2026-10-11T16:19:38.665Z",60,2129,0.1,0.2,12.5,106.3,16,102],
+    [2,"baseline","viewport","2026-10-11T16:19:49.838Z",60,10447,105.1,119,156.2,187.5,60,193],
+    [2,"candidate","typing","2026-10-11T16:19:51.811Z",60,1282,0.1,0.2,6.3,93.8,10,98],
+    [2,"baseline","typing","2026-10-11T16:20:01.021Z",60,8875,101.9,113.8,124.9,150.1,60,254],
+    [3,"baseline","selection","2026-10-11T16:20:55.248Z",60,17435,0.2,0.2,299.9,418.8,111,354],
+    [3,"candidate","selection","2026-10-11T16:20:58.255Z",60,1808,0.1,0.2,31.2,37.5,0,0],
+    [3,"baseline","viewport","2026-10-11T16:21:15.989Z",60,11591,118.4,146.7,162.6,225,60,217],
+    [3,"candidate","viewport","2026-10-11T16:21:19.046Z",60,2162,0.1,0.3,12.5,112.4,16,102],
+    [3,"baseline","typing","2026-10-11T16:21:29.248Z",60,9709,107.1,123,137.6,168.7,60,358],
+    [3,"candidate","typing","2026-10-11T16:21:31.281Z",60,1373,0,0.1,6.3,100.1,10,107]
+  ],
+  "cipherFields": ["round","variant","kind","recordedAt","iterations","elapsedMs","synchronousUpdateP50","synchronousUpdateP95","frameP50","frameP95","longTasks","longTaskMax","frameMax","longTaskTotal"],
+  "countFields": ["runtimeCheckpoints","transportCheckpoints","workspaceWrites","vaultGets","vaultPuts","configGets","largeBase64Decodes","largeBase64Encodes","base64EncodeInputBytes","base64DecodeInputCharacters"],
+  "encrypted": [
+    {"row":[1,"baseline","poll","2026-10-11T16:18:22.183Z",3,100.1,0,0,12.6,24.9,0,0,31.3,0],"counts":[0,0,0,3,0,0,0,0,696,936],"durableVerified":true},
+    {"row":[1,"candidate","poll","2026-10-11T16:18:22.559Z",3,106.5,0,0,6.5,31.1,0,0,31.3,0],"counts":[0,0,0,3,0,0,0,0,0,936],"durableVerified":true},
+    {"row":[1,"baseline","write","2026-10-11T16:19:05.083Z",10,23599.1,3.5,3.9,6.3,1456.5,18,2001,2000.5,22657],"counts":[12,3,10,0,1,0,45,61,662819523,659632944],"durableVerified":true},
+    {"row":[1,"candidate","write","2026-10-11T16:19:06.958Z",10,1125.1,0,0.1,6.3,25.1,5,177,175,503],"counts":[3,3,1,0,1,0,6,7,49797642,62149420],"durableVerified":true},
+    {"row":[2,"candidate","poll","2026-10-11T16:20:01.366Z",3,87.7,0,0,6.5,25,0,0,25.1,0],"counts":[0,0,0,3,0,0,0,0,0,936],"durableVerified":true},
+    {"row":[2,"baseline","poll","2026-10-11T16:20:02.575Z",3,118.7,0,0,12.5,31.2,0,0,37.6,0],"counts":[0,0,0,3,0,0,0,0,696,936],"durableVerified":true},
+    {"row":[2,"candidate","write","2026-10-11T16:20:10.445Z",10,1057,0,0,6.3,25,5,177,175,467],"counts":[3,3,1,0,1,0,6,7,49797642,62149420],"durableVerified":true},
+    {"row":[2,"baseline","write","2026-10-11T16:20:36.290Z",10,25180.7,4.7,4.8,6.3,1738,18,2080,2081.7,24063],"counts":[12,3,10,0,1,0,45,61,662819523,659632944],"durableVerified":true},
+    {"row":[3,"baseline","poll","2026-10-11T16:21:32.451Z",3,93.7,0,0,6.3,26.2,0,0,30,0],"counts":[0,0,0,3,0,0,0,0,696,936],"durableVerified":true},
+    {"row":[3,"candidate","poll","2026-10-11T16:21:32.841Z",3,114.8,0,0,6.3,31.3,0,0,37.5,0],"counts":[0,0,0,3,0,0,0,0,0,936],"durableVerified":true},
+    {"row":[3,"baseline","write","2026-10-11T16:22:05.246Z",10,26987.1,5.4,6.4,6.3,1956.6,18,2356,2356.8,25940],"counts":[12,3,10,0,1,0,45,61,662819523,659632944],"durableVerified":true},
+    {"row":[3,"candidate","write","2026-10-11T16:22:07.162Z",10,1112.7,0,0,6.3,31.3,5,198,193.8,511],"counts":[3,3,1,0,1,0,6,7,49797642,62149420],"durableVerified":true}
+  ],
+  "typingProfileSummary": {
+    "excludedFromComparison": true,
+    "recordedAt": "2026-10-11T16:22:24.432Z",
+    "elapsedMs": 1303,
+    "frameP95": 99.9,
+    "longTasks": 10,
+    "longTaskMax": 113,
+    "asset": "candidate/assets/index-hDbS5Ie1.js",
+    "sourceMapSha256": "1ed13bc827deedeaed63007b3930d96fc794c2066a7129747f812db82d2ebd2d",
+    "verifiedSourceMappings": [
+      {"line":105,"column":12909,"source":"src/data/selectiveJSONStorage.ts","sourceLine":136,"sourceColumn":40,"note":"async drain callback containing JSON.stringify; native put appears separately"},
+      {"line":63,"column":7760,"source":"node_modules/idb-keyval/dist/index.js","sourceLine":50,"sourceColumn":37}
+    ],
+    "topSelfTimes": [
+      {"function":"(idle)","selfMs":814.88},
+      {"function":"anonymous","line":105,"column":12909,"selfMs":559.69},
+      {"function":"put","selfMs":339.59},
+      {"function":"(program)","selfMs":182.51},
+      {"function":"anonymous","line":63,"column":7760,"selfMs":55.64},
+      {"function":"n","line":1329,"column":17959,"selfMs":25.83},
+      {"function":"UCe","line":1329,"column":18405,"selfMs":19.04},
+      {"function":"(garbage collector)","selfMs":14.38}
+    ],
+    "note": "CDP sampled self time includes UI automation/wait overhead outside the timed fixture window; source positions are one-based lines, zero-based columns. Full CPU trace is not stored here."
+  }
+}

@@ -2,6 +2,8 @@
 
 Rodada motivada por lentidão na interface inteira e no pan/zoom do canvas. Abrange o custo de CPU que acompanha o grafo, os compositores e os artefatos Three.js/React/SVG; não é um ensaio físico de desempenho em todos os aparelhos. A [proposta de processamento no aparelho](../design/client-rendering-performance.md) registra as referências primárias e os pilotos seguintes.
 
+A [rodada seguinte de interação e persistência](client-interaction-performance-2026-10-11.md) investiga a lentidão remanescente com três baterias, incluindo 30 amostras do App compilado e salvamento cifrado real em dados sintéticos. Os resultados e limites deste relatório permanecem históricos.
+
 ## Diagnóstico e mudanças
 
 | Causa observada | Mudança | Invariante verificado |

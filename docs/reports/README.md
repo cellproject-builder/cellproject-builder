@@ -4,6 +4,7 @@ Relatórios registram um recorte datado: comandos, observações e limites. Eles
 
 | Relatório | Recorte |
 | --- | --- |
+| [Interação, CPU e persistência — 11/10/2026](client-interaction-performance-2026-10-11.md) | Três baterias de diagnóstico/regressão/carga, 30 amostras do App compilado, cofre sintético real e pausas remanescentes |
 | [Fluidez do cliente — 11/10/2026](client-performance-2026-10-11.md) | Custos de CPU, persistência e abas; benchmarks sintéticos delimitados, refinamento no compositor e pilotos Three.js |
 | [Áudio, edição offline e gestos — 10/10/2026](audio-offline-ink-release-2026-10-10.md) | Integração, revisão e evidências de áudio, fila cifrada, canetas e worker PDF; limites físicos separados |
 | [Qualidade dos planos e desempenho — 10/10/2026](planning-quality-performance-2026-10-10.md) | Piloto real de planejamento, defeitos de critério, travessias profundas e carregamento dos ícones; limites separados |
