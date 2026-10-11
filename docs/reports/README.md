@@ -4,6 +4,7 @@ Relatórios registram um recorte datado: comandos, observações e limites. Eles
 
 | Relatório | Recorte |
 | --- | --- |
+| [Paleta compacta do Dynamic Board — 11/10/2026](compact-ink-palette-2026-10-11.md) | Faixa com orientação por canvas, ajustes sem clipping, foco, toque e inspeção responsiva |
 | [Chat contextual — 11/10/2026](contextual-chat-2026-10-11.md) | Contexto por tela, referências cruzadas, histórico e compactação; fontes do Codex e limites de verificação |
 | [Nomenclatura dos diagramas — 11/10/2026](diagram-labels-2026-10-11.md) | Guia compartilhado, rejeição de resultados sem rótulos, primeira resposta real preservada e inspeção desktop/móvel |
 | [Interação, CPU e persistência — 11/10/2026](client-interaction-performance-2026-10-11.md) | Três baterias de diagnóstico/regressão/carga, 30 amostras do App compilado, cofre sintético real e pausas remanescentes |

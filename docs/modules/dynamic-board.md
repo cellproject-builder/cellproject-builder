@@ -31,6 +31,8 @@ Como esse histórico guarda documentos completos, a chegada de um documento exte
 
 ## Desenho e paleta
 
+Desde 11/10/2026, as ferramentas do desenho abrem numa faixa única: coluna na lateral de um canvas largo e linha no topo de um canvas alto. A faixa acompanha o tamanho da superfície, mantém alvos de 44 px e rola no próprio eixo. Canetas e régua aparecem primeiro; espessura/opacidade abrem num popover dentro do canvas, sem aumentar a faixa. Recolher permanece acessível durante a rolagem. O [relatório da paleta compacta](../reports/compact-ink-palette-2026-10-11.md) registra as verificações e os limites do ensaio responsivo.
+
 A paleta reutiliza [InkToolbar](../../src/ink/InkToolbar.tsx) e o renderer [InkStroke](../../src/ink/InkStroke.tsx). Os instrumentos são caneta, bico de pena, monoline, lápis e marca-texto. Cor e instrumento ficam à mão; espessura e opacidade aparecem no ajuste de traço. Pontos de pressão e eventos coalescidos são usados quando fornecidos pelo navegador. O bico de pena usa orientação fixa e o lápis uma textura determinística; não são simuladores completos de materiais ou sensores físicos.
 
 Cada gesto concluído cria um item de desenho. Cancelar não salva a prévia. A borracha remove traços atingidos pelo caminho, inclusive entre amostras afastadas; não recorta apenas um pedaço do traço. O laço seleciona objetos para as ações existentes do quadro. A régua restringe o novo traço a um segmento reto.

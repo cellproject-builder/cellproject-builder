@@ -53,3 +53,44 @@ it('closes before the canvas stops propagation of the next drawing or navigation
   try { mount(); act(() => trigger().click()); expect(controls()).not.toBeNull(); act(() => canvas.dispatchEvent(new Event('pointerdown', { bubbles: true }))); expect(controls()).toBeNull(); }
   finally { canvas.remove(); }
 });
+
+it('follows the canvas orientation after resize while preserving the open tools', () => {
+  let width = 1100, height = 700;
+  let resize: () => void = () => {};
+  const disconnect = vi.fn();
+  const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({ width, height }) as DOMRect);
+  vi.stubGlobal('ResizeObserver', class { constructor(callback: () => void) { resize = callback; } observe() {} disconnect = disconnect; });
+  try {
+    act(() => root.render(<div><InkPalette variant="strip" label="Ferramentas"><button>Caneta</button></InkPalette></div>));
+    act(() => trigger().click());
+    expect(palette().getAttribute('data-dock')).toBe('left');
+    width = 700; height = 1100;
+    act(() => resize());
+    expect(palette().getAttribute('data-dock')).toBe('top');
+    expect(controls()?.textContent).toContain('Caneta');
+    act(() => root.render(<InkPalette label="Ferramentas"><button>Caneta</button></InkPalette>));
+    expect(disconnect).toHaveBeenCalled();
+  } finally { bounds.mockRestore(); vi.unstubAllGlobals(); }
+});
+
+it('lets the first control pin a hover-opened strip before it becomes the collapse action', () => {
+  act(() => root.render(<InkPalette variant="strip" label="Ferramentas"><button>Caneta</button></InkPalette>));
+  act(() => Simulate.pointerEnter(palette(), { pointerType: 'mouse', clientX: 100, clientY: 200 } as never));
+  const first = controls()!.querySelector('button')!;
+  expect(first.getAttribute('aria-label')).toBe('Manter ferramentas abertas');
+  act(() => first.click());
+  act(() => Simulate.pointerLeave(palette()));
+  expect(controls()).not.toBeNull();
+  expect(first.getAttribute('aria-label')).toBe('Recolher ferramentas de desenho');
+  act(() => first.click());
+  expect(controls()).toBeNull();
+});
+
+it('waits for a touch click instead of hiding the strip trigger during pointer focus', () => {
+  act(() => root.render(<InkPalette variant="strip" label="Ferramentas"><button>Caneta</button></InkPalette>));
+  act(() => { Simulate.pointerDown(trigger(), { pointerType: 'touch' } as never); trigger().focus(); });
+  expect(controls()).toBeNull();
+  act(() => { Simulate.pointerUp(trigger()); trigger().click(); });
+  expect(controls()).not.toBeNull();
+  expect(controls()?.querySelector('button')?.getAttribute('aria-label')).toBe('Recolher ferramentas de desenho');
+});

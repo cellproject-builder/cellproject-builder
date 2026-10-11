@@ -20,3 +20,9 @@
 @media(pointer:coarse){.ink-toolbar .ink-brushes button,.ink-settings-trigger{width:36px;height:38px}.ink-toolbar input[type=range]{min-height:28px}}
 @media(max-width:480px){.ink-toolbar{gap:3px}.ink-preview{width:50px}}
 @media(max-width:700px){.ink-toolbar{gap:3px;flex-wrap:wrap}.ink-toolbar .ink-brushes button,.ink-settings-trigger{width:40px;height:40px}.ink-toolbar .ink-color input{width:32px;height:40px}.ink-toolbar .ink-brushes button>svg,.ink-settings-trigger>svg{width:20px;height:20px}.ink-settings-panel{font-size:14px}.ink-settings-heading{font-size:14px}.ink-toolbar .ink-range{grid-template-columns:76px minmax(60px,1fr) 34px}.ink-toolbar .ink-range input{min-height:40px}.ink-toolbar .ink-range output{font-size:12px}}
+.ink-settings-panel.ink-settings-panel--overlay{pointer-events:auto;overflow:auto;overscroll-behavior:contain;font-size:12px;touch-action:manipulation}
+.ink-settings-panel--overlay .ink-range{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:4px 8px;min-width:0;margin:0}
+.ink-settings-panel--overlay .ink-range>span{grid-column:1/-1}
+.ink-settings-panel--overlay .ink-range input{width:100%;min-width:0;min-height:44px;margin:0;accent-color:#b69be5}
+.ink-settings-panel--overlay .ink-range output{align-self:center;font-variant-numeric:tabular-nums;text-align:right;font-size:12px;color:rgb(var(--text-muted,142 138 150))}
+.ink-settings-panel--overlay :focus-visible{outline:2px solid #b69be599;outline-offset:2px}
