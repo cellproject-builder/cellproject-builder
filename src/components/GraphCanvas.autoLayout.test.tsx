@@ -181,6 +181,19 @@ afterEach(() => {
 });
 
 describe('GraphCanvas automatic layout integration', () => {
+  it('retains concept data while selection or visual drafts change, but updates changed domain gates', () => {
+    const dataBefore = new Map(flow.props!.nodes.map(node => [node.id, node.data]));
+    act(() => useGraphStore.getState().selectNode('first'));
+    for (const node of flow.props!.nodes) expect(node.data, node.id).toBe(dataBefore.get(node.id));
+    act(() => useGraphStore.setState(state => ({ project: { ...state.project!, updatedAt: state.project!.updatedAt + 1 } })));
+    for (const node of flow.props!.nodes) expect(node.data, node.id).toBe(dataBefore.get(node.id));
+    act(() => useGraphStore.setState(state => ({ project: { ...state.project!, nodes: { ...state.project!.nodes,
+      first: { ...state.project!.nodes.first, confirmado: true },
+    } } })));
+    expect(flow.props!.nodes.find(node => node.id === 'second')?.data.blocked).toBe(false);
+    expect(flow.props!.nodes.find(node => node.id === 'root')?.data).toBe(dataBefore.get('root'));
+  });
+
   it.each(analyticalLenses)('reframes Manual → %s after delayed node measurement', lens => {
     addCrossLink();
     choose('manual');

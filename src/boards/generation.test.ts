@@ -9,7 +9,7 @@ vi.mock('ai', () => ({ generateText: vi.fn(), generateObject: vi.fn() }));
 vi.mock('@/ai/client', () => ({ aiModel: {}, assertAIReady: vi.fn(), callOpts: () => ({ maxOutputTokens: 8000 }) }));
 vi.mock('@/config/store', () => ({ getActiveConfig: () => null }));
 vi.mock('@/ai/research', () => ({ groundedText: vi.fn() }));
-vi.mock('@/cloud/runtime', () => ({ sessionAwareFetch: vi.fn() }));
+vi.mock('@/cloud/runtime', () => ({ sessionAwareFetch: vi.fn(), getCloudRuntime: () => null }));
 vi.mock('@/workspace/noteImages', () => ({ importNoteImage: vi.fn(async () => ({ src: 'data:image/png;base64,iVBORw0KGgoA', label: 'photo', width: 300, height: 200 })) }));
 import { sessionAwareFetch } from '@/cloud/runtime';
 import { hasActiveDataIngestions } from '@/cloud/activity';

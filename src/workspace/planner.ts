@@ -6,6 +6,7 @@ import { hasActiveAIActions } from '@/ai/actions';
 import { useWorkspaceStore } from './store';
 import type { PlannerSnapshot } from './types';
 import { normalizeStoredProjectVisuals } from '@/visuals/projectBoundary';
+import { plannerContentChanged } from '@/data/plannerPersistence';
 
 let ownerId: string | null = null;
 
@@ -120,9 +121,6 @@ export function openPlanner(projectId: string) {
 export function connectPlanner() {
   return useGraphStore.subscribe((state, previous) => {
     if (!ownerId) return;
-    const snapshot = capturePlanner(state), before = capturePlanner(previous);
-    if ((Object.keys(snapshot) as (keyof PlannerSnapshot)[]).some((key) => snapshot[key] !== before[key])) {
-      useWorkspaceStore.getState().savePlanner(ownerId, snapshot);
-    }
+    if (plannerContentChanged(state, previous)) useWorkspaceStore.getState().savePlanner(ownerId, capturePlanner(state));
   });
 }

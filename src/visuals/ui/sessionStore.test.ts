@@ -127,7 +127,7 @@ describe('visual tool sessions', () => {
     const order = state().windows[0].order;
     state().focusWindow(windowId);
     expect(state().windows[0].frame).toEqual({ x: 10, y: 20, width: 500, height: 600 });
-    expect(state().windows[0].order).toBeGreaterThan(order);
+    expect(state().windows[0].order).toBe(order);
     state().minimizeWindow(windowId);
     expect(state().windows[0].minimized).toBe(true);
     expect(state().tabs[tabId].draft.text).toBe('Reference board');
@@ -158,6 +158,25 @@ describe('visual tool sessions', () => {
     expect(updates).toBe(0);
     state().setActivity(tabId, { state: 'running', label: 'Building' });
     expect(updates).toBe(1);
+    unsubscribe();
+  });
+
+  it('does not notify or reorder while repeatedly focusing the front window', () => {
+    state().initialize('project-a', drafts(), ['search', 'model']);
+    const front = state().windows.find(window => window.kind === 'model')!;
+    const snapshot = state();
+    let notifications = 0;
+    const unsubscribe = useVisualSessionStore.subscribe(() => { notifications++; });
+    for (let index = 0; index < 30; index++) state().focusWindow(front.id);
+    state().focusWindow('missing-window');
+    expect(state()).toBe(snapshot);
+    expect(notifications).toBe(0);
+    const back = state().windows.find(window => window.kind === 'search')!;
+    state().focusWindow(back.id);
+    expect(state().windows.find(window => window.id === back.id)!.order).toBeGreaterThan(front.order);
+    expect(notifications).toBe(1);
+    state().focusWindow(back.id);
+    expect(notifications).toBe(1);
     unsubscribe();
   });
 });

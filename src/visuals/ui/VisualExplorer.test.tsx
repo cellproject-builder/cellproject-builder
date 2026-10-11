@@ -13,6 +13,7 @@ vi.mock('./DecompositionPanel', () => ({ DecompositionPanel: ({ artifactId }: { 
 const target: MentionTarget = { id: 'note-1', kind: 'note', label: 'Measured dimensions', detail: 'Mechanism notes', fingerprint: 'v1' };
 const references: ImageReference[] = Array.from({ length: 12 }, (_, i) => ({ id: `image-${i}`, title: `Reference ${i}`, description: 'A measured mechanism', imageUrl: `/images/${i}.png`, sourcePageUrl: `https://example.com/${i}`, credit: null, license: null, width: 200, height: 200 }));
 const empty = (): VisualWorkspace => ({ version: 1, mode: 'approval', artifacts: [], proposals: [], drafts: { search: { text: '', mentions: [], attachments: [] }, model: { text: '', mentions: [], attachments: [] } } });
+const refinement = (suggestedPrompt = 'Use the measured geometry'): ModelRefinement => ({ subject: 'Measured motor', interpretation: 'Measured reference', suggestedPrompt, questions: [], assumptions: [], referenceSummary: [], contextFingerprint: 'v1', inputSignature: 'v1' });
 let host: HTMLDivElement;
 let root: Root;
 let props: VisualExplorerProps;
@@ -174,14 +175,22 @@ describe('visual popup interaction', () => {
     props.onRefine = vi.fn(() => new Promise<ModelRefinement>(resolve => { finish = resolve; }));
     await act(async () => root.render(<VisualExplorer {...props} />));
     await type('[data-visual-popup="model"] textarea', 'a measured motor');
-    await click('Refine request with AI'); await click('Update request');
+    const composer = host.querySelector('[data-visual-popup="model"] textarea');
+    await click('Refine request with AI');
+    expect(host.querySelector('[data-visual-popup="model"] textarea')).toBe(composer);
+    expect(button('Generate model').disabled).toBe(true);
+    expect(button('Refine request with AI').disabled).toBe(true);
+    expect(button('Cancel')).toBeUndefined();
     const signal = vi.mocked(props.onRefine).mock.calls[0][2];
     await click('Minimize 3D studio');
     expect(signal.aborted).toBe(false);
     expect(host.querySelector('[data-visual-minimized]')?.textContent).toContain('Refining');
-    await act(async () => finish({ subject: 'Measured motor', interpretation: 'Measured reference', suggestedPrompt: 'Use the measured geometry', questions: [], assumptions: [], referenceSummary: [], contextFingerprint: 'v1', inputSignature: 'v1' }));
+    await act(async () => finish(refinement()));
     expect(host.querySelector('[data-visual-minimized]')?.textContent).toContain('Ready');
-    await click('Restore 3D studio'); expect(host.querySelector('.visual-refinement')?.textContent ?? host.textContent).toContain('Measured motor');
+    await click('Restore 3D studio');
+    expect(host.querySelector<HTMLTextAreaElement>('[data-visual-popup="model"] textarea')?.value).toBe('Use the measured geometry');
+    expect(button('Generate model')).toBeDefined();
+    expect(props.onGenerate).not.toHaveBeenCalled();
     expect(props.onRefine).toHaveBeenCalledOnce();
   });
   it('uses the existing studio for component research and returns to the preserved generation draft', async () => {
@@ -267,53 +276,98 @@ describe('visual popup interaction', () => {
     expect(host.querySelector('[data-visual-popup="model"] [role="status"]')?.textContent).toContain('Removed image');
     expect(props.onGenerate).not.toHaveBeenCalled();
   });
-  it('refines on request and generates once when the person explicitly accepts the ready interpretation', async () => {
+  it('refines the existing composer text in place and leaves generation to an explicit send', async () => {
     const attachment = { id: 'drawing', name: 'motor.txt', mime: 'text/plain', byteLength: 12, mediaId: 'm1', text: '42 mm flange' };
     const original = { text: 'Build the motor from this note', mentions: [target], attachments: [attachment] };
     const result: ModelRefinement = { subject: 'Stepper motor', interpretation: 'A motor with a 42 mm flange; exact model unknown.', suggestedPrompt: 'Model the measured stepper motor, including shaft, front flange and rear connector.', questions: [], assumptions: ['Body length remains illustrative.'], referenceSummary: ['Measured dimensions note'], contextFingerprint: 'context-v1', inputSignature: 'input-v1' };
     props.workspace = { ...empty(), drafts: { ...empty().drafts, model: original } };
     props.onRefine = vi.fn(async () => result); props.isRefinementCurrent = vi.fn(() => true);
     await act(async () => root.render(<VisualExplorer {...props} />));
+    const composer = host.querySelector<HTMLTextAreaElement>('[data-visual-popup="model"] textarea')!;
+    const generate = button('Generate model');
     await click('Refine request with AI');
-    expect(props.onRefine).not.toHaveBeenCalled();
+    expect(props.onRefine).toHaveBeenCalledWith(original, expect.objectContaining({ kind: 'existing' }), expect.any(AbortSignal));
     expect(props.onGenerate).not.toHaveBeenCalled();
     expect(props.onSearch).not.toHaveBeenCalled();
-    await click('Update request');
-    expect(props.onRefine).toHaveBeenCalledWith(original, expect.objectContaining({ kind: 'existing' }), expect.any(AbortSignal));
-
-    await click('Generate model');
     const accepted = { ...original, text: result.suggestedPrompt };
     expect(props.onDraft).toHaveBeenLastCalledWith('model', accepted);
-    expect(props.onSearch).not.toHaveBeenCalled();
-    expect(host.querySelector<HTMLTextAreaElement>('[data-visual-popup="model"] textarea')?.value).toBe(result.suggestedPrompt);
+    expect(host.querySelector('[data-visual-popup="model"] textarea')).toBe(composer);
+    expect(composer.value).toBe(result.suggestedPrompt);
+    expect(button('Generate model')).toBe(generate);
+    expect(button('Update request')).toBeUndefined();
+    await click('Generate model');
     expect(props.onGenerate).toHaveBeenCalledWith(accepted, expect.any(AbortSignal));
     expect(props.onGenerate).toHaveBeenCalledOnce();
   });
-  it('hands refinement context to image search only after Find a reference and leaves search submission explicit', async () => {
-    const original = { text: 'A motor with a 42 mm flange', mentions: [target], attachments: [] };
+  it.each(['empty', 'whitespace', 'mention', 'attachment'] as const)('does not refine a %s draft without written text', async (kind) => {
+    const original = { text: kind === 'whitespace' ? '  \n  ' : '', mentions: kind === 'mention' ? [target] : [], attachments: kind === 'attachment' ? [{ id: 'drawing', name: 'motor.txt', mime: 'text/plain', byteLength: 12, mediaId: 'm1', text: '42 mm flange' }] : [] };
     props.workspace = { ...empty(), drafts: { ...empty().drafts, model: original } };
-    props.onRefine = vi.fn();
+    props.onRefine = vi.fn(async () => refinement());
     await act(async () => root.render(<VisualExplorer {...props} />));
-    await click('Refine request with AI'); await click('Find a reference');
-    expect(props.onDraft).toHaveBeenLastCalledWith('search', original);
-    expect(useVisualPopupStore.getState().searchOpen).toBe(true);
+    expect(button('Refine request with AI').disabled).toBe(true);
+    await click('Refine request with AI');
+    expect(host.querySelector<HTMLTextAreaElement>('[data-visual-popup="model"] textarea')?.value).toBe(original.text);
     expect(props.onSearch).not.toHaveBeenCalled();
     expect(props.onGenerate).not.toHaveBeenCalled();
     expect(props.onRefine).not.toHaveBeenCalled();
   });
-  it.each(['close', 'project'] as const)('aborts a pending refinement when the model tool is removed by %s and ignores late output', async (action) => {
+  it.each(['close', 'project'] as const)('aborts a pending inline refinement after %s and ignores late output', async (action) => {
     let resolve!: (result: ModelRefinement) => void;
     props.onRefine = vi.fn(() => new Promise<ModelRefinement>((done) => { resolve = done; }));
     await act(async () => root.render(<VisualExplorer {...props} />));
     await type('[data-visual-popup="model"] textarea', 'a motor');
-    await click('Refine request with AI'); await click('Update request');
+    await click('Refine request with AI');
     const signal = vi.mocked(props.onRefine).mock.calls[0][2];
     if (action === 'close') await click('Close 3D studio');
     else await act(async () => root.render(<VisualExplorer {...props} projectId="p2" workspace={empty()} />));
     expect(signal.aborted).toBe(true);
-    await act(async () => resolve({ subject: 'Old project motor', interpretation: 'Discard me', suggestedPrompt: 'Discard me', questions: [], assumptions: [], referenceSummary: [], contextFingerprint: 'old', inputSignature: 'old' }));
-    expect(host.textContent).not.toContain('Old project motor');
+    if (action === 'close') await act(async () => useVisualPopupStore.getState().open('model'));
+    await act(async () => resolve(refinement('Discard me')));
+    expect(host.querySelector<HTMLTextAreaElement>('[data-visual-popup="model"] textarea')?.value).toBe(action === 'project' ? '' : 'a motor');
+    expect(props.onDraft).not.toHaveBeenCalledWith('model', expect.objectContaining({ text: 'Discard me' }));
     expect(props.onGenerate).not.toHaveBeenCalled();
+  });
+  it('does not overwrite a prompt edited while inline refinement is pending', async () => {
+    let resolve!: (result: ModelRefinement) => void;
+    props.onRefine = vi.fn(() => new Promise<ModelRefinement>((done) => { resolve = done; }));
+    props.isRefinementCurrent = vi.fn(() => true);
+    await act(async () => root.render(<VisualExplorer {...props} />));
+    await type('[data-visual-popup="model"] textarea', 'a motor');
+    await click('Refine request with AI');
+    const signal = vi.mocked(props.onRefine).mock.calls[0][2];
+    await type('[data-visual-popup="model"] textarea', 'Keep my newer description');
+    expect(signal.aborted).toBe(true);
+    await act(async () => resolve(refinement('Outdated description')));
+    expect(host.querySelector<HTMLTextAreaElement>('[data-visual-popup="model"] textarea')?.value).toBe('Keep my newer description');
+    expect(props.onDraft).not.toHaveBeenCalledWith('model', expect.objectContaining({ text: 'Outdated description' }));
+    expect(props.onGenerate).not.toHaveBeenCalled();
+  });
+  it('keeps the prompt intact when its selected reference changes during refinement', async () => {
+    let resolve!: (result: ModelRefinement) => void;
+    props.onRefine = vi.fn(() => new Promise<ModelRefinement>((done) => { resolve = done; }));
+    props.isRefinementCurrent = vi.fn(() => false);
+    await act(async () => root.render(<VisualExplorer {...props} />));
+    await type('[data-visual-popup="model"] textarea', 'a measured motor');
+    await click('Refine request with AI');
+    await act(async () => resolve(refinement('Old dimensions')));
+    expect(host.querySelector<HTMLTextAreaElement>('[data-visual-popup="model"] textarea')?.value).toBe('a measured motor');
+    expect(props.onDraft).not.toHaveBeenCalledWith('model', expect.objectContaining({ text: 'Old dimensions' }));
+    expect(host.querySelector('[data-visual-popup="model"] [role="alert"]')).not.toBeNull();
+    expect(props.onGenerate).not.toHaveBeenCalled();
+  });
+  it('preserves the prompt and direct send when inline refinement fails', async () => {
+    props.onRefine = vi.fn(async () => { throw new Error('visualGenerationIncomplete'); });
+    await act(async () => root.render(<VisualExplorer {...props} />));
+    await type('[data-visual-popup="model"] textarea', 'Build my measured motor');
+    const composer = host.querySelector('[data-visual-popup="model"] textarea');
+    await click('Refine request with AI');
+    expect(host.querySelector('[data-visual-popup="model"] textarea')).toBe(composer);
+    expect((composer as HTMLTextAreaElement).value).toBe('Build my measured motor');
+    expect(host.querySelector('[data-visual-popup="model"] [role="alert"]')).not.toBeNull();
+    expect(props.onGenerate).not.toHaveBeenCalled();
+    expect(button('Generate model').disabled).toBe(false);
+    await click('Generate model');
+    expect(props.onGenerate).toHaveBeenCalledWith(expect.objectContaining({ text: 'Build my measured motor' }), expect.any(AbortSignal));
   });
   it('preserves direct generation when no refinement callback is configured', async () => {
     expect(button('Refine request with AI')).toBeUndefined();

@@ -1,5 +1,5 @@
 import { AudioTextarea } from '@/audio/AudioField';
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent, type KeyboardEvent, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent, type KeyboardEvent, type RefObject } from 'react';
 import { nanoid } from 'nanoid';
 import { DiagramView } from '@/visuals/diagram/DiagramView';
 import { InkStroke } from '@/ink/InkStroke';
@@ -234,6 +234,12 @@ export function NoteCanvas({ document: doc, onChange, drawing, onDrawingChange, 
     }
   };
   const view = preview && gesture.current ? rebaseDocument(gesture.current.base, preview, doc) : doc;
+  const selectStroke = useCallback((event: PointerEvent<SVGSVGElement>) => {
+    if (readOnly || tool !== 'select' || !(event.target instanceof Element)) return;
+    const id = event.target.closest('[data-note-stroke]')?.getAttribute('data-note-stroke');
+    if (!id) return;
+    event.stopPropagation(); setSelected({ kind: 'stroke', id }); stage.current?.focus({ preventScroll: true });
+  }, [readOnly, tool]);
   const changeZoom = (delta: number) => { cancel(); setZoom(value => clamp(value + delta, 1, 3)); };
   const button = (icon: keyof typeof paths, label: string, onClick: () => void, active?: boolean, disabled = false) => <button type="button" aria-label={label} title={label} aria-pressed={active} disabled={disabled} onClick={onClick}><Glyph name={icon} /></button>;
   const tools = toolsVisible && <InkPalette label={t('Ferramentas do caderno', 'Notebook tools')} english={english} className="note-canvas-palette" preview={<Glyph name={tool === 'select' ? 'select' : tool === 'eraser' ? 'eraser' : tool === 'text' ? 'text' : 'pen'} />}>
@@ -270,9 +276,7 @@ export function NoteCanvas({ document: doc, onChange, drawing, onDrawingChange, 
     <div ref={viewport} className="note-canvas-viewport">
     <div className={`note-canvas-stage paper-${view.paper} tool-${tool}`} data-note-canvas ref={stage} tabIndex={0} role="group" aria-label={t('Área livre da nota', 'Free notebook area')} style={{ width: `${zoom * 100}%`, aspectRatio: `${doc.width} / ${doc.height}`, '--note-grid': `${24 * scale}px` } as CSSProperties}
       onPointerDown={event => tool === 'select' ? begin(event) : route(event, 'down')} onPointerMove={event => pointers.current.hasPointer(event.pointerId) ? route(event, 'move') : move(event)} onPointerUp={event => pointers.current.hasPointer(event.pointerId) ? route(event, 'up') : finish(event)} onPointerCancel={event => pointers.current.hasPointer(event.pointerId) ? route(event, 'up', true) : finish(event, true)} onLostPointerCapture={event => { if (pointers.current.hasPointer(event.pointerId)) route(event, 'up', true); else if (gesture.current?.pointer === event.pointerId) cancel(); }} onKeyDown={keyboard}>
-      <svg className="note-canvas-ink" viewBox={`0 0 ${doc.width} ${doc.height}`} aria-hidden="true">{view.strokes.map(stroke => <InkStroke key={stroke.id} data-note-stroke={stroke.id} stroke={stroke} legacyMode="note" selected={selected?.id === stroke.id} onPointerDown={event => {
-        if (readOnly || tool !== 'select') return; event.stopPropagation(); setSelected({ kind: 'stroke', id: stroke.id }); stage.current?.focus({ preventScroll: true });
-      }} />)}{liveDocumentId && live.remote.filter(value => !view.strokes.some(stroke => stroke.id === (value.stroke.id ?? value.gestureId))).map(value => <InkStroke key={`${value.sender}:${value.gestureId}`} data-remote-ink={value.gestureId} stroke={value.stroke} legacyMode="note" />)}</svg>
+      <svg className="note-canvas-ink" viewBox={`0 0 ${doc.width} ${doc.height}`} aria-hidden="true" onPointerDown={selectStroke}>{view.strokes.map(stroke => <InkStroke key={stroke.id} data-note-stroke={stroke.id} stroke={stroke} legacyMode="note" selected={selected?.id === stroke.id} />)}{liveDocumentId && live.remote.filter(value => !view.strokes.some(stroke => stroke.id === (value.stroke.id ?? value.gestureId))).map(value => <InkStroke key={`${value.sender}:${value.gestureId}`} data-remote-ink={value.gestureId} stroke={value.stroke} legacyMode="note" />)}</svg>
       {view.items.map(item => <div key={item.id} data-note-item={item.id} className={`note-canvas-item kind-${item.kind} ${selected?.id === item.id ? 'is-selected' : ''}`} style={{ left: `${item.x / doc.width * 100}%`, top: `${item.y / doc.height * 100}%`, width: `${item.width / doc.width * 100}%`, height: `${item.height / doc.height * 100}%` }} tabIndex={!readOnly && tool === 'select' ? 0 : undefined} role="group" aria-label={item.kind === 'image' ? item.label : item.kind === 'diagram' ? item.diagram.title : item.text.slice(0, 80) || t('Texto', 'Text')} onFocus={event => { if (event.target === event.currentTarget && !readOnly && tool === 'select') setSelected({ kind: 'item', id: item.id }); }} onPointerDown={event => beginItem(event, item)}>
         {item.kind === 'image' ? <img src={item.src} alt={item.label} draggable={false} /> : item.kind === 'text' ? selected?.id === item.id && !readOnly
           ? <EditableText audioScope={`note:${liveDocumentId ?? 'notebook'}:${item.id}:text`} english={english} item={item} scale={scale} readOnly={readOnly} onEnd={() => { history.current.group = null; }} onCommit={text => { const latest = current.current; commit({ ...latest, items: latest.items.map(value => value.id === item.id && value.kind === 'text' ? { ...value, text } : value) }, latest, `text:${item.id}`); }} />

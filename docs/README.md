@@ -11,6 +11,7 @@ Entrada mantida em 10/10/2026. As fichas descrevem o código desta revisão e ap
 | [Mapa do repositório](repository-map.md) | Pastas, regras de localização e classificação de artefatos |
 | [Sistema visual](design/system.md) | Tokens, superfícies e componentes de interface |
 | [Scripts](../scripts/README.md) | Verificações, geração de assets e experiências manuais |
+| [Desempenho visual no aparelho](design/client-rendering-performance.md) | Pesquisa de mercado, Three.js/GPU, gargalos locais e plano de validação para notebook, tablet e celular |
 
 ## Pesquisa e artigos
 

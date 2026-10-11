@@ -6,7 +6,6 @@ import type { ModelRefinement, ModelRefinementRequest } from '../refinement';
 import { FloatingPopup } from './FloatingPopup';
 import { ImageGallery } from './ImageGallery';
 import { PromptComposer } from './PromptComposer';
-import { ModelPromptRefiner } from './ModelPromptRefiner';
 import { AssemblyPlanSummary } from './ModelAssemblyInspector';
 import { useVisualStrings, visualError } from './strings';
 import { useVisualPopupStore, type VisualPopupKind, type VisualToolActivity } from './uiStore';
@@ -66,6 +65,8 @@ export function VisualExplorer(props: VisualExplorerProps) {
   const latest = useRef(props); latest.current = props;
   const project = useRef(props.projectId);
   const controllers = useRef<Partial<Record<VisualPopupKind, AbortController>>>({});
+  const refinement = useRef<{ controller: AbortController; signature: string } | null>(null);
+  const [refining, setRefining] = useState(false);
   const [busy, setBusy] = useState({ search: false, model: false });
   const [completed, setCompleted] = useState({ search: false, model: false });
   const [modelActivity, setModelActivity] = useState<VisualToolActivity>({ state: 'idle', label: '' });
@@ -79,8 +80,6 @@ export function VisualExplorer(props: VisualExplorerProps) {
   const [generated, setGenerated] = useState<VisualProposal | null>(null);
   const [ownProposals, setOwnProposals] = useState<VisualProposal[]>([]);
   const [proposalNotice, setProposalNotice] = useState('');
-  const [refineOpen, setRefineOpen] = useState(false);
-  const [refinedReady, setRefinedReady] = useState(false);
   const [removedHistory, setRemovedHistory] = useState<string[]>([]);
   const isDiagram = drafts.model.artifactKind === 'diagram';
   const generatingLabel = isDiagram ? s.diagramGenerating : s.generating;
@@ -90,17 +89,18 @@ export function VisualExplorer(props: VisualExplorerProps) {
     const previousProject = project.current;
     if (previousProject !== props.projectId) {
       Object.values(controllers.current).forEach((controller) => controller?.abort()); controllers.current = {};
+      cancelRefinement();
       project.current = props.projectId;
       setBusy({ search: false, model: false }); setErrors({ search: '', model: '' }); setResults(null); setSearchIntent(null); setSearchReview(null); setGenerated(null);
       setOwnProposals([]);
       setCompleted({ search: false, model: false });
       setModelActivity({ state: 'idle', label: '' });
-      setRefineOpen(false); setRefinedReady(false);
       setProposalNotice('');
       setRemovedHistory([]);
       setRemovedImages({ search: [], model: [] });
       if (!session) useVisualPopupStore.setState({ modelBase: null, inspectedArtifactId: null, searchMinimized: false, modelMinimized: false });
     }
+    if (refinement.current && refinement.current.signature !== JSON.stringify(props.workspace.drafts.model)) cancelRefinement();
     draftRef.current = props.workspace.drafts; setDrafts(props.workspace.drafts);
     // Older drafts can retain chips for images that no longer exist on the canvas.
     // Recover only those references; a missing note/node still needs explicit review.
@@ -113,11 +113,15 @@ export function VisualExplorer(props: VisualExplorerProps) {
       }
     }
   }, [props.projectId, props.workspace.drafts, props.workspace.artifacts]);
-  useEffect(() => () => Object.values(controllers.current).forEach((controller) => controller?.abort()), []);
+  useEffect(() => () => {
+    Object.values(controllers.current).forEach((controller) => controller?.abort());
+    refinement.current?.controller.abort(); refinement.current = null;
+  }, []);
+  useEffect(() => { if (!modelOpen) cancelRefinement(); }, [modelOpen]);
   useEffect(() => {
     if (!inspectedArtifactId) return;
     controllers.current.model?.abort(); delete controllers.current.model;
-    setBusy(state => ({ ...state, model: false })); setRefineOpen(false);
+    setBusy(state => ({ ...state, model: false })); cancelRefinement();
   }, [inspectedArtifactId]);
 
   useEffect(() => {
@@ -134,10 +138,11 @@ export function VisualExplorer(props: VisualExplorerProps) {
   function updateDraft(kind: VisualPopupKind, input: VisualPromptInput) {
     try {
       if (input.text.length > 12000 || input.mentions.length > 20 || input.attachments.length > 8) throw new Error('visualInputLimit');
+      if (kind === 'model' && refinement.current && refinement.current.signature !== JSON.stringify(input)) cancelRefinement();
       latest.current.onDraft(kind, input);
-      if (kind === 'model') setRefinedReady(false);
       draftRef.current = { ...draftRef.current, [kind]: input }; setDrafts(draftRef.current);
-    } catch (reason) { setErrors((state) => ({ ...state, [kind]: visualError(reason, s) })); }
+      return true;
+    } catch (reason) { setErrors((state) => ({ ...state, [kind]: visualError(reason, s) })); return false; }
   }
   useEffect(() => {
     if (!modelBase || modelBase.kind !== 'image') return;
@@ -146,15 +151,52 @@ export function VisualExplorer(props: VisualExplorerProps) {
     useVisualPopupStore.setState({ modelBase: null });
   }, [modelBase]);
 
+  function cancelRefinement() {
+    if (!refinement.current) return;
+    refinement.current.controller.abort(); refinement.current = null;
+    setRefining(false); setModelActivity({ state: 'idle', label: '' });
+  }
+  async function refine() {
+    const input = draftRef.current.model;
+    const onRefine = latest.current.onRefine;
+    if (!onRefine || !input.text.trim() || busy.model || refinement.current || modelActivity.state === 'running') return;
+    const operation = { controller: new AbortController(), signature: JSON.stringify(input) };
+    refinement.current = operation;
+    const projectId = project.current;
+    const current = () => refinement.current === operation && !operation.controller.signal.aborted
+      && project.current === projectId && latest.current.projectId === projectId
+      && JSON.stringify(draftRef.current.model) === operation.signature;
+    setRefining(true); setErrors(state => ({ ...state, model: '' }));
+    setModelActivity({ state: 'running', label: s.refining });
+    try {
+      const result = await onRefine(input, { kind: 'existing', feedback: '', mode: 'inline' }, operation.controller.signal);
+      if (!current()) return;
+      if (latest.current.isRefinementCurrent && !latest.current.isRefinementCurrent(input, result)) throw new Error('refinementOutdated');
+      if (!result.suggestedPrompt?.trim() || result.suggestedPrompt.length > 12000) throw new Error('refinementInvalid');
+      refinement.current = null; setRefining(false);
+      const applied = updateDraft('model', { ...input, text: result.suggestedPrompt });
+      setModelActivity({ state: applied ? 'ready' : 'error', label: '' });
+    } catch (reason) {
+      if (current()) {
+        setErrors(state => ({ ...state, model: visualError(reason, s) }));
+        setModelActivity({ state: 'error', label: '' });
+      }
+    } finally {
+      if (refinement.current === operation) { refinement.current = null; setRefining(false); }
+    }
+  }
   function cancel(kind: VisualPopupKind) {
+    if (kind === 'model') cancelRefinement();
     controllers.current[kind]?.abort(); delete controllers.current[kind]; setBusy((state) => ({ ...state, [kind]: false }));
   }
   function hide(kind: VisualPopupKind) {
+    if (kind === 'model') cancelRefinement();
     if (session) { if (kind === session.kind) session.onClose(); return; }
-    cancel(kind); if (kind === 'model') setRefineOpen(false); close(kind);
+    cancel(kind); close(kind);
   }
   function inspect(id: string) { if (session) session.onInspector(id); else useVisualPopupStore.getState().inspectArtifact(id); }
   async function submit(kind: VisualPopupKind) {
+    if (kind === 'model' && refinement.current) return;
     const input = draftRef.current[kind];
     if (!input.text.trim() && !input.mentions.length && !input.attachments.length) return;
     controllers.current[kind]?.abort();
@@ -231,7 +273,7 @@ export function VisualExplorer(props: VisualExplorerProps) {
   const activityLabel = running ? sessionKind === 'model' && modelActivity.state === 'running' ? modelActivity.label : sessionKind === 'search' ? s.searching : generationProgress || generatingLabel : '';
   useEffect(() => { latest.current.session?.onActivity({ state: activityState, label: activityLabel }); }, [activityState, activityLabel]);
   const popupProps = session ? { frame: session.frame, onFrameChange: session.onFrame, zIndex: 71 + session.order, onFocus: session.onFocus, tabs: session.tabs, windowId: session.windowId, tabId: session.id } : {};
-  const composer = (kind: VisualPopupKind) => <PromptComposer audioScope={`visual:${props.projectId}:${session?.id ?? kind}:${kind}`} key={`${props.projectId}:${kind}`} kind={kind} value={drafts[kind]} onChange={(input) => updateDraft(kind, input)} listMentions={props.listMentions} onAttach={props.onAttach} busy={busy[kind]} onSubmit={() => void submit(kind)} onCancel={() => cancel(kind)} {...(kind === 'model' && isDiagram ? { inputLabel: s.diagramTitle, placeholder: s.diagramPlaceholder, submitLabel: s.diagramGenerate } : {})} />;
+  const composer = (kind: VisualPopupKind) => <PromptComposer audioScope={`visual:${props.projectId}:${session?.id ?? kind}:${kind}`} key={`${props.projectId}:${kind}`} kind={kind} value={drafts[kind]} onChange={(input) => updateDraft(kind, input)} listMentions={props.listMentions} onAttach={props.onAttach} busy={busy[kind]} canSubmit={kind === 'model' && refining ? false : undefined} onSubmit={() => void submit(kind)} onCancel={() => cancel(kind)} {...(kind === 'model' && isDiagram ? { inputLabel: s.diagramTitle, placeholder: s.diagramPlaceholder, submitLabel: s.diagramGenerate } : {})} />;
   const status = (kind: VisualPopupKind) => <>{removedImages[kind].length > 0 && <p className="visual-local-hint" role="status">{s.removedImageReferences} {removedImages[kind].map(image => image.label).join(', ')}.</p>}{busy[kind] && <div className="visual-progress" role="status"><span className="visual-spinner" aria-hidden="true" />{kind === 'search' ? s.searching : generationProgress || generatingLabel}</div>}{errors[kind] && <p className="visual-error" role="alert">{errors[kind]}</p>}</>;
   return <>
     {searchOpen && <FloatingPopup kind="search" {...popupProps} onClose={() => hide('search')} onMinimize={() => session ? session.onMinimize() : minimize('search')} minimized={searchMinimized}>
@@ -253,22 +295,16 @@ export function VisualExplorer(props: VisualExplorerProps) {
       <div className="visual-construction-mode"><span>{s.artifactType}</span><div className="visual-segmented" role="group" aria-label={s.artifactType}>{(['model', 'diagram'] as const).map(kind => <button key={kind} type="button" disabled={busy.model || modelActivity.state === 'running'} aria-pressed={(drafts.model.artifactKind ?? 'model') === kind} onClick={() => {
         const input = draftRef.current.model;
         const mentions = kind === 'diagram' && props.selectedNode && !input.mentions.some(item => item.kind === 'node' && item.id === props.selectedNode!.id) && input.mentions.length < 20 ? [...input.mentions, props.selectedNode] : input.mentions;
-        updateDraft('model', { ...input, artifactKind: kind, generationMode: 'standard', mentions }); setRefineOpen(false);
+        updateDraft('model', { ...input, artifactKind: kind, generationMode: 'standard', mentions });
       }}>{kind === 'model' ? '3D' : s.diagramMode}</button>)}</div></div>
       {!isDiagram && <div className="visual-construction-mode"><span>{s.generationMode}</span><div className="visual-segmented" role="group" aria-label={s.generationMode}>{(['standard', 'advanced'] as const).map(mode => <button key={mode} type="button" disabled={busy.model || modelActivity.state === 'running'} aria-pressed={(drafts.model.generationMode ?? 'standard') === mode} onClick={() => {
         const input = draftRef.current.model;
         const mentions = mode === 'advanced' && props.selectedNode && !input.mentions.some(item => item.kind === 'node' || item.kind === 'image') && input.mentions.length < 20 ? [...input.mentions, props.selectedNode] : input.mentions;
         updateDraft('model', { ...input, generationMode: mode, mentions });
       }}>{mode === 'standard' ? s.standardMode : s.advancedMode}</button>)}</div>{drafts.model.generationMode === 'advanced' && <p>{s.advancedHint}</p>}</div>}
-      {refineOpen && props.onRefine ? <ModelPromptRefiner audioScope={`visual:${props.projectId}:${session?.id ?? 'model'}:refinement`} key={props.projectId} input={drafts.model} workspace={props.workspace} listMentions={props.listMentions} onAttach={props.onAttach} onMedia={props.onMedia} onActivity={setModelActivity}
-        onChange={input => updateDraft('model', input)} onRefine={props.onRefine} isCurrent={props.isRefinementCurrent}
-        onUse={input => { updateDraft('model', input); setRefineOpen(false); setRefinedReady(false); void submit('model'); }}
-        onFindReferences={input => { if (session) session.onFindReferences(input); else { updateDraft('search', input); useVisualPopupStore.getState().open('search'); } }}
-        onClose={() => setRefineOpen(false)} /> : <>
-        {composer('model')}
-        {!isDiagram && props.onRefine && <button type="button" className="visual-refinement-trigger" aria-label={s.refineWithAI} disabled={busy.model} onClick={() => { setRefineOpen(true); setRefinedReady(false); }}><span aria-hidden="true">✧</span>{s.refineWithAI}<span aria-hidden="true">↗</span></button>}
-        {refinedReady && <p className="visual-refinement-ready" role="status">{s.refinedReady}</p>}
-      </>}{status('model')}
+      {composer('model')}
+      {!isDiagram && props.onRefine && <button type="button" className="visual-refinement-trigger" aria-label={s.refineWithAI} aria-busy={refining} disabled={busy.model || refining || !drafts.model.text.trim()} onClick={() => void refine()}><span aria-hidden="true" className={refining ? 'visual-spinner' : undefined}>{refining ? '' : '✧'}</span>{s.refineWithAI}<span aria-hidden="true">↗</span></button>}
+      {status('model')}
       {props.onDiscuss && <div className="visual-chat-handoff"><button type="button" className="visual-button" disabled={!drafts.model.mentions.length || busy.model} onClick={discuss}>{s.discussReferences}</button><p>{s.discussReferencesHint}</p></div>}
       {proposalNotice && <p className="visual-local-hint" role="status">{proposalNotice}</p>}
       {currentProposals.length > 0 ? <div className="visual-proposals"><h3>{s.proposals}</h3>{currentProposals.map((proposal) => <article className="visual-proposal" key={proposal.id}>

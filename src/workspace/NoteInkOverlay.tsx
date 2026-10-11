@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { nanoid } from 'nanoid';
 import { Pencil1Icon, EraserIcon, LassoSelectIcon, RulerHorizontalIcon, ResetIcon, RedoIcon, TrashIcon, CloseIcon, PlusIcon, MinusIcon } from '@/components/ui/SoftIcons';
@@ -44,11 +44,11 @@ function liveStroke(stroke: NoteInkStroke, layout: Layout): NoteInkStroke {
   const factor = live.width / stroke.anchor.width;
   return { ...stroke, anchor: live, width: stroke.width * factor, points: stroke.points.map(point => ({ ...point, x: live.x + (point.x - stroke.anchor!.x) * factor, y: live.y + (point.y - stroke.anchor!.y) * factor })) };
 }
-function AnchoredStroke({ stroke, layout, selected, selectable, onPointerDown }: { stroke: NoteInkStroke; layout: Layout; selected: boolean; selectable: boolean; onPointerDown(event: PointerEvent<SVGPathElement>): void }) {
+const AnchoredStroke = memo(function AnchoredStroke({ stroke, layout, selected, selectable }: { stroke: NoteInkStroke; layout: Layout; selected: boolean; selectable: boolean }) {
   const live = stroke.anchor && layout.anchors.get(stroke.anchor.id), anchor = stroke.anchor;
   const transform = live && anchor ? `translate(${live.x} ${live.y}) scale(${live.width / anchor.width}) translate(${-anchor.x} ${-anchor.y})` : undefined;
-  return <g transform={transform} style={{ pointerEvents: selectable ? 'visiblePainted' : 'none' }}><InkStroke stroke={stroke} legacyMode="note" selected={selected} data-note-ink-stroke={stroke.id} onPointerDown={onPointerDown} /></g>;
-}
+  return <g transform={transform} style={{ pointerEvents: selectable ? 'visiblePainted' : 'none' }}><InkStroke stroke={stroke} legacyMode="note" selected={selected} data-note-ink-stroke={stroke.id} /></g>;
+});
 
 /** A transparent, document-anchored ink layer. The editor below remains mounted and editable. */
 export function NoteInkOverlay({ note, bodyRef, drawing, onDrawingChange, english = false }: Props) {
@@ -291,9 +291,13 @@ export function NoteInkOverlay({ note, bodyRef, drawing, onDrawingChange, englis
   return <>
     {paletteHost && createPortal(<div className="note-ink-palette-viewport" style={paletteBounds}>{tools}</div>, paletteHost)}
     <div ref={stage} data-note-ink className={`note-ink-overlay mode-${mode}`} tabIndex={drawing && !readOnly ? 0 : -1} role="group" aria-label={t('Desenho sobre a nota inteira', 'Draw over the entire note')} style={{ height: `${Math.max(view.height, layout.height) / (layout.scale * zoom)}px`, bottom: 'auto', pointerEvents: drawing && !readOnly ? 'auto' : 'none', touchAction: drawing && !readOnly ? 'none' : 'auto' }} onPointerDown={event => route(event, 'down')} onPointerMove={event => route(event, 'move')} onPointerUp={event => route(event, 'up')} onPointerCancel={event => route(event, 'up', true)} onLostPointerCapture={event => { if (pointers.current.hasPointer(event.pointerId)) route(event, 'up', true); }} onKeyDown={keyboard}>
-      <svg viewBox={`0 0 ${doc.width} ${Math.max(view.height, layout.height)}`} preserveAspectRatio="none" aria-hidden="true">
-        {view.strokes.map(stroke => <AnchoredStroke key={stroke.id} stroke={stroke} layout={gesture.current?.layout ?? layout} selected={selection.has(stroke.id)} selectable={drawing && !readOnly && mode === 'select'} onPointerDown={event => route(event, 'down', false, stroke)} />)}
-        {live.remote.filter(value => !view.strokes.some(stroke => stroke.id === (value.stroke.id ?? value.gestureId))).map(value => <g key={`${value.sender}:${value.gestureId}`} data-remote-ink style={{ pointerEvents: 'none' }}><AnchoredStroke stroke={{ ...value.stroke, id: value.stroke.id ?? value.gestureId }} layout={layout} selected={false} selectable={false} onPointerDown={() => {}} /></g>)}
+      <svg viewBox={`0 0 ${doc.width} ${Math.max(view.height, layout.height)}`} preserveAspectRatio="none" aria-hidden="true" onPointerDown={event => {
+        const id = event.target instanceof Element ? event.target.closest('[data-note-ink-stroke]')?.getAttribute('data-note-ink-stroke') : null;
+        const stroke = id ? view.strokes.find(value => value.id === id) : undefined;
+        if (stroke) route(event as unknown as PointerEvent<SVGPathElement>, 'down', false, stroke);
+      }}>
+        {view.strokes.map(stroke => <AnchoredStroke key={stroke.id} stroke={stroke} layout={gesture.current?.layout ?? layout} selected={selection.has(stroke.id)} selectable={drawing && !readOnly && mode === 'select'} />)}
+        {live.remote.filter(value => !view.strokes.some(stroke => stroke.id === (value.stroke.id ?? value.gestureId))).map(value => <g key={`${value.sender}:${value.gestureId}`} data-remote-ink style={{ pointerEvents: 'none' }}><AnchoredStroke stroke={{ ...value.stroke, id: value.stroke.id ?? value.gestureId }} layout={layout} selected={false} selectable={false} /></g>)}
         {lassoPath && <path d={lassoPath} fill="#b69be51a" stroke="#b69be5" strokeWidth={layout.scale} strokeDasharray={`${4 * layout.scale} ${4 * layout.scale}`} />}
       </svg>
     </div>

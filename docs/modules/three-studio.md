@@ -13,7 +13,7 @@ O estúdio transforma um pedido e referências delimitadas em uma representaçã
 | Geração padrão | Implementada: uma inferência de `SceneV1`, validada antes da proposta | Até 128 objetos na geração padrão; não produz CAD validado |
 | Geração avançada | Implementada: seleção de contexto → pesquisa opcional → contrato modular → inferência por módulo → composição | Envelopes e contatos são convenções geométricas ilustrativas |
 | Geometria customizada | Implementada: extrusão, revolução, tubo e malha indexada, além das primitivas | Não equivale a kernel CAD, tolerâncias ou malha imprimível certificada |
-| Refinar interpretação do pedido | Implementada, sob ação explícita | A interpretação precisa continuar compatível com o contexto; não cria evidência física |
+| Refinar o texto do pedido | Implementada, sob ação explícita, no mesmo campo de escrita | Exige texto; preserva referências e não inicia geração nem cria evidência física |
 | Editar modelo existente | Implementada: substituição completa da cena como revisão do mesmo artefato | O LLM pode alterar detalhes; o sistema não prova equivalência semântica de cada peça |
 | Decomposição documental | Implementada: identidade informada, fontes lidas, peças com trechos e lacunas | Trecho presente não prova que a interpretação da IA ou a identidade escolhida está correta |
 | Vista decomposta com original preservado | Implementada: artefato filho separado, com proveniência de reaproveitamento | A classificação de primitivas em peças continua sendo uma interpretação |
@@ -26,7 +26,7 @@ Há duas estruturas diferentes chamadas montagem no código: `VisualModelAssembl
 
 1. Abra o plano e o estúdio pelo botão de cubo. Escolha 3D e geração padrão ou avançada. A entrada reúne texto, menções `@` e anexos. A geração avançada pode incluir o nó selecionado como referência inicial.
 2. Selecione notas, nós e imagens disponíveis no escopo do plano. Imagens podem vir de arquivo local, galeria ou referência já inserida no canvas. Usar uma imagem como base seleciona seu ID; envio dos pixels depende de `analyzeImages`.
-3. Opcionalmente, peça refinamento da interpretação. A pessoa pode responder a uma pergunta essencial, atualizar a interpretação e aceitar a geração. Digitar, selecionar `@` ou anexar um arquivo não inicia uma inferência por si só.
+3. Opcionalmente, use **Refinar pedido com IA** para aprimorar o texto já escrito. A resposta substitui apenas o texto do mesmo campo, preservando menções, anexos e modo de construção. O compositor e seus botões permanecem visíveis; não há conversa de confirmação nem geração automática. Sem texto, a ação fica desabilitada. Editar o rascunho, fechar o editor ou trocar de projeto cancela o refinamento; minimizar mantém a operação. Se o contexto mudar, o resultado não substitui o rascunho. Digitar, selecionar `@` ou anexar um arquivo não inicia uma inferência por si só.
 4. Gere. Em `approval`, o resultado válido e atual fica `ready` até **Aplicar**. Em `automatic`, o mesmo contrato permite aplicação imediata se o contexto ainda for atual. `stale` indica referência/contexto alterado e impede aplicação.
 5. No canvas, mova e redimensione o objeto, alterne a rotação ou use os gestos disponíveis. O vínculo opcional com um nó é associação de contexto; não impõe posição nem conexão mecânica.
 6. Para ajustes, abra o editor do artefato e confirme **OK**. A revisão pertence ao mesmo ID e preserva o layout atual, mesmo se a pessoa moveu o artefato durante a inferência. Reverter recupera a revisão anterior.
@@ -44,6 +44,7 @@ As ferramentas têm abas independentes, destaque em janelas e progresso por pedi
 | Orquestração | [controller](../../src/visuals/controller.ts): geração comum, colocação no viewport e publicação de resultados externos |
 | Domínio | [domain](../../src/visuals/domain.ts): projeto proprietário, fontes acessíveis, fingerprint, rascunhos, propostas, aplicação, vínculo e reversão |
 | Geração padrão | [generation](../../src/visuals/generation.ts): snapshot, mídia selecionada, uma inferência e validação local |
+| Refinamento no compositor | [refinement](../../src/visuals/refinement.ts): reescrita explícita, referências selecionadas, limites do renderer e guardas de contexto; [VisualExplorer](../../src/visuals/ui/VisualExplorer.tsx) aplica somente o novo texto |
 | Geração avançada | [advancedContext](../../src/visuals/advancedContext.ts), [advancedGeneration](../../src/visuals/advancedGeneration.ts), [modelAssembly](../../src/visuals/modelAssembly.ts): ramo pertinente, contrato e composição |
 | Geometria e contrato | [types](../../src/visuals/types.ts), [normalize](../../src/visuals/normalize.ts), [geometrySchema](../../src/visuals/geometrySchema.ts), [modelingGuide](../../src/visuals/modelingGuide.ts) |
 | Revisão do objeto | [modelRevision](../../src/visuals/modelRevision.ts), [ModelArtifactEditor](../../src/visuals/ui/ModelArtifactEditor.tsx) |
@@ -110,6 +111,7 @@ O renderer usa uma superfície WebGL transparente compartilhada, viewport/scisso
 | [advancedGeneration.test.ts](../../src/visuals/advancedGeneration.test.ts) | Ramo/pré-requisitos, referências documentais separadas, contexto transitório, cancelamento, orçamento, falha sem conjunto parcial e preservação customizada |
 | [domain.test.ts](../../src/visuals/domain.test.ts), [normalize.test.ts](../../src/visuals/normalize.test.ts) | Escopo, critérios ocultos, propostas, aplicação, recuperação e contratos inválidos |
 | [modelRevision.test.ts](../../src/visuals/modelRevision.test.ts) | Revisão do mesmo objeto, alteração concorrente, layout preservado e reversão |
+| [refinement.test.ts](../../src/visuals/refinement.test.ts), [VisualExplorer.test.tsx](../../src/visuals/ui/VisualExplorer.test.tsx) | Reescrita no mesmo campo, envio separado, rascunho obrigatório, minimização, cancelamento, contexto alterado e falha sem perda do texto |
 | [decompositionResearch.test.ts](../../src/visuals/decompositionResearch.test.ts) | Leitura documental, trechos, variantes, códigos, quantidades e lacunas |
 | [decomposition.test.ts](../../src/visuals/decomposition.test.ts), [decompositionGeometry.test.ts](../../src/visuals/decompositionGeometry.test.ts) | Artefato filho, conservação do original, reaproveitamento exato, contexto não classificado, dossiê e geometria aplicados juntos |
 | [customGeometry.test.ts](../../src/visuals/rendering/customGeometry.test.ts), [modelItem.test.ts](../../src/visuals/rendering/modelItem.test.ts), [lifecycle](../../src/visuals/rendering/VisualCanvasLayer.lifecycle.test.tsx) | Geometria/recursos Three.js, inspeção e ciclo de desenho |

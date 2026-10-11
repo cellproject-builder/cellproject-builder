@@ -1,5 +1,5 @@
-import { useEffect, useId, useRef, useState, memo, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Handle, NodeResizer, NodeToolbar, Position, useViewport, type NodeProps } from '@xyflow/react';
+import { useEffect, useId, useMemo, useRef, useState, memo, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { Handle, NodeResizer, NodeToolbar, Position, useStore, type NodeProps } from '@xyflow/react';
 import { useLocaleStore } from '@/i18n';
 import { useGraphStore } from '@/store';
 import { requestChatReferences } from '@/references/chatHandoff';
@@ -7,7 +7,7 @@ import { getPlannerOwnerId } from '@/workspace/planner';
 import { listMentionTargets, removeVisualArtifact, revertVisualArtifact, setVisualArtifactLink, updateVisualArtifact, setDiagramParameter } from '../domain';
 import { readVisualMedia } from '../media';
 import { decompositionAssemblyCurrent } from '../decompositionState';
-import { modelAssemblyCurrent } from '../modelAssembly';
+import { modelAssemblyCurrentForRender } from './modelAssemblyValidity';
 import type { VisualArtifact } from '../types';
 import { useVisualPopupStore } from '../ui/uiStore';
 import { useVisualViewStore } from './viewStore';
@@ -19,15 +19,21 @@ import './visual-canvas.css';
 export const VisualArtifactNode = memo(function VisualArtifactNode({ data, selected, dragging, width, height }: NodeProps) {
   const artifact = data.artifact as VisualArtifact;
   const projectId = useGraphStore(state => state.project?.id);
-  const { zoom } = useViewport();
+  const compact = useStore(state => state.transform[2] < .7);
   const en = useLocaleStore(state => state.locale) === 'en';
   const conceptNodes = useGraphStore(state => state.project?.nodes);
   const visualArtifacts = useGraphStore(state => state.project?.visuals?.artifacts);
+  const visualProposals = useGraphStore(state => state.project?.visuals?.proposals);
   const linkedNode = artifact.linkedNodeId ? conceptNodes?.[artifact.linkedNodeId] : undefined;
   const isChild = !!artifact.sourceArtifactId;
-  const linkedChild = !isChild ? visualArtifacts?.find(item => item.sourceArtifactId === artifact.id && (!artifact.decomposition?.assemblyArtifactId || item.id === artifact.decomposition.assemblyArtifactId) && decompositionAssemblyCurrent(item)) : undefined;
-  const advancedAssembly = modelAssemblyCurrent(artifact);
-  const hasAssembly = advancedAssembly || isChild && artifact.kind === 'model' && decompositionAssemblyCurrent(artifact);
+  // Decomposition validity reads the current source and its image references.
+  // Their immutable collections invalidate this memo; selection and view do not.
+  const { linkedChild, decomposedAssembly } = useMemo(() => ({
+    linkedChild: !isChild ? visualArtifacts?.find(item => item.sourceArtifactId === artifact.id && (!artifact.decomposition?.assemblyArtifactId || item.id === artifact.decomposition.assemblyArtifactId) && decompositionAssemblyCurrent(item)) : undefined,
+    decomposedAssembly: isChild && artifact.kind === 'model' && decompositionAssemblyCurrent(artifact),
+  }), [artifact, isChild, visualArtifacts, visualProposals]);
+  const advancedAssembly = modelAssemblyCurrentForRender(artifact);
+  const hasAssembly = advancedAssembly || decomposedAssembly;
   const decompositionLabel = isChild || advancedAssembly ? (en ? 'Inspect components' : 'Inspecionar componentes') : linkedChild ? (en ? 'Open decomposition' : 'Abrir decomposição') : artifact.kind === 'image' ? (en ? 'Decompose image' : 'Decompor imagem') : (en ? 'Decompose model' : 'Decompor modelo');
   const exploded = useVisualViewStore(state => (state.explosions[artifact.id] ?? 0) > .5);
   const freeLabel = artifact.kind === 'image' ? (en ? 'Free image' : 'Imagem livre') : (en ? 'Free object' : 'Objeto livre');
@@ -206,7 +212,7 @@ export const VisualArtifactNode = memo(function VisualArtifactNode({ data, selec
         onParameter={(id, value) => setDiagramParameter(artifact.id, id, value)} onSelectNode={id => { if (Object.hasOwn(useGraphStore.getState().project?.nodes ?? {}, id)) useGraphStore.getState().selectNode(id); }} />}
     </div>
     <NodeToolbar isVisible={selected && !quickOrbit && !dragging && !resizing} position={Position.Bottom} offset={6} style={{ zIndex: 10 }}>
-    <div className={`visual-artifact-controls nodrag nopan nowheel ${zoom < .7 ? 'is-compact' : ''}`} role="group" aria-label={artifact.label}
+    <div className={`visual-artifact-controls nodrag nopan nowheel ${compact ? 'is-compact' : ''}`} role="group" aria-label={artifact.label}
       onKeyDown={event => { if (event.key !== 'Escape') return;
         if (linkOpen) { event.preventDefault(); event.stopPropagation(); setLinkOpen(false); linkToggleRef.current?.focus(); }
         else orbitKeys(event);
@@ -223,12 +229,12 @@ export const VisualArtifactNode = memo(function VisualArtifactNode({ data, selec
       {orbitActive && <button className="nodrag" onClick={() => useVisualViewStore.getState().reset(artifact.id)} title={en ? 'Reset view' : 'Restaurar vista'} aria-label={en ? 'Reset view' : 'Restaurar vista'}>⌂</button>}
       {artifact.kind !== 'diagram' && <button className="nodrag visual-orbit-toggle" onClick={() => useVisualPopupStore.getState().inspectArtifact(linkedChild?.id ?? artifact.id)}
         title={decompositionLabel} aria-label={decompositionLabel}>
-        <span aria-hidden="true">◈</span> {zoom >= .7 && (isChild || linkedChild || advancedAssembly ? (en ? 'Components' : 'Componentes') : (en ? 'Decompose' : 'Decompor'))}
+        <span aria-hidden="true">◈</span> {!compact && (isChild || linkedChild || advancedAssembly ? (en ? 'Components' : 'Componentes') : (en ? 'Decompose' : 'Decompor'))}
       </button>}
       {hasAssembly && <button className="nodrag visual-orbit-toggle" onClick={() => useVisualViewStore.getState().setExplosion(artifact.id, exploded ? 0 : 1)}
         aria-pressed={exploded} title={en ? 'Separate parts or return them to their assembly positions' : 'Separar peças ou retorná-las às posições de montagem'}
         aria-label={exploded ? (en ? 'Assemble model' : 'Montar modelo') : (en ? 'Show exploded view' : 'Ver visão explodida')}>
-        <span aria-hidden="true">{exploded ? '▣' : '◇'}</span> {zoom >= .7 && (exploded ? (en ? 'Assemble' : 'Montar') : (en ? 'Explode' : 'Explodir'))}
+        <span aria-hidden="true">{exploded ? '▣' : '◇'}</span> {!compact && (exploded ? (en ? 'Assemble' : 'Montar') : (en ? 'Explode' : 'Explodir'))}
       </button>}
       {isChild && <button className="nodrag" onClick={() => useVisualPopupStore.getState().inspectArtifact(artifact.sourceArtifactId!)}
         title={en ? 'Back to original' : 'Voltar ao original'} aria-label={en ? 'Back to original' : 'Voltar ao original'}>↶</button>}

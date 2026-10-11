@@ -23,6 +23,8 @@ Supabase não é o gateway de geração de IA: oferece Auth, Postgres/RPC e Stor
 
 As nove chaves aceitas são `cellproject-workspace`, `cellproject-graph`, `dynamic_diary-chat`, `cellproject-kb`, `cellproject-config`, `cellproject-locale`, `dynamic_diary-theme`, `dynamic_diary-sidebar-collapsed` e `dynamic_diary:task-view`. A lista é fechada no [cliente](../../src/cloud/runtime.ts) e no [servidor](../../server/cloudValidation.mjs); adicionar uma chave exige atualizar o contrato e a transferência, não apenas criar um store.
 
+Atualização de 11/10/2026: [selectiveJSONStorage.ts](../../src/data/selectiveJSONStorage.ts) compara os campos imutáveis persistíveis antes de serializar os envelopes de workspace/planner. Alterações apenas de interface não regravam todo o conteúdo; hidratação, versão e runtime de origem invalidam a deduplicação. Rascunhos reais continuam seguindo o mesmo formato e backend. O [relatório de fluidez](../reports/client-performance-2026-10-11.md) distingue contagens de gravação, durabilidade e limites de desempenho.
+
 ## Seleção de backend e propriedade canônica
 
 [main.tsx](../../src/main.tsx) inicia `CloudBootstrap` antes de importar os stores da aplicação. [CloudBootstrap.tsx](../../src/cloud/CloudBootstrap.tsx) consulta configuração, autenticação, eventual configuração obrigatória de senha e snapshot/cofre. Somente depois seleciona o adaptador e importa a aplicação. Uma falha cloud não abre automaticamente o legado local. Pode abrir a cópia offline cifrada previamente autorizada do mesmo aparelho; o modo local legado só é selecionado depois de uma resposta explícita `enabled: false`.

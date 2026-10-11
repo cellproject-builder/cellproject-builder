@@ -19,16 +19,13 @@ import {
 import {
   useGraphStore,
   confidenceBand,
-  isBlocked,
-  canConcludeNode,
-  stepSequence,
   effectiveLeaves,
-  isActionableKind,
   nextPendingForTutor,
   pendingParent,
   type Lens,
 } from '@/store';
 import { childrenByParent } from '@/graph/treeIndex';
+import { nodePresentation } from '@/graph/nodePresentation';
 import { isLeafGridParent, LAYOUT_Y_GAP } from '@/graph/treeLayout';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useReviewingParents } from '@/hooks/useReviewingParents';
@@ -155,7 +152,7 @@ const stateBucketOf = (project: Project, n: ConceptNodeData): StateBucket => {
   if (n.state === 'problem' || n.failureContext) return 'problem';
   if (n.takenAsKnown) return 'known';
   if (n.confirmado) return n.state === 'done' && !n.confirmedWithoutSignal ? 'doneProof' : 'noProof';
-  if (isBlocked(project, n.id)) return 'blocked';
+  if (nodePresentation(project).get(n.id)?.blocked) return 'blocked';
   return 'pending';
 };
 
@@ -901,48 +898,32 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   // Nós
   // -------------------------------------------------------------------------
 
+  const conceptData = useRef(new Map<string, { source: ConceptNodeData; data: Node['data'] }>());
   const computedNodes: Node[] = useMemo(() => {
     if (!project || !layout) return [];
     const nodeList = Object.values(project.nodes).filter(
       (n) => layout.visible === null || layout.visible.has(n.id),
     );
-    const edgeList = Object.values(project.edges);
     const nextId = nextPendingForTutor(project, pending, reviewing)?.id ?? null;
-
-    const childCountByParent: Record<string, number> = {};
-    Object.values(project.nodes).forEach((n) => {
-      if (n.parentId) {
-        childCountByParent[n.parentId] = (childCountByParent[n.parentId] || 0) + 1;
-      }
-    });
-
-    const edgeCountByNode: Record<string, number> = {};
-    edgeList.forEach((e) => {
-      edgeCountByNode[e.source] = (edgeCountByNode[e.source] || 0) + 1;
-      edgeCountByNode[e.target] = (edgeCountByNode[e.target] || 0) + 1;
-    });
+    const presentation = nodePresentation(project), nextData = new Map<string, { source: ConceptNodeData; data: Node['data'] }>();
 
     const base: Node[] = nodeList.map((n) => {
-      const isLeafAction = isActionableKind(n.kind) && !childCountByParent[n.id];
+      const status = presentation.get(n.id)!, previous = conceptData.current.get(n.id), isNext = n.id === nextId;
+      const data = previous?.source === n && previous.data.childCount === status.childCount && previous.data.edgeCount === status.edgeCount
+        && previous.data.blocked === status.blocked && previous.data.stepNo === status.stepNo && previous.data.canConclude === status.canConclude && previous.data.isNext === isNext
+        ? previous.data : { ...n, ...status, isNext };
+      nextData.set(n.id, { source: n, data });
       return {
         id: n.id,
         type: 'concept',
         position: layout.positions[n.id] || n.position,
-        data: {
-          ...n,
-          childCount: childCountByParent[n.id] || 0,
-          edgeCount: edgeCountByNode[n.id] || 0,
-          // Precomputed here (once per project change) so each ConceptNode
-          // doesn't subscribe to the whole project.
-          blocked: n.kind === 'passo' && isBlocked(project, n.id),
-          stepNo: n.kind === 'passo' ? stepSequence(project, n.id) : null,
-          isNext: n.id === nextId,
-          canConclude: isLeafAction && !n.confirmado ? canConcludeNode(project, n.id).ready : false,
-        },
+        // Stable data lets ConceptNode's memo skip unrelated selection/draft updates.
+        data,
         selected: n.id === selectedId && selectedVisualId === null,
         draggable: lens === 'structure',
       };
     });
+    conceptData.current = nextData;
 
     layout.headers.forEach((h) => {
       base.push({
@@ -1020,6 +1001,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   // computedNodes. Durante o drag o store não muda — `updateNodePosition` só
   // é chamado em `dragging === false` — portanto não há race com o useEffect.
   const [nodes, setNodes] = useState<Node[]>(computedNodes);
+  const [adoptedNodes, setAdoptedNodes] = useState(computedNodes);
   useEffect(() => {
     setNodes(current => {
       const previous = new Map(current.map(node => [node.id, node]));
@@ -1033,6 +1015,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
           ...(live.resizing ? { width: live.width, height: live.height, position: live.position, resizing: true } : {}) };
       });
     });
+    setAdoptedNodes(computedNodes);
   }, [computedNodes]);
 
   // Lentes de colunas: o layout usa uma altura de linha fixa, mas os cards
@@ -1073,13 +1056,13 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
     // useNodesInitialized may still describe the previous render. Wait until
     // our controlled node list has adopted this lens as well as being measured.
     const displayed = new Map(nodes.map(node => [node.id, node]));
-    if (nodes.length !== computedNodes.length || computedNodes.some(node => displayed.get(node.id)?.data !== node.data)) return;
+    if (adoptedNodes !== computedNodes || nodes.length !== computedNodes.length || computedNodes.some(node => displayed.get(node.id)?.data !== node.data)) return;
     schedule(camTimer, () => {
       if (pendingCameraFrame.current !== request || useGraphStore.getState().lens !== lens) return;
       pendingCameraFrame.current = null;
       request.action();
     }, 30);
-  }, [lens, nodes, computedNodes, nodesInitialized, focusVersion, selectionVersion, centerRequest, canvasSize.width, canvasSize.height, frameOverview, schedule]);
+  }, [lens, nodes, computedNodes, adoptedNodes, nodesInitialized, focusVersion, selectionVersion, centerRequest, canvasSize.width, canvasSize.height, frameOverview, schedule]);
 
   // -------------------------------------------------------------------------
   // Arestas

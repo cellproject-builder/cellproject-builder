@@ -204,6 +204,8 @@ export const useVisualSessionStore = create<VisualSessionState>((set, get) => ({
     return { windows: state.windows.map(window => window.id === id ? { ...window, frame: { ...frame } } : window) };
   }),
   focusWindow: id => set(state => {
+    const target = state.windows.find(window => window.id === id);
+    if (!target || !state.windows.some(window => window.order > target.order)) return state;
     const order = nextOrder(state.windows);
     return { windows: state.windows.map(window => window.id === id ? { ...window, order } : window) };
   }),

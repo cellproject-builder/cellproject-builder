@@ -61,12 +61,14 @@ A ponte em `workspace/planner.ts` mantém `ownerId`, identidade do projeto que a
 - `capturePlanner` lê o conjunto definido de campos do editor.
 - `readPlanner(projectId)` lê o estado vivo quando o editor pertence ao projeto; nos demais casos lê seu snapshot. Não troca o editor para consultar outro projeto.
 - `openPlanner(projectId)` salva o proprietário anterior e carrega o destino; limpa jobs/seleções transitórias apropriadas. Uma operação de IA ativa bloqueia a troca.
-- `connectPlanner` observa alterações dos campos do snapshot e salva no projeto proprietário.
+- `connectPlanner` observa alterações de conteúdo do snapshot e salva no projeto proprietário. Seleção, lente e painel isolados ficam em memória e acompanham o próximo snapshot de conteúdo ou a troca de projeto, evitando regravar o documento inteiro a cada clique.
 - `initializeWorkspace` importa uma vez dados legados de plano/rascunho, preserva estado arquivado, normaliza recursos visuais e remove marcadores de geração interrompida quando não há ação viva. Não refaz uma geração paga automaticamente.
 
 Essa coordenação evita misturar projetos enquanto uma resposta assíncrona está em andamento. Não é colaboração simultânea entre várias pessoas ou resolução de conflito distribuído.
 
 Os helpers de árvore foram extraídos de `store.ts` sem alterar o algoritmo. O store mantém reexports de compatibilidade de `childrenByParent`, `computeTreeLayout`, `isLeafGridParent` e constantes; consumidores novos podem importar dos módulos em `graph/` sem carregar o store. Essa extração organiza cálculo/índice, sem alterar a persistência do plano ou as regras de evidência.
+
+Em 11/10/2026, [nodePresentation.ts](../../src/graph/nodePresentation.ts) passou a reunir sequência, bloqueio, contagem de filhos/arestas e possibilidade de conclusão em um índice por versão imutável dos nós/arestas. Seleção e rascunhos reutilizam esse índice e os dados dos cards. Ações de conclusão continuam validando as regras do domínio. As comparações de resultado e as medições sintéticas estão no [relatório de fluidez](../reports/client-performance-2026-10-11.md).
 
 ## Geração, revisão e importação de tarefas
 

@@ -10,18 +10,25 @@ import { VisualArtifactNode } from './VisualArtifactNode';
 import { useVisualPopupStore } from '../ui/uiStore';
 import { useVisualViewStore } from './viewStore';
 import { torqueDiagram } from '../diagram/fixture';
+import { modelSceneFingerprint } from '../modelAssembly';
 
-vi.mock('@xyflow/react', () => ({
+vi.mock('@xyflow/react', async () => {
+  const { useSyncExternalStore } = await import('react');
+  const subscribe = (listener: () => void) => { mocks.viewportListeners.add(listener); return () => mocks.viewportListeners.delete(listener); };
+  return {
   NodeResizer: (props: unknown) => { mocks.resizer(props); return null; },
-  useViewport: () => ({ x: 0, y: 0, zoom: mocks.zoom }),
+  useViewport: () => { useSyncExternalStore(subscribe, () => mocks.viewportVersion); return { x: mocks.panX, y: 0, zoom: mocks.zoom }; },
+  useStore: (selector: (state: { transform: [number, number, number] }) => unknown) => useSyncExternalStore(subscribe, () => selector({ transform: [mocks.panX, 0, mocks.zoom] })),
   Handle: ({ id, type, isConnectable }: { id: string; type: string; isConnectable: boolean }) => <span data-handle-id={id} data-handle-type={type} data-connectable={String(isConnectable)} />,
   Position: { Bottom: 'bottom', Left: 'left', Right: 'right' },
   NodeToolbar: ({ children, isVisible }: { children: React.ReactNode; isVisible: boolean }) => isVisible ? children : null,
-}));
+}; });
 vi.mock('../media', () => ({ readVisualMedia: (...args: unknown[]) => mocks.readMedia(...args) }));
 
 const selectedImage: MentionTarget = { id: 'photo-1', kind: 'image', label: 'Measured arm', detail: 'Image on canvas', fingerprint: 'v1' };
-const mocks = vi.hoisted(() => ({ listMentions: vi.fn(), handoff: vi.fn(), setLink: vi.fn(), updateGeometry: vi.fn(), revert: vi.fn(), readMedia: vi.fn(), resizer: vi.fn(), assemblyCurrent: vi.fn(), zoom: .3 }));
+const mocks = vi.hoisted(() => ({ listMentions: vi.fn(), handoff: vi.fn(), setLink: vi.fn(), updateGeometry: vi.fn(), revert: vi.fn(), readMedia: vi.fn(), resizer: vi.fn(), assemblyCurrent: vi.fn(), zoom: .3,
+  panX: 0, viewportVersion: 0, viewportListeners: new Set<() => void>(),
+}));
 vi.mock('../domain', () => ({ listMentionTargets: mocks.listMentions, removeVisualArtifact: vi.fn(), revertVisualArtifact: mocks.revert, setVisualArtifactLink: mocks.setLink, updateVisualArtifact: mocks.updateGeometry }));
 vi.mock('@/references/chatHandoff', () => ({ requestChatReferences: mocks.handoff }));
 vi.mock('@/workspace/planner', () => ({ getPlannerOwnerId: () => 'managed-project-1' }));
@@ -40,7 +47,7 @@ beforeEach(async () => {
   await useLocaleStore.persist.rehydrate(); useLocaleStore.setState({ locale: 'en' });
   await useGraphStore.persist.rehydrate(); useGraphStore.setState({ project: buildDemoProject() });
   vi.clearAllMocks(); mocks.listMentions.mockReturnValue([selectedImage]);
-  mocks.readMedia.mockResolvedValue(null); mocks.zoom = .3;
+  mocks.readMedia.mockResolvedValue(null); mocks.zoom = .3; mocks.panX = 0; mocks.viewportVersion = 0; mocks.viewportListeners.clear();
   mocks.assemblyCurrent.mockReturnValue(false);
   vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:canvas-image'), revokeObjectURL: vi.fn() });
   useVisualPopupStore.setState({ searchOpen: true, modelOpen: true, modelBase: null, inspectedArtifactId: null });
@@ -145,6 +152,49 @@ describe('optional visual reference links', () => {
   });
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
+
+describe('artifact viewport work', () => {
+  it('avoids node renders on pan and zoom within one toolbar size, without rehashing on selection or size threshold changes', async () => {
+    const scene: NonNullable<VisualArtifact['scene']> = { version: 1, label: 'Assembly', objects: ['body', 'shaft'].map((id, index) => ({ id, type: 'box', position: [index, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], color: '#8899aa' })) };
+    const groups = scene.objects.map(object => ({ partId: object.id, name: object.id, objectIds: [object.id] }));
+    const model: VisualArtifact = { ...artifact, kind: 'model', scene, assembly: { version: 1, sceneFingerprint: modelSceneFingerprint(scene), summary: 'Synthetic', groups, selectedNodeIds: [], selectedImageIds: [], sources: [], unknowns: [],
+      plan: { units: 'illustrative', sharedConstraints: [], unknowns: [], interfaces: [], modules: groups.map(group => ({ id: group.partId, name: group.name, prompt: 'Synthetic', nodeIds: [], sourceIds: [], center: [0, 0, 0], size: [1, 1, 1], primitiveBudget: 1 })) } } };
+    mocks.zoom = 1; await render(model);
+    const renders = mocks.resizer.mock.calls.length;
+    const stringify = vi.spyOn(JSON, 'stringify');
+    try {
+      for (let frame = 0; frame < 60; frame++) await act(async () => {
+        mocks.panX = frame; mocks.viewportVersion++; mocks.zoom = .8;
+        for (const listener of mocks.viewportListeners) listener();
+      });
+      expect(mocks.resizer.mock.calls.length).toBe(renders);
+      await act(async () => { mocks.zoom = .6; mocks.viewportVersion++; for (const listener of mocks.viewportListeners) listener(); });
+      expect(mocks.resizer.mock.calls.length).toBe(renders + 1);
+      expect(host.querySelector('.visual-artifact-controls.is-compact')).not.toBeNull();
+      await render(model, { selected: false }); await render(model);
+      expect(stringify.mock.calls.filter(([value]) => value === scene).length).toBe(0);
+      await render({ ...model, scene: { ...scene, label: 'Edited' } });
+      expect(host.querySelector('[aria-label="Show exploded view"]')).toBeNull();
+    } finally { stringify.mockRestore(); }
+  });
+
+  it('rechecks decomposition when source context, proposal references or the artifact changes, but not for selection', async () => {
+    const child: VisualArtifact = { ...artifact, id: 'child', kind: 'model', sourceArtifactId: artifact.id, scene: { version: 1, label: 'Parts', objects: [] } };
+    mocks.assemblyCurrent.mockReturnValue(true);
+    await render(child);
+    expect(mocks.assemblyCurrent).toHaveBeenCalledTimes(1);
+    await render(child, { selected: false }); await render(child);
+    expect(mocks.assemblyCurrent).toHaveBeenCalledTimes(1);
+    await act(async () => useGraphStore.setState(state => ({ project: { ...state.project!, visuals: { version: 1, mode: 'approval', artifacts: [artifact, child], proposals: [], drafts: { search: { text: '', mentions: [], attachments: [] }, model: { text: '', mentions: [], attachments: [] } } } } })));
+    expect(mocks.assemblyCurrent).toHaveBeenCalledTimes(2);
+    await act(async () => useGraphStore.setState(state => ({ project: { ...state.project!, visuals: { ...state.project!.visuals!, proposals: [...state.project!.visuals!.proposals] } } })));
+    expect(mocks.assemblyCurrent).toHaveBeenCalledTimes(3);
+    mocks.assemblyCurrent.mockReturnValue(false);
+    await render({ ...child, scene: { ...child.scene!, label: 'Edited parts' } });
+    expect(mocks.assemblyCurrent).toHaveBeenCalledTimes(4);
+    expect(host.querySelector('[aria-label="Show exploded view"]')).toBeNull();
+  });
+});
 
 describe('compact image editing', () => {
   it('keeps the node selector collapsed until requested and closes it with Escape', async () => {
@@ -463,7 +513,7 @@ describe('integrated decomposition inspection', () => {
     expect(useVisualViewStore.getState().pitches[model.id]).toBeCloseTo(.3);
     expect(mocks.updateGeometry).not.toHaveBeenCalled();
     mocks.assemblyCurrent.mockReturnValue(false);
-    await render(child);
+    await render({ ...child, label: 'Edited Arduino Uno R3' });
     expect(host.querySelector('[aria-label="Show exploded view"]')).toBeNull();
   });
 

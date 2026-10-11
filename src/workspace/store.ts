@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
-import { workspaceRepository } from '@/data/workspaceRepository';
+import { persist, type StateStorage } from 'zustand/middleware';
+import { createWorkspaceStorage, IndexedDbWorkspaceRepository, workspaceRepository } from '@/data/workspaceRepository';
+import { createSelectiveJSONStorage } from '@/data/selectiveJSONStorage';
 import { getCloudRuntime } from '@/cloud/runtime';
 import { nanoid } from 'nanoid';
 import { noteCanvasSchema } from './noteCanvasModel';
@@ -22,13 +23,21 @@ interface HydrationAttempt {
   error?: unknown;
 }
 let hydrationAttempt: HydrationAttempt | undefined;
+const localWorkspaceStorage = createWorkspaceStorage(new IndexedDbWorkspaceRepository());
 const storage: StateStorage = {
-  getItem: (key) => workspaceRepository.getItem(key),
+  getItem: async (key) => {
+    const owner = getCloudRuntime();
+    const value = await workspaceRepository.getItem(key);
+    if (getCloudRuntime() !== owner) throw new Error('A sessão de persistência mudou durante a leitura. Abra novamente os dados da sessão atual.');
+    return value;
+  },
   setItem: (key, value) => {
     // CloudRuntime already serializes and coalesces drafts; do not retain a
     // second queue of complete envelopes while a remote request is pending.
     const cloud = getCloudRuntime(); if (cloud) return cloud.write(key, value);
-    const next = writes.then(() => workspaceRepository.setItem(key, value));
+    // Capture the local backend now: a later runtime must never receive this
+    // browser's queued envelope when the promise chain starts draining.
+    const next = writes.then(() => localWorkspaceStorage.setItem(key, value));
     writes = next.then(() => { lastWriteError = null; }, (error: unknown) => { lastWriteError = error; });
     return next;
   },
@@ -266,7 +275,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(persist((set, get) => 
   }),
 }), {
   name: 'cellproject-workspace', version: 2,
-  storage: createJSONStorage(() => storage),
+  storage: createSelectiveJSONStorage(() => storage, { scope: getCloudRuntime }),
   partialize: ({ projects, tasks, comments, sprints, notes, folders, boards, legacyImported }) => ({ projects, tasks, comments, sprints, notes, folders, boards, legacyImported }),
   migrate: (persisted) => ({ ...(persisted as Partial<WorkspaceState>), comments: (persisted as Partial<WorkspaceState>).comments ?? {}, boards: (persisted as Partial<WorkspaceState>).boards === undefined ? {} : (persisted as Partial<WorkspaceState>).boards }),
   merge: (persisted, current) => {

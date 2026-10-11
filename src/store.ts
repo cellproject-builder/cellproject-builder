@@ -1,6 +1,9 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
+import { persist, type StateStorage } from 'zustand/middleware';
 import { selectedStorage } from '@/cloud/storage';
+import { getCloudRuntime } from '@/cloud/runtime';
+import { createSelectiveJSONStorage } from '@/data/selectiveJSONStorage';
+import { plannerContentValues, type PlannerContentSnapshot } from '@/data/plannerPersistence';
 const idbGet = selectedStorage.getItem, idbSet = selectedStorage.setItem, idbDel = selectedStorage.removeItem;
 import { nanoid } from 'nanoid';
 import type {
@@ -285,38 +288,81 @@ export interface GraphState {
 }
 
 // ---------------------------------------------------------------------------
-// Persistência com debounce: o persist serializa o projeto inteiro a cada set
-// (cada tecla num campo). Agrupamos as escritas em 500ms e descarregamos ao
-// esconder/fechar a aba para não perder a última edição.
+// O adapter seletivo evita serializar mudanças apenas de UI. Para alterações
+// de conteúdo, agrupamos o I/O em 500ms e descarregamos ao esconder/fechar a
+// aba para não perder a última edição.
 // ---------------------------------------------------------------------------
 
 const WRITE_DEBOUNCE_MS = 500;
-const pendingWrites = new Map<string, string>();
+type GraphPersistenceOwner = ReturnType<typeof getCloudRuntime>;
+interface PendingGraphWrite { value: string; owner: GraphPersistenceOwner; revision: number }
+const pendingWrites = new Map<string, PendingGraphWrite>();
+const inFlightWrites = new Map<string, { owner: GraphPersistenceOwner; count: number }>();
+const writeRevisions = new Map<string, number>();
+let nextWriteRevision = 0;
 let writeTimer: ReturnType<typeof setTimeout> | null = null;
-export const hasPendingGraphPersistence = () => pendingWrites.size > 0;
+export const hasPendingGraphPersistence = () => pendingWrites.size > 0 || inFlightWrites.size > 0;
+
+const ownerChanged = () => new Error('Há alterações de outra sessão de persistência nesta aba. Mantenha esta aba aberta para preservar o rascunho.');
+function assertGraphPersistenceOwner(name: string, owner: GraphPersistenceOwner) {
+  const pending = pendingWrites.get(name), active = inFlightWrites.get(name);
+  if (pending && pending.owner !== owner || active && active.owner !== owner) throw ownerChanged();
+}
 
 export async function flushGraphPersistence(): Promise<void> {
   if (writeTimer) {
     clearTimeout(writeTimer);
     writeTimer = null;
   }
-  const entries = [...pendingWrites.entries()];
+  const owner = getCloudRuntime(), entries = [...pendingWrites.entries()];
+  // The backend is selected at the call boundary. Never route a retained draft
+  // through another account's runtime, and never discard it on that refusal.
+  for (const name of new Set([...pendingWrites.keys(), ...inFlightWrites.keys()])) assertGraphPersistenceOwner(name, owner);
   pendingWrites.clear();
-  await Promise.all(entries.map(([name, value]) => idbSet(name, value)));
+  await Promise.all(entries.map(async ([name, entry]) => {
+    const active = inFlightWrites.get(name);
+    inFlightWrites.set(name, { owner: entry.owner, count: (active?.count ?? 0) + 1 });
+    try {
+      if (getCloudRuntime() !== entry.owner) throw ownerChanged();
+      await idbSet(name, entry.value);
+    }
+    catch (error) {
+      // A debounced enqueue returns before this write completes. Preserve its
+      // retry even when the selective adapter skips an identical snapshot, but
+      // never put an older value back after a newer write or explicit removal.
+      if (writeRevisions.get(name) === entry.revision) pendingWrites.set(name, entry);
+      throw error;
+    } finally {
+      const current = inFlightWrites.get(name)!;
+      if (current.count === 1) inFlightWrites.delete(name);
+      else inFlightWrites.set(name, { ...current, count: current.count - 1 });
+    }
+  }));
 }
 
 const idbStorage: StateStorage = {
-  getItem: async (name) => pendingWrites.get(name) ?? (await idbGet(name)) ?? null,
+  getItem: async (name) => {
+    const owner = getCloudRuntime(), pending = pendingWrites.get(name);
+    const value = pending?.owner === owner ? pending.value : await idbGet(name);
+    if (getCloudRuntime() !== owner) throw ownerChanged();
+    return value ?? null;
+  },
   setItem: (name, value) => {
-    pendingWrites.set(name, value);
+    const owner = getCloudRuntime();
+    assertGraphPersistenceOwner(name, owner);
+    const revision = ++nextWriteRevision;
+    writeRevisions.set(name, revision);
+    pendingWrites.set(name, { value, owner, revision });
     if (writeTimer) clearTimeout(writeTimer);
     writeTimer = setTimeout(() => {
       void flushGraphPersistence();
     }, WRITE_DEBOUNCE_MS);
   },
-  removeItem: async (name) => {
+  removeItem: (name) => {
+    assertGraphPersistenceOwner(name, getCloudRuntime());
+    writeRevisions.delete(name);
     pendingWrites.delete(name);
-    await idbDel(name);
+    return idbDel(name);
   },
 };
 
@@ -2020,7 +2066,7 @@ export const useGraphStore = create<GraphState>()(
     {
       name: 'cellproject-graph',
       version: 6, // v4: drafts, objectiveDraft, archivedProject, lastTutorNodeId; v5: gate da âncora da IA; v6: esboços + cache de expansão no objectiveDraft
-      storage: createJSONStorage(() => idbStorage),
+      storage: createSelectiveJSONStorage<PlannerContentSnapshot>(() => idbStorage, { select: plannerContentValues, scope: getCloudRuntime }),
       // Pass-through migrate: NEVER drop a user's project on a version bump.
       // zustand discards persisted state on version mismatch when no migrate is
       // provided; all newer fields are optional, so old snapshots rehydrate fine
@@ -2437,6 +2483,7 @@ export type ConcludeMissingKey =
 export const canConcludeNode = (
   project: Project | null,
   nodeId: string,
+  blocked = isBlocked(project, nodeId),
 ): { ready: boolean; missing: string[]; missingKeys: ConcludeMissingKey[] } => {
   if (!project) return { ready: false, missing: ['sem projeto'], missingKeys: [] };
   const node = project.nodes[nodeId];
@@ -2444,7 +2491,7 @@ export const canConcludeNode = (
   const tr = t().store;
   const missing: string[] = [];
   const missingKeys: ConcludeMissingKey[] = [];
-  if (isBlocked(project, nodeId)) {
+  if (blocked) {
     missing.push(tr.missingBlocked);
     missingKeys.push('blocked');
   }

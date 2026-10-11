@@ -1,23 +1,71 @@
-import { useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocaleStore } from '@/i18n';
 import { VisualExplorer, type VisualExplorerProps } from './VisualExplorer';
 import { PopupTabs } from './PopupTabs';
-import { useVisualSessionStore, type VisualTab } from './sessionStore';
+import { useVisualSessionStore, type VisualTab, type VisualWindow } from './sessionStore';
 import { useVisualPopupStore } from './uiStore';
 import { useVisualStrings } from './strings';
 import { useVisualGenerationStore, useVisualSearchStore, type VisualSearchResult } from '../controller';
 
 let mountedCanvas: { owner: symbol } | null = null;
+const noHistory: string[] = [];
+
+interface VisualSessionProps extends VisualExplorerProps {
+  tab: VisualTab;
+  window: VisualWindow;
+  order: number;
+  historyProposalIds: string[];
+  windowTabs?: VisualTab[];
+}
+
+/** Keep each request mounted while unrelated tabs update their own draft or
+ * progress. Only the active tab needs to render its window's tab strip. */
+const VisualSession = memo(function VisualSession({ tab, window, order, historyProposalIds, windowTabs, ...props }: VisualSessionProps) {
+  const en = useLocaleStore(state => state.locale) === 'en';
+  const active = window.activeTabId === tab.id;
+  const workspace = useMemo(() => ({ ...props.workspace, drafts: { ...props.workspace.drafts, [tab.kind]: tab.draft } }), [props.workspace, tab.kind, tab.draft]);
+  const onDraft = useCallback<VisualExplorerProps['onDraft']>((kind, input) => {
+    if (kind === tab.kind) useVisualSessionStore.getState().updateDraft(tab.id, input);
+    props.onDraft(kind, input);
+  }, [props.onDraft, tab.id, tab.kind]);
+  const title = (item: VisualTab) => item.inspectedArtifactId
+    ? props.workspace.artifacts.find(artifact => artifact.id === item.inspectedArtifactId)?.label ?? (en ? 'Components' : 'Componentes')
+    : item.draft.text.trim().replace(/\s+/g, ' ').slice(0, 48) || item.draft.mentions[0]?.label || (item.kind === 'search' ? en ? 'New search' : 'Nova busca' : item.draft.artifactKind === 'diagram' ? en ? 'New diagram' : 'Novo diagrama' : en ? 'New model' : 'Novo modelo');
+  const actions = useVisualSessionStore.getState();
+  return <VisualExplorer {...props} workspace={workspace} externalSearch={tab.externalSearch} onDraft={onDraft}
+    session={{ id: tab.id, kind: tab.kind, windowId: window.id,
+      minimized: !active || window.minimized || window.hidden, frame: window.frame, order,
+      inspectedArtifactId: tab.inspectedArtifactId, historyProposalIds,
+      onClose: () => actions.hideWindow(window.id), onMinimize: () => actions.minimizeWindow(window.id),
+      onFocus: () => actions.focusWindow(window.id), onFrame: frame => actions.setFrame(window.id, frame),
+      onInspector: id => actions.setInspector(tab.id, id), onActivity: activity => actions.setActivity(tab.id, activity),
+      onFindReferences: input => { actions.newTab('search', { input }); },
+      tabs: windowTabs ? <PopupTabs windowId={window.id} tabs={windowTabs.map(item => ({ ...item, label: title(item), artifactKind: item.draft.artifactKind }))}
+        activeTabId={window.activeTabId} onSelect={actions.activate} onNew={() => { actions.newTab(tab.kind, { windowId: window.id }); }}
+        onClose={actions.closeTab} onDetach={actions.detach} onMove={actions.move} /> : undefined,
+    }} />;
+}, (previous, next) => {
+  const keys = Object.keys(previous) as (keyof VisualSessionProps)[];
+  return keys.length === Object.keys(next).length && keys.every(key => {
+    if (key !== 'windowTabs') return Object.is(previous[key], next[key]);
+    const left = previous.windowTabs, right = next.windowTabs;
+    return left === right || !!left && !!right && left.length === right.length && left.every((tab, index) => tab === right[index]);
+  });
+});
 
 /** Sessions are keyed in one flat list. Moving a tab changes only its frame:
  * React never reparents its composer/refiner or restarts a provider request. */
 export function TabbedVisualExplorer(props: VisualExplorerProps) {
   const sessions = useVisualSessionStore();
   const s = useVisualStrings();
-  const en = useLocaleStore(state => state.locale) === 'en';
   const latest = useRef(props); latest.current = props;
   const history = useRef(new Map<string, string[]>());
   const owner = useRef(Symbol('visual-canvas'));
+  // Drafts belong to their own tab. A saved draft from another tool must not
+  // invalidate every studio's controlled composer when that draft changes.
+  const workspace = useMemo(() => ({ ...props.workspace, drafts: {
+    search: { text: '', mentions: [], attachments: [] }, model: { text: '', mentions: [], attachments: [] },
+  } }), [props.workspace.version, props.workspace.mode, props.workspace.artifacts, props.workspace.proposals]);
 
   useEffect(() => {
     // StrictMode replays effects for the same owner. Delay disposal one microtask
@@ -143,31 +191,13 @@ export function TabbedVisualExplorer(props: VisualExplorerProps) {
 
   if (sessions.projectId !== props.projectId) return null;
   const ordered = [...sessions.windows].sort((a, b) => a.order - b.order);
-  const title = (tab: VisualTab) => tab.inspectedArtifactId
-    ? props.workspace.artifacts.find(a => a.id === tab.inspectedArtifactId)?.label ?? (en ? 'Components' : 'Componentes')
-    : tab.draft.text.trim().replace(/\s+/g, ' ').slice(0, 48) || tab.draft.mentions[0]?.label || (tab.kind === 'search' ? en ? 'New search' : 'Nova busca' : tab.draft.artifactKind === 'diagram' ? en ? 'New diagram' : 'Novo diagrama' : en ? 'New model' : 'Novo modelo');
   return <>
     {Object.values(sessions.tabs).map(tab => {
       const window = sessions.windows.find(w => w.tabIds.includes(tab.id));
       if (!window) return null;
-      const active = window.activeTabId === tab.id;
-      const workspace = { ...props.workspace, drafts: { ...props.workspace.drafts, [tab.kind]: tab.draft } };
-      return <VisualExplorer key={`${props.projectId}:${tab.id}`} {...props} workspace={workspace} externalSearch={tab.externalSearch}
-        onDraft={(kind, input) => {
-          if (kind === tab.kind) sessions.updateDraft(tab.id, input);
-          props.onDraft(kind, input);
-        }}
-        session={{ id: tab.id, kind: tab.kind, windowId: window.id,
-          minimized: !active || window.minimized || window.hidden, frame: window.frame, order: ordered.indexOf(window),
-          inspectedArtifactId: tab.inspectedArtifactId, historyProposalIds: history.current.get(tab.id) ?? [],
-          onClose: () => sessions.hideWindow(window.id), onMinimize: () => sessions.minimizeWindow(window.id),
-          onFocus: () => sessions.focusWindow(window.id), onFrame: frame => sessions.setFrame(window.id, frame),
-          onInspector: id => sessions.setInspector(tab.id, id), onActivity: activity => sessions.setActivity(tab.id, activity),
-          onFindReferences: input => { sessions.newTab('search', { input }); },
-          tabs: active ? <PopupTabs windowId={window.id} tabs={window.tabIds.map(id => ({ ...sessions.tabs[id], label: title(sessions.tabs[id]), artifactKind: sessions.tabs[id].draft.artifactKind }))}
-            activeTabId={window.activeTabId} onSelect={sessions.activate} onNew={() => { sessions.newTab(tab.kind, { windowId: window.id }); }}
-            onClose={sessions.closeTab} onDetach={sessions.detach} onMove={sessions.move} /> : undefined,
-        }} />;
+      return <VisualSession key={`${props.projectId}:${tab.id}`} {...props} workspace={workspace} tab={tab} window={window}
+        order={ordered.indexOf(window)} historyProposalIds={history.current.get(tab.id) ?? noHistory}
+        windowTabs={window.activeTabId === tab.id ? window.tabIds.map(id => sessions.tabs[id]) : undefined} />;
     })}
     {sessions.windows.some(w => w.minimized && !w.hidden) && <div className="visual-minimized-tools nodrag nopan nowheel" data-visual-minimized role="group" aria-label={s.backgroundTools}>
       {sessions.windows.filter(w => w.minimized && !w.hidden).map(window => {
