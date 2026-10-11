@@ -5,7 +5,9 @@ import { requestWorkspaceUI } from '@/workspace/uiRequests';
 import { useConfigStore } from '@/config/store';
 import { useSidebarStore } from '@/workspace/sidebarPreference';
 import { createAssistantTools, executeWorkspaceAction, readWorkspace } from './workspaceTools';
-import type { NoteCanvasDocument } from '@/workspace/noteCanvasModel';
+import { createNoteCanvas, type NoteCanvasDocument } from '@/workspace/noteCanvasModel';
+import { createNoteInk } from '@/workspace/noteInkModel';
+import { captureChatTurnContext, publishChatNoteFocus } from '@/chat/turnContext';
 import { ChatContextBudgetError } from '@/chat/contextBudget';
 
 beforeEach(async () => {
@@ -232,4 +234,91 @@ it('revalidates a run before a queued mutation and preserves an earlier complete
   expect(Object.values(store.getState().projects).map(project => project.name)).toEqual(['Preserved']);
   expect(Object.keys(store.getState().notes)).toHaveLength(0);
   expect(events).toEqual(['create_project:running', 'create_project:done']);
+});
+
+function focusedNoteTools(noteId: string) {
+  store.getState().navigate('notes');
+  const clear = publishChatNoteFocus(noteId, null), turnContext = captureChatTurnContext(); clear();
+  return createAssistantTools(new AbortController().signal, () => {}, 'Revise esta nota', {
+    turnContext, beforeRequest: async () => {}, onRateLimit: () => {},
+  });
+}
+const noteActionOptions = { toolCallId: 'note-race', messages: [] };
+
+it.each(['title', 'blocks'] as const)('preserves a local %s edit made while a Notes response is being generated', async (field) => {
+  const noteId = store.getState().createNote({ title: 'Original' });
+  const tools = focusedNoteTools(noteId);
+  store.getState().updateNote(noteId, field === 'title' ? { title: 'Título editado localmente' } : { blocks: [{ id: 'local', type: 'text', text: 'Edição local mais recente' }] });
+  const before = store.getState().notes[noteId];
+  expect(await tools.workspace_action.execute!({ action: 'update_note', id: noteId, patch: { text: 'Resposta gerada do contexto antigo' } }, noteActionOptions)).toMatchObject({ ok: false, error: expect.stringMatching(/note changed|nota mudou/i) });
+  expect(store.getState().notes[noteId]).toBe(before);
+});
+
+it.each(['missing', 'trashed', 'reused'] as const)('refuses a Notes replacement when the focused note is %s', async (change) => {
+  const noteId = store.getState().createNote({ title: 'Original' }), tools = focusedNoteTools(noteId);
+  if (change === 'missing') store.setState({ notes: {} });
+  else if (change === 'trashed') store.getState().trashNote(noteId);
+  else store.setState(state => ({ notes: { ...state.notes, [noteId]: { ...state.notes[noteId], createdAt: state.notes[noteId].createdAt + 1 } } }));
+  const before = store.getState().notes;
+  expect(await tools.workspace_action.execute!({ action: 'update_note', id: noteId, patch: { text: 'Não aplicar' } }, noteActionOptions)).toMatchObject({ ok: false });
+  expect(store.getState().notes).toBe(before);
+});
+
+it('allows sequential own note edits while preserving concurrent canvas and ink updates', async () => {
+  const noteId = store.getState().createNote({ title: 'Original' }), tools = focusedNoteTools(noteId);
+  const canvas = { ...createNoteCanvas(), paper: 'grid' as const, items: [{ id: 'canvas-text', kind: 'text' as const, x: 10, y: 10, width: 200, height: 50, text: 'Desenho preservado', color: '#123456', fontSize: 16 }] };
+  const ink = { ...createNoteInk(), strokes: [{ id: 'ink-stroke', color: '#123456', width: 2, points: [{ x: 10, y: 10 }] }] };
+  store.getState().updateNote(noteId, { canvas, ink });
+  const savedCanvas = store.getState().notes[noteId].canvas, savedInk = store.getState().notes[noteId].ink;
+  expect(await tools.workspace_action.execute!({ action: 'update_note', id: noteId, patch: { title: 'Revisado', text: 'Primeira revisão' } }, noteActionOptions)).toMatchObject({ ok: true });
+  expect(await tools.workspace_action.execute!({ action: 'update_note', id: noteId, patch: { text: 'Segunda revisão' } }, noteActionOptions)).toMatchObject({ ok: true });
+  expect(store.getState().notes[noteId]).toMatchObject({ title: 'Revisado', blocks: [{ text: 'Segunda revisão' }] });
+  expect(store.getState().notes[noteId].canvas).toBe(savedCanvas);
+  expect(store.getState().notes[noteId].ink).toBe(savedInk);
+});
+
+it('appends to the current locally edited note without unlocking a later stale replacement', async () => {
+  const noteId = store.getState().createNote({ title: 'Original' }), tools = focusedNoteTools(noteId);
+  store.getState().updateNote(noteId, { blocks: [{ id: 'local', type: 'text', text: 'Texto local preservado' }] });
+  expect(await tools.workspace_action.execute!({ action: 'append_note_block', id: noteId, block: { id: 'added', type: 'text', text: 'Pesquisa solicitada' } }, noteActionOptions)).toMatchObject({ ok: true });
+  expect(store.getState().notes[noteId].blocks.map(block => block.text)).toEqual(['Texto local preservado', 'Pesquisa solicitada']);
+  expect(await tools.workspace_action.execute!({ action: 'update_note', id: noteId, patch: { title: 'Pesquisa registrada' } }, noteActionOptions)).toMatchObject({ ok: false });
+  expect(await tools.workspace_action.execute!({ action: 'update_note', id: noteId, patch: { text: 'Revisão baseada no contexto anterior' } }, noteActionOptions)).toMatchObject({ ok: false });
+  expect(store.getState().notes[noteId].blocks.map(block => block.text)).toEqual(['Texto local preservado', 'Pesquisa solicitada']);
+});
+
+it('advances the baseline after an own append when no external text edit occurred', async () => {
+  const noteId = store.getState().createNote({ title: 'Original' }), tools = focusedNoteTools(noteId);
+  expect(await tools.workspace_action.execute!({ action: 'append_note_block', id: noteId, block: { id: 'added', type: 'text', text: 'Pesquisa solicitada' } }, noteActionOptions)).toMatchObject({ ok: true });
+  expect(await tools.workspace_action.execute!({ action: 'update_note', id: noteId, patch: { title: 'Pesquisa registrada' } }, noteActionOptions)).toMatchObject({ ok: true });
+  expect(store.getState().notes[noteId].blocks.at(-1)?.text).toBe('Pesquisa solicitada');
+});
+
+it('does not absorb a local edit into the own-write baseline while waiting for persistence', async () => {
+  const noteId = store.getState().createNote({ title: 'Original' }), tools = focusedNoteTools(noteId);
+  await flushWorkspacePersistence();
+  let release: (() => void) | undefined;
+  const repository = new IndexedDbWorkspaceRepository(), save = repository.save.bind(repository);
+  const write = vi.spyOn(IndexedDbWorkspaceRepository.prototype, 'save').mockImplementationOnce((key, value) =>
+    new Promise<void>(resolve => { release = resolve; }).then(() => save(key, value)));
+  const first = tools.workspace_action.execute!({ action: 'update_note', id: noteId, patch: { text: 'Primeira revisão da IA' } }, noteActionOptions);
+  try {
+    await vi.waitFor(() => expect(write).toHaveBeenCalledOnce());
+    store.getState().updateNote(noteId, { blocks: [{ id: 'local', type: 'text', text: 'Edição local durante o salvamento' }] });
+    const second = tools.workspace_action.execute!({ action: 'update_note', id: noteId, patch: { text: 'Não substituir edição local' } }, noteActionOptions);
+    release!(); await first;
+    expect(await second).toMatchObject({ ok: false });
+    expect(store.getState().notes[noteId].blocks[0].text).toBe('Edição local durante o salvamento');
+  } finally { release?.(); await first; write.mockRestore(); }
+});
+
+it('keeps note actions from other screens and other note IDs on their existing path', async () => {
+  const noteId = store.getState().createNote({ title: 'Original' });
+  store.getState().navigate('projects');
+  const tools = createAssistantTools(new AbortController().signal, () => {}, 'Atualize a nota');
+  store.getState().updateNote(noteId, { title: 'Título atual' });
+  expect(await tools.workspace_action.execute!({ action: 'update_note', id: noteId, patch: { text: 'Atualização autorizada' } }, noteActionOptions)).toMatchObject({ ok: true });
+  const focused = focusedNoteTools(noteId), otherId = store.getState().createNote({ title: 'Outra nota' });
+  store.getState().updateNote(otherId, { title: 'Outra nota editada' });
+  expect(await focused.workspace_action.execute!({ action: 'update_note', id: otherId, patch: { text: 'Outra atualização autorizada' } }, noteActionOptions)).toMatchObject({ ok: true });
 });

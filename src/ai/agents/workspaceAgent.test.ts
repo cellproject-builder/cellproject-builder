@@ -1,7 +1,7 @@
 import { ToolLoopAgent } from 'ai';
 import { MockLanguageModelV3, convertArrayToReadableStream } from 'ai/test';
 import { expect, it } from 'vitest';
-import { createWorkspaceAgent, WORKSPACE_AGENT_ID } from './workspaceAgent';
+import { buildWorkspaceAgentInstructions, createWorkspaceAgent, WORKSPACE_AGENT_ID } from './workspaceAgent';
 import { captureChatTurnContext } from '@/chat/turnContext';
 import { useWorkspaceStore } from '@/workspace/store';
 import { useConfigStore } from '@/config/store';
@@ -16,10 +16,21 @@ it('builds a real SDK agent with the existing application tools and an isolated 
   expect(first.agent.tools).toHaveProperty('workspace_read');
   expect(first.agent.tools).toHaveProperty('workspace_action');
   expect(first.agent.tools).toHaveProperty('planner_ai');
+  expect(first.agent.tools).toHaveProperty('note_research');
+  expect(first.agent.tools).toHaveProperty('note_diagram');
   expect(first.agent).not.toBe(second.agent);
   expect(first.agent.tools).not.toBe(second.agent.tools);
   expect(first.assertActive).not.toThrow();
   expect(model.doStreamCalls).toHaveLength(0);
+});
+
+it('routes research and note diagram requests to tools that preserve the frozen note and current screen', () => {
+  const instructions = buildWorkspaceAgentInstructions({ ...captureChatTurnContext(), surface: 'notes', noteId: 'frozen-note', projectId: null });
+  expect(instructions).toContain('note_research');
+  expect(instructions).toContain('note_diagram');
+  expect(instructions).toContain('personal notes');
+  expect(instructions).toContain('workspace_action');
+  expect(instructions).toContain('do not use visual_action');
 });
 
 it('stops a run before constructing or calling the model after cancellation', () => {

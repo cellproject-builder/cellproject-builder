@@ -1,6 +1,7 @@
-import { AudioTextarea, AudioTextInput } from '@/audio/AudioField';
+import { AudioDictationButton, AudioTextInput } from '@/audio/AudioField';
 import { useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentPropsWithoutRef } from 'react';
 import { publishChatNoteFocus } from '@/chat/turnContext';
+import { requestChatReferences } from '@/references/chatHandoff';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { nanoid } from 'nanoid';
 import { EnterFullScreenIcon, ExitFullScreenIcon, Pencil1Icon, ImageIcon, MagicWandIcon } from '@/components/ui/SoftIcons';
@@ -23,7 +24,7 @@ const noPersistenceSubscription = () => () => {};
 const immediatePersistenceSnapshot: JSONPersistenceSnapshot = { pending: false, error: null, revision: 0, savedRevision: 0 };
 const immediatePersistence = () => immediatePersistenceSnapshot;
 
-function AutoText(props: ComponentPropsWithoutRef<typeof AudioTextarea>) {
+function AutoText(props: ComponentPropsWithoutRef<'textarea'>) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const resize = () => {
     const input = ref.current;
@@ -44,7 +45,7 @@ function AutoText(props: ComponentPropsWithoutRef<typeof AudioTextarea>) {
     observer.observe(input);
     return () => observer.disconnect();
   }, []);
-  return <AudioTextarea {...props} ref={ref} rows={1} />;
+  return <textarea {...props} ref={ref} rows={1} />;
 }
 
 function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: { note: Note; onTrash: () => void; onRestore: () => void; maximized: boolean; onToggleMaximized: () => void }) {
@@ -64,6 +65,7 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
   const persistenceState = useSyncExternalStore(deferred?.subscribe ?? noPersistenceSubscription, deferred?.getSnapshot ?? immediatePersistence);
   const saveState = deferred ? persistenceState.error ? 'error' : persistenceState.pending ? 'saving' : 'saved' : immediateSaveState;
   const editorRef = useRef<HTMLDivElement>(null);
+  const lastTextField = useRef<HTMLTextAreaElement | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null), inkToolsRef = useRef<HTMLDivElement>(null);
   const trashed = note.deletedAt !== null;
   const patch = (value: Parameters<ReturnType<typeof useWorkspaceStore.getState>['updateNote']>[1]) => attempt(() => useWorkspaceStore.getState().updateNote(note.id, value));
@@ -89,7 +91,14 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
     void flushWorkspacePersistence().then(() => { if (current) setSaveState('saved'); }).catch(() => { if (current) setSaveState('error'); });
     return () => { current = false; };
   }, [note, deferred]);
-  return <section className={`ws-note-editor${drawing ? ' is-drawing' : ''}`} ref={editorRef}>
+  const dictationTarget = () => {
+    if (lastTextField.current?.isConnected && editorRef.current?.contains(lastTextField.current)) return lastTextField.current;
+    return editorRef.current?.querySelector<HTMLTextAreaElement>(`[data-block="${selectedBlock?.id}"]`) ?? null;
+  };
+  const askAI = () => requestChatReferences(note.projectId, [{ id: note.id, kind: 'note', label: note.title || tr.untitled, detail: '', fingerprint: '' }]);
+  return <section className={`ws-note-editor${drawing ? ' is-drawing' : ''}`} ref={editorRef} onFocusCapture={event => {
+    if (event.target instanceof HTMLTextAreaElement && event.target.matches('.ws-note-title, [data-block]')) lastTextField.current = event.target;
+  }}>
     <ExpandedChrome expanded={maximized} label={note.title || tr.untitled} english={english} onRestore={onToggleMaximized}>
     <div className="ws-note-toolbar">
       <div className="ws-note-format" hidden={drawing}>{!trashed && <>
@@ -99,9 +108,11 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
         <button className="ws-icon-button" aria-label={tr.checklist} title={tr.checklist} onMouseDown={(e) => e.preventDefault()} onClick={() => { if (selectedBlock && !selectedBlock.text) updateBlock(selectedBlock.id, { type: 'check', checked: false }); else addBlock('check'); }}><Icon name="check" /></button>
       </>}</div>
       {!trashed && <div className="ws-note-insert-tools">
+        <AudioDictationButton target={dictationTarget} audioScope={`note:${note.id}:editor`} audioLanguage={english ? 'en' : 'pt'} label={english ? 'Dictate in note' : 'Ditar na nota'} className="ws-icon-button" disabled={drawing} />
+        <button type="button" className="ws-icon-button ws-note-assistant" aria-label={english ? 'Ask AI about this note' : 'Pedir à IA sobre esta nota'} title={english ? 'Research, create or revise with AI' : 'Pesquisar, criar ou revisar com IA'} onClick={askAI}><MagicWandIcon aria-hidden="true" /><span>IA</span></button>
         <button type="button" className="ws-icon-button" aria-label={drawing ? english ? 'Back to text' : 'Voltar ao texto' : english ? 'Draw in note' : 'Desenhar na nota'} title={drawing ? english ? 'Back to text' : 'Voltar ao texto' : english ? 'Draw in note' : 'Desenhar na nota'} aria-pressed={drawing} onClick={() => setDrawing(!drawing)}><Pencil1Icon aria-hidden="true" /></button>
         {!notebookVisible && <><button type="button" className="ws-icon-button" aria-label={english ? 'Add image to note' : 'Adicionar imagem à nota'} title={english ? 'Add image to note' : 'Adicionar imagem à nota'} onClick={() => notebook.current?.addImage()}><ImageIcon aria-hidden="true" /></button>
-        <button type="button" className="ws-icon-button" aria-label={english ? 'Generate note diagram' : 'Gerar diagrama na nota'} title={english ? 'Generate note diagram' : 'Gerar diagrama na nota'} onClick={() => notebook.current?.generate()}><MagicWandIcon aria-hidden="true" /></button></>}
+        </>}
       </div>}
       <span className={`ws-save-state ${saveState === 'error' ? 'save-error' : ''}`} role="status">{saveState === 'saved' ? tr.saved : saveState === 'error' ? tr.saveFailed : tr.saving}</span>
       {saveState === 'error' && <button className="ws-icon-button" aria-label={tr.retrySave} title={tr.retrySave} onClick={() => patch({})}><Icon name="scrum" size={15} /></button>}
@@ -122,13 +133,13 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
     <div className="ws-note-paper">
       <div className="ws-note-document" ref={bodyRef} data-note-document>
       <p className="ws-note-date">{new Intl.DateTimeFormat(document.documentElement.lang || 'pt-BR', { dateStyle: 'long', timeStyle: 'short' }).format(note.updatedAt)}</p>
-      <AutoText audioScope={`note:${note.id}:title`} audioLanguage={english ? 'en' : 'pt'} className="ws-note-title" data-ink-anchor="title" aria-label={tr.noteTitle} placeholder={tr.untitled} value={note.title} readOnly={trashed} onChange={(e) => patch({ title: e.target.value })} />
+      <AutoText className="ws-note-title" data-ink-anchor="title" aria-label={tr.noteTitle} placeholder={tr.untitled} value={note.title} readOnly={trashed} onChange={(e) => patch({ title: e.target.value })} />
       {note.projectId && <span className="ws-note-project-label"><Icon name="projects" size={13} />{projects[note.projectId]?.name}{note.taskId && ` / ${tasks[note.taskId]?.title ?? ''}`}</span>}
       <div className="ws-note-blocks">{note.blocks.map((block) => <div className={`ws-note-block type-${block.type} ${block.checked ? 'is-checked' : ''} ${block.bold ? 'is-bold' : ''} ${block.italic ? 'is-italic' : ''}`} key={block.id} data-ink-anchor={`block:${block.id}`}>
         {!trashed && <NoteTextActions noteId={note.id} block={block} input={() => editorRef.current?.querySelector<HTMLTextAreaElement>(`[data-block="${block.id}"]`)} onFormat={(value) => updateBlock(block.id, value)} />}
         {block.type === 'check' && <input type="checkbox" disabled={trashed} aria-label={block.text || tr.checklist} checked={!!block.checked} onChange={(e) => updateBlock(block.id, { checked: e.target.checked })} />}
         {block.type === 'bullet' && <span className="ws-bullet" aria-hidden>•</span>}
-        <AutoText audioScope={`note:${note.id}:${block.id}:text`} audioLanguage={english ? 'en' : 'pt'} data-block={block.id} aria-label={block.type === 'check' ? tr.checklist : tr[block.type]} value={block.text} placeholder={tr.notePlaceholder} readOnly={trashed} onFocus={() => setActiveBlock(block.id)} onChange={(e) => updateBlock(block.id, { text: e.target.value })} onKeyDown={(e) => {
+        <AutoText data-block={block.id} aria-label={block.type === 'check' ? tr.checklist : tr[block.type]} value={block.text} placeholder={tr.notePlaceholder} readOnly={trashed} onFocus={() => setActiveBlock(block.id)} onChange={(e) => updateBlock(block.id, { text: e.target.value })} onKeyDown={(e) => {
           if (trashed) return;
           if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); addBlock(block.type === 'heading' ? 'text' : block.type, block.id); }
           if (e.key === 'Backspace' && !block.text && note.blocks.length > 1) { e.preventDefault(); removeBlock(block.id); }

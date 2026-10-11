@@ -51,7 +51,7 @@ function boundedContent(note: Note) {
 const system = buildDiagramSystem('note');
 
 /** One bounded inference; no paid repair retry and no dependency on an active plan. */
-export async function generateNoteDiagram(input: { noteId: string; prompt: string; useContent: boolean }, options: { signal: AbortSignal }): Promise<DiagramV1> {
+export async function generateNoteDiagram(input: { noteId: string; prompt: string; useContent: boolean }, options: { signal: AbortSignal; beforeRequest?: () => Promise<void> }): Promise<DiagramV1> {
   const finish = registerAIAction(), controller = new AbortController();
   let off = () => {}, changed = false;
   const cancel = () => controller.abort(options.signal.reason);
@@ -71,6 +71,7 @@ export async function generateNoteDiagram(input: { noteId: string; prompt: strin
     assertAIReady(); assertCurrent();
     let result;
     try {
+      await options.beforeRequest?.(); assertCurrent();
       result = await generateText({ model: aiModel, system, prompt: JSON.stringify({ instruction, ...(source ? { note: source } : {}) }),
         abortSignal: controller.signal, maxRetries: 0, ...callOpts('plans', .3) });
     } catch (error) { assertCurrent(); throw error; }

@@ -5,12 +5,14 @@ import type { ChatTurnContext } from '@/chat/turnContext';
 import { currentModelIds } from './client';
 import { useConfigStore } from '@/config/store';
 import { ChatContextBudgetError } from '@/chat/contextBudget';
+import type { NoteEditBaseline } from './noteEditBaseline';
 
 export interface AssistantRun {
   messages: ModelMessage[];
   userText: string;
   contextProjectId?: string | null;
   turnContext?: ChatTurnContext;
+  noteEditBaseline?: NoteEditBaseline | null;
   contextBudget?: WorkspaceContextBudget;
   signal: AbortSignal;
   model?: LanguageModel;

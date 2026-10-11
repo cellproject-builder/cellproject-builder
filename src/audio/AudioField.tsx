@@ -16,6 +16,12 @@ interface AudioOptions {
 }
 export type AudioTextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & AudioOptions;
 export type AudioTextInputProps = InputHTMLAttributes<HTMLInputElement> & AudioOptions;
+export interface AudioDictationButtonProps extends Pick<AudioOptions, 'audioScope' | 'audioLanguage'> {
+  target: () => HTMLTextAreaElement | null;
+  disabled?: boolean;
+  label?: string;
+  className?: string;
+}
 type Field = HTMLInputElement | HTMLTextAreaElement;
 type NativeProps = TextareaHTMLAttributes<HTMLTextAreaElement> | InputHTMLAttributes<HTMLInputElement>;
 type Stage = 'idle' | 'requesting' | 'recording' | 'stopping' | 'ready' | 'transcribing' | 'error';
@@ -45,8 +51,11 @@ const en: typeof pt = {
 };
 
 function AudioField({
-  kind, native, forwardedRef, audioScope, audioLanguage, audioWrapperClassName,
-}: AudioOptions & { kind: 'textarea' | 'input'; native: NativeProps; forwardedRef: ForwardedRef<Field> }) {
+  kind, native, forwardedRef, audioScope, audioLanguage, audioWrapperClassName, externalTarget, label, buttonClassName,
+}: AudioOptions & {
+  kind: 'textarea' | 'input' | 'external'; native: NativeProps; forwardedRef: ForwardedRef<Field>;
+  externalTarget?: () => HTMLTextAreaElement | null; label?: string; buttonClassName?: string;
+}) {
   const locale = useLocaleStore(state => state.locale);
   const english = audioLanguage ? audioLanguage === 'en' : locale === 'en';
   const tr = english ? en : pt;
@@ -64,6 +73,9 @@ function AudioField({
   const generation = useRef(0);
   const opened = useRef(false);
   const composing = useRef(false);
+  const externalCompositions = useRef(new WeakSet<HTMLTextAreaElement>());
+  const resolveTarget = useRef(externalTarget);
+  resolveTarget.current = externalTarget;
   const limitReached = useRef(false);
   const language = useRef<'pt' | 'en'>(audioLanguage ?? (english ? 'en' : 'pt'));
   const selection = useRef<{ baseline: string; start: number; end: number; scope: string | undefined } | null>(null);
@@ -126,10 +138,52 @@ function AudioField({
   useEffect(() => {
     if (open && (native.disabled || native.readOnly || selection.current?.scope !== audioScope)) close(false);
   }, [audioScope, native.disabled, native.readOnly, open, close]);
+  useEffect(() => {
+    if (kind !== 'external') return;
+    const composition = (event: Event) => {
+      const input = event.target;
+      if (!(input instanceof HTMLTextAreaElement)) return;
+      const started = event.type === 'compositionstart';
+      if (started) externalCompositions.current.add(input);
+      else externalCompositions.current.delete(input);
+      if (!opened.current || input !== field.current) return;
+      composing.current = started;
+      setIsComposing(started);
+    };
+    document.addEventListener('compositionstart', composition, true);
+    document.addEventListener('compositionend', composition, true);
+    return () => {
+      document.removeEventListener('compositionstart', composition, true);
+      document.removeEventListener('compositionend', composition, true);
+    };
+  }, [kind]);
+  useEffect(() => {
+    if (kind !== 'external' || !open || !field.current) return;
+    const input = field.current;
+    const validate = () => {
+      if (!input.isConnected || input.disabled || input.readOnly) close(false);
+    };
+    const escape = (event: Event) => {
+      if (!(event instanceof KeyboardEvent) || event.key !== 'Escape' || event.isComposing || composing.current) return;
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    };
+    input.addEventListener('keydown', escape, true);
+    validate();
+    const observer = new MutationObserver(validate);
+    observer.observe(document, { childList: true, subtree: true });
+    observer.observe(input, { attributes: true, attributeFilter: ['disabled', 'readonly'] });
+    return () => {
+      input.removeEventListener('keydown', escape, true);
+      observer.disconnect();
+    };
+  }, [kind, open, close]);
 
   const active = (token: number) => alive.current && opened.current && token === generation.current
     && selection.current?.scope === latest.current.audioScope
-    && !latest.current.disabled && !latest.current.readOnly;
+    && !latest.current.disabled && !latest.current.readOnly
+    && (kind !== 'external' || (!!field.current?.isConnected && !field.current.disabled && !field.current.readOnly));
   const message = (reason: unknown) => {
     if (reason instanceof Error || reason instanceof DOMException) {
       return reason.name === 'NotAllowedError' ? tr.permission : reason.message || tr.failure;
@@ -148,7 +202,7 @@ function AudioField({
   useLayoutEffect(() => {
     if (!open) return;
     const place = () => {
-      const input = field.current, panel = popup.current;
+      const input = kind === 'external' ? wrapper.current : field.current, panel = popup.current;
       if (!input || !panel) return;
       const viewport = window.visualViewport;
       const vw = viewport?.width ?? window.innerWidth, vh = viewport?.height ?? window.innerHeight;
@@ -175,7 +229,7 @@ function AudioField({
       window.visualViewport?.removeEventListener('scroll', place);
       observer?.disconnect();
     };
-  }, [open, stage, error, copyFallback]);
+  }, [kind, open, stage, error, copyFallback]);
   useLayoutEffect(() => {
     if (copyFallback) {
       copyField.current?.focus({ preventScroll: true });
@@ -196,7 +250,7 @@ function AudioField({
     const added = kind === 'input' ? text.replace(/\r?\n/g, ' ') : text;
     const next = original.baseline.slice(0, original.start) + added + original.baseline.slice(original.end);
     if (input.maxLength >= 0 && next.length > input.maxLength) { refuse(tr.limit); return; }
-    const prototype = kind === 'textarea' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const prototype = kind === 'input' ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
     Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(input, next);
     const caret = original.start + added.length;
     // Mention-aware callers read the selection synchronously in their onChange handler.
@@ -318,14 +372,19 @@ function AudioField({
     else if (!stoppingRecording.current) void transcribe();
   }
   function activate() {
-    if (native.disabled || native.readOnly || composing.current) return;
+    if (native.disabled || native.readOnly) return;
     if (opened.current) {
       if (recording.current) confirm();
       popup.current?.focus({ preventScroll: true });
       return;
     }
+    if (kind === 'external') {
+      field.current = resolveTarget.current?.() ?? null;
+      composing.current = field.current instanceof HTMLTextAreaElement && externalCompositions.current.has(field.current);
+      setIsComposing(composing.current);
+    }
     const input = field.current;
-    if (!input?.isConnected) return;
+    if (!input?.isConnected || input.disabled || input.readOnly || composing.current) return;
     selection.current = {
       baseline: input.value, start: input.selectionStart ?? input.value.length,
       end: input.selectionEnd ?? input.value.length, scope: audioScope,
@@ -372,7 +431,7 @@ function AudioField({
     },
   };
   return <div ref={wrapper}
-    className={`audio-field audio-${kind === 'textarea' ? 'textarea' : 'text-input'} ${audioWrapperClassName ?? ''}`}
+    className={`audio-field ${kind === 'external' ? 'audio-dictation-control' : `audio-${kind === 'textarea' ? 'textarea' : 'text-input'}`} ${audioWrapperClassName ?? ''}`}
     data-audio-scope={audioScope} data-audio-enabled={!native.disabled && !native.readOnly} data-audio-active={open}
     onKeyDownCapture={event => {
       if (open && event.key === 'Escape' && !event.nativeEvent.isComposing && !composing.current) {
@@ -388,12 +447,13 @@ function AudioField({
       const adapted = Object.assign(Object.create(Object.getPrototypeOf(event)), event, { target, currentTarget: target });
       (onBlur as (value: FocusEvent<Field>) => void)(adapted);
     }}>
-    {kind === 'textarea'
+    {kind === 'external' ? null : kind === 'textarea'
       ? <textarea {...inputProps as TextareaHTMLAttributes<HTMLTextAreaElement>} ref={assignField} />
       : <input {...inputProps as InputHTMLAttributes<HTMLInputElement>} ref={assignField} />}
-    {!native.disabled && !native.readOnly && <button type="button" className="audio-field-mic"
-      aria-label={tr.dictate} title={tr.dictate} aria-expanded={open} aria-controls={open ? id : undefined}
-      disabled={pending || isComposing} tabIndex={open ? -1 : undefined} onClick={activate}>
+    {(kind === 'external' || (!native.disabled && !native.readOnly)) && <button type="button" className={`audio-field-mic ${buttonClassName ?? ''}`}
+      aria-label={label ?? tr.dictate} title={label ?? tr.dictate} aria-expanded={open} aria-controls={open ? id : undefined}
+      disabled={native.disabled || pending || (kind !== 'external' && isComposing)} tabIndex={open ? -1 : undefined} onClick={activate}
+      onMouseDown={kind === 'external' ? event => event.preventDefault() : undefined}>
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
         <rect x="9" y="3" width="6" height="12" rx="3" />
         <path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8" />
@@ -438,3 +498,7 @@ export const AudioTextarea = forwardRef<HTMLTextAreaElement, AudioTextareaProps>
 export const AudioTextInput = forwardRef<HTMLInputElement, AudioTextInputProps>(function AudioTextInput({ audioScope, audioLanguage, audioWrapperClassName, ...props }, ref) {
   return <AudioField kind="input" native={props} forwardedRef={ref as ForwardedRef<Field>} audioScope={audioScope} audioLanguage={audioLanguage} audioWrapperClassName={audioWrapperClassName} />;
 });
+export function AudioDictationButton({ target, audioScope, audioLanguage, disabled, label, className }: AudioDictationButtonProps) {
+  return <AudioField kind="external" native={{ disabled }} forwardedRef={null} externalTarget={target}
+    audioScope={audioScope} audioLanguage={audioLanguage} label={label} buttonClassName={className} />;
+}

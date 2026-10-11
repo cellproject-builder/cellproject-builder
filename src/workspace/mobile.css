@@ -55,13 +55,17 @@
   .ws-app .ws-note-mobile-navigation .ws-notes-back { min-height:44px; display:flex; align-items:center; font-size:15px; padding:0 8px; }
   .ws-app .ws-note-toolbar { flex-wrap:wrap; gap:3px; margin:0 4px; padding:5px; }
   .ws-app .ws-note-toolbar .ws-icon-button { width:40px; min-width:40px; height:40px; }
-  .ws-app .ws-note-format { flex-wrap:nowrap; margin-right:auto; gap:0; }
-  .ws-app .ws-note-format select { font-size:16px; min-height:40px; max-width:90px; }
-  .ws-app .ws-save-state { margin-left:auto; font-size:12px; }
+  .ws-app .ws-note-format { flex-wrap:nowrap; flex:1 0 calc(100% - 88px); margin-right:auto; gap:0; order:0; }
+  .ws-app .ws-note-format select { flex:1; min-width:0; font-size:16px; min-height:40px; max-width:90px; }
+  .ws-app .ws-save-state { margin-left:auto; font-size:12px; order:1; }
+  .ws-app .ws-note-toolbar>button:last-child { order:2; }
+  .ws-app .ws-note-insert-tools { order:3; flex:1 0 calc(100% - 132px); }
+  .ws-app .ws-note-toolbar>.ws-note-secondary { order:4; }
+  .ws-app .ws-note-assistant span { display:none; }
   .ws-app .ws-note-editor.is-drawing .ws-note-secondary { display:none; }
   .ws-app .ws-note-paper { padding:20px 16px max(80px,env(safe-area-inset-bottom)); }
   .ws-app .ws-note-title { font-size:26px!important; }
-  .ws-app .ws-note-block textarea[data-audio-input="true"] { font-size:16px; line-height:1.7; }
+  .ws-app .ws-note-block textarea[data-block] { font-size:16px; line-height:1.7; }
   .ws-app .ws-note-date { font-size:12px; margin-bottom:22px; }
   .ws-app .ws-note-connections { grid-template-columns:minmax(0,1fr); gap:10px; }
   .ws-app .ws-note-connections select { min-height:44px; font-size:16px; }

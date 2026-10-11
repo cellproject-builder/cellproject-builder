@@ -4,6 +4,8 @@
 .audio-field-mic { position:absolute; z-index:2; top:3px; right:3px; display:grid; place-items:center; width:30px; height:30px; min-width:30px; padding:0!important; border:0; border-radius:8px; background:transparent; color:rgb(var(--text-muted)); cursor:pointer; }
 .audio-field-mic:hover,.audio-field-mic[aria-expanded=true] { color:rgb(var(--ai-accent)); background:rgb(var(--ai-accent)/.1); }
 .audio-field-mic:disabled { opacity:.5; cursor:default; }
+.audio-field.audio-dictation-control { display:inline-flex; width:auto; flex:none; }
+.audio-dictation-control > .audio-field-mic { position:static; }
 .audio-field :is(button,.audio-field-copy-text):focus-visible { outline:2px solid rgb(var(--ai-accent)); outline-offset:2px; }
 .audio-field .audio-field-popup { position:fixed; inset:auto; margin:0; z-index:1000; box-sizing:border-box; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px; overflow:auto; overscroll-behavior:contain; padding:10px; border:1px solid rgb(var(--hairline)/.45); border-radius:12px; box-shadow:0 12px 36px rgb(0 0 0/.3); background:rgb(var(--bg-secondary)); color:rgb(var(--text-primary)); font-family:inherit; font-size:13px; line-height:1.5; text-align:left; }
 .audio-field .audio-field-popup::backdrop { background:transparent; pointer-events:none; }

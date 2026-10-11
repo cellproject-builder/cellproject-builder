@@ -18,7 +18,7 @@ import { captureChatTurnContext, useChatFocusStore } from './turnContext';
 import './chat.css';
 import { useVisualPopupStore } from '@/visuals/ui/uiStore';
 import { ChatComposer } from './ChatComposer';
-import { CHAT_REFERENCE_LIMIT, chatReferenceError, listChatReferences, resolveChatReferences, type ChatReferenceTarget } from './references';
+import { CHAT_REFERENCE_LIMIT, chatReferenceError, listChatReferences, resolveChatReferenceTarget, resolveChatReferences, type ChatReferenceTarget } from './references';
 import { consumeChatReferenceHandoff, useChatReferenceHandoff } from '@/references/chatHandoff';
 import { addChatImageReference } from '@/visuals/controller';
 import type { ImageReference, VisualPromptInput } from '@/visuals/types';
@@ -75,26 +75,33 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   const mounted = useRef(true);
   useEffect(() => { if (!state.open && expanded) setExpanded(false); }, [state.open, expanded, setExpanded]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  useEffect(() => {
-    if (!handoff) return;
-    try {
-      const available = listChatReferences('', handoff.projectId);
-      const added = handoff.references.map(reference => {
-        const target = available.find(target => target.id === reference.id && target.kind === reference.kind && target.projectId === handoff.projectId);
-        if (!target) throw new Error('chatReferenceMissing'); return target;
-      });
-      const merged = [...references, ...added.filter(target => !references.some(reference => reference.id === target.id && reference.kind === target.kind && reference.projectId === target.projectId))];
-      if (merged.length > 20) throw new Error('chatReferenceLimit');
-      setReferences(merged);
-      setReferenceError('');
-    } catch (reason) { setReferenceError(chatReferenceError(reason, english)); }
-    consumeChatReferenceHandoff(handoff.id);
-  }, [handoff, english, references, files, contextProjectId]);
   const previousSession = useRef(state.sessionId);
   useEffect(() => {
     if (previousSession.current === state.sessionId) return;
     previousSession.current = state.sessionId; setInput(''); setReferences([]); setFiles([]); setFilesBusy(false); setReferenceError(''); setVisibleMessages(60);
   }, [state.sessionId]);
+  useEffect(() => {
+    if (!handoff) return;
+    const request = consumeChatReferenceHandoff(handoff.id);
+    if (!request) return;
+    try {
+      const chat = useChatStore.getState();
+      if (!chat.hydrated || chat.loadFailed || chat.archivedAt != null || chat.deletedAt != null || chat.sessionId !== request.sessionId) throw new Error('chatReadOnly');
+      const added = request.references.map(reference => resolveChatReferenceTarget({ ...reference, projectId: request.projectId }));
+      const merged = [...references];
+      for (const target of added) {
+        const index = merged.findIndex(reference => reference.id === target.id && reference.kind === target.kind && reference.projectId === target.projectId && reference.planId === target.planId);
+        const currentSelection = merged[index]?.noteSelection, selection = target.noteSelection;
+        if (currentSelection && selection && (currentSelection.blockId !== selection.blockId || currentSelection.start !== selection.start || currentSelection.end !== selection.end || currentSelection.original !== selection.original)) throw new Error('chatReferenceSelectionConflict');
+        if (index < 0) merged.push(target); else merged[index] = currentSelection && !selection ? { ...target, noteSelection: currentSelection } : target;
+      }
+      if (merged.length > CHAT_REFERENCE_LIMIT) throw new Error('chatReferenceLimit');
+      setReferences(merged);
+      const composerText = request.composerText;
+      if (composerText?.trim()) setInput(current => current ? `${current}\n\n${composerText}` : composerText);
+      setReferenceError('');
+    } catch (reason) { setReferenceError(reason instanceof Error && reason.message === 'chatReadOnly' ? (english ? 'This conversation cannot accept the request. Choose an active conversation and try again.' : 'Esta conversa não pode receber o pedido. Escolha uma conversa ativa e tente novamente.') : chatReferenceError(reason, english)); }
+  }, [handoff, english, references]);
   const [now, setNow] = useState(Date.now);
   const cooldownUntil = chatCooldownUntil();
   const cooldownSeconds = Math.max(0, Math.ceil((cooldownUntil - now) / 1000));
@@ -160,6 +167,11 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   const screenLabels = english ? { projects: 'Projects', overview: 'Overview', kanban: 'Tasks', scrum: 'Sprints', notes: 'Notes', planner: 'Plan builder', boards: 'Dynamic Board' } : { projects: 'Projetos', overview: 'Visão geral', kanban: 'Tarefas', scrum: 'Sprints', notes: 'Notas', planner: 'Construtor de planos', boards: 'Dynamic Board' };
   const focusLabel = turnContext.nodeName || turnContext.noteTitle || turnContext.boardTitle;
   const contextLabel = [screenLabels[turnContext.surface], turnContext.projectName, focusLabel].filter(Boolean).join(' · ');
+  const noteContext = turnContext.surface === 'notes' && !!turnContext.noteId;
+  const composerPlaceholder = noteContext ? (english ? 'Research, create a diagram or revise this note…' : 'Pesquise, crie um diagrama ou revise esta nota…') : tr.placeholder;
+  const greeting = noteContext ? (english ? 'Explore this note with AI' : 'Explore esta nota com IA') : tr.greeting;
+  const greetingHint = noteContext ? (english ? 'Research references, create a diagram or adjust a passage using this note’s context.' : 'Pesquise referências, crie um diagrama ou ajuste um trecho usando o contexto desta nota.') : tr.hint;
+  const examples = noteContext ? (english ? ['Research references for this note', 'Create a diagram to explain this note', 'Revise the text of this note'] : ['Pesquise referências para esta nota', 'Crie um diagrama para explicar esta nota', 'Revise o texto desta nota']) : [tr.exampleProject, tr.exampleNote, tr.exampleReview];
   const actionsDisabled = state.running || !state.hydrated || state.loadFailed || !!state.archivedAt || !!state.deletedAt;
   const budgetHint = state.contextUsage && [english ? 'Estimated context usage. Automatic compaction at 60%; full messages remain in history.' : 'Uso estimado do contexto. Compactação automática aos 60%; as mensagens completas continuam no histórico.', state.contextUsage.contextWindowSource === 'fallback' ? (english ? `Conservative application budget: ${state.contextUsage.contextWindowTokens.toLocaleString('en')} tokens; actual model window is unknown.` : `Orçamento conservador da aplicação: ${state.contextUsage.contextWindowTokens.toLocaleString('pt-BR')} tokens; a janela real do modelo é desconhecida.`) : ''].filter(Boolean).join(' ');
   const panel = state.open && <section ref={panelRef} id={`${titleId}-panel`} className={`dd-chat ${docked ? 'is-docked' : ''} ${mobile && !expanded ? 'is-modal' : ''} ${expanded ? 'is-expanded' : ''}`} role={docked || expanded ? 'complementary' : 'dialog'} aria-modal={mobile && !expanded || undefined} aria-labelledby={titleId} onKeyDown={(e) => {
@@ -180,7 +192,7 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
       {!!state.archivedAt && <div className="dd-chat-archived-notice"><span>{english ? 'Archived conversation' : 'Conversa arquivada'}</span><button disabled={state.running} onClick={() => state.restoreConversation(state.sessionId)}>{english ? 'Restore' : 'Restaurar'}</button></div>}
       <div className="dd-chat-messages" aria-busy={state.running}>
         {state.messages.length > visibleMessages && <button className="dd-chat-older" onClick={() => setVisibleMessages(visibleMessages + 60)}>{english ? 'Load earlier messages' : 'Carregar mensagens anteriores'}</button>}
-        {!state.hydrated ? <p className="dd-chat-empty">{tr.loading}</p> : !state.messages.length ? <div className="dd-chat-welcome"><div className="dd-chat-welcome-icon"><ChatIcon /></div><h3>{tr.greeting}</h3><p>{tr.hint}</p><div>{[tr.exampleProject, tr.exampleNote, tr.exampleReview].map((example) => <button key={example} onClick={() => { setInput(example); inputRef.current?.focus(); }}>{example}<Icon name="arrow" size={14} /></button>)}</div></div> : state.messages.slice(-visibleMessages).map((message) => <article className={`dd-chat-message ${message.role}`} key={message.id}>
+        {!state.hydrated ? <p className="dd-chat-empty">{tr.loading}</p> : !state.messages.length ? <div className="dd-chat-welcome"><div className="dd-chat-welcome-icon"><ChatIcon /></div><h3>{greeting}</h3><p>{greetingHint}</p><div>{examples.map((example) => <button key={example} onClick={() => { setInput(example); inputRef.current?.focus(); }}>{example}<Icon name="arrow" size={14} /></button>)}</div></div> : state.messages.slice(-visibleMessages).map((message) => <article className={`dd-chat-message ${message.role}`} key={message.id}>
           {message.actions && message.actions.length > 0 && <details className="dd-chat-actions" open={state.running || message.actions.some((a) => a.status === 'error' || a.status === 'awaiting_approval')}><summary>{tr.actions}<span>{message.actions.filter((a) => a.status === 'done').length}/{message.actions.length}</span></summary><ul>{message.actions.map((action) => <li key={action.id} className={action.status}><span>{action.status === 'running' ? <i /> : <Icon name={action.status === 'error' ? 'close' : 'check'} size={13} />}</span><span>{actionLabel(action.action, english)}</span><small>{action.status === 'running' ? tr.working : action.status === 'done' ? tr.actionDone : action.status === 'awaiting_approval' ? (english ? 'Awaiting approval' : 'Aguardando aprovação') : tr.actionError}</small></li>)}</ul></details>}
           {message.text ? <ChatMarkdown text={message.text} /> : state.running && <span className="dd-chat-thinking" role="status">{tr.working}<i /><i /><i /></span>}
           {message.role === 'user' && message.turnContext && <small className="dd-chat-message-context">{[screenLabels[message.turnContext.surface], message.turnContext.projectName, message.turnContext.nodeName || message.turnContext.noteTitle || message.turnContext.boardTitle].filter(Boolean).join(' · ')}</small>}
@@ -216,7 +228,7 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
       {!ready && <button className="dd-chat-configure ws-button primary" onClick={() => requestWorkspaceUI({ settings: true })}>{tr.settings}<Icon name="arrow" size={16} /></button>}
       {cooldownSeconds > 0 && <p className="dd-chat-cooldown" role="status">{tr.cooldown(cooldownSeconds)}</p>}
       {referenceError && <p className="dd-chat-reference-error" role="alert">{referenceError}</p>}
-      <ChatComposer text={input} onText={setInput} references={references} onReferences={next => { setReferences(next); setReferenceError(''); }} files={files} onFiles={setFiles} onFilesBusy={setFilesBusy} scopeKey={`${state.sessionId}:${contextProjectId}`} projectId={contextProjectId} inputRef={inputRef} english={english} placeholder={tr.placeholder} sendLabel={tr.send} stopLabel={tr.stop} disabled={!state.hydrated || !!state.archivedAt} canSend={(!!input.trim() || !!files.length) && !filesBusy && ready && state.hydrated && !state.archivedAt && !choosingImage && cooldownSeconds <= 0} running={state.running} onSubmit={send} onStop={stopChat} />
+      <ChatComposer text={input} onText={setInput} references={references} onReferences={next => { setReferences(next); setReferenceError(''); }} files={files} onFiles={setFiles} onFilesBusy={setFilesBusy} scopeKey={`${state.sessionId}:${contextProjectId}`} projectId={contextProjectId} inputRef={inputRef} english={english} placeholder={composerPlaceholder} sendLabel={tr.send} stopLabel={tr.stop} disabled={!state.hydrated || !!state.archivedAt} canSend={(!!input.trim() || !!files.length) && !filesBusy && ready && state.hydrated && !state.archivedAt && !choosingImage && cooldownSeconds <= 0} running={state.running} onSubmit={send} onStop={stopChat} />
       </div></div>
     </section>;
   return <>

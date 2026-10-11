@@ -12,6 +12,8 @@ import { EMPTY_OBJECTIVE_DRAFT, useGraphStore } from '@/store';
 import { capturePlanner, initializeWorkspace, openPlanner, readPlanner } from '@/workspace/planner';
 import type { AssistantActionEvent } from './workspaceTools';
 import type { ImageReference } from '@/visuals/types';
+import { captureChatTurnContext } from '@/chat/turnContext';
+import { captureNoteEditBaseline } from './noteEditBaseline';
 
 const usage = { inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 10, text: 10, reasoning: 0 } };
 beforeEach(async () => { await store.persist.rehydrate(); store.setState({ projects: {}, tasks: {}, notes: {}, sprints: {}, folders: {}, comments: {}, legacyImported: true }); });
@@ -41,6 +43,32 @@ it('runs a real SDK tool loop, mutates the store, streams the reply and keeps to
   // Context occupancy uses the final request's input, not the sum across tool-loop requests.
   expect(response.usage?.inputTokens).toBe(10);
   expect(response.usage?.outputTokens).toBe(10);
+});
+
+it('carries the private submission baseline through the SDK adapter without exposing it to the model', async () => {
+  const noteId = store.getState().createNote({ title: 'Focused note' });
+  store.getState().updateNote(noteId, { blocks: [{ id: 'old', type: 'text', text: 'PRIVATE_BASELINE_ONLY' }] });
+  const turnContext = { ...captureChatTurnContext(), surface: 'notes' as const, noteId, noteTitle: 'Focused note', excerpt: '', projectId: null, visibleProjectId: null };
+  const noteEditBaseline = captureNoteEditBaseline(turnContext);
+  store.getState().updateNote(noteId, { blocks: [{ id: 'local', type: 'text', text: 'Local text now' }] });
+  let calls = 0;
+  const model = new MockLanguageModelV3({ doStream: async () => {
+    const parts: LanguageModelV3StreamPart[] = calls++ === 0 ? [
+    { type: 'stream-start' as const, warnings: [] },
+    { type: 'tool-call' as const, toolCallId: 'stale-update', toolName: 'workspace_action', input: JSON.stringify({ action: 'update_note', id: noteId, patch: { text: 'Stale replacement' } }) },
+    { type: 'finish' as const, finishReason: { unified: 'tool-calls' as const, raw: undefined }, usage },
+  ] : [
+    { type: 'stream-start' as const, warnings: [] },
+    { type: 'finish' as const, finishReason: { unified: 'stop' as const, raw: undefined }, usage },
+    ];
+    return { stream: convertArrayToReadableStream(parts) };
+  } });
+  const events: AssistantActionEvent[] = [];
+  await runAssistant({ messages: [{ role: 'user', content: 'Revise this note' }], userText: 'Revise this note', model, signal: new AbortController().signal,
+    turnContext, noteEditBaseline, onText: () => {}, onAction: event => events.push(event) });
+  expect(store.getState().notes[noteId].blocks[0].text).toBe('Local text now');
+  expect(events.at(-1)).toMatchObject({ action: 'update_note', status: 'error' });
+  expect(JSON.stringify(model.doStreamCalls)).not.toMatch(/PRIVATE_BASELINE_ONLY|noteEditBaseline|textSnapshot/);
 });
 
 it('revises the referenced plan and searches its images in one SDK turn while keeping image URLs out of model history', async () => {

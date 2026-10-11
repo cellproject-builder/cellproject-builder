@@ -6,8 +6,12 @@ import { summarizeNoteCanvas } from '@/workspace/noteCanvasSummary';
 import { summarizeBoard } from '@/boards/summary';
 
 export type ChatReferenceKind = MentionTarget['kind'] | 'file' | 'project' | 'board' | 'diagram' | 'model';
-export interface ChatReferenceTarget extends Omit<MentionTarget, 'kind'> { kind: ChatReferenceKind; projectId: string | null; planId: string | null }
-export interface ChatReferenceSnapshot extends ChatReferenceTarget { content: string; truncated: boolean }
+export interface ChatNoteSelection { blockId: string; start: number; end: number; original: string }
+export interface ChatReferenceTarget extends Omit<MentionTarget, 'kind'> { kind: ChatReferenceKind; projectId: string | null; planId: string | null; noteSelection?: ChatNoteSelection }
+export type ChatReferenceIdentity = Pick<ChatReferenceTarget, 'id' | 'kind' | 'projectId'> & Partial<Pick<ChatReferenceTarget, 'planId' | 'noteSelection'>>;
+export type ChatReferenceHandoffTarget = Omit<ChatReferenceTarget, 'projectId' | 'planId'> & Partial<Pick<ChatReferenceTarget, 'projectId' | 'planId'>>;
+export interface ChatNoteSelectionSnapshot { blockId: string; start: number; end: number; text: string; truncated: boolean }
+export interface ChatReferenceSnapshot extends Omit<ChatReferenceTarget, 'noteSelection'> { noteSelection?: ChatNoteSelectionSnapshot; content: string; truncated: boolean }
 export const CHAT_REFERENCE_LIMIT = 20;
 const PER_SOURCE_LIMIT = 8_000, TOTAL_CONTEXT_LIMIT = 48_000;
 type Source = { target: Omit<ChatReferenceTarget, 'fingerprint'>; read: () => { content: string; revision?: unknown } };
@@ -19,6 +23,14 @@ function fingerprint(value: unknown) {
 function metadata(source: Source): ChatReferenceTarget {
   const snapshot = source.read();
   return { ...source.target, fingerprint: fingerprint([snapshot.content, snapshot.revision]) };
+}
+function withNoteSelection(target: ChatReferenceTarget, selection?: ChatNoteSelection): ChatReferenceTarget {
+  if (selection === undefined) return target;
+  if (target.kind !== 'note' || !selection || typeof selection.blockId !== 'string' || typeof selection.original !== 'string' || !Number.isInteger(selection.start) || !Number.isInteger(selection.end) || selection.start < 0 || selection.end <= selection.start || selection.end > selection.original.length) throw new Error('chatReferenceSelectionChanged');
+  const note = useWorkspaceStore.getState().notes[target.id];
+  const block = note?.blocks.find(block => block.id === selection.blockId);
+  if (!note || note.deletedAt !== null || note.projectId !== target.projectId || !block || block.text !== selection.original) throw new Error('chatReferenceSelectionChanged');
+  return { ...target, noteSelection: { ...selection } };
 }
 function diagramSummary(diagram: VisualArtifact['diagram']) {
   return diagram ? { title: diagram.title, explanation: diagram.explanation, assumptions: diagram.assumptions,
@@ -75,6 +87,12 @@ export function listChatReferences(query: string, projectId: string | null): Cha
     .sort((left, right) => Number(right.target.projectId === projectId) - Number(left.target.projectId === projectId))
     .slice(0, 100).map(metadata);
 }
+/** Resolve an explicit source identity without the suggestion list's result cap. */
+export function resolveChatReferenceTarget(identity: ChatReferenceIdentity): ChatReferenceTarget {
+  const source = sources().find(source => source.target.id === identity.id && source.target.kind === identity.kind && source.target.projectId === identity.projectId && (identity.planId === undefined || source.target.planId === identity.planId));
+  if (!source) throw new Error('chatReferenceMissing');
+  return withNoteSelection(metadata(source), identity.noteSelection);
+}
 /** Freeze explicit sources from their own origins. Their project IDs never retarget the action context. */
 export function resolveChatReferences(selected: ChatReferenceTarget[], _projectId: string | null): ChatReferenceSnapshot[] {
   if (selected.length > CHAT_REFERENCE_LIMIT) throw new Error('chatReferenceLimit');
@@ -85,12 +103,28 @@ export function resolveChatReferences(selected: ChatReferenceTarget[], _projectI
     if (!source) throw new Error('chatReferenceMissing');
     const current = metadata(source);
     if (current.fingerprint !== target.fingerprint) throw new Error('chatReferenceChanged');
+    const { noteSelection, ...snapshotTarget } = withNoteSelection(current, target.noteSelection);
     const identity = `${target.kind}:${target.projectId}:${target.planId}:${target.id}`;
     if (used.has(identity)) throw new Error('chatReferenceDuplicate'); used.add(identity);
     if (remaining <= 0) throw new Error('chatReferenceLimit');
     const original = source.read().content;
+    if (noteSelection) {
+      const budget = Math.min(PER_SOURCE_LIMIT, remaining);
+      if (budget <= 128) throw new Error('chatReferenceLimit');
+      const passage = noteSelection.original.slice(noteSelection.start, noteSelection.end);
+      // The selected text appears in both metadata and content; charge both copies.
+      const text = passage.slice(0, Math.floor((budget - 128) / 2));
+      const selectedPassage = { blockId: noteSelection.blockId, start: noteSelection.start, end: noteSelection.end, text, truncated: text.length < passage.length };
+      const prefix = `Selected note passage (truncated=${selectedPassage.truncated}):\n${text}\n\nNote source context:\n`;
+      const marker = '\n[Note context truncated]';
+      const sourceExcerpt = original.slice(0, Math.max(0, budget - text.length - prefix.length - marker.length));
+      const sourceTruncated = sourceExcerpt.length < original.length;
+      const content = prefix + sourceExcerpt + (sourceTruncated ? marker : '');
+      remaining -= content.length + text.length;
+      return { ...snapshotTarget, noteSelection: selectedPassage, content, truncated: sourceTruncated || selectedPassage.truncated };
+    }
     const content = original.slice(0, Math.min(PER_SOURCE_LIMIT, remaining)); remaining -= content.length;
-    return { ...current, content, truncated: content.length < original.length };
+    return { ...snapshotTarget, content, truncated: content.length < original.length };
   });
 }
 
@@ -98,6 +132,8 @@ export function chatReferenceError(reason: unknown, english: boolean) {
   const code = reason instanceof Error ? reason.message : '';
   if (code === 'chatReferenceLimit') return english ? 'Use up to 20 references. Reduce the selection to fit the context limit.' : 'Use até 20 referências. Reduza a seleção para caber no limite de contexto.';
   if (code === 'chatReferenceChanged') return english ? 'A reference changed. Remove it and select its current version with @.' : 'Uma referência mudou. Remova e selecione a versão atual com @.';
+  if (code === 'chatReferenceSelectionChanged') return english ? 'This note passage changed or is no longer available. Select it again in the note.' : 'Este trecho da nota mudou ou não está mais disponível. Selecione-o novamente na nota.';
+  if (code === 'chatReferenceSelectionConflict') return english ? 'Send or remove the current passage reference before choosing another.' : 'Envie ou remova a referência do trecho atual antes de escolher outro.';
   if (code === 'chatReferenceHandoffConflict') return english ? 'Your draft contains references from another source. Review the selection before continuing.' : 'Seu rascunho contém referências de outra origem. Revise a seleção antes de continuar.';
   if (code === 'chatReferenceScope') return english ? 'The source project is no longer available. Remove it or choose another reference.' : 'O projeto de origem não está mais disponível. Remova ou escolha outra referência.';
   return english ? 'A reference is no longer available. Remove it and select another with @.' : 'Uma referência não está mais disponível. Remova e selecione outra com @.';

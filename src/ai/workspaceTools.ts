@@ -7,6 +7,7 @@ import { useThemeStore } from '@/theme';
 import { useLocaleStore } from '@/i18n';
 import { createPlannerTools } from './plannerTools';
 import { createVisualTools } from './visualTools';
+import { createNoteTools } from './noteTools';
 import { readRateLimit } from './rateLimit';
 import { useSidebarStore } from '@/workspace/sidebarPreference';
 import { loadWorkspaceDemo } from '@/workspace/demoData';
@@ -15,6 +16,7 @@ import { projectAppearanceSchema } from '@/workspace/project-appearance/projectA
 import { summarizeBoard } from '@/boards/summary';
 import type { BoardDocument } from '@/boards/model';
 import { captureChatTurnContext, type ChatTurnContext } from '@/chat/turnContext';
+import { captureNoteEditBaseline, noteTextSnapshot, type NoteEditBaseline } from './noteEditBaseline';
 
 const id = z.string().min(1).max(100);
 const text = z.string().max(100_000);
@@ -126,9 +128,34 @@ export async function executeWorkspaceAction(raw: unknown, signal?: AbortSignal)
 }
 
 export interface AssistantActionEvent { id: string; name: string; action: string; status: 'running' | 'done' | 'error' | 'awaiting_approval'; detail?: string; result?: unknown }
-export function createAssistantTools(signal: AbortSignal, onAction: (event: AssistantActionEvent) => void, userText: string, control?: { beforeRequest: () => Promise<void>; onRateLimit: (error: unknown) => void; assertActive?: () => void; contextProjectId?: string | null; turnContext?: ChatTurnContext }) {
+export function createAssistantTools(signal: AbortSignal, onAction: (event: AssistantActionEvent) => void, userText: string, control?: { beforeRequest: () => Promise<void>; onRateLimit: (error: unknown) => void; assertActive?: () => void; contextProjectId?: string | null; turnContext?: ChatTurnContext; noteEditBaseline?: NoteEditBaseline | null }) {
   const turnContext = control?.turnContext ?? captureChatTurnContext();
   const contextProjectId = control?.contextProjectId !== undefined ? control.contextProjectId : turnContext.projectId;
+  const focusedNoteId = turnContext.surface === 'notes' ? turnContext.noteId : null;
+  let noteEditBaseline = control?.noteEditBaseline !== undefined ? control.noteEditBaseline : captureNoteEditBaseline(turnContext);
+  const executeContextAction = async (raw: unknown) => {
+    const input = workspaceActionSchema.parse(raw);
+    const focusedWrite = focusedNoteId && (input.action === 'update_note' || input.action === 'append_note_block') && input.id === focusedNoteId;
+    let advanceNoteBaseline = false;
+    if (focusedWrite) {
+      const current = useWorkspaceStore.getState().notes[focusedNoteId];
+      if (!current || current.deletedAt !== null || !noteEditBaseline || noteEditBaseline.noteId !== focusedNoteId || current.createdAt !== noteEditBaseline.createdAt ||
+        input.action === 'update_note' && noteTextSnapshot(current) !== noteEditBaseline.textSnapshot) {
+        throw new Error(useLocaleStore.getState().locale === 'en'
+          ? 'The note changed or is no longer available. Your edits were kept. Send the request again using its current text.'
+          : 'A nota mudou ou não está mais disponível. Suas edições foram preservadas. Envie o pedido novamente usando o texto atual.');
+      }
+      advanceNoteBaseline = noteTextSnapshot(current) === noteEditBaseline.textSnapshot;
+    }
+    // These note mutations happen synchronously before executeWorkspaceAction awaits saving.
+    // Capture that own write now; a local edit during persistence must remain a conflict.
+    const action = executeWorkspaceAction(input, signal);
+    const appliedBaseline = focusedWrite ? captureNoteEditBaseline(turnContext) : null;
+    const result = await action;
+    // A safe append must not absorb an external edit and unlock a stale replacement later.
+    if (focusedWrite && advanceNoteBaseline) noteEditBaseline = appliedBaseline;
+    return result;
+  };
   let pending: Promise<unknown> = Promise.resolve();
   let halted: unknown;
   const execute = (name: string, fn: (input: unknown) => unknown | Promise<unknown>) => (input: unknown) => {
@@ -164,8 +191,9 @@ export function createAssistantTools(signal: AbortSignal, onAction: (event: Assi
       const result = readWorkspace(input);
       return { ...result, visibleProjectId: turnContext.visibleProjectId, currentProjectId: contextProjectId, surface: turnContext.surface, noteId: turnContext.noteId, boardId: turnContext.boardId };
     }) }),
-    workspace_action: tool({ description: 'Perform an application action through its validated store. create_note/update_note text replaces the body; append_note_block appends. Comments are attached to tasks/issues. Navigation can open a noteId, taskId, or boardId with surface=boards; boards cannot be combined with projectId/noteId/taskId. Board objects cannot be edited by these tools. Do only actions requested by the user.', inputSchema: workspaceActionSchema, execute: execute('workspace_action', (input) => executeWorkspaceAction(input, signal)) }),
+    workspace_action: tool({ description: 'Perform an application action through its validated store. create_note/update_note text replaces the body; append_note_block appends. Updating the focused note from Notes rejects changed text or identity since submission; report the conflict and preserve the human edits. Append preserves current blocks. Comments are attached to tasks/issues. Navigation can open a noteId, taskId, or boardId with surface=boards; boards cannot be combined with projectId/noteId/taskId. Board objects cannot be edited by these tools. Do only actions requested by the user.', inputSchema: workspaceActionSchema, execute: execute('workspace_action', executeContextAction) }),
     ...createPlannerTools(signal, execute, userText, control?.beforeRequest),
     ...createVisualTools(signal, execute, control?.beforeRequest, userText),
+    ...createNoteTools(signal, execute, control?.beforeRequest, turnContext),
   };
 }

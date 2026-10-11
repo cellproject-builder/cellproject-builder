@@ -116,14 +116,13 @@
 .ws-note-connections label { display:flex; flex-direction:column; gap:6px; font-size:var(--ws-text-caption); color:rgb(var(--text-muted)); } .ws-note-connections select { width:100%; min-width:0; font-size:var(--ws-text-caption); border:1px solid transparent; border-radius:5px; padding:5px; background:rgb(var(--bg-secondary)); color:rgb(var(--text-primary)); box-shadow:var(--ws-shadow-control); }
 .ws-note-paper { flex:1; min-height:0; overflow:auto; padding:21px 38px 80px; } .ws-note-date { text-align:center; color:rgb(var(--text-faint)); font-size:var(--ws-text-caption); margin-bottom:27px; }
 .ws-note-title { font-size:27px!important; line-height:1.3!important; font-weight:650!important; letter-spacing:-.7px; margin-bottom:14px; }
-.ws-note-paper textarea[data-audio-input="true"] { width:100%; resize:none; border:0; background:transparent; padding:0; overflow:hidden; outline:none; display:block; min-height:26px; color:rgb(var(--text-primary)); line-height:1.65; }
-.ws-note-paper textarea[data-audio-input="true"]:focus-visible { outline:none; } .ws-note-paper textarea[data-audio-input="true"]::placeholder { color:rgb(var(--text-faint)/.65); }
+.ws-note-paper :is(textarea.ws-note-title, textarea[data-block]) { width:100%; resize:none; border:0; background:transparent; padding:0; overflow:hidden; outline:none; display:block; min-height:26px; color:rgb(var(--text-primary)); line-height:1.65; }
+.ws-note-paper :is(textarea.ws-note-title, textarea[data-block]):focus-visible { outline:none; } .ws-note-paper :is(textarea.ws-note-title, textarea[data-block])::placeholder { color:rgb(var(--text-faint)/.65); }
 .ws-note-project-label { display:inline-flex; align-items:center; gap:5px; color:var(--note-accent); font-size:var(--ws-text-caption); padding:4px 7px; background:rgb(var(--conf-mid)/.06); border-radius:5px; margin-bottom:18px; }
 .ws-note-blocks { display:flex; flex-direction:column; gap:6px; } .ws-note-block { display:flex; align-items:flex-start; gap:9px; position:relative; }
-.ws-note-block > .audio-field { flex:1; min-width:0; }
-.ws-note-block textarea[data-audio-input="true"] { flex:1; min-width:0; font-size:14px; } .ws-note-block.type-heading { margin:12px 0 4px; } .ws-note-block.type-heading textarea[data-audio-input="true"] { font-size:20px!important; font-weight:600; }
-.ws-note-block.is-bold textarea[data-audio-input="true"] { font-weight:700; } .ws-note-block.is-italic textarea[data-audio-input="true"] { font-style:italic; }
-.ws-note-block.is-checked textarea[data-audio-input="true"] { text-decoration:line-through; color:rgb(var(--text-faint)); }
+.ws-note-block textarea[data-block] { flex:1; min-width:0; font-size:14px; } .ws-note-block.type-heading { margin:12px 0 4px; } .ws-note-block.type-heading textarea[data-block] { font-size:20px!important; font-weight:600; }
+.ws-note-block.is-bold textarea[data-block] { font-weight:700; } .ws-note-block.is-italic textarea[data-block] { font-style:italic; }
+.ws-note-block.is-checked textarea[data-block] { text-decoration:line-through; color:rgb(var(--text-faint)); }
 .ws-note-block input[type=checkbox] { appearance:none; width:17px; height:17px; border:1.5px solid rgb(var(--border-base)); border-radius:50%; margin-top:4px; flex:none; cursor:pointer; }
 .ws-note-block input[type=checkbox]:checked { border-color:var(--note-accent); background:var(--note-accent); box-shadow:inset 0 0 0 3px var(--note-paper); }
 .ws-bullet { padding-left:5px; line-height:1.65; color:rgb(var(--text-primary)); }

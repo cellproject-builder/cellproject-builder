@@ -81,6 +81,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
   const activeProjectId = useWorkspaceStore((s) => s.activeProjectId);
   const surface = useWorkspaceStore((s) => s.surface);
   const chatExpanded = useChatPresentation(s => s.expanded);
+  const chatOpen = useChatStore(s => s.open);
   const collapseChat = () => useChatPresentation.getState().setExpanded(false);
   const navigate = useWorkspaceStore((s) => s.navigate);
   const [noteScope, setNoteScope] = useState<string | null>(null);
@@ -170,7 +171,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
         <div className="border-t border-border-base/70 pt-4"><h3 className="text-control font-semibold text-text-primary">{tr.settings}</h3></div>
       </div>
     } />}
-    <AssistantChat suspended={canvasMaximized || boardMaximized || noteMaximized} />
+    <AssistantChat suspended={canvasMaximized || boardMaximized || noteMaximized && !chatOpen} />
     {editingProject && project && <ProjectForm project={project} onClose={() => setEditingProject(false)} />}
     {taskEditor && project && <TaskEditor key={taskEditor.task?.id ?? 'new'} projectId={project.id} task={taskEditor.task} initialStatus={taskEditor.status} onClose={() => setTaskEditor(null)} onSource={source} />}
   </div></AssistantChatDockProvider>;

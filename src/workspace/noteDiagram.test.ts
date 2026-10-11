@@ -42,6 +42,13 @@ it('uses only the authorized note and returns a validated diagram without changi
   expect(call.system).toContain('EXPLANATORY NOMENCLATURE');
   expect(hasActiveAIActions()).toBe(false);
 });
+it('checks the contextual request guard immediately before calling the provider', async () => {
+  const beforeRequest = vi.fn(async () => { throw new Error('chatContextModelChanged'); });
+  await expect(generateNoteDiagram({ noteId, prompt: 'Ilustrar', useContent: true }, { signal: new AbortController().signal, beforeRequest })).rejects.toThrow('chatContextModelChanged');
+  expect(beforeRequest).toHaveBeenCalledTimes(1);
+  expect(generateText).not.toHaveBeenCalled();
+  expect(store.getState().notes[noteId].canvas).toBeUndefined();
+});
 it('refuses an unlabeled illustration without changing the note or repairing the response', async () => {
   const before = store.getState().notes[noteId], response = output(), diagram = JSON.parse(response.text);
   diagram.elements = diagram.elements.filter((element: { type: string }) => element.type !== 'text');

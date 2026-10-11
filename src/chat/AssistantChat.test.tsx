@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -18,6 +18,7 @@ import type { ImageReference, VisualArtifact } from '@/visuals/types';
 import { buildDemoProject } from '@/data/demoProject';
 import { capturePlanner, initializeWorkspace, openPlanner } from '@/workspace/planner';
 import { applyPlanStructure, planRevision } from '@/ai/planStructure';
+import { useChatFocusStore } from './turnContext';
 
 vi.mock('@/ai/assistant', () => ({ runAssistant: vi.fn() }));
 vi.mock('@/visuals/controller', () => ({ addChatImageReference: vi.fn() }));
@@ -61,10 +62,11 @@ beforeEach(async () => {
   await useWorkspaceStore.persist.rehydrate();
   useWorkspaceStore.setState({ projects: {}, notes: {}, activeProjectId: null });
   useChatReferenceHandoff.setState({ pending: null });
+  useChatFocusStore.setState({ noteId: null, noteScopeProjectId: null });
   useVisualPopupStore.setState({ searchOpen: false, modelOpen: false, modelBase: null });
   useLocaleStore.setState({ locale: 'pt-BR' });
   useConfigStore.setState({ activeProvider: 'openai', providers: { openai: { apiKey: 'test-only-key', mainModel: 'test-model', kbModel: 'test-kb' } } });
-  useChatStore.setState({ messages: [], archivedSessions: [], modelHistory: [], pendingHistory: null, open: true, running: false, hydrated: true, rateLimits: { 'openai:test-model': Date.now() + 5000 } });
+  useChatStore.setState({ messages: [], archivedSessions: [], archivedAt: null, deletedAt: null, loadFailed: false, modelHistory: [], pendingHistory: null, open: true, running: false, hydrated: true, rateLimits: { 'openai:test-model': Date.now() + 5000 } });
   await flushChatPersistence();
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
 });
@@ -76,6 +78,27 @@ function PlannerHarness({ planner = true }: { planner?: boolean }) {
     <AssistantChat />
   </AssistantChatDockProvider>;
 }
+
+it.each([
+  ['pt-BR', 'Pesquise, crie um diagrama ou revise esta nota…'],
+  ['en', 'Research, create a diagram or revise this note…'],
+] as const)('invites note research and creation in the contextual composer (%s)', (locale, placeholder) => {
+  const note = useWorkspaceStore.getState().createNote({ title: 'Minha nota' });
+  useLocaleStore.setState({ locale });
+  useWorkspaceStore.setState({ surface: 'notes' });
+  useChatFocusStore.setState({ noteId: note });
+  act(() => root.render(<AssistantChat />));
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.placeholder).toBe(placeholder);
+  expect(host.querySelector('.dd-chat-welcome h3')?.textContent).toBe(locale === 'en' ? 'Explore this note with AI' : 'Explore esta nota com IA');
+  const examples = [...host.querySelectorAll<HTMLButtonElement>('.dd-chat-welcome button')];
+  expect(examples.map(button => button.textContent)).toEqual(locale === 'en' ? ['Research references for this note', 'Create a diagram to explain this note', 'Revise the text of this note'] : ['Pesquise referências para esta nota', 'Crie um diagrama para explicar esta nota', 'Revise o texto desta nota']);
+  act(() => Simulate.click(examples[2]));
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe(locale === 'en' ? 'Revise the text of this note' : 'Revise o texto desta nota');
+  expect(runAssistant).not.toHaveBeenCalled();
+  act(() => { useWorkspaceStore.setState({ surface: 'projects' }); });
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.placeholder).not.toBe(placeholder);
+  expect(host.querySelector('.dd-chat-welcome h3')?.textContent).toBe(locale === 'en' ? 'What shall we learn or build?' : 'O que vamos aprender ou construir?');
+});
 
 it.each([true, false])('hides the composer from keyboard navigation behind overlay history (%s)', (mobile) => {
   viewport.mobile = mobile;
@@ -277,6 +300,153 @@ it('accepts canvas handoff into the existing draft without sending or navigating
   expect(useChatReferenceHandoff.getState().pending).toBeNull();
   expect(useWorkspaceStore.getState().activeProjectId).toBeNull();
   expect(useWorkspaceStore.getState().surface).toBe('projects');
+  expect(runAssistant).not.toHaveBeenCalled();
+});
+
+it('appends a note request to the existing draft once without sending or navigating', () => {
+  const projectId = useWorkspaceStore.getState().createProject('Robô');
+  const note = useWorkspaceStore.getState().createNote({ title: 'Teste do servo', projectId });
+  useWorkspaceStore.setState({ activeProjectId: null, surface: 'projects' });
+  act(() => root.render(<StrictMode><AssistantChat /></StrictMode>));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  act(() => Simulate.change(input, { target: { value: 'Conferir esta premissa  ' } } as never));
+  act(() => requestChatReferences(projectId, [{ id: note, kind: 'note', label: 'Teste do servo', detail: '', fingerprint: '' }], 'Revise este trecho:\nservo\n\nAjuste desejado: '));
+  expect(input.value).toBe('Conferir esta premissa  \n\nRevise este trecho:\nservo\n\nAjuste desejado: ');
+  expect(host.querySelectorAll('.dd-chat-reference-chip')).toHaveLength(1);
+  expect(useChatReferenceHandoff.getState().pending).toBeNull();
+  act(() => root.render(<StrictMode><AssistantChat /></StrictMode>));
+  expect(input.value).toBe('Conferir esta premissa  \n\nRevise este trecho:\nservo\n\nAjuste desejado: ');
+  expect(useWorkspaceStore.getState().activeProjectId).toBeNull();
+  expect(useWorkspaceStore.getState().surface).toBe('projects');
+  expect(useChatStore.getState().messages).toHaveLength(0);
+  expect(runAssistant).not.toHaveBeenCalled();
+});
+
+it('accepts an explicit note handoff after more than one hundred source notes', () => {
+  const projectId = useWorkspaceStore.getState().createProject('Biblioteca');
+  const notes = Array.from({ length: 105 }, (_, index) => useWorkspaceStore.getState().createNote({ title: `Nota ${index}`, projectId }));
+  act(() => root.render(<AssistantChat />));
+  act(() => requestChatReferences(projectId, [{ id: notes[104], kind: 'note', label: 'Nota 104', detail: '', fingerprint: '' }], 'Pesquise esta nota'));
+  expect(host.querySelector('.dd-chat-reference-chip')?.getAttribute('data-reference-id')).toBe(notes[104]);
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('Pesquise esta nota');
+  expect(host.querySelector('.dd-chat-reference-error')).toBeNull();
+  expect(runAssistant).not.toHaveBeenCalled();
+});
+
+it.each([
+  { blockId: 'second-passage', start: 7, end: 15, original: 'Trecho repetido' },
+  { blockId: 'first-passage', start: 7, end: 15, original: 'Trecho repetido' },
+])('rejects another occurrence from the same note while preserving the current draft and reference (%j)', async (noteSelection) => {
+  const note = useWorkspaceStore.getState().createNote({ title: 'Trechos repetidos' });
+  useWorkspaceStore.getState().updateNote(note, { blocks: [
+    { id: 'first-passage', type: 'text', text: 'Trecho repetido' },
+    { id: 'second-passage', type: 'text', text: 'Trecho repetido' },
+  ] });
+  const target = { id: note, kind: 'note' as const, label: 'Trechos repetidos', detail: '', fingerprint: '' };
+  act(() => root.render(<AssistantChat />));
+  act(() => requestChatReferences(null, [{ ...target, noteSelection: { blockId: 'first-passage', start: 0, end: 6, original: 'Trecho repetido' } }], 'Revise o trecho'));
+  act(() => requestChatReferences(null, [{ ...target, noteSelection }], 'Agora revise o outro'));
+  expect(host.querySelectorAll('.dd-chat-reference-chip')).toHaveLength(1);
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('Revise o trecho');
+  expect(host.querySelector('.dd-chat-reference-error')?.textContent).toBe('Envie ou remova a referência do trecho atual antes de escolher outro.');
+  expect(useChatReferenceHandoff.getState().pending).toBeNull();
+  expect(runAssistant).not.toHaveBeenCalled();
+  vi.mocked(runAssistant).mockResolvedValue({ text: 'Vamos revisar.', messages: [{ role: 'assistant', content: 'Vamos revisar.' }] });
+  await act(async () => {
+    useChatStore.setState({ rateLimits: {} });
+    await Promise.resolve();
+  });
+  await act(async () => { Simulate.submit(host.querySelector('form')!); await flushChatPersistence(); });
+  expect(useChatStore.getState().messages[0].references?.[0].noteSelection).toEqual({ blockId: 'first-passage', start: 0, end: 6, text: 'Trecho', truncated: false });
+});
+
+it('accepts a first passage and preserves it through matching selections and generic note handoffs', async () => {
+  const note = useWorkspaceStore.getState().createNote({ title: 'Minha nota' });
+  useWorkspaceStore.getState().updateNote(note, { blocks: [{ id: 'body', type: 'text', text: 'Texto do parágrafo' }] });
+  const target = { id: note, kind: 'note' as const, label: 'Minha nota', detail: '', fingerprint: '' };
+  const noteSelection = { blockId: 'body', start: 0, end: 5, original: 'Texto do parágrafo' };
+  useChatStore.setState({ rateLimits: {} });
+  act(() => root.render(<AssistantChat />));
+  act(() => requestChatReferences(null, [target]));
+  act(() => requestChatReferences(null, [{ ...target, noteSelection }], 'Revise este trecho'));
+  act(() => requestChatReferences(null, [{ ...target, noteSelection: { ...noteSelection } }], 'Use um tom mais direto'));
+  act(() => requestChatReferences(null, [target]));
+  expect(host.querySelectorAll('.dd-chat-reference-chip')).toHaveLength(1);
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('Revise este trecho\n\nUse um tom mais direto');
+  expect(host.querySelector('.dd-chat-reference-error')).toBeNull();
+  expect(runAssistant).not.toHaveBeenCalled();
+  vi.mocked(runAssistant).mockResolvedValue({ text: 'Vamos revisar.', messages: [{ role: 'assistant', content: 'Vamos revisar.' }] });
+  await act(async () => { Simulate.submit(host.querySelector('form')!); await flushChatPersistence(); });
+  expect(useChatStore.getState().messages[0].references?.[0].noteSelection).toEqual({ blockId: 'body', start: 0, end: 5, text: 'Texto', truncated: false });
+});
+
+it('keeps the complete draft when any requested note reference is no longer available', () => {
+  const note = useWorkspaceStore.getState().createNote({ title: 'Fonte disponível' });
+  act(() => root.render(<AssistantChat />));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  act(() => Simulate.change(input, { target: { value: 'Meu rascunho' } } as never));
+  act(() => requestChatReferences(null, [
+    { id: note, kind: 'note', label: 'Fonte disponível', detail: '', fingerprint: '' },
+    { id: 'missing-note', kind: 'note', label: 'Fonte removida', detail: '', fingerprint: '' },
+  ], 'Pedido que depende das fontes'));
+  expect(input.value).toBe('Meu rascunho');
+  expect(host.querySelector('.dd-chat-reference-chip')).toBeNull();
+  expect(host.querySelector('[role="alert"]')?.textContent).toMatch(/referência.*disponível/i);
+  expect(useChatReferenceHandoff.getState().pending).toBeNull();
+  expect(runAssistant).not.toHaveBeenCalled();
+});
+
+it('consumes a pending note request only once when the chat mounts in StrictMode', () => {
+  const note = useWorkspaceStore.getState().createNote({ title: 'Minha nota' });
+  act(() => requestChatReferences(null, [{ id: note, kind: 'note', label: 'Minha nota', detail: '', fingerprint: '' }], 'Pesquise esta premissa'));
+  act(() => root.render(<StrictMode><AssistantChat /></StrictMode>));
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('Pesquise esta premissa');
+  expect(host.querySelectorAll('.dd-chat-reference-chip')).toHaveLength(1);
+  expect(useChatReferenceHandoff.getState().pending).toBeNull();
+  expect(runAssistant).not.toHaveBeenCalled();
+});
+
+it('preserves references and text when adding the note would exceed the draft limit', () => {
+  const notes = Array.from({ length: 21 }, (_, index) => useWorkspaceStore.getState().createNote({ title: `Fonte ${index}` }));
+  const target = (id: string) => ({ id, kind: 'note' as const, label: '', detail: '', fingerprint: '' });
+  act(() => root.render(<AssistantChat />));
+  act(() => requestChatReferences(null, notes.slice(0, 20).map(target)));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  act(() => Simulate.change(input, { target: { value: 'Análise em andamento' } } as never));
+  act(() => requestChatReferences(null, [target(notes[20])], 'Acrescentar esta fonte'));
+  expect(input.value).toBe('Análise em andamento');
+  expect(host.querySelectorAll('.dd-chat-reference-chip')).toHaveLength(20);
+  expect(host.querySelector(`[data-reference-id="${notes[20]}"]`)).toBeNull();
+  expect(host.querySelector('.dd-chat-reference-error')?.textContent).toContain('20 referências');
+  expect(useChatReferenceHandoff.getState().pending).toBeNull();
+  expect(runAssistant).not.toHaveBeenCalled();
+});
+
+it.each([{ archivedAt: 1 }, { deletedAt: 1 }, { hydrated: false }, { loadFailed: true }])('rejects note handoff when the conversation cannot be edited (%j)', (chatState) => {
+  const note = useWorkspaceStore.getState().createNote({ title: 'Minha nota' });
+  act(() => root.render(<AssistantChat />));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  act(() => Simulate.change(input, { target: { value: 'Meu rascunho' } } as never));
+  act(() => {
+    useChatStore.setState(chatState);
+    requestChatReferences(null, [{ id: note, kind: 'note', label: 'Minha nota', detail: '', fingerprint: '' }], 'Revise o parágrafo');
+  });
+  expect(input.value).toBe('Meu rascunho');
+  expect(host.querySelector('.dd-chat-reference-chip')).toBeNull();
+  expect(host.querySelector('.dd-chat-reference-error')?.textContent).toMatch(/conversa/i);
+  expect(useChatReferenceHandoff.getState().pending).toBeNull();
+  expect(runAssistant).not.toHaveBeenCalled();
+});
+
+it('does not transfer a pending note request into a different conversation', () => {
+  const note = useWorkspaceStore.getState().createNote({ title: 'Minha nota' });
+  act(() => requestChatReferences(null, [{ id: note, kind: 'note', label: 'Minha nota', detail: '', fingerprint: '' }], 'Pedido da conversa anterior'));
+  act(() => { useChatStore.setState({ sessionId: 'different-session' }); });
+  act(() => root.render(<AssistantChat />));
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('');
+  expect(host.querySelector('.dd-chat-reference-chip')).toBeNull();
+  expect(host.querySelector('.dd-chat-reference-error')?.textContent).toMatch(/conversa/i);
+  expect(useChatReferenceHandoff.getState().pending).toBeNull();
   expect(runAssistant).not.toHaveBeenCalled();
 });
 

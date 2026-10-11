@@ -7,12 +7,22 @@ import { useWorkspaceStore as store, flushWorkspacePersistence } from './store';
 import { Notes } from './Notes';
 import { createSelectiveJSONStorage, isDeferredJSONStorage } from '@/data/selectiveJSONStorage';
 import { captureChatTurnContext } from '@/chat/turnContext';
+import { useChatStore } from '@/chat/store';
+import { useChatReferenceHandoff } from '@/references/chatHandoff';
+
+const audio = vi.hoisted(() => ({ record: vi.fn(), transcribe: vi.fn() }));
+vi.mock('@/audio/recording', () => ({ createAudioRecording: audio.record }));
+vi.mock('@/audio/dictation', () => ({ DictationTranscription: class { transcribe = audio.transcribe; } }));
 
 let root: Root;
 let host: HTMLDivElement;
 beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   useLocaleStore.setState({ locale: 'pt-BR' });
+  audio.record.mockResolvedValue({ stop: async () => [new Blob(['audio'], { type: 'audio/webm' })], cancel: vi.fn() });
+  audio.transcribe.mockResolvedValue('ditado');
+  useChatStore.setState({ open: false });
+  useChatReferenceHandoff.setState({ pending: null });
   await store.persist.rehydrate();
   store.setState({ projects: {}, tasks: {}, notes: {}, folders: {} });
   await flushWorkspacePersistence();
@@ -21,6 +31,45 @@ beforeEach(async () => {
 afterEach(() => { act(() => root.unmount()); host.remove(); vi.restoreAllMocks(); });
 
 describe('note editing', () => {
+  it('offers one dictation control for the whole note, without controls on each line', async () => {
+    const noteId = store.getState().createNote({ title: 'Caderno' });
+    store.getState().updateNote(noteId, { blocks: ['Primeira linha', 'Segunda linha', 'Terceira linha'].map((text, index) => ({ id: `line-${index}`, type: 'text', text })) });
+    await act(async () => { root.render(<Notes initialNoteId={noteId} />); });
+    expect(host.querySelectorAll('.ws-note-editor [aria-label="Ditar na nota"]')).toHaveLength(1);
+    expect(host.querySelectorAll('.ws-note-paper .audio-field-mic')).toHaveLength(0);
+    expect(host.querySelectorAll('.ws-note-block textarea')).toHaveLength(3);
+  });
+
+  it('dictates into the last edited title or paragraph at its selection', async () => {
+    const noteId = store.getState().createNote({ title: 'Meu título' });
+    store.getState().updateNote(noteId, { blocks: [{ id: 'paragraph', type: 'text', text: 'Texto aqui.' }] });
+    await act(async () => { root.render(<Notes initialNoteId={noteId} />); });
+    const dictate = async () => {
+      await act(async () => Simulate.click(host.querySelector('[aria-label="Ditar na nota"]')!));
+      await act(async () => Simulate.click(document.querySelector('[aria-label="Confirmar ditado"]')!));
+    };
+    const title = host.querySelector<HTMLTextAreaElement>('[aria-label="Título da nota"]')!;
+    act(() => title.focus()); title.setSelectionRange(4, 10);
+    await dictate();
+    expect(store.getState().notes[noteId].title).toBe('Meu ditado');
+    const paragraph = host.querySelector<HTMLTextAreaElement>('[data-block="paragraph"]')!;
+    act(() => paragraph.focus()); paragraph.setSelectionRange(6, 10);
+    await dictate();
+    expect(store.getState().notes[noteId].blocks[0].text).toBe('Texto ditado.');
+    expect(store.getState().notes[noteId].title).toBe('Meu ditado');
+  });
+
+  it('opens contextual AI with the personal note reference without changing its content', async () => {
+    const noteId = store.getState().createNote({ title: 'Pesquisa de bancada' });
+    store.getState().navigate('notes');
+    const original = store.getState().notes[noteId];
+    await act(async () => { root.render(<Notes initialNoteId={noteId} />); });
+    act(() => Simulate.click(host.querySelector('[aria-label="Pedir à IA sobre esta nota"]')!));
+    expect(useChatStore.getState().open).toBe(true);
+    expect(useChatReferenceHandoff.getState().pending).toMatchObject({ projectId: null, references: [{ kind: 'note', id: noteId }] });
+    expect(captureChatTurnContext()).toMatchObject({ surface: 'notes', noteId, projectId: null });
+    expect(store.getState().notes[noteId]).toBe(original);
+  });
   it('publishes the note currently shown rather than the last project for chat context', async () => {
     store.getState().createProject('Previous project');
     const first = store.getState().createNote({ title: 'Diário pessoal' });
@@ -121,7 +170,7 @@ describe('note editing', () => {
     expect(host.querySelector('[aria-label="Restaurar editor"]')).toBeNull();
   });
 
-  it('closes an AI dialog with Escape while leaving the editor maximized', async () => {
+  it('hands a paragraph to the shared chat without a separate rewrite modal or restoring the editor', async () => {
     const noteId = store.getState().createNote({ title: 'Contexto preservado' });
     store.getState().updateNote(noteId, { blocks: store.getState().notes[noteId].blocks.map((block) => ({ ...block, text: 'Texto para revisar.' })) });
     await act(async () => { root.render(<Notes initialNoteId={noteId} />); await flushWorkspacePersistence(); });
@@ -129,9 +178,8 @@ describe('note editing', () => {
     expect(maximize).not.toBeNull();
     act(() => Simulate.click(maximize!));
     act(() => Simulate.click(host.querySelector('[aria-label="Editar com IA"]')!));
-    const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
-    expect(dialog).not.toBeNull();
-    act(() => dialog!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    expect(useChatStore.getState().open).toBe(true);
+    expect(useChatReferenceHandoff.getState().pending).toMatchObject({ composerText: expect.stringContaining('Texto para revisar.') });
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(host.querySelector('[aria-label="Restaurar editor"]')).not.toBeNull();
   });

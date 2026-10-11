@@ -19,6 +19,7 @@ import { chatReferenceError, resolveChatReferences, type ChatReferenceSnapshot, 
 import { normalizeChatSession, normalizeInactiveSessions, tombstoneConversation } from './sessionHistory';
 import { ChatContextBudgetError, prepareChatContext, type ChatCompactionCheckpoint, type ChatContextUsage } from './contextBudget';
 import { captureChatTurnContext, type ChatTurnContext } from './turnContext';
+import { captureNoteEditBaseline } from '@/ai/noteEditBaseline';
 
 export interface ChatMessage { id: string; role: 'user' | 'assistant'; text: string; createdAt: number; actions?: AssistantActionEvent[]; interrupted?: boolean; references?: ChatReferenceSnapshot[]; referenceProjectId?: string | null; files?: PlanFile[]; intake?: PlanIntake; turnContext?: ChatTurnContext }
 export interface ChatContextObservation { modelKey: string; inputTokens: number; historyMessageCount: number }
@@ -165,6 +166,7 @@ export async function sendChatMessage(value: string, options?: { references?: Ch
   const captured = options?.turnContext ?? captureChatTurnContext();
   const projectId = options?.projectId !== undefined ? options.projectId : captured.projectId;
   const turnContext = options?.projectId !== undefined && projectId !== captured.projectId ? Object.freeze({ ...captured, projectId }) : captured;
+  const noteEditBaseline = captureNoteEditBaseline(turnContext);
   let references: ChatReferenceSnapshot[];
   let files: PlanFile[];
   try { references = resolveChatReferences(options?.references ?? [], projectId); files = zFiles(options?.files ?? []); }
@@ -264,7 +266,7 @@ export async function sendChatMessage(value: string, options?: { references?: Ch
     assertModel();
     history = carryAdditionalAudits(prepared.history);
     useChatStore.setState({ pendingHistory: history, compacting: false, compaction: prepared.checkpoint, contextUsage: prepared.usage, ...(prepared.usage.compacted ? { contextObservation: null } : {}) });
-    const result = await runAssistant({ messages: history, userText: text, signal: active.signal, contextProjectId: projectId, turnContext,
+    const result = await runAssistant({ messages: history, userText: text, signal: active.signal, contextProjectId: projectId, turnContext, noteEditBaseline,
       contextBudget: { contextWindowTokens: prepared.usage.contextWindowTokens, fixedTokens },
       onText: queueText,
       onAction: (event) => {

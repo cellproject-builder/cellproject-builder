@@ -1,6 +1,6 @@
 # Notas e caderno visual
 
-Visão canônica do módulo, conferida no código em 10/10/2026. A descrição detalhada da entrega e de sua validação histórica está em [notes-visual-notebook.md](../notes-visual-notebook.md); este documento organiza responsabilidades, dados e limites para manutenção e uso em artigos.
+Visão canônica do módulo, atualizada em 11/10/2026. A descrição detalhada da entrega e de sua validação histórica está em [notes-visual-notebook.md](../notes-visual-notebook.md); este documento organiza responsabilidades, dados e limites para manutenção e uso em artigos.
 
 ## Finalidade e estado
 
@@ -11,7 +11,7 @@ Notas permitem registrar texto e explorar uma ideia com desenho, imagens e diagr
 | Implementado | Biblioteca unificada, pastas pessoais, agrupamento virtual por projeto, busca por título e blocos, filtro de recentes, ordenação por nome/atualização, fixação, lixeira/restauração, vínculos opcionais, editor de blocos e maximização. |
 | Implementado | Caderno vetorial opcional com seleção, caneta, borracha, régua, texto livre, imagens raster, diagramas SVG interativos, zoom e desfazer/refazer de operações. |
 | Implementado | Desenho livre sobre título e blocos de texto em `NoteInkOverlay`, sem substituir ou desmontar a escrita. Caneta, bico de pena, monoline, lápis e marca-texto usam o motor compartilhado `src/ink`; cotas e persistência da nota continuam próprias. |
-| Implementado, dependente de IA | Reescrita de trecho/parágrafo e geração de diagrama com prévia e aplicação explícita. |
+| Implementado, dependente de IA | Ditado por um controle único da nota; chat contextual para revisão, pesquisa web com fontes e geração de diagramas na nota, inclusive pessoal e sem plano. O compositor visual direto mantém sua prévia. |
 | Experimental no sentido de uso | Modelos/diagramas ilustrativos e suas fórmulas são materiais de exploração. O aplicativo não verifica automaticamente a validade física ou o aprendizado produzido. |
 | Planejado em outro módulo | Memórias duradouras automáticas do Dairo, segregadas das notas e com origem editável/apagável. Não são uma funcionalidade entregue por este editor. |
 
@@ -23,7 +23,7 @@ O caderno é uma folha de coordenadas delimitadas dentro de uma nota. O [Dynamic
 2. Criar uma nota geral, diretamente numa pasta pessoal ou no subgrupo de um projeto. Escrever título e blocos `text`, `heading`, `bullet` ou `check`; aplicar negrito/itálico e marcar checklists.
 3. Opcionalmente ligar a nota a projeto/tarefa e pasta. Trocar o projeto remove o vínculo anterior de tarefa para impedir referência cruzada.
 4. Abrir o lápis/caderno. Desenhar, apagar, usar régua, inserir texto ou colar/importar imagens. Expandir mantém o mesmo editor; zoom muda a visualização, não as coordenadas salvas.
-5. Para IA, selecionar trecho/parágrafo e pedir uma reescrita, ou abrir o compositor de diagrama e escolher se o conteúdo da nota entra no contexto. Examinar a prévia antes de aplicar/inserir.
+5. Usar o microfone da barra para ditar no título ou parágrafo em edição. Abrir **IA** para conversar com a nota como referência visível; pedir pesquisa, revisão ou um diagrama. Selecionar um trecho e usar sua ação de IA prepara um rascunho no mesmo chat, sem enviar automaticamente. O compositor visual direto continua disponível nas ferramentas do caderno.
 6. Fixar, buscar, mover de pasta, enviar à lixeira ou restaurar. A nota na lixeira é apresentada como somente leitura; remover uma pasta preserva suas notas sem pasta.
 
 A busca normal da biblioteca considera título e texto dos blocos, não OCR dos desenhos/imagens ou todas as legendas internas do caderno. A seleção do editor continua aberta quando uma edição deixa de corresponder à busca. Excluir uma tarefa não exclui a nota: o store limpa `taskId`.
@@ -44,7 +44,8 @@ As ações e a navegação usam a família SVG compartilhada de [SoftIcons.tsx](
 | --- | --- |
 | Escopo e navegação | [Workspace.tsx](../../src/workspace/Workspace.tsx) escolhe Diário ou escopo de projeto e entrega a nota solicitada. |
 | Biblioteca e editor | [Notes.tsx](../../src/workspace/Notes.tsx) coordena seleção, filtros, editor, vínculos, lixeira, salvamento e maximização; [NotesLibrary.tsx](../../src/workspace/NotesLibrary.tsx) organiza grupos e prévias. |
-| Texto assistido | [NoteTextActions.tsx](../../src/workspace/NoteTextActions.tsx) captura a seleção; [NoteRewriteDialog.tsx](../../src/workspace/NoteRewriteDialog.tsx) controla pedido/prévia; [ai/noteRewrite.ts](../../src/ai/noteRewrite.ts) faz uma geração pontual sem ferramentas. |
+| Texto assistido e ditado | [NoteTextActions.tsx](../../src/workspace/NoteTextActions.tsx) encaminha trecho/parágrafo ao chat compartilhado; [AudioField.tsx](../../src/audio/AudioField.tsx) fornece um único controle com destino externo, reaproveitando gravação e transcrição. |
+| Pesquisa e criação contextual | [ai/noteTools.ts](../../src/ai/noteTools.ts) recebe a identidade da nota congelada no envio, pesquisa com [ai/research.ts](../../src/ai/research.ts) e acrescenta diagramas validados sem exigir um planner. |
 | Integração do caderno | [NoteNotebook.tsx](../../src/workspace/NoteNotebook.tsx) controla colagem, importação, leitura de mídia, cancelamento e inserção independente de diagramas. |
 | Gestos e apresentação | [NoteCanvas.tsx](../../src/workspace/NoteCanvas.tsx) renderiza SVG/itens, transforma coordenadas, coordena seleção, gestos, teclado, zoom e histórico de operações. |
 | Diagrama com IA | [NoteDiagramComposer.tsx](../../src/workspace/NoteDiagramComposer.tsx) controla a prévia; [noteDiagram.ts](../../src/workspace/noteDiagram.ts) limita contexto, observa alterações e valida o documento retornado. |
@@ -77,7 +78,15 @@ O documento do caderno persiste; ferramentas selecionadas, zoom e pilhas de desf
 
 ## IA, contexto e integração com chat
 
-A reescrita recebe apenas `instruction` e o texto selecionado/parágrafo. Não lê outras notas nem chama ações de aplicação. O diálogo verifica se o trecho original permanece válido antes de substituir e mantém a decisão de aplicar com a pessoa. Há `maxRetries: 0`; cancelamento ou resposta incompleta não viram uma substituição automática.
+A entrada principal de IA abre o chat existente com referência explícita à nota. A ação de um trecho prepara texto editável nesse compositor; não abre outra janela de reescrita, não envia automaticamente e preserva rascunhos já escritos. O agente usa as ações validadas de leitura/edição de notas. O antigo serviço pontual de reescrita permanece como implementação legada, fora desse fluxo.
+
+Uma seleção conserva a identidade do bloco e seus offsets. A referência é validada antes do envio, independentemente do limite de 100 sugestões do seletor. O snapshot prioriza o trecho escolhido dentro dos limites de contexto e não transmite o parágrafo original inteiro como metadata. Outra seleção diferente da mesma nota exige enviar ou remover a referência atual, preservando o rascunho existente.
+
+A revisão de texto da nota focada guarda uma baseline privada no envio, antes das etapas assíncronas de classificação/compactação. [noteEditBaseline.ts](../../src/ai/noteEditBaseline.ts) conserva identidade, título e blocos apenas para comparação local; não integra mensagens persistidas nem o prompt. `update_note` rejeita mudanças concorrentes ou substituição/exclusão da nota. Acréscimos preservam os blocos atuais, mas não liberam uma revisão posterior para sobrescrever alterações humanas. Desenhos e posições do canvas não provocam conflito textual.
+
+`note_research` funciona em notas pessoais ou de projetos, mesmo sem plano. Compartilha até 12 mil caracteres dos blocos, título limitado e resumo textual limitado do caderno. Retorna achados e fontes; pesquisar não altera a nota. Salvar a pesquisa exige pedido explícito, seguido das ações normais de leitura e acréscimo. `note_diagram` atende ao pedido explícito de gerar um diagrama, valida o resultado e acrescenta um item ao canvas atual; preserva objetos, posições e desenhos concorrentes. Ambos vinculam a operação à nota de origem, verificam sua identidade e cancelamento, e não mudam a tela. Busca de fotos e geração 3D continuam sendo ferramentas visuais de projeto.
+
+O ditado único captura o campo e a seleção ao iniciar. Trocar de nota, remover o campo, ativar desenho, cancelar ou sair do editor invalida a operação. Se o texto mudar durante a gravação, a transcrição pode ser copiada, mas não sobrescreve a edição mais recente.
 
 A geração de diagrama recebe pedido de até 4.000 caracteres e, com `useContent`, uma representação semântica da nota: título, blocos, textos livres, rótulos de imagens e labels/parâmetros dos diagramas. Há orçamento textual de 24 mil caracteres e limites de blocos/itens. Bytes raster, pontos de desenho, geometria, outras notas e projetos ficam fora desse contexto. O schema retornado contém formas e cálculos declarativos, com nós do planner ausentes/nulos.
 
@@ -93,7 +102,10 @@ Importações usam `registerDataIngestion` desde a primeira leitura até convers
 | --- | --- |
 | [NotesLibrary.test.tsx](../../src/workspace/NotesLibrary.test.tsx), [Notes.test.tsx](../../src/workspace/Notes.test.tsx) | Pastas pessoais e virtuais, ausência de duplicação, criação contextual, recentes de sete dias, ordem alfabética, busca, escopo, seleção, editor maximizado, manutenção de foco e comunicação de erro ao salvar. |
 | [SoftIcons.test.tsx](../../src/components/ui/SoftIcons.test.tsx) | Consistência da família SVG, dimensões, refs, nomes acessíveis e preservação de aparência legada. |
-| [NoteTextActions.test.tsx](../../src/workspace/NoteTextActions.test.tsx), [noteRewrite.test.ts](../../src/ai/noteRewrite.test.ts) | Seleção/parágrafo, formatação, prévia, descarte, contexto alterado, falha/cancelamento e ausência de retries. |
+| [NoteTextActions.test.tsx](../../src/workspace/NoteTextActions.test.tsx), [AssistantChat.test.tsx](../../src/chat/AssistantChat.test.tsx) | Seleção/parágrafo, formatação, referência explícita, rascunho preservado, ausência de envio automático e destino de conversa válido. |
+| [AudioDictationButton.test.tsx](../../src/audio/AudioDictationButton.test.tsx), [Notes.test.tsx](../../src/workspace/Notes.test.tsx), [Workspace.notes-chat.test.tsx](../../src/workspace/Workspace.notes-chat.test.tsx) | Controle único, seleção do título/parágrafo, cancelamento, composição, edição concorrente e chat sobre a nota maximizada. |
+| [noteTools.test.ts](../../src/ai/noteTools.test.ts) | Pesquisa sem mutação, fontes, nota pessoal sem plano, geração sem navegação, preservação do canvas e rejeição de resultado atrasado/nota substituída. |
+| [workspaceTools.test.ts](../../src/ai/workspaceTools.test.ts), [store.test.ts](../../src/chat/store.test.ts) | Baseline privada no envio, edição durante compactação ou salvamento, identidade substituída, acréscimos e proteção contra sobrescrita concorrente. |
 | [NoteCanvas.test.tsx](../../src/workspace/NoteCanvas.test.tsx) | Pressão, régua, borracha, coordenadas lógicas, movimento/tamanho, teclado, zoom, somente leitura e desfazer preservando inserções concorrentes. |
 | [noteCanvasModel.test.ts](../../src/workspace/noteCanvasModel.test.ts), [noteImages.test.ts](../../src/workspace/noteImages.test.ts), [noteCanvasPersistence.test.ts](../../src/workspace/noteCanvasPersistence.test.ts) | Schemas, assinaturas raster, cotas, parâmetros, geometria, legado e rejeição de conteúdo inválido. |
 | [Notes.canvas.test.tsx](../../src/workspace/Notes.canvas.test.tsx) | Colagem nativa/artefato, independência do plano, backup+hidratação, lixeira, cancelamento e guard de ingestão. |

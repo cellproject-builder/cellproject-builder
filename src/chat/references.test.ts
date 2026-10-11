@@ -5,7 +5,7 @@ import { extractPlanFile } from '@/attachments/files';
 import { addProjectFiles } from '@/attachments/projectFiles';
 import { buildDemoProject } from '@/data/demoProject';
 import { capturePlanner, initializeWorkspace, getPlannerOwnerId } from '@/workspace/planner';
-import { listChatReferences, resolveChatReferences } from './references';
+import { listChatReferences, resolveChatReferenceTarget, resolveChatReferences } from './references';
 
 beforeEach(async () => {
   await Promise.all([useGraphStore.persist.rehydrate(), useWorkspaceStore.persist.rehydrate()]);
@@ -26,6 +26,84 @@ it('offers personal and explicit cross-project references without exposing bodie
   expect(JSON.stringify(targets)).not.toContain('SELECTED MEASUREMENTS');
   expect(resolveChatReferences(targets, null)[0].content).toContain('SELECTED MEASUREMENTS');
   expect(listChatReferences('Foreign secret', null)).toEqual([expect.objectContaining({ kind: 'note', projectId: other })]);
+});
+
+it('resolves an explicit note identity beyond the suggestion limit without changing its origin', () => {
+  const owner = useWorkspaceStore.getState().createProject('Fontes');
+  const notes = Array.from({ length: 105 }, (_, index) => useWorkspaceStore.getState().createNote({ projectId: owner, title: `Fonte ${index}` }));
+  const id = notes[104];
+  expect(listChatReferences('', owner).some(target => target.id === id)).toBe(false);
+  expect(resolveChatReferenceTarget({ id, kind: 'note', projectId: owner })).toMatchObject({ id, label: 'Fonte 104', projectId: owner, planId: null });
+  expect(() => resolveChatReferenceTarget({ id, kind: 'note', projectId: null })).toThrow('chatReferenceMissing');
+});
+
+it('preserves the selected occurrence in snapshots while keeping its block baseline private', () => {
+  const id = useWorkspaceStore.getState().createNote({ title: 'Trechos iguais' });
+  useWorkspaceStore.getState().updateNote(id, { blocks: [
+    { id: 'first', type: 'text', text: 'Servo repetido' },
+    { id: 'second', type: 'text', text: 'Servo repetido e Servo repetido' },
+  ] });
+  const noteSelection = { blockId: 'second', start: 17, end: 31, original: 'Servo repetido e Servo repetido' };
+  const target = { ...listChatReferences('Trechos iguais', null)[0], noteSelection };
+  const snapshot = resolveChatReferences([target], null)[0];
+  expect(snapshot.noteSelection).toEqual({ blockId: 'second', start: 17, end: 31, text: 'Servo repetido', truncated: false });
+  expect(snapshot.noteSelection).not.toHaveProperty('original');
+  expect(snapshot.noteSelection).not.toBe(noteSelection);
+});
+
+it('prioritizes a small selected passage beyond the first eight thousand characters without sending its entire baseline', () => {
+  const id = useWorkspaceStore.getState().createNote({ title: 'Parágrafo longo' });
+  const original = 'x'.repeat(9000) + 'SELECTED WORD' + 'x'.repeat(90987);
+  useWorkspaceStore.getState().updateNote(id, { blocks: [{ id: 'long-body', type: 'text', text: original }] });
+  const target = { ...listChatReferences('Parágrafo longo', null)[0], noteSelection: { blockId: 'long-body', start: 9000, end: 9013, original } };
+  const snapshot = resolveChatReferences([target], null)[0];
+  expect(snapshot.noteSelection).toEqual({ blockId: 'long-body', start: 9000, end: 9013, text: 'SELECTED WORD', truncated: false });
+  expect(snapshot.content).toMatch(/^Selected note passage/);
+  expect(snapshot.content).toContain('SELECTED WORD');
+  expect(snapshot.content).toContain('context truncated');
+  expect(snapshot.truncated).toBe(true);
+  expect(snapshot.noteSelection).not.toHaveProperty('original');
+  expect(snapshot.content.length + snapshot.noteSelection!.text.length).toBeLessThanOrEqual(8000);
+  expect(JSON.stringify(snapshot).length).toBeLessThan(9000);
+  expect(target.noteSelection.original.length).toBe(100000);
+});
+
+it('bounds a large selected passage together with its source content', () => {
+  const id = useWorkspaceStore.getState().createNote({ title: 'Trecho longo' });
+  const original = 'L'.repeat(100000);
+  useWorkspaceStore.getState().updateNote(id, { blocks: [{ id: 'long-body', type: 'text', text: original }] });
+  const target = { ...listChatReferences('Trecho longo', null)[0], noteSelection: { blockId: 'long-body', start: 0, end: 100000, original } };
+  const snapshot = resolveChatReferences([target], null)[0];
+  expect(snapshot.noteSelection?.truncated).toBe(true);
+  expect(snapshot.content).toContain('truncated=true');
+  expect(snapshot.content.length + snapshot.noteSelection!.text.length).toBeLessThanOrEqual(8000);
+  expect(snapshot.noteSelection).not.toHaveProperty('original');
+});
+
+it('charges selected passage metadata against the total reference context budget', () => {
+  const original = 'L'.repeat(100000);
+  const targets = Array.from({ length: 7 }, (_, index) => {
+    const id = useWorkspaceStore.getState().createNote({ title: `Fonte longa ${index}` });
+    useWorkspaceStore.getState().updateNote(id, { blocks: [{ id: 'body', type: 'text', text: original }] });
+    return resolveChatReferenceTarget({ id, kind: 'note', projectId: null, noteSelection: { blockId: 'body', start: 0, end: 100000, original } });
+  });
+  const snapshots = resolveChatReferences(targets.slice(0, 6), null);
+  expect(snapshots.reduce((total, snapshot) => total + snapshot.content.length + (snapshot.noteSelection?.text.length ?? 0), 0)).toBeLessThanOrEqual(48000);
+  expect(() => resolveChatReferences(targets, null)).toThrow('chatReferenceLimit');
+});
+
+it.each([
+  { blockId: 'missing', start: 0, end: 5, original: 'Servo repetido' },
+  { blockId: 'body', start: 0, end: 5, original: 'Texto anterior' },
+  { blockId: 'body', start: -1, end: 5, original: 'Servo repetido' },
+  { blockId: 'body', start: 5, end: 4, original: 'Servo repetido' },
+  { blockId: 'body', start: 0, end: 50, original: 'Servo repetido' },
+  { blockId: 'body', start: 0.5, end: 5, original: 'Servo repetido' },
+])('rejects stale or invalid note selection metadata before sending (%j)', (noteSelection) => {
+  const id = useWorkspaceStore.getState().createNote({ title: 'Nota atual' });
+  useWorkspaceStore.getState().updateNote(id, { blocks: [{ id: 'body', type: 'text', text: 'Servo repetido' }] });
+  const target = { ...listChatReferences('Nota atual', null)[0], noteSelection };
+  expect(() => resolveChatReferences([target], null)).toThrow('chatReferenceSelectionChanged');
 });
 
 it('offers project attachments with @ and resolves their own origin from another screen', async () => {

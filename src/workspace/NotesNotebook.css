@@ -1,5 +1,7 @@
 .ws-note-insert-tools {display:flex;align-items:center;gap:2px;flex:none;}
 .ws-note-insert-tools .ws-icon-button svg {width:16px;height:16px;}
+.ws-note-toolbar .ws-icon-button.ws-note-assistant {width:auto;gap:5px;padding-inline:8px;color:rgb(var(--ai-accent));}
+.ws-note-assistant span {font-size:11px;font-weight:600;}
 .ws-note-format[hidden], .ws-note-notebook[hidden], .ws-note-ink-tools-host[hidden] {display:none;}
 .ws-note-notebook {margin-top:24px;position:relative;min-width:0;}
 .ws-note-image-progress {font-size:11px;color:rgb(var(--text-muted));display:block;margin:0 0 8px;}

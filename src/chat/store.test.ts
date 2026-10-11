@@ -8,7 +8,8 @@ import { listChatReferences } from './references';
 import { extractPlanFile } from '@/attachments/files';
 import { classifyPlanRequest } from '@/ai/planIntake';
 import * as chatContext from './contextBudget';
-import { captureChatTurnContext } from './turnContext';
+import { captureChatTurnContext, publishChatNoteFocus } from './turnContext';
+import { createAssistantTools } from '@/ai/workspaceTools';
 import * as aiClient from '@/ai/client';
 import * as workspaceAgent from '@/ai/agents/workspaceAgent';
 vi.mock('@/ai/planIntake', () => ({ classifyPlanRequest: vi.fn(async () => ({ status: 'not-configured' })) }));
@@ -170,6 +171,23 @@ it('does not create a turn or call the assistant for a removed reference', async
   expect(store.getState().error).toMatch(/reference|referência/);
 });
 
+it('sends and persists the exact note occurrence independently of its visible draft wording', async () => {
+  useWorkspaceStore.setState({ projects: {}, notes: {}, activeProjectId: null });
+  const id = useWorkspaceStore.getState().createNote({ title: 'Passagens repetidas' });
+  useWorkspaceStore.getState().updateNote(id, { blocks: [
+    { id: 'first', type: 'text', text: 'Mesmo trecho' },
+    { id: 'second', type: 'text', text: 'Mesmo trecho' },
+  ] });
+  const references = [{ ...listChatReferences('Passagens repetidas', null)[0], noteSelection: { blockId: 'second', start: 0, end: 12, original: 'Mesmo trecho' } }];
+  vi.mocked(runAssistant).mockResolvedValue({ text: 'Vamos revisar.', messages: [{ role: 'assistant', content: 'Vamos revisar.' }] });
+  await sendChatMessage('Deixe este trecho mais claro', { references, projectId: null });
+  expect(vi.mocked(runAssistant).mock.calls[0][0].messages[0].content).toContain('"noteSelection":{"blockId":"second","start":0,"end":12,"text":"Mesmo trecho","truncated":false}');
+  expect(vi.mocked(runAssistant).mock.calls[0][0].messages[0].content).not.toContain('"original":');
+  expect(store.getState().messages[0].text).toBe('Deixe este trecho mais claro');
+  await flushChatPersistence(); await store.persist.rehydrate();
+  expect(store.getState().messages[0].references?.[0].noteSelection).toEqual({ blockId: 'second', start: 0, end: 12, text: 'Mesmo trecho', truncated: false });
+});
+
 it('renames and explicitly archives the active conversation without losing its source history', async () => {
   vi.mocked(runAssistant).mockResolvedValue({ text: 'Feito', messages: [{ role: 'assistant', content: 'Feito' }] });
   await sendChatMessage('Planejar bancada');
@@ -258,6 +276,7 @@ it('prepares context before the assistant and preserves all visible messages aft
 
 it('does not discard more than twenty old turns while still below the token budget', async () => {
   const history = Array.from({ length: 22 }, (_, index) => [{ role: 'user' as const, content: `Question ${index}` }, { role: 'assistant' as const, content: `Answer ${index}` }]).flat();
+  vi.spyOn(workspaceAgent, 'estimateWorkspacePromptTokens').mockResolvedValue(256);
   store.setState({ modelHistory: history });
   vi.mocked(runAssistant).mockResolvedValue({ text: 'Latest', messages: [] });
   await sendChatMessage('Continue', { projectId: null });
@@ -578,4 +597,32 @@ it.each(['estimate', 'prepare'] as const)('does not duplicate a late receipt car
   expect(request.messages.filter(message => JSON.stringify(message).includes('already-created-note'))).toHaveLength(1);
   expect(store.getState().modelHistory.filter(message => JSON.stringify(message).includes('already-created-note'))).toHaveLength(1);
   expect(store.getState().contextObservation?.historyMessageCount).toBe(request.messages.length);
+});
+it.each(['edited', 'appeared'] as const)('keeps the private note baseline from submission when the note is %s before context preparation ends', async (change) => {
+  useWorkspaceStore.setState({ activeProjectId: null, surface: 'notes' });
+  const noteId = useWorkspaceStore.getState().createNote({ title: 'Original at submission' });
+  useWorkspaceStore.getState().updateNote(noteId, { blocks: [{ id: 'body', type: 'text', text: 'Original note text' }] });
+  const clear = publishChatNoteFocus(noteId, null), turnContext = captureChatTurnContext(); clear();
+  const originalNote = useWorkspaceStore.getState().notes[noteId];
+  if (change === 'appeared') useWorkspaceStore.setState(state => ({ notes: Object.fromEntries(Object.entries(state.notes).filter(([id]) => id !== noteId)) }));
+  const originalPrepare = chatContext.prepareChatContext;
+  vi.spyOn(chatContext, 'prepareChatContext').mockImplementationOnce(async (...args) => {
+    if (change === 'edited') useWorkspaceStore.getState().updateNote(noteId, { blocks: [{ id: 'local', type: 'text', text: 'Local edit during context preparation' }] });
+    else useWorkspaceStore.setState(state => ({ notes: { ...state.notes, [noteId]: originalNote } }));
+    return originalPrepare(...args);
+  });
+  vi.mocked(runAssistant).mockImplementationOnce(async request => {
+    const tools = createAssistantTools(request.signal, request.onAction, request.userText, {
+      turnContext: request.turnContext, noteEditBaseline: request.noteEditBaseline, beforeRequest: async () => {}, onRateLimit: () => {},
+    });
+    expect(await tools.workspace_action.execute!({ action: 'update_note', id: noteId, patch: { text: 'Stale generated replacement' } }, { toolCallId: 'baseline-race', messages: [] })).toMatchObject({ ok: false });
+    return { text: 'A nota mudou; suas edições foram preservadas.', messages: [] };
+  });
+  await sendChatMessage('Revise this note', { turnContext });
+  expect(runAssistant).toHaveBeenCalledOnce();
+  expect(useWorkspaceStore.getState().notes[noteId].blocks[0].text).toBe(change === 'edited' ? 'Local edit during context preparation' : 'Original note text');
+  expect(JSON.stringify(store.getState().messages)).not.toMatch(/noteEditBaseline|textSnapshot/);
+  expect(JSON.stringify(store.getState().modelHistory)).not.toMatch(/noteEditBaseline|textSnapshot/);
+  await flushChatPersistence(); await store.persist.rehydrate();
+  expect(JSON.stringify(store.getState().messages)).not.toMatch(/noteEditBaseline|textSnapshot/);
 });
