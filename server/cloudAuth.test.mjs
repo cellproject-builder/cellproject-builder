@@ -828,3 +828,29 @@ test('an old authorization in flight cannot publish a refreshed token before its
     releaseCandidate(); assert.equal(await candidateCheck, null);
   } finally { releaseOld?.(); releaseCandidate?.(); auth.close(); }
 });
+
+for (const currentAllowed of [true, false]) test(`a refused old-token check revalidates rotated credentials and ${currentAllowed ? 'preserves the active session' : 'honors a current authorization revocation'}`, async () => {
+  const fixture = authorizationFixture({ tokenSeconds: 120 }); const { auth } = fixture;
+  let releaseOld, oldStarted, denyCurrent = false;
+  const waitingOld = new Promise(resolve => { oldStarted = resolve; });
+  try {
+    const cookie = await fixture.signIn(); const oldToken = jwt(1_800_000_120);
+    fixture.advance(59_999);
+    fixture.inject(async (target, init) => {
+      if (target.endsWith('/user') && init.headers.authorization === `Bearer ${oldToken}`) {
+        oldStarted(); await new Promise(resolve => { releaseOld = resolve; });
+        return new Response('{}', { status: 401 });
+      }
+      if (denyCurrent && target.endsWith('/cellproject_authorized')) return response(false);
+    });
+    const oldCheck = auth.authorize(req(cookie)); await waitingOld;
+    fixture.advance(2);
+    const refreshed = await auth.authorize(req(cookie));
+    assert.equal(refreshed?.user.id, id); assert.equal(refreshed.passwordSetup, false);
+    denyCurrent = !currentAllowed; releaseOld();
+    const checked = await oldCheck;
+    assert.equal(checked?.user.id ?? null, currentAllowed ? id : null);
+    fixture.inject(undefined);
+    assert.equal((await auth.authorize(req(cookie)))?.user.id ?? null, currentAllowed ? id : null);
+  } finally { releaseOld?.(); auth.close(); }
+});

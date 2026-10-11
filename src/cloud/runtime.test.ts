@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { webcrypto } from 'node:crypto';
-import { CloudRuntime, CloudConflictError, configureCloud, isCloudEnabled, cloudProviderAvailable, sha256 } from './runtime';
+import { CloudRuntime, CloudConflictError, CloudHttpError, cloudJson, configureCloud, isCloudEnabled, cloudProviderAvailable, sha256 } from './runtime';
 
 const snapshot = () => ({ documents: [{ key: 'cellproject-workspace', value: '{"state":{"projects":{}},"version":2}', revision: 4 }], media: [] });
 beforeEach(() => configureCloud(null));
@@ -203,4 +203,221 @@ it('rejects malformed runtime checkpoints before selecting any stored draft', as
   for (const checkpoint of [{ ...saved, version: 99 }, { ...saved, queue: [...saved.queue, saved.queue[0]] }, { ...saved, drafts: [['unknown-document', 'private']] }, { ...saved, queue: [{ ...saved.queue[0], baseRevision: -1 }] }]) {
     expect(() => new CloudRuntime(snapshot(), fetch, undefined, undefined, { persistence, checkpoint })).toThrow();
   }
+});
+
+const concurrencyEnvelope = (boards: Record<string, unknown> = {}, notes: Record<string, unknown> = {}) => JSON.stringify({ version: 2, state: { projects: {}, tasks: {}, comments: {}, sprints: {}, folders: {}, notes, boards, legacyImported: true } });
+const concurrencyNote = (title: string) => ({ id: 'note', title, blocks: [{ id: 'text', type: 'text', text: title }], projectId: null, taskId: null, folderId: null, pinned: false, deletedAt: null, createdAt: 1, updatedAt: 2 });
+const concurrencyBoard = (id: string, title: string) => ({ id, title, archived: false, createdAt: 1, updatedAt: 2, document: { version: 1, items: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } } });
+const concurrencySnapshot = (value: string, revision: number) => ({ documents: [{ key: 'cellproject-workspace', value, revision }], media: [] });
+const documentRevisionConflict = () => Response.json({ error: 'revision_conflict' }, { status: 409 });
+
+it('recognizes the typed revision code in the production error envelope without exposing server details', async () => {
+  const fetcher = vi.fn<typeof fetch>(async () => Response.json({ error: { code: 'revision_conflict', message: 'PRIVATE_UPSTREAM_DETAILS', requestId: 'request' } }, { status: 409 }));
+  await expect(cloudJson('/api/cloud/documents/cellproject-workspace', {}, fetcher)).rejects.toMatchObject({ status: 409, code: 'revision_conflict', message: 'Conflito de revisão no servidor.' });
+  const malformed = vi.fn<typeof fetch>(async () => Response.json({ error: { code: { secret: true } } }, { status: 409 }));
+  await expect(cloudJson('/api/cloud/documents/cellproject-workspace', {}, malformed)).rejects.toBeInstanceOf(CloudHttpError);
+});
+
+it('rebases an independent note edit over a board edit after a definitive revision rejection', async () => {
+  const base = concurrencyEnvelope({ b: concurrencyBoard('b', 'Before') }, { note: concurrencyNote('Before') });
+  const local = concurrencyEnvelope({ b: concurrencyBoard('b', 'Before') }, { note: concurrencyNote('Typed on PC') });
+  const remote = concurrencyEnvelope({ b: concurrencyBoard('b', 'Tablet board') }, { note: concurrencyNote('Before') });
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(documentRevisionConflict()).mockResolvedValueOnce(Response.json({ revision: 3 }));
+  const load = vi.fn(async () => concurrencySnapshot(remote, 2));
+  const runtime = new CloudRuntime(concurrencySnapshot(base, 1), fetcher, undefined, load);
+  await runtime.write('cellproject-workspace', local); await runtime.flush();
+  const saved = JSON.parse(runtime.get('cellproject-workspace')!).state;
+  expect(saved.notes.note.title).toBe('Typed on PC'); expect(saved.boards.b.title).toBe('Tablet board');
+  expect(runtime.getSnapshot()).toMatchObject({ pending: 0, issue: null });
+  const bodies = fetcher.mock.calls.map(call => JSON.parse(String(call[1]?.body)));
+  expect(bodies[1].baseRevision).toBe(2); expect(bodies[1].operationId).not.toBe(bodies[0].operationId);
+});
+
+it('retains edits queued while loading a conflicting revision and corrects the following stale store snapshot', async () => {
+  const base = concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', 'B') });
+  const firstLocal = concurrencyEnvelope({ a: concurrencyBoard('a', 'Local 1'), b: concurrencyBoard('b', 'B') });
+  const secondLocal = concurrencyEnvelope({ a: concurrencyBoard('a', 'Local 2'), b: concurrencyBoard('b', 'B') });
+  const thirdLocal = concurrencyEnvelope({ a: concurrencyBoard('a', 'Local 3'), b: concurrencyBoard('b', 'B') });
+  const remote = concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', 'Remote') });
+  let finish!: (snapshot: ReturnType<typeof concurrencySnapshot>) => void;
+  const load = vi.fn(() => new Promise<ReturnType<typeof concurrencySnapshot>>(resolve => { finish = resolve; }));
+  let revision = 2;
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(documentRevisionConflict()).mockImplementation(async () => Response.json({ revision: ++revision }));
+  const runtime = new CloudRuntime(concurrencySnapshot(base, 1), fetcher, undefined, load);
+  const first = runtime.write('cellproject-workspace', firstLocal);
+  await vi.waitFor(() => expect(load).toHaveBeenCalledOnce());
+  void runtime.write('cellproject-workspace', secondLocal);
+  finish(concurrencySnapshot(remote, 2)); await first; await runtime.flush();
+  expect(JSON.parse(runtime.get('cellproject-workspace')!).state.boards).toMatchObject({ a: { title: 'Local 2' }, b: { title: 'Remote' } });
+  await runtime.write('cellproject-workspace', thirdLocal); await runtime.flush();
+  expect(JSON.parse(runtime.get('cellproject-workspace')!).state.boards).toMatchObject({ a: { title: 'Local 3' }, b: { title: 'Remote' } });
+});
+
+it('applies a rebased canonical document on an idle refresh even when its revision was already acknowledged', async () => {
+  const base = concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', 'B') });
+  const local = concurrencyEnvelope({ a: concurrencyBoard('a', 'Local'), b: concurrencyBoard('b', 'B') });
+  const remote = concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', 'Remote') });
+  let current = concurrencySnapshot(remote, 2);
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(documentRevisionConflict()).mockImplementation(async (_path, init) => {
+    current = concurrencySnapshot(JSON.parse(String(init?.body)).value, 3); return Response.json({ revision: 3 });
+  });
+  const runtime = new CloudRuntime(concurrencySnapshot(base, 1), fetcher, undefined, async () => current);
+  await runtime.write('cellproject-workspace', local);
+  const apply = vi.fn((documents: readonly { key: string; value: string }[]) => { void runtime.write(documents[0].key, documents[0].value); });
+  expect(await runtime.refreshRemote({ apply })).toHaveLength(1); expect(apply).toHaveBeenCalledOnce();
+  expect(fetcher).toHaveBeenCalledTimes(2); expect(await runtime.refreshRemote({ apply })).toEqual([]);
+});
+
+it('keeps incompatible same-note text as a conflict and never sends a merged replacement', async () => {
+  const base = concurrencyEnvelope({}, { note: concurrencyNote('Before') });
+  const local = concurrencyEnvelope({}, { note: concurrencyNote('PC') });
+  const remote = concurrencyEnvelope({}, { note: concurrencyNote('Tablet') });
+  const fetcher = vi.fn<typeof fetch>(async () => documentRevisionConflict());
+  const runtime = new CloudRuntime(concurrencySnapshot(base, 1), fetcher, undefined, async () => concurrencySnapshot(remote, 2));
+  await runtime.write('cellproject-workspace', local);
+  expect(runtime.get('cellproject-workspace')).toBe(local); expect(runtime.getSnapshot()).toMatchObject({ pending: 1, issue: { kind: 'conflict' } });
+  expect(fetcher).toHaveBeenCalledOnce(); await expect(runtime.flush()).rejects.toBeInstanceOf(CloudConflictError);
+});
+
+it('recovers a durable definitive conflict after reload and journals its new identity before retrying', async () => {
+  const base = concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', 'B') });
+  const local = concurrencyEnvelope({ a: concurrencyBoard('a', 'Local'), b: concurrencyBoard('b', 'B') });
+  const remote = concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', 'Remote') });
+  const persistence = checkpointStore(), firstFetcher = vi.fn<typeof fetch>(async () => documentRevisionConflict());
+  const first = new CloudRuntime(concurrencySnapshot(base, 1), firstFetcher, undefined, async () => { throw new Error('read offline'); }, { persistence });
+  await first.write('cellproject-workspace', local);
+  const saved = await persistence.read<any>('runtime'); first.dispose();
+  const retired: string[] = [];
+  const secondFetcher = vi.fn<typeof fetch>(async (_path, init) => {
+    const body = JSON.parse(String(init?.body)), journal = await persistence.read<any>('runtime');
+    expect(journal.queue[0].operationId).toBe(body.operationId); expect(body.operationId).not.toBe(saved.queue[0].operationId);
+    return Response.json({ revision: 3 });
+  });
+  const restored = new CloudRuntime(concurrencySnapshot(base, 1), secondFetcher, undefined, async () => concurrencySnapshot(remote, 2), { persistence, checkpoint: saved, rejectOperation: async id => { retired.push(id); } });
+  await restored.retry(); await restored.flush();
+  expect(retired).toContain(saved.queue[0].operationId);
+  expect(JSON.parse(restored.get('cellproject-workspace')!).state.boards).toMatchObject({ a: { title: 'Local' }, b: { title: 'Remote' } });
+});
+
+it('retries an older restored conflict with its original identity before attempting a safe merge', async () => {
+  const base = concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', 'B') });
+  const local = concurrencyEnvelope({ a: concurrencyBoard('a', 'Local'), b: concurrencyBoard('b', 'B') });
+  const remote = concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', 'Remote') });
+  const first = new CloudRuntime(concurrencySnapshot(base, 1), vi.fn(async () => Response.json({}, { status: 409 })));
+  await first.write('cellproject-workspace', local);
+  const saved = first.checkpoint(); first.dispose();
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(documentRevisionConflict()).mockResolvedValueOnce(Response.json({ revision: 3 }));
+  const restored = new CloudRuntime(concurrencySnapshot(base, 1), fetcher, undefined, async () => concurrencySnapshot(remote, 2), { checkpoint: saved });
+  await restored.retry(); await restored.flush();
+  const bodies = fetcher.mock.calls.map(call => JSON.parse(String(call[1]?.body)));
+  expect(bodies[0]).toMatchObject({ operationId: saved.queue[0].operationId, value: local, baseRevision: 1 });
+  expect(bodies[1].operationId).not.toBe(bodies[0].operationId);
+  expect(JSON.parse(restored.get('cellproject-workspace')!).state.boards.b.title).toBe('Remote');
+});
+
+it('bounds repeated definitive revision rejections while retaining the latest merged draft', async () => {
+  const base = concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', 'B') });
+  const local = concurrencyEnvelope({ a: concurrencyBoard('a', 'Local'), b: concurrencyBoard('b', 'B') });
+  let revision = 1;
+  const fetcher = vi.fn<typeof fetch>(async () => documentRevisionConflict());
+  const load = vi.fn(async () => concurrencySnapshot(concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', `Remote ${++revision}`) }), revision));
+  const runtime = new CloudRuntime(concurrencySnapshot(base, 1), fetcher, undefined, load);
+  await runtime.write('cellproject-workspace', local);
+  expect(fetcher).toHaveBeenCalledTimes(4); expect(load).toHaveBeenCalledTimes(3);
+  expect(runtime.getSnapshot()).toMatchObject({ pending: 1, issue: { kind: 'conflict' } });
+  expect(JSON.parse(runtime.get('cellproject-workspace')!).state.boards).toMatchObject({ a: { title: 'Local' }, b: { title: 'Remote 4' } });
+});
+
+it('never rebases an operation-identity rejection or ambiguous network failure', async () => {
+  const base = concurrencyEnvelope({ a: concurrencyBoard('a', 'A') });
+  const local = concurrencyEnvelope({ a: concurrencyBoard('a', 'Local') });
+  for (const failure of [Response.json({ error: 'vault_operation_conflict' }, { status: 409 }), new Error('response lost')]) {
+    const load = vi.fn(async () => concurrencySnapshot(base, 2));
+    const fetcher = vi.fn<typeof fetch>(async () => { if (failure instanceof Error) throw failure; return failure; });
+    const runtime = new CloudRuntime(concurrencySnapshot(base, 1), fetcher, undefined, load);
+    await runtime.write('cellproject-workspace', local);
+    expect(load).not.toHaveBeenCalled(); expect(runtime.get('cellproject-workspace')).toBe(local);
+    expect(runtime.checkpoint().queue[0].rejected).toBeUndefined();
+  }
+});
+
+it('does not send a rebased replacement until its new runtime checkpoint is durable', async () => {
+  const base = concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', 'B') });
+  const local = concurrencyEnvelope({ a: concurrencyBoard('a', 'Local'), b: concurrencyBoard('b', 'B') });
+  const remote = concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', 'Remote') });
+  const persistence = checkpointStore(); let fail = true;
+  persistence.write.mockImplementation(async (slot, value: any) => {
+    if (fail && value.confirmed.documents[0].revision === 2) throw new Error('rebase checkpoint quota');
+    persistence.data.set(slot, structuredClone(value));
+  });
+  const retire = vi.fn(async () => {});
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(documentRevisionConflict()).mockResolvedValueOnce(Response.json({ revision: 3 }));
+  const runtime = new CloudRuntime(concurrencySnapshot(base, 1), fetcher, undefined, async () => concurrencySnapshot(remote, 2), { persistence, rejectOperation: retire });
+  await runtime.write('cellproject-workspace', local);
+  expect(fetcher).toHaveBeenCalledOnce(); expect(retire).not.toHaveBeenCalled();
+  expect(runtime.getSnapshot().localError).toBe('rebase checkpoint quota');
+  fail = false; await runtime.retry(); await runtime.flush();
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(retire).toHaveBeenCalledOnce();
+  expect(JSON.parse(runtime.get('cellproject-workspace')!).state.boards.b.title).toBe('Remote');
+});
+
+it('preserves a newly conflicting edit from a stale store without submitting it on retry', async () => {
+  const base = concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', 'B') });
+  const local = concurrencyEnvelope({ a: concurrencyBoard('a', 'Local'), b: concurrencyBoard('b', 'B') });
+  let current = concurrencySnapshot(concurrencyEnvelope({ a: concurrencyBoard('a', 'A'), b: concurrencyBoard('b', 'Remote') }), 2);
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(documentRevisionConflict()).mockImplementation(async (_path, init) => {
+    current = concurrencySnapshot(JSON.parse(String(init?.body)).value, 3); return Response.json({ revision: 3 });
+  });
+  const runtime = new CloudRuntime(concurrencySnapshot(base, 1), fetcher, undefined, async () => current);
+  await runtime.write('cellproject-workspace', local);
+  const incompatible = concurrencyEnvelope({ a: concurrencyBoard('a', 'Local'), b: concurrencyBoard('b', 'Overwrite from stale PC') });
+  await runtime.write('cellproject-workspace', incompatible); await runtime.retry();
+  expect(fetcher).toHaveBeenCalledTimes(2); expect(runtime.getSnapshot().issue?.kind).toBe('conflict');
+  expect(runtime.get('cellproject-workspace')).toBe(incompatible);
+  expect(JSON.parse(current.documents[0].value).state.boards.b.title).toBe('Remote');
+});
+
+const managedPlanner = (id: string, title: string) => ({ project: { id, name: title, objective: title, rootId: 'root', nodes: { root: { id: 'root', name: title } }, edges: {}, createdAt: 1, updatedAt: 2 }, selectedNodeId: 'root', focusedParentId: 'root', lens: 'structure', viewMode: 'tutor', detailPanelOpen: true, lastTutorNodeId: null, drafts: {}, objectiveDraft: { name: title, objective: title, rules: [], expanded: {} }, pendingSuggestions: null, parkedSuggestions: {}, archivedProject: null, archivedPending: null });
+const managedWorkspace = (one: ReturnType<typeof managedPlanner>, two: ReturnType<typeof managedPlanner>) => {
+  const envelope = JSON.parse(concurrencyEnvelope());
+  envelope.state.projects = Object.fromEntries([one, two].map((planner, index) => [`managed-${index}`, { id: `managed-${index}`, name: planner.project.name, objective: planner.project.objective, archived: false, createdAt: 1, updatedAt: 2, planner }]));
+  return JSON.stringify(envelope);
+};
+
+it('allows different managed plan checkpoints only after both complete planner snapshots are preserved in the merged workspace', async () => {
+  const originalOne = managedPlanner('one', 'One'), originalTwo = managedPlanner('two', 'Two');
+  const remoteOne = managedPlanner('one', 'PC edit'), localTwo = managedPlanner('two', 'Tablet edit');
+  const graph = (state: unknown) => JSON.stringify({ version: 6, state });
+  const base = { documents: [{ key: 'cellproject-graph', value: graph(originalOne), revision: 1 }, { key: 'cellproject-workspace', value: managedWorkspace(originalOne, originalTwo), revision: 1 }], media: [] };
+  const incoming = { documents: [{ key: 'cellproject-graph', value: graph(remoteOne), revision: 2 }, { key: 'cellproject-workspace', value: managedWorkspace(remoteOne, originalTwo), revision: 2 }], media: [] };
+  let finish!: () => void;
+  const load = vi.fn(() => new Promise<typeof incoming>(resolve => { finish = () => resolve(incoming); }));
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(documentRevisionConflict()).mockImplementation(async () => Response.json({ revision: 3 }));
+  const runtime = new CloudRuntime(base, fetcher, undefined, load);
+  const first = runtime.write('cellproject-graph', graph(localTwo));
+  await vi.waitFor(() => expect(load).toHaveBeenCalledOnce());
+  void runtime.write('cellproject-workspace', managedWorkspace(originalOne, localTwo));
+  finish(); await first; await runtime.flush();
+  expect(runtime.getSnapshot()).toMatchObject({ pending: 0, issue: null });
+  expect(JSON.parse(runtime.get('cellproject-graph')!).state).toEqual(localTwo);
+  const projects = JSON.parse(runtime.get('cellproject-workspace')!).state.projects;
+  expect(projects['managed-0'].planner).toEqual(remoteOne); expect(projects['managed-1'].planner).toEqual(localTwo);
+});
+
+it.each(['unmanaged', 'unsubmitted draft', 'different canonical content'])('keeps differing plan checkpoints conflicted when coverage is unsafe: %s', async reason => {
+  const originalOne = managedPlanner('one', 'One'), originalTwo = managedPlanner('two', 'Two');
+  const remoteOne = managedPlanner('one', 'PC edit'), localTwo = managedPlanner('two', 'Tablet edit');
+  const localGraph = structuredClone(localTwo);
+  if (reason === 'unsubmitted draft') localGraph.objectiveDraft.objective = 'Only in graph';
+  const remoteGraph = structuredClone(remoteOne);
+  if (reason === 'different canonical content') remoteGraph.project.name = 'Not the canonical planner';
+  const graph = (state: unknown) => JSON.stringify({ version: 6, state });
+  const baseWorkspace = reason === 'unmanaged' ? concurrencyEnvelope() : managedWorkspace(originalOne, originalTwo);
+  const remoteWorkspace = reason === 'unmanaged' ? concurrencyEnvelope() : managedWorkspace(remoteOne, localTwo);
+  const fetcher = vi.fn<typeof fetch>(async () => documentRevisionConflict());
+  const runtime = new CloudRuntime({ documents: [{ key: 'cellproject-graph', value: graph(originalOne), revision: 1 }, { key: 'cellproject-workspace', value: baseWorkspace, revision: 1 }], media: [] }, fetcher, undefined, async () => ({ documents: [{ key: 'cellproject-graph', value: graph(remoteGraph), revision: 2 }, { key: 'cellproject-workspace', value: remoteWorkspace, revision: 2 }], media: [] }));
+  await runtime.write('cellproject-graph', graph(localGraph));
+  expect(fetcher).toHaveBeenCalledOnce(); expect(runtime.getSnapshot().issue?.kind).toBe('conflict');
+  expect(runtime.get('cellproject-graph')).toBe(graph(localGraph));
 });

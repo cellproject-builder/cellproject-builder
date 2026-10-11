@@ -4,6 +4,12 @@ import { validateVaultHeader, validateVaultCipher, createVaultRepository } from 
 const cipher = { v: 1, iv: Buffer.alloc(12).toString('base64'), data: Buffer.alloc(48).toString('base64') };
 const header = { format: 'dynamic-diary-vault', version: 1, id: '00000000-0000-4000-8000-000000000001', kdf: { name: 'PBKDF2', hash: 'SHA-256', iterations: 600000, salt: Buffer.alloc(16).toString('base64') }, password: cipher, recovery: cipher };
 const session = { user: { id: 'owner' }, accessToken: 'test-only-token' };
+test('revision contention is distinct from operation identity conflicts', async () => {
+  for (const [message, code] of [['Revision conflict', 'vault_revision_conflict'], ['Operation conflict', 'vault_operation_conflict']]) {
+    const repo = createVaultRepository({ config: { supabaseUrl: 'https://test.supabase.co', publishableKey: 'test-public' }, fetchImpl: async () => Response.json({ message, code: 'P0001' }, { status: 400 }) });
+    await assert.rejects(repo.write(session, { manifest: cipher, baseRevision: 1, operationId: 'test-conflict' }), error => error.status === 409 && error.code === code);
+  }
+});
 test('vault wire contracts reject plaintext extras, downgraded KDF and invalid ciphertext', () => {
   assert.deepEqual(validateVaultHeader(header), header);
   assert.throws(() => validateVaultHeader({ ...header, secret: 'plaintext' }));

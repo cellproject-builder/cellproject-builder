@@ -277,7 +277,17 @@ export function createCloudAuth({ config, fetchImpl = fetch, now = Date.now, ses
           })().finally(() => { session.refresh = null; });
           await session.refresh;
         }
-        const checked = await identity(session.accessToken);
+        const checkedToken = session.accessToken;
+        let checked;
+        try { checked = await identity(checkedToken); }
+        catch (error) {
+          // A delayed refusal for an older token cannot revoke a newer pair
+          // already validated by another request. Recheck the current pair once;
+          // its own refusal still ends the session through the outer handler.
+          if (!(error instanceof CloudError) || error.status !== 401 || session.accessToken === checkedToken) throw error;
+          assertSessionActive(id, session);
+          checked = await identity(session.accessToken);
+        }
         assertSessionActive(id, session);
         if (checked.user.id !== session.user.id) throw deny();
         if (session.persistencePending) {

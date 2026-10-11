@@ -1,5 +1,6 @@
 import { authorizeVaultSharing, configureVault } from './vault/privacy';
 import type { CheckpointStore } from './offline/checkpoints';
+import { mergeCloudDocument } from './documentMerge';
 export type { CheckpointStore } from './offline/checkpoints';
 export const CLOUD_DOCUMENT_KEYS = ['cellproject-workspace', 'cellproject-graph', 'dynamic_diary-chat', 'cellproject-kb', 'cellproject-config', 'cellproject-locale', 'dynamic_diary-theme', 'dynamic_diary-sidebar-collapsed', 'dynamic_diary:task-view'] as const;
 export type CloudProvider = 'openrouter' | 'openai' | 'anthropic';
@@ -15,6 +16,8 @@ export interface CloudRuntimeOptions {
   networkReady?: () => boolean;
   /** Called only after the operation's removal from the runtime queue is durable. */
   acknowledgeOperation?: (operationId: string) => Promise<void>;
+  /** Retire a definitively rejected request only after its replacement queue is durable. */
+  rejectOperation?: (operationId: string) => Promise<void>;
 }
 export interface RuntimeCheckpoint { version: 1; confirmed: CloudSnapshot; drafts: [string, string][]; queue: Operation[]; issue: CloudIssue | null }
 export interface RemoteRefreshOptions {
@@ -23,13 +26,22 @@ export interface RemoteRefreshOptions {
   /** Must apply synchronously: no input events can interleave with this transaction. */
   apply?: (documents: readonly CloudDocument[]) => void;
 }
-type Operation = { key: string; value: string; operationId: string; baseRevision?: number };
+type Operation = { key: string; value: string; operationId: string; baseRevision?: number; baseValue?: string | null; rejected?: true };
 export class CloudConflictError extends Error { constructor() { super('Há um conflito remoto. Seu rascunho foi preservado.'); } }
-export class CloudHttpError extends Error { constructor(public status: number, message: string) { super(message); } }
+export class CloudHttpError extends Error { constructor(public status: number, message: string, public code?: string) { super(message); } }
 export const mutationHeaders = { 'Content-Type': 'application/json', 'X-Cellproject-Request': '1' };
 export async function cloudJson<T>(path: string, init: RequestInit = {}, fetcher: typeof fetch = fetch): Promise<T> {
   const response = await sessionAwareFetch(path, { ...init, credentials: 'same-origin', cache: 'no-store' }, fetcher);
-  if (!response.ok) throw new CloudHttpError(response.status, response.status === 409 ? 'Conflito de revisão no servidor.' : response.status === 401 || response.status === 403 ? 'Sessão expirada ou acesso recusado.' : `Não foi possível salvar na nuvem (${response.status}).`);
+  if (!response.ok) {
+    let code: string | undefined;
+    try {
+      const data: unknown = await response.json();
+      const error = data && typeof data === 'object' && 'error' in data ? data.error : undefined;
+      const candidate = error && typeof error === 'object' && 'code' in error ? error.code : error;
+      if (typeof candidate === 'string' && /^[a-z_]{1,80}$/.test(candidate)) code = candidate;
+    } catch { /* Error details are not trusted or shown. */ }
+    throw new CloudHttpError(response.status, response.status === 409 ? 'Conflito de revisão no servidor.' : response.status === 401 || response.status === 403 ? 'Sessão expirada ou acesso recusado.' : `Não foi possível salvar na nuvem (${response.status}).`, code);
+  }
   return await response.json() as T;
 }
 export function sanitizeCloudDocument(key: string, value: string): string {
@@ -38,6 +50,30 @@ export function sanitizeCloudDocument(key: string, value: string): string {
   const data = JSON.parse(value) as { state?: { providers?: Record<string, Record<string, unknown>> } };
   for (const config of Object.values(data.state?.providers ?? {})) delete config.apiKey;
   return JSON.stringify(data);
+}
+
+const plannerFields = ['project', 'selectedNodeId', 'focusedParentId', 'lens', 'viewMode', 'detailPanelOpen', 'lastTutorNodeId', 'drafts', 'objectiveDraft', 'archivedProject', 'pendingSuggestions', 'parkedSuggestions', 'archivedPending'];
+const jsonRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
+function sameJson(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((value, index) => sameJson(value, b[index]));
+  if (!jsonRecord(a) || !jsonRecord(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every(key => Object.hasOwn(b, key) && sameJson(a[key], b[key]));
+}
+/** The singleton graph is redundant only when both complete editors have canonical workspace owners. */
+function managedGraphCheckpoint(base: string | null, local: string, remote: string | null, workspace: string | null): boolean {
+  if (base === null || remote === null || workspace === null) return false;
+  try {
+    const before: unknown = JSON.parse(base), here: unknown = JSON.parse(local), there: unknown = JSON.parse(remote), canonical: unknown = JSON.parse(workspace);
+    if (!jsonRecord(before) || !jsonRecord(here) || !jsonRecord(there) || before.version !== here.version || here.version !== there.version || !Number.isSafeInteger(here.version) || !jsonRecord(before.state) || !jsonRecord(here.state) || !jsonRecord(there.state) || !jsonRecord(canonical) || !jsonRecord(canonical.state) || !jsonRecord(canonical.state.projects)) return false;
+    const id = (state: Record<string, unknown>) => jsonRecord(state.project) && typeof state.project.id === 'string' ? state.project.id : null;
+    const baseId = id(before.state), localId = id(here.state), remoteId = id(there.state);
+    if (!baseId || !localId || !remoteId || localId === remoteId) return false;
+    const planners = Object.values(canonical.state.projects).flatMap(managed => jsonRecord(managed) && jsonRecord(managed.planner) ? [managed.planner] : []);
+    const covered = (state: Record<string, unknown>) => Object.keys(state).length === plannerFields.length && plannerFields.every(field => Object.hasOwn(state, field)) && planners.filter(planner => plannerFields.every(field => Object.hasOwn(planner, field) && sameJson(state[field], planner[field]))).length === 1;
+    return planners.some(planner => id(planner) === baseId) && covered(here.state) && covered(there.state);
+  } catch { return false; }
 }
 
 /** Cloud is canonical; optional encrypted checkpoints preserve local drafts and exact retry identities. */
@@ -58,6 +94,11 @@ export class CloudRuntime {
   private mediaBytes = new Map<string, ArrayBuffer>();
   private localChain: Promise<void> = Promise.resolve();
   private localGeneration = 0;
+  // The UI can keep a full snapshot while reconciliation installs remote entities.
+  // Remember its last raw value so its next edit expresses a delta, not a rollback.
+  private lastLocalValues = new Map<string, string>();
+  private pendingApplication = new Set<string>();
+  private retiredOperations = new Set<string>();
   constructor(snapshot: CloudSnapshot, private fetcher: typeof fetch = fetch, private vaultDisposer?: () => void, private snapshotLoader?: () => Promise<CloudSnapshot>, private options: CloudRuntimeOptions = {}) {
     if (!snapshot || !Array.isArray(snapshot.documents) || !Array.isArray(snapshot.media)) throw new Error('Snapshot remoto inválido.');
     for (const doc of snapshot.documents) {
@@ -73,6 +114,7 @@ export class CloudRuntime {
       this.mediaMetadata.set(media.id, media);
     }
     if (options.checkpoint !== undefined && options.checkpoint !== null) this.restoreCheckpoint(options.checkpoint);
+    for (const document of this.documents()) this.lastLocalValues.set(document.key, document.value);
     if (options.persistence) this.status = { ...this.status, localSaved: options.checkpoint != null, localSaving: false, offline: !this.networkReady() };
   }
   private restoreCheckpoint(value: unknown) {
@@ -87,8 +129,9 @@ export class CloudRuntime {
     }
     const latest = new Map<string, string>();
     for (const op of data.queue) {
-      if (!op || !CLOUD_DOCUMENT_KEYS.includes(op.key as typeof CLOUD_DOCUMENT_KEYS[number]) || typeof op.value !== 'string' || sanitizeCloudDocument(op.key, op.value) !== op.value || typeof op.operationId !== 'string' || !/^[A-Za-z0-9_.:-]{1,160}$/.test(op.operationId) || ids.has(op.operationId) || op.baseRevision !== undefined && (!Number.isSafeInteger(op.baseRevision) || op.baseRevision < 0)) throw new Error('Fila local inválida.');
+      if (!op || !CLOUD_DOCUMENT_KEYS.includes(op.key as typeof CLOUD_DOCUMENT_KEYS[number]) || typeof op.value !== 'string' || sanitizeCloudDocument(op.key, op.value) !== op.value || typeof op.operationId !== 'string' || !/^[A-Za-z0-9_.:-]{1,160}$/.test(op.operationId) || ids.has(op.operationId) || op.baseRevision !== undefined && (!Number.isSafeInteger(op.baseRevision) || op.baseRevision < 0) || op.rejected !== undefined && op.rejected !== true || op.baseValue !== undefined && op.baseValue !== null && typeof op.baseValue !== 'string') throw new Error('Fila local inválida.');
       const check = new CloudRuntime({ documents: [{ key: op.key, value: op.value, revision: 1 }], media: [] }); check.dispose();
+      if (typeof op.baseValue === 'string') { const base = new CloudRuntime({ documents: [{ key: op.key, value: op.baseValue, revision: 1 }], media: [] }); base.dispose(); }
       ids.add(op.operationId); latest.set(op.key, op.value);
     }
     if (latest.size !== drafts.size || [...latest].some(([key, text]) => drafts.get(key) !== text)) throw new Error('Fila e rascunhos locais não correspondem.');
@@ -172,12 +215,13 @@ export class CloudRuntime {
         const old = this.confirmed.get(doc.key);
         if (old && doc.revision < old.revision) throw new Error('Revisão remota desatualizada.');
         if (old && doc.revision === old.revision && doc.value !== old.value) throw new CloudConflictError();
-        if (!old || doc.revision > old.revision) changes.push(doc);
+        if (!old || doc.revision > old.revision || options.apply && this.pendingApplication.has(doc.key)) changes.push(doc);
       }
       const before = new Map(this.confirmed);
       for (const doc of changes) this.confirmed.set(doc.key, doc);
       try { if (changes.length && options.apply) this.withRemoteApply(() => options.apply!(changes)); }
       catch (reason) { this.confirmed = before; throw reason; }
+      if (options.apply) for (const doc of changes) { this.lastLocalValues.set(doc.key, doc.value); this.pendingApplication.delete(doc.key); }
       const metadata = new Map(snapshot.media.map(item => [item.id, item]));
       for (const [id, old] of this.mediaMetadata) if (metadata.get(id)?.sha256 !== old.sha256) this.mediaBytes.delete(id);
       this.mediaMetadata = metadata;
@@ -196,7 +240,18 @@ export class CloudRuntime {
   }
   write(key: string, raw: string): Promise<void> {
     if (this.disposed || this.remoteApplyDepth > 0) return Promise.resolve();
-    const value = sanitizeCloudDocument(key, raw);
+    const local = sanitizeCloudDocument(key, raw), current = this.get(key), previousLocal = this.lastLocalValues.get(key) ?? null;
+    let value = local, baseValue = current, unsafeStaleDraft = false;
+    if (this.pendingApplication.has(key) && previousLocal !== current) {
+      const merged = mergeCloudDocument(key, previousLocal, local, current);
+      if (merged === null) {
+        // Keep the new user draft, but never submit a stale full replacement.
+        baseValue = previousLocal;
+        unsafeStaleDraft = true;
+        this.publish({ issue: { key, kind: 'conflict', message: new CloudConflictError().message } });
+      } else value = merged;
+    }
+    this.lastLocalValues.set(key, local);
     if (this.get(key) === value) return Promise.resolve();
     if (this.hasTransientReadIssue()) this.publish({ issue: null });
     this.mutationEpoch++;
@@ -204,20 +259,75 @@ export class CloudRuntime {
     // A request that may have reached the server keeps its original body and id.
     // Adjacent drafts that have never been sent can share one latest snapshot.
     const previous = this.queue.at(-1);
-    if (previous?.key === key && previous.baseRevision === undefined) previous.value = value;
-    else this.queue.push({ key, value, operationId: crypto.randomUUID() });
+    if (previous?.key === key && previous.baseRevision === undefined) { previous.value = value; if (unsafeStaleDraft) previous.rejected = true; }
+    else this.queue.push({ key, value, operationId: crypto.randomUUID(), baseValue, ...(unsafeStaleDraft ? { rejected: true as const } : {}) });
     this.publish();
     return this.options.persistence ? this.persistCheckpoint().then(() => this.drain()).catch(() => {}) : this.drain();
+  }
+  /** Reconcile the latest local deltas only after a request was definitively rejected. */
+  private async rebasePending(): Promise<boolean> {
+    if (!this.snapshotLoader || !this.queue[0]?.rejected || !this.networkReady()) return false;
+    const snapshot = await this.snapshotLoader();
+    if (this.disposed || !this.networkReady() || this.status.issue?.kind === 'session') return false;
+    const checked = new CloudRuntime(snapshot), documents = checked.documents(), media = checked.media(); checked.dispose();
+    const remote = new Map(documents.map(doc => [doc.key, doc]));
+    for (const old of this.confirmed.values()) {
+      const next = remote.get(old.key);
+      if (!next || next.revision < old.revision || next.revision === old.revision && next.value !== old.value) throw new CloudConflictError();
+    }
+    // Input may have changed during the read. Collapse each entire local chain
+    // from its original base to its current latest draft, including those edits.
+    const first = new Map<string, Operation>();
+    for (const op of this.queue) if (!first.has(op.key)) first.set(op.key, op);
+    const replacements: Operation[] = [], drafts = new Map<string, string>();
+    // Establish the canonical per-project workspace before considering its
+    // redundant singleton editor checkpoint, regardless of persistence order.
+    const ordered = [...first].sort(([a], [b]) => a === 'cellproject-workspace' ? -1 : b === 'cellproject-workspace' ? 1 : 0);
+    for (const [key, op] of ordered) {
+      const latest = this.drafts.get(key)!;
+      const base = op.baseValue !== undefined ? op.baseValue : this.confirmed.get(key)?.value ?? null;
+      let merged = mergeCloudDocument(key, base, latest, remote.get(key)?.value ?? null);
+      if (merged === null && key === 'cellproject-graph' && managedGraphCheckpoint(base, latest, remote.get(key)?.value ?? null, drafts.get('cellproject-workspace') ?? remote.get('cellproject-workspace')?.value ?? null)) merged = latest;
+      if (merged === null) return false;
+      if (merged !== remote.get(key)?.value) {
+        replacements.push({ key, value: merged, operationId: crypto.randomUUID(), baseValue: remote.get(key)?.value ?? null });
+        drafts.set(key, merged);
+      }
+    }
+    for (const op of this.queue) this.retiredOperations.add(op.operationId);
+    for (const doc of documents) if (this.get(doc.key) !== (drafts.get(doc.key) ?? doc.value)) this.pendingApplication.add(doc.key);
+    for (const [key, value] of drafts) if (this.lastLocalValues.get(key) !== value) this.pendingApplication.add(key);
+    this.confirmed = remote; this.drafts = drafts; this.queue = replacements;
+    const metadata = new Map(media.map(item => [item.id, item]));
+    for (const [id, old] of this.mediaMetadata) if (metadata.get(id)?.sha256 !== old.sha256) this.mediaBytes.delete(id);
+    this.mediaMetadata = metadata;
+    this.publish({ issue: null });
+    await this.persistCheckpoint();
+    // A reload between these boundaries can reconcile the now-orphaned rejected
+    // request; an ambiguous request is never eligible for this replacement.
+    await this.retireRejectedOperations();
+    return true;
+  }
+  private async retireRejectedOperations() {
+    for (const id of this.retiredOperations) { await this.options.rejectOperation?.(id); this.retiredOperations.delete(id); }
   }
   private drain(): Promise<void> {
     if (this.active) return this.active;
     if (this.disposed || !this.networkReady() || this.status.localError || this.status.issue || !this.queue.length) return Promise.resolve();
     this.active = (async () => {
       this.publish({ saving: true });
-      while (this.queue.length && !this.disposed) {
-        const op = this.queue[0]; op.baseRevision ??= this.confirmed.get(op.key)?.revision ?? 0;
+      let rebases = 0;
+      while (this.queue.length && !this.disposed && !this.status.issue && !this.status.localError && this.networkReady()) {
+        const op = this.queue[0];
         try {
+          if (op.rejected) {
+            if (rebases++ >= 3 || !await this.rebasePending()) throw new CloudConflictError();
+            continue;
+          }
+          op.baseRevision ??= this.confirmed.get(op.key)?.revision ?? 0;
+          op.baseValue ??= this.confirmed.get(op.key)?.value ?? null;
           if (this.options.persistence) await this.persistCheckpoint();
+          if (this.retiredOperations.size) await this.retireRejectedOperations();
           if (this.disposed || !this.networkReady()) break;
           const result = await cloudJson<{ revision: number }>(`/api/cloud/documents/${encodeURIComponent(op.key)}`, { method: 'PUT', headers: mutationHeaders, body: JSON.stringify({ value: op.value, baseRevision: op.baseRevision, operationId: op.operationId }) }, this.fetcher);
           if (this.disposed) return;
@@ -228,7 +338,12 @@ export class CloudRuntime {
           this.publish();
         } catch (reason) {
           const status = reason instanceof CloudHttpError ? reason.status : 0;
-          this.publish({ issue: { key: op.key, kind: status === 409 ? 'conflict' : status === 401 || status === 403 ? 'session' : 'network', message: reason instanceof Error ? reason.message : 'Falha de conexão.' } });
+          if (reason instanceof CloudHttpError && status === 409 && reason.code === 'revision_conflict') {
+            op.rejected = true;
+            if (this.options.persistence) { try { await this.persistCheckpoint(); } catch { break; } }
+            if (this.snapshotLoader && rebases < 3) continue;
+          }
+          this.publish({ issue: { key: op.key, kind: reason instanceof CloudConflictError || status === 409 ? 'conflict' : status === 401 || status === 403 ? 'session' : 'network', message: reason instanceof Error ? reason.message : 'Falha de conexão.' } });
           if (this.options.persistence && !this.status.localError) await this.persistCheckpoint().catch(() => {});
           break;
         }
@@ -240,7 +355,7 @@ export class CloudRuntime {
     return this.active;
   }
   async flush() { await this.localChain.catch(() => {}); if (this.status.localError) throw new Error(this.status.localError); do { await this.drain(); } while (this.queue.length && !this.status.issue && !this.status.localError && this.networkReady() && !this.disposed); if (this.status.localError) throw new Error(this.status.localError); if (this.status.issue?.kind === 'conflict') throw new CloudConflictError(); if (this.status.issue || this.queue.length) throw new Error('Existem alterações sem confirmação remota.'); }
-  async retry() { if (this.status.issue?.kind === 'conflict' || this.status.issue?.kind === 'session') return; this.publish({ issue: null, offline: !this.networkReady() }); if (this.options.persistence) { try { await this.persistCheckpoint(); } catch { return; } } await this.drain(); }
+  async retry() { if (this.status.issue?.kind === 'session' || this.status.issue?.kind === 'conflict' && (!this.snapshotLoader || !this.queue.length)) return; this.publish({ issue: null, offline: !this.networkReady() }); if (this.options.persistence) { try { await this.persistCheckpoint(); } catch { return; } } await this.drain(); }
   async resumeAfterAuthentication(expectedUserId: string) {
     if (this.disposed) throw new Error('Sessão encerrada.');
     if (this.status.issue?.kind !== 'session') return;

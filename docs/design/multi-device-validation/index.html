@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dynamic Diary · ensaio de concorrência</title>
+<link rel="stylesheet" href="/src/index.css"><link rel="stylesheet" href="/src/cloud/cloud.css"><style>body{margin:0;padding:24px;background:#101012;color:#eee;font:14px system-ui}main{max-width:680px;margin:auto}h1{font-size:20px}p{color:#aaa;line-height:1.6}button.test{padding:12px;border:1px solid #555;border-radius:12px;background:#28242e;color:inherit;cursor:pointer}pre{white-space:pre-wrap;font:12px monospace;padding:16px;border:1px solid #333;border-radius:12px}</style></head>
+<body><main><h1>Dois clientes, um cofre</h1><p>Ensaio isolado com dados sintéticos, criptografia real do navegador e servidor simulado em memória. Não usa a conta, a rede de produção ou os dados do usuário.</p><button class="test" id="run">Executar edição simultânea</button><pre id="result">Aguardando teste.</pre></main><div id="warning"></div>
+<script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { CloudRuntime } from '/src/cloud/runtime.ts';
+import { VaultTransport } from '/src/cloud/vault/transport.ts';
+import { createVault, sessionFromDeviceKey } from '/src/cloud/vault/crypto.ts';
+import { CloudStatus } from '/src/cloud/CloudStatus.tsx';
+import { createBoardDocument } from '/src/boards/model.ts';
+const warning = new CloudRuntime({documents:[],media:[]}, async()=>Response.json({}));
+warning.reportSyncIssue({kind:'conflict',key:'cellproject-workspace',message:'Conflito sintético para testar fechar e reabrir o aviso.'});
+createRoot(document.getElementById('warning')).render(React.createElement(CloudStatus,{runtime:warning,userId:'synthetic',email:'ensaio@example.test',onLogout:()=>{}}));
+document.getElementById('run').onclick=async()=>{
+  const result=document.getElementById('result'); result.textContent='Executando…';
+  try {
+    const vault=await createVault('synthetic-owner','synthetic browser test password');
+    const key=vault.session.deviceKeyForStorage(), stringify=state=>JSON.stringify({version:2,state});
+    const base={notes:{},boards:{}}, snapshot={documents:[{key:'cellproject-workspace',value:stringify(base),revision:1}],media:[]};
+    let head={header:vault.header,revision:1,manifest:await vault.session.seal(JSON.stringify({snapshot,files:{}}),'manifest:1')};
+    const receipts=new Map(); let rejects=0;
+    const remote=async(path,init)=>{
+      if(init?.method!=='PUT')return Response.json(head);
+      const body=JSON.parse(init.body), prior=receipts.get(body.operationId);
+      if(prior)return Response.json(prior);
+      if(body.baseRevision!==head.revision){rejects++;return Response.json({error:{code:'vault_revision_conflict'}},{status:409});}
+      head={...head,revision:head.revision+1,manifest:body.manifest}; const reply={revision:head.revision}; receipts.set(body.operationId,reply);return Response.json(reply);
+    };
+    const open=()=>VaultTransport.open(sessionFromDeviceKey('synthetic-owner',vault.header,key),head,remote);
+    const a=await open(),b=await open(),left=new CloudRuntime(snapshot,a.fetch,undefined,()=>a.refreshSnapshot()),right=new CloudRuntime(snapshot,b.fetch,undefined,()=>b.refreshSnapshot());
+    const note={id:'n',title:'Nota do PC'},board={id:'b',title:'Quadro do tablet',archived:false,createdAt:1,updatedAt:2,document:createBoardDocument()};
+    await Promise.all([left.write('cellproject-workspace',stringify({...base,notes:{n:note}})),right.write('cellproject-workspace',stringify({...base,boards:{b:board}}))]);
+    await right.write('cellproject-workspace',stringify({...base,boards:{b:{...board,title:'Segunda edição no tablet'}}}));
+    const fresh=await open(),state=JSON.parse(fresh.snapshot().documents[0].value).state;
+    const ok=state.notes.n.title===note.title&&state.boards.b.title==='Segunda edição no tablet'&&!left.getSnapshot().issue&&!right.getSnapshot().issue;
+    result.textContent=JSON.stringify({passed:ok,definitiveRejections:rejects,notes:Object.values(state.notes).map(n=>n.title),boards:Object.values(state.boards).map(b=>b.title),left:left.getSnapshot(),right:right.getSnapshot()},null,2);
+    for(const item of [left,right,a,b,fresh])item.dispose();vault.session.dispose();
+  }catch(error){result.textContent='Falhou: '+error.message;}
+};
+</script></body></html>

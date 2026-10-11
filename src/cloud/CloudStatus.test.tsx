@@ -107,6 +107,74 @@ it('exposes an expired-session warning and its recovery actions without needing 
   } finally { await act(async () => root.unmount()); host.remove(); cloud.dispose(); }
 });
 
+it('lets the indicator hide a conflict without clearing drafts and keeps it hidden during status updates', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const cloud = new CloudRuntime({ documents: [], media: [] });
+  cloud.reportSyncIssue({ kind: 'conflict', key: 'cellproject-workspace', message: 'Conflito de revisão no servidor.' });
+  await cloud.write('dynamic_diary-theme', 'unsent-draft');
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId="owner" email="synthetic@example.test" onLogout={() => {}}/>));
+    const indicator = host.querySelector<HTMLButtonElement>('.cloud-status-indicator')!;
+    expect(indicator.getAttribute('aria-expanded')).toBe('true');
+    await act(async () => indicator.click());
+    expect(indicator.getAttribute('aria-expanded')).toBe('false');
+    expect(host.querySelector('.cloud-status-panel')).toBeNull();
+    expect(host.querySelector('.cloud-status.has-error')).not.toBeNull();
+    expect(indicator.getAttribute('aria-label')).toBe('Alterações sem salvar');
+    expect(cloud.getSnapshot().issue?.kind).toBe('conflict');
+    expect(cloud.getSnapshot().pending).toBe(1); expect(cloud.get('dynamic_diary-theme')).toBe('unsent-draft');
+    await act(async () => { cloud.notifyNetworkState(); cloud.reportSyncIssue({ kind: 'conflict', key: 'cellproject-workspace', message: 'Conflito de revisão no servidor.' }); });
+    expect(host.querySelector('.cloud-status-panel')).toBeNull();
+    await act(async () => indicator.click());
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain('Conflito de revisão');
+  } finally { await act(async () => root.unmount()); host.remove(); cloud.dispose(); }
+});
+
+it('provides a keyboard-accessible close action and reopens for a different synchronization issue', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const cloud = new CloudRuntime({ documents: [], media: [] }); cloud.notifySessionExpired('/api/live/ink');
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId="owner" email="synthetic@example.test" onLogout={() => {}}/>));
+    const indicator = host.querySelector<HTMLButtonElement>('.cloud-status-indicator')!;
+    const close = host.querySelector<HTMLButtonElement>('button[aria-label="Fechar aviso de sincronização"]');
+    expect(close).not.toBeNull();
+    await act(async () => { close!.focus(); close!.click(); });
+    expect(indicator.getAttribute('aria-expanded')).toBe('false'); expect(document.activeElement).toBe(indicator);
+    await act(async () => cloud.notifySessionExpired('/api/cloud/snapshot'));
+    expect(host.querySelector('.cloud-status-panel')).toBeNull();
+    await act(async () => cloud.reportSyncIssue({ kind: 'conflict', key: 'cellproject-workspace', message: 'Conflito de revisão no servidor.' }));
+    expect(indicator.getAttribute('aria-expanded')).toBe('true');
+    await act(async () => host.querySelector('.cloud-status-panel')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    expect(host.querySelector('.cloud-status-panel')).toBeNull(); expect(document.activeElement).toBe(indicator);
+    expect(cloud.getSnapshot().issue?.kind).toBe('conflict');
+  } finally { await act(async () => root.unmount()); host.remove(); cloud.dispose(); }
+});
+
+it('lets the user retry a conflict against the retained draft without reloading or resetting the password', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  let remoteValue = 'light';
+  const fetcher = vi.fn<typeof fetch>(async (path, init) => {
+    if (path !== '/api/cloud/documents/dynamic_diary-theme' || init?.method !== 'PUT') throw new Error('Unexpected request');
+    const body = JSON.parse(String(init.body)); expect(body.baseRevision).toBe(1);
+    remoteValue = body.value; return Response.json({ revision: 2 });
+  });
+  const cloud = new CloudRuntime({ documents: [{ key: 'dynamic_diary-theme', value: 'light', revision: 1 }], media: [] }, fetcher, undefined, async () => ({ documents: [{ key: 'dynamic_diary-theme', value: remoteValue, revision: 1 }], media: [] }));
+  cloud.reportSyncIssue({ kind: 'conflict', key: 'dynamic_diary-theme', message: 'Conflito de revisão no servidor.' });
+  await cloud.write('dynamic_diary-theme', 'retained-draft');
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId="owner" email="synthetic@example.test" onLogout={() => {}}/>));
+    const retry = [...host.querySelectorAll('button')].find(button => button.textContent === 'Conciliar alterações');
+    expect(retry).toBeDefined();
+    await act(async () => retry!.click());
+    await settle(() => expect(cloud.getSnapshot()).toMatchObject({ pending: 0, issue: null }));
+    expect(remoteValue).toBe('retained-draft'); expect(cloud.get('dynamic_diary-theme')).toBe('retained-draft');
+    expect(fetcher).toHaveBeenCalledOnce();
+  } finally { await act(async () => root.unmount()); host.remove(); cloud.dispose(); }
+});
+
 it('blocks complete backup, rescue and logout while chat or a file ingestion is running', async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   const cloud = new CloudRuntime({ documents: [], media: [] }); configureCloud(cloud); cloud.notifySessionExpired('api');

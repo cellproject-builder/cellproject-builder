@@ -22,6 +22,10 @@ export function createVaultRepository({ config, fetchImpl = fetch } = {}) {
     if (response.ok) return response;
     let data = {}; try { data = await remoteJson(response); } catch { /* Untrusted provider errors remain private. */ }
     if (allowExisting && (response.status === 409 || response.status === 400 && (data.statusCode === '409' || /duplicate|already exists/i.test(data.error ?? '')))) return response;
+    // Only a rejected revision can be safely rebased. Reusing a committed
+    // operation with different bytes must remain a distinct, terminal error.
+    if (data.message === 'Revision conflict') throw new CloudError(409, 'vault_revision_conflict', 'Vault revision changed.');
+    if (data.message === 'Operation conflict') throw new CloudError(409, 'vault_operation_conflict', 'Vault operation identity changed.');
     if (response.status === 409 || /conflict|vault_exists|legacy_media/i.test(data.message ?? '')) throw new CloudError(409, 'vault_conflict', 'Vault state changed or legacy media requires assisted migration.');
     if ([401, 403].includes(response.status)) throw new CloudError(403, 'vault_forbidden', 'Vault access refused.');
     if (response.status === 404) throw new CloudError(404, 'vault_missing', 'Vault object not found.');

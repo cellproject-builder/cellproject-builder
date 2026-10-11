@@ -32,3 +32,31 @@ it('applies real Zustand workspace ink without an echo, restores persistence, an
   expect(JSON.parse(String(fetcher.mock.calls.at(-1)?.[1]?.body)).baseRevision).toBe(5);
   expect(runtime.getSnapshot().pending).toBe(0);
 });
+
+it('preserves tablet board edits through successive saves from a stale PC store and applies the merged canonical state while idle', async () => {
+  const board = (id: string, title: string) => ({ id, title, archived: false, createdAt: 1, updatedAt: 1, document: createBoardDocument() });
+  const initial = { projects: {}, tasks: {}, comments: {}, sprints: {}, notes: {}, folders: {}, boards: { a: board('a', 'A'), b: board('b', 'B') }, legacyImported: true };
+  const incoming = structuredClone(initial); incoming.boards.b.title = 'Tablet'; incoming.boards.b.updatedAt = 2;
+  let current: CloudSnapshot = { documents: [{ key: 'cellproject-workspace', value: JSON.stringify({ version: 2, state: incoming }), revision: 2 }], media: [] };
+  let rejected = false;
+  const fetcher = vi.fn<typeof fetch>(async (_path, init) => {
+    if (!rejected) { rejected = true; return Response.json({ error: 'revision_conflict' }, { status: 409 }); }
+    const body = JSON.parse(String(init?.body));
+    expect(body.baseRevision).toBe(current.documents[0].revision);
+    current = { documents: [{ key: 'cellproject-workspace', value: body.value, revision: body.baseRevision + 1 }], media: [] };
+    return Response.json({ revision: current.documents[0].revision });
+  });
+  const runtime = new CloudRuntime({ documents: [{ key: 'cellproject-workspace', value: JSON.stringify({ version: 2, state: initial }), revision: 1 }], media: [] }, fetcher, undefined, async () => current);
+  configureCloud(runtime); await useWorkspaceStore.persist.rehydrate();
+  useWorkspaceStore.getState().updateBoard('a', { title: 'PC first' }); await runtime.flush();
+  // Canonical merge waits for idle application; the active editor still owns its snapshot.
+  expect(useWorkspaceStore.getState().boards.b.title).toBe('B');
+  useWorkspaceStore.getState().updateBoard('a', { title: 'PC next' }); await runtime.flush();
+  expect(JSON.parse(current.documents[0].value).state.boards).toMatchObject({ a: { title: 'PC next' }, b: { title: 'Tablet' } });
+  const before = fetcher.mock.calls.length;
+  const applied = await runtime.refreshRemote({ keys: ['cellproject-workspace'], apply: applyRemoteCanvasDocuments });
+  expect(applied).toHaveLength(1); expect(fetcher).toHaveBeenCalledTimes(before);
+  expect(useWorkspaceStore.getState().boards).toMatchObject({ a: { title: 'PC next' }, b: { title: 'Tablet' } });
+  useWorkspaceStore.getState().updateBoard('a', { title: 'PC after idle' }); await runtime.flush();
+  expect(JSON.parse(current.documents[0].value).state.boards.b.title).toBe('Tablet');
+});

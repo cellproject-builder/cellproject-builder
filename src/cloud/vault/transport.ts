@@ -1,4 +1,4 @@
-import { CloudConflictError, CloudRuntime, cloudJson, decodeBytes, encodeBytes, mutationHeaders, sanitizeCloudDocument, sha256, type CloudSnapshot } from '../runtime';
+import { CloudConflictError, CloudHttpError, CloudRuntime, cloudJson, decodeBytes, encodeBytes, mutationHeaders, sanitizeCloudDocument, sha256, type CloudSnapshot } from '../runtime';
 import { type CipherEnvelope, type VaultHeader, type VaultSession, validateHeader, validateCipher } from './crypto';
 import type { CheckpointStore } from '../offline/checkpoints';
 export interface VaultTransportOptions { persistence?: CheckpointStore; networkReady?: () => boolean }
@@ -14,6 +14,7 @@ export interface VaultCheckpoint {
   requests: [string, string][]; completed: [string, Receipt][];
   uploads: [string, { blobId: string; cipherBytes: string; cipherHash: string }][];
   auxiliary?: [string, AuxiliaryRequest][];
+  rejected?: string[];
 }
 const RESPONSE_COUNT_LIMIT = 128, RESPONSE_BYTE_LIMIT = 512 * 1024;
 const DURABLE_OPERATION_LIMIT = 1024, DURABLE_RECEIPT_BYTE_LIMIT = 2 * 1024 * 1024;
@@ -51,6 +52,24 @@ function validateManifest(value: unknown): Manifest {
   })) throw new Error('Catálogo privado inválido.');
   return data;
 }
+/** Merge only disjoint document/file identities here. Document content belongs to the runtime. */
+function rebaseManifest(base: Manifest, local: Manifest, remote: Manifest): Manifest | null {
+  const mergeEntries = <T,>(before: Map<string, T>, changed: Map<string, T>, current: Map<string, T>) => {
+    const result = new Map(current);
+    for (const id of new Set([...before.keys(), ...changed.keys()])) {
+      const old = before.get(id), next = changed.get(id), latest = current.get(id);
+      if (JSON.stringify(old) === JSON.stringify(next)) continue;
+      if (JSON.stringify(old) !== JSON.stringify(latest)) return null;
+      if (next === undefined) result.delete(id); else result.set(id, next);
+    }
+    return result;
+  };
+  const documents = mergeEntries(new Map(base.snapshot.documents.map(d => [d.key, d])), new Map(local.snapshot.documents.map(d => [d.key, d])), new Map(remote.snapshot.documents.map(d => [d.key, d])));
+  const media = mergeEntries(new Map(base.snapshot.media.map(d => [d.id, d])), new Map(local.snapshot.media.map(d => [d.id, d])), new Map(remote.snapshot.media.map(d => [d.id, d])));
+  const files = mergeEntries(new Map(Object.entries(base.files)), new Map(Object.entries(local.files)), new Map(Object.entries(remote.files)));
+  if (!documents || !media || !files) return null;
+  return validateManifest({ snapshot: { documents: [...documents.values()], media: [...media.values()] }, files: Object.fromEntries(files) });
+}
 /** Compatibility transport: existing stores see plaintext in memory, network sees ciphertext only. */
 export class VaultTransport {
   private chain: Promise<unknown> = Promise.resolve();
@@ -65,6 +84,7 @@ export class VaultTransport {
   private remote: typeof fetch;
   private persistenceChain: Promise<void> = Promise.resolve();
   private recoveryRequired = false;
+  private rejected = new Set<string>();
   private constructor(readonly session: VaultSession, private state: Manifest, private revision: number, remote: typeof fetch, private knownManifest: CipherEnvelope, private options: VaultTransportOptions = {}) {
     // Invoke native fetch as a function: using it as a transport method gives
     // browsers an invalid receiver. Preserve the injected request and its signal.
@@ -115,9 +135,13 @@ export class VaultTransport {
     }
     if (data.pending !== null) {
       const pending = data.pending, body = JSON.parse(pending.body);
-      if (!validId(pending.operationId) || !transport.requests.has(pending.operationId) || transport.completed.has(pending.operationId) || body.operationId !== pending.operationId || body.baseRevision !== transport.revision || Object.keys(body).sort().join(',') !== 'baseRevision,manifest,operationId') throw new Error('Gravação privada pendente inválida.');
+      if (!validId(pending.operationId) || !validId(body.operationId) || !transport.requests.has(pending.operationId) || transport.completed.has(pending.operationId) || body.baseRevision !== transport.revision || Object.keys(body).sort().join(',') !== 'baseRevision,manifest,operationId') throw new Error('Gravação privada pendente inválida.');
       const manifest = validateCipher(body.manifest), next = validateManifest(JSON.parse(await session.openText(manifest, `manifest:${transport.revision + 1}`)));
       transport.pending = { ...pending, manifest, next };
+    }
+    if (data.rejected !== undefined) {
+      if (!Array.isArray(data.rejected) || data.rejected.length > DURABLE_OPERATION_LIMIT || new Set(data.rejected).size !== data.rejected.length || data.rejected.some(id => !validId(id) || !transport.requests.has(id) || transport.completed.has(id) || transport.pending?.operationId === id)) throw new Error('Rejeições privadas inválidas.');
+      transport.rejected = new Set(data.rejected);
     }
     transport.recoveryRequired = transport.pending !== null || transport.uploads.size > 0 || transport.auxiliary.size > 0;
     transport.options = options; return transport;
@@ -125,7 +149,7 @@ export class VaultTransport {
   head(): VaultHead { this.available(); return clone({ header: this.session.header, revision: this.revision, manifest: this.knownManifest }); }
   checkpoint(): VaultCheckpoint {
     this.available();
-    return { version: 1, ownerId: this.session.ownerId, vaultId: this.session.header.id, head: this.head(), pending: this.pending ? { body: this.pending.body, operationId: this.pending.operationId, reply: clone(this.pending.reply) } : null, requests: [...this.requests], completed: [...this.completed].map(([id, receipt]) => [id, { ...receipt }]), uploads: [...this.uploads].map(([key, upload]) => [key, { ...upload, cipherBytes: encodeBytes(upload.cipherBytes) }]), auxiliary: [...this.auxiliary].map(([id, request]) => [id, { ...request }]) };
+    return { version: 1, ownerId: this.session.ownerId, vaultId: this.session.header.id, head: this.head(), pending: this.pending ? { body: this.pending.body, operationId: this.pending.operationId, reply: clone(this.pending.reply) } : null, requests: [...this.requests], completed: [...this.completed].map(([id, receipt]) => [id, { ...receipt }]), uploads: [...this.uploads].map(([key, upload]) => [key, { ...upload, cipherBytes: encodeBytes(upload.cipherBytes) }]), auxiliary: [...this.auxiliary].map(([id, request]) => [id, { ...request }]), ...(this.rejected.size ? { rejected: [...this.rejected] } : {}) };
   }
   persistCheckpoint(): Promise<void> {
     if (!this.options.persistence) return Promise.resolve();
@@ -142,15 +166,15 @@ export class VaultTransport {
       const active = new Set(operationIds);
       const mediaKeys = new Set([...this.auxiliary.values()].filter(request => request.path === '/api/cloud/media').map(request => { const body = JSON.parse(request.body); return `${body.id}:${body.sha256}`; }));
       if (this.pending && !active.has(this.pending.operationId) && !this.auxiliary.has(this.pending.operationId) || [...this.uploads.keys()].some(key => !mediaKeys.has(key))) { this.recoveryRequired = true; throw new Error('Existe uma gravação privada pendente sem fila de recuperação. Preserve a cópia local.'); }
-      const completed = new Map(this.completed), requests = new Map(this.requests), responses = new Map(this.responses), responseBytes = this.responseBytes;
+      const completed = new Map(this.completed), requests = new Map(this.requests), responses = new Map(this.responses), responseBytes = this.responseBytes, rejected = new Set(this.rejected);
       let changed = false;
       for (const id of this.requests.keys()) if (!active.has(id) && !this.auxiliary.has(id)) {
-        this.completed.delete(id); this.requests.delete(id);
+        this.completed.delete(id); this.requests.delete(id); this.rejected.delete(id);
         const bytes = this.responses.get(id); if (bytes !== undefined) { this.responses.delete(id); this.responseBytes -= bytes; }
         changed = true;
       }
       try { if (changed) await this.persistCheckpoint(); this.recoveryRequired = false; }
-      catch (reason) { this.completed = completed; this.requests = requests; this.responses = responses; this.responseBytes = responseBytes; throw reason; }
+      catch (reason) { this.completed = completed; this.requests = requests; this.responses = responses; this.responseBytes = responseBytes; this.rejected = rejected; throw reason; }
     });
     this.chain = task; return task;
   }
@@ -175,6 +199,19 @@ export class VaultTransport {
       const bytes = this.responses.get(operationId); if (bytes !== undefined) { this.responses.delete(operationId); this.responseBytes -= bytes; }
       try { await this.persistCheckpoint(); }
       catch (reason) { if (descriptor) this.auxiliary.set(operationId, descriptor); const receipt = checkpoint.completed.find(([id]) => id === operationId); if (receipt) { this.completed.set(...receipt); if (!receipt[1].pinned && receipt[1].response !== null) { this.responses.set(operationId, receipt[1].bytes); this.responseBytes += receipt[1].bytes; } } const request = checkpoint.requests.find(([id]) => id === operationId); if (request) this.requests.set(...request); throw reason; }
+    });
+    this.chain = task; return task;
+  }
+  /** Remove a definitely rejected identity only after its replacement queue is durable. */
+  discardRejectedOperation(operationId: string): Promise<void> {
+    const task = this.chain.catch(() => {}).then(async () => {
+      this.available();
+      if (!this.requests.has(operationId)) return;
+      if (!this.rejected.has(operationId) || this.pending?.operationId === operationId || this.completed.has(operationId) || this.auxiliary.has(operationId)) throw new Error('Não é possível descartar uma gravação sem rejeição confirmada.');
+      const request = this.requests.get(operationId)!;
+      this.requests.delete(operationId); this.rejected.delete(operationId);
+      try { await this.persistCheckpoint(); }
+      catch (reason) { this.requests.set(operationId, request); this.rejected.add(operationId); throw reason; }
     });
     this.chain = task; return task;
   }
@@ -216,7 +253,7 @@ export class VaultTransport {
   }
   private rememberReply(operationId: string, reply: unknown, pinned: boolean) {
     const response = JSON.stringify(reply), receipt = { response, bytes: new TextEncoder().encode(response).byteLength, pinned };
-    this.completed.set(operationId, receipt);
+    this.completed.set(operationId, receipt); this.rejected.delete(operationId);
     if (!pinned) this.cacheResponse(operationId, receipt);
   }
   private async replay(operationId: string) {
@@ -232,9 +269,41 @@ export class VaultTransport {
   private async settle(deliverTo?: string) {
     if (!this.pending) return;
     if (this.recoveryRequired) throw new Error('A gravação privada pendente precisa de recuperação da fila local.');
-    const op = this.pending;
-    this.requireNetwork(); await this.persistCheckpoint(); this.requireNetwork();
-    const reply = await cloudJson<{ revision: number }>('/api/cloud/vault', { method: 'PUT', headers: mutationHeaders, body: op.body }, this.remote);
+    let op = this.pending;
+    let reply: { revision: number };
+    for (let attempt = 0; ; attempt++) {
+      this.requireNetwork(); await this.persistCheckpoint(); this.requireNetwork();
+      try {
+        reply = await cloudJson<{ revision: number }>('/api/cloud/vault', { method: 'PUT', headers: mutationHeaders, body: op.body }, this.remote);
+        break;
+      } catch (reason) {
+        // A lost reply remains the identical durable ciphertext/operation. Only
+        // the server's explicit CAS rejection permits preparing a new wire ID.
+        if (!(reason instanceof CloudHttpError) || reason.status !== 409 || reason.code !== 'vault_revision_conflict') throw reason;
+        const head = await cloudJson<VaultHead>('/api/cloud/vault', {}, this.remote); this.available();
+        if (!head || !Number.isSafeInteger(head.revision) || head.revision <= this.revision || JSON.stringify(validateHeader(head.header)) !== JSON.stringify(this.session.header)) throw new CloudConflictError();
+        const cipher = validateCipher(head.manifest);
+        const remote = validateManifest(JSON.parse(await this.session.openText(cipher, `manifest:${head.revision}`))); this.available();
+        for (const old of this.state.snapshot.documents) {
+          const current = remote.snapshot.documents.find(doc => doc.key === old.key);
+          if (!current || current.revision < old.revision || current.revision === old.revision && current.value !== old.value) throw new CloudConflictError();
+        }
+        const next = rebaseManifest(this.state, op.next, remote);
+        if (!next || attempt >= 3) {
+          // No remote write was accepted. Let the runtime merge the original
+          // document base against this authenticated head, keeping its draft.
+          this.state = remote; this.revision = head.revision; this.knownManifest = cipher;
+          this.pending = null; this.rejected.add(op.operationId);
+          await this.persistCheckpoint();
+          throw new CloudHttpError(409, 'As alterações remotas precisam ser conciliadas.', 'revision_conflict');
+        }
+        const manifest = await this.session.seal(JSON.stringify(next), `manifest:${head.revision + 1}`); this.available();
+        const rebased: Pending = { ...op, next, manifest, body: JSON.stringify({ manifest, baseRevision: head.revision, operationId: crypto.randomUUID() }) };
+        this.state = remote; this.revision = head.revision; this.knownManifest = cipher; this.pending = op = rebased;
+        // The new head, ciphertext and wire identity are one durable checkpoint
+        // before any retry. Runtime's logical request identity stays immutable.
+      }
+    }
     this.available(); if (reply.revision !== this.revision + 1) throw new Error('Revisão do cofre inválida.');
     this.state = op.next; this.revision = reply.revision; this.knownManifest = op.manifest; this.rememberReply(op.operationId, op.reply, !!this.options.persistence || op.operationId !== deliverTo); this.pending = null;
     for (const [key, upload] of this.uploads) if (Object.values(this.state.files).some(file => file.blobId === upload.blobId)) this.uploads.delete(key);
@@ -292,7 +361,10 @@ export class VaultTransport {
       const next = clone(this.state);
       if (path.startsWith('/api/cloud/documents/') && init.method === 'PUT') {
         const key = decodeURIComponent(path.slice('/api/cloud/documents/'.length)), old = next.snapshot.documents.find(doc => doc.key === key);
-        if ((old?.revision ?? 0) !== body.baseRevision) return Response.json({}, { status: 409 });
+        if ((old?.revision ?? 0) !== body.baseRevision) {
+          this.rejected.add(body.operationId); await this.persistCheckpoint();
+          return Response.json({ error: 'revision_conflict' }, { status: 409 });
+        }
         const item = { key, value: sanitizeCloudDocument(key, body.value), revision: body.baseRevision + 1 };
         next.snapshot.documents = next.snapshot.documents.filter(doc => doc.key !== key).concat(item);
         return this.commit(next, body.operationId, { revision: item.revision });
@@ -313,6 +385,9 @@ export class VaultTransport {
         if (old) {
           if (['id', 'mime', 'name', 'sha256', 'size', 'projectId', 'createdAt'].some(field => (old as unknown as Record<string, unknown>)[field] !== metadata[field])) throw new CloudConflictError();
           const reply = { id: old.id, sha256: old.sha256, size: old.size };
+          // Another device may already have registered the identical logical
+          // media. The unused encrypted upload is not part of the canonical head.
+          this.uploads.delete(`${body.id}:${hash}`);
           if (this.options.persistence) { this.rememberAuxiliary(body.operationId, descriptor); this.rememberReply(body.operationId, reply, true); await this.persistCheckpoint(); }
           return Response.json(reply);
         }

@@ -1,6 +1,6 @@
 import { getVaultSession, vaultIsProtected } from './vault/privacy';
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
-import { ExclamationTriangleIcon } from '@/components/ui/SoftIcons';
+import { CloseIcon, ExclamationTriangleIcon } from '@/components/ui/SoftIcons';
 import { captureLegacyBackup, downloadBackup } from './migration';
 import { CloudRuntime, cloudJson, getCloudRuntime, mutationHeaders } from './runtime';
 import { CloudMigration } from './CloudMigration';
@@ -38,13 +38,20 @@ export function CloudStatus({ runtime, userId, email, onLogout, onResume, passwo
   const durable = status.localSaved === true && !status.localSaving && !status.localError;
   const needsAttention = !!status.localError || !!status.issue && (status.issue.kind !== 'network' || !durable);
   const waitingForConnection = durable && (status.offline || status.issue?.kind === 'network');
-  const panelId = useId(), panelVisible = open || needsAttention;
+  const [dismissed, setDismissed] = useState<{ runtime: CloudRuntime; key: string } | null>(null);
+  // Polling can report the same session issue through different API paths.
+  // Only a new problem should reopen an explicitly minimized warning.
+  const attentionKey = needsAttention ? JSON.stringify([status.localError ?? null, status.issue?.kind ?? null, status.issue?.kind === 'session' ? null : status.issue?.key ?? null, status.issue?.message ?? null]) : null;
+  const indicator = useRef<HTMLButtonElement>(null);
+  const panelId = useId(), panelVisible = open || !!attentionKey && (dismissed?.runtime !== runtime || dismissed.key !== attentionKey);
+  const dismiss = (restoreFocus = false) => { setOpen(false); setDismissed(attentionKey ? { runtime, key: attentionKey } : null); if (restoreFocus) indicator.current?.focus(); };
   const statusLabel = status.localError ? 'Não foi possível salvar neste aparelho' : needsAttention ? 'Alterações sem salvar' : waitingForConnection ? 'Salvo neste aparelho · aguardando conexão' : status.localSaving ? 'Salvando neste aparelho' : status.pending ? `Salvando (${status.pending})` : 'Salvo na nuvem';
   const [rescued, setRescued] = useState(false), [missing, setMissing] = useState<number | null>(null);
   const canLeaveWithRescue = vaultIsProtected() && (!!status.issue || !!status.localError) && rescued && !status.saving;
   const canLeaveWithLocalCopy = vaultIsProtected() && durable && !status.saving;
   const [passwordLinkSent, setPasswordLinkSent] = useState(false), [sendingPasswordLink, setSendingPasswordLink] = useState(false);
   const pendingGraph = useRef<() => boolean>(() => false);
+  useEffect(() => { if (!attentionKey) setDismissed(null); }, [attentionKey]);
   useEffect(() => { setSaved(false); setRescued(false); }, [status]);
   useEffect(() => { let live = true; void import('@/store').then(graph => { if (live) pendingGraph.current = graph.hasPendingGraphPersistence; }); const unload = (event: BeforeUnloadEvent) => { const current = runtime.getSnapshot(); if (pendingGraph.current() || current.pending > 0 && (current.localSaved !== true || current.localSaving || current.localError)) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', unload); return () => { live = false; window.removeEventListener('beforeunload', unload); }; }, [runtime]);
   async function backup() { setBusy(true); setError(''); try { await saveCurrentBackup(runtime); setSaved(true); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha no backup.'); } finally { setBusy(false); } }
@@ -74,15 +81,16 @@ export function CloudStatus({ runtime, userId, email, onLogout, onResume, passwo
     finally { setBusy(false); }
   }
   return <aside className={`cloud-status ${needsAttention ? 'has-error' : waitingForConnection ? 'is-offline' : status.pending || status.localSaving ? 'is-saving' : ''} ${panelVisible ? 'is-open' : ''}`} aria-label="Persistência na nuvem">
-    <button className="cloud-status-indicator" onClick={() => setOpen(value => !value)} aria-label={statusLabel} title={statusLabel} aria-expanded={panelVisible} aria-controls={panelId}>
+    <button ref={indicator} className="cloud-status-indicator" onClick={() => panelVisible ? dismiss() : setOpen(true)} aria-label={statusLabel} title={statusLabel} aria-expanded={panelVisible} aria-controls={panelId}>
       {needsAttention ? <ExclamationTriangleIcon width={12} height={12} aria-hidden="true"/> : <span className="cloud-status-dot" aria-hidden="true"/>}
     </button>
-    {panelVisible && <div className="cloud-status-panel" id={panelId}>
+    {panelVisible && <div className="cloud-status-panel" id={panelId} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); dismiss(true); } }}>
+      <button className="cloud-status-close" aria-label="Fechar aviso de sincronização" onClick={() => dismiss(true)}><CloseIcon width={14} height={14}/>Fechar aviso</button>
       {status.issue?.kind === 'session' ? <CloudSessionRecovery key={`${userId}:${email}`} runtime={runtime} userId={userId} email={email} provider={passwordProvider} fetcher={fetcher} onResume={onResume} onBusyChange={setBusy}/> : <strong>{email}</strong>}
       {status.localError && <p role="alert">{status.localError} Mantenha esta aba aberta até salvar no aparelho ou baixar um resgate.</p>}
       {status.issue && status.issue.kind !== 'session' && !waitingForConnection && <p role="alert">{status.issue.message} {durable ? 'Seu rascunho continua na cópia cifrada deste aparelho.' : 'Seu trabalho atual continua nesta sessão.'}</p>}
       {waitingForConnection && <p role="status">Salvo na cópia cifrada deste aparelho. A sincronização com a nuvem aguarda conexão e confirmação da conta.</p>}
-      {(status.localError || status.issue?.kind === 'network') && <button disabled={busy} onClick={() => void retry()}>Tentar salvar novamente</button>}
+      {(status.localError || status.issue?.kind === 'network' || status.issue?.kind === 'conflict') && <button disabled={busy} onClick={() => void retry()}>{status.issue?.kind === 'conflict' && !status.localError ? 'Conciliar alterações' : 'Tentar salvar novamente'}</button>}
       <details className="cloud-status-advanced"><summary>Mais opções</summary><div>
       {vaultIsProtected() && <p>Seus dados estão protegidos. Sair revoga a abertura offline deste navegador e preserva os rascunhos cifrados. Use sua senha para entrar.</p>}
       <p>{status.localSaved !== undefined ? 'A cópia cifrada neste aparelho preserva os rascunhos confirmados localmente. Salvo na nuvem indica confirmação do servidor.' : 'Dados remotos são a fonte principal. Rascunhos sem confirmação ficam somente na memória desta aba.'}</p>

@@ -127,6 +127,7 @@ async function construct(authorization: OfflineAuthorization, session: VaultSess
     runtime = new CloudRuntime(vault.snapshot(), vault.fetch, dispose, () => vault!.refreshSnapshot(), {
       persistence: repository, checkpoint: runtimeCheckpoint ?? undefined, networkReady,
       acknowledgeOperation: id => vault!.acknowledgeOperation(id),
+      rejectOperation: id => vault!.discardRejectedOperation(id),
     });
     unsubscribe = runtime.subscribe(() => {
       const kind = runtime!.getSnapshot().issue?.kind;

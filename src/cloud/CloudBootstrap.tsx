@@ -46,7 +46,7 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
     const offline = restored ?? (vault && typeof navigator.locks?.request === 'function' ? await prepareOfflineWorkspace(next, vault, fetcher) : null);
     if (offline) vault = offline.vault;
     const privateVault = vault;
-    const cloud = offline?.runtime ?? (selected ? new CloudRuntime(selected, privateVault?.fetch ?? fetcher, privateVault ? () => { ink?.dispose(); privateVault.dispose(); } : undefined, privateVault ? () => privateVault.refreshSnapshot() : undefined) : null);
+    const cloud = offline?.runtime ?? (selected ? new CloudRuntime(selected, privateVault?.fetch ?? fetcher, privateVault ? () => { ink?.dispose(); privateVault.dispose(); } : undefined, privateVault ? () => privateVault.refreshSnapshot() : undefined, privateVault ? { rejectOperation: id => privateVault.discardRejectedOperation(id) } : {}) : null);
     if (id !== generation.current) { cloud?.dispose(); return; }
     activeOffline.current = offline;
     activeRuntime.current = cloud;

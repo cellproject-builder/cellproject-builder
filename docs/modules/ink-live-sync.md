@@ -6,7 +6,7 @@
 
 Exibir o traço que está sendo produzido em outro dispositivo da mesma conta, sem esperar o desenho inteiro terminar. Ao concluir o gesto, o documento salvo substitui essa prévia temporária. Board, desenho sobre a nota, caderno e mapa do plano compartilham o transporte; cada superfície conserva seu próprio documento e coordenadas.
 
-O canal de prévias não é um editor colaborativo de texto nem um mecanismo de resolução automática de conflitos. O documento persistido continua sendo a fonte canônica. Os dois dispositivos precisam ter acesso ao mesmo cofre desbloqueado para trocar prévias cifradas.
+O canal de prévias não é um editor colaborativo de texto nem um mecanismo de resolução automática de conflitos. O documento persistido continua sendo a fonte canônica; sua camada de salvamento pode conciliar alterações independentes após uma rejeição definitiva de revisão. Os dois dispositivos precisam ter acesso ao mesmo cofre desbloqueado para trocar prévias cifradas.
 
 ## Responsabilidades e contratos
 
@@ -62,6 +62,10 @@ No cofre, `VaultTransport.refreshSnapshot()` faz `GET /api/cloud/vault`, seriali
 
 Falhas temporárias de leitura aparecem no status e podem recuperar no próximo poll. Uma falha de escrita ou resultado ambíguo conserva sua identidade e seu rascunho; polling não repete mutações. Revisões novas são adotadas antes da próxima edição local, mantendo o controle de concorrência existente.
 
+Quando o salvamento recebe uma rejeição definitiva de revisão, o runtime pode conciliar a base comum, o último rascunho local e o documento remoto. Notas/quadros distintos e itens ou traços de IDs diferentes no mesmo desenho podem ser combinados sem substituir o documento inteiro pelo último envio. A união por IDs estáveis preserva adições, exclusões e ordem compatível; exclusão contra edição do mesmo traço ou reordenação conflitante continua sendo conflito. O resultado passa pelos schemas e limites dos desenhos. Uma edição posterior de um editor ainda desatualizado também precisa conservar os traços remotos já conciliados.
+
+No cofre, gravações independentes em outras chaves são preservadas mesmo quando alteram a revisão global do manifesto. A operação definitivamente recusada pode ser preparada novamente; uma resposta ambígua exige os mesmos bytes e identidade até esclarecer seu resultado. Esse fluxo pertence à persistência e não torna uma prévia SSE durável. A correção e suas evidências de software estão no [relatório de conflitos entre dispositivos](../reports/multi-device-conflict-fix-2026-10-10.md).
+
 GET SSE ou POST de prévia com 401/403 notifica o runtime proprietário e encerra o canal. Após o usuário renovar o login e retomar o salvamento na mesma aba, `CloudRuntime.resumeAfterAuthentication()` verifica a mesma conta e `CloudInkConnection` abre um canal novo com o cofre ainda desbloqueado. Gestos e filas antigos não são reenviados. Respostas tardias de uma conexão descartada não podem expirar um runtime ou cofre novo; logout remove a assinatura de status e impede reabertura.
 
 ## Estado local que permanece local
@@ -77,16 +81,18 @@ Rascunhos do planner, prompts visuais e propostas locais permanecem preservados.
 - O relay atual funciona em **um processo Node**. Réplicas, workers e regiões diferentes precisam de pub/sub compartilhado; não há Redis, broker ou fanout distribuído nesta versão.
 - Prévias exigem `liveInkAvailable`, cofre desbloqueado e a mesma conta/cofre nos dois dispositivos. `PasswordVaultGate` abre um aparelho novo com a senha da conta quando o vínculo cifrado já existe; sem vínculo, a pessoa precisa primeiro de um aparelho autorizado. O acesso por senha/aparelho está em [dados e privacidade](data-and-privacy.md); frase separada é caminho legado/fallback.
 - Sem cofre, há atualização de documentos salvos por polling, sem transmitir frames de desenho legíveis pelo relay.
-- Não há CRDT, união automática de dois desenhos simultâneos no mesmo documento nem compartilhamento entre contas. Um conflito de revisão preserva o rascunho e exige resolução explícita.
+- Há conciliação conservadora de alterações independentes, inclusive união de itens/traços com IDs estáveis no mesmo desenho. Não há CRDT nem compartilhamento entre contas. Edições incompatíveis do mesmo campo/traço, exclusão contra edição, versões divergentes e mudanças estruturais concorrentes do plano preservam o rascunho como conflito para resolução explícita.
 - Offline não há prévia entre dispositivos. Em aparelho autorizado, a [edição offline](../offline-editing.md) pode manter documentos e fila durável cifrados, retomando após verificar a mesma conta e cofre. A prévia continua efêmera; o status distingue salvamento local de confirmação cloud. Falha no armazenamento local exige manter a aba aberta e usar o resgate disponível.
 - O polling ainda lê o snapshot/manifesto remoto inteiro. Não há endpoint de revisão leve/ETag nem download incremental de strokes nesta entrega; documentos muito grandes precisam de medição antes de ampliar a frequência.
-- Latência e precisão em Apple Pencil/S Pen dependem do hardware, navegador e rede. Os testes sintéticos não substituem a validação física tablet → computador.
+- Latência e precisão em Apple Pencil/S Pen dependem do hardware, navegador e rede. Os testes sintéticos não substituem a validação física tablet → computador; o ensaio anterior de prévia no S9 não comprova esta correção de conflitos.
 
 ## Verificações e pesquisa
 
 [runtime.test.ts](../../src/cloud/runtime.test.ts) verifica revisões, rascunhos, corridas de escrita/leitura, aplicação sem eco, descarte ao encerrar e recuperação de leitura. [transport.test.ts](../../src/cloud/vault/transport.test.ts) cobre manifestos cifrados novos, stale/invalid, operação ambígua e atalho seguro de revisão inalterada. [CloudLiveSync.test.tsx](../../src/cloud/CloudLiveSync.test.tsx) cobre strokes de Board/caderno, preservação de navegação, guards, polling, commit e teardown.
 
 [CloudLiveSync.integration.test.ts](../../src/cloud/CloudLiveSync.integration.test.ts) aplica tinta livre de nota e desenho do Board nos stores Zustand reais, confirma ausência de gravação de eco e verifica a revisão base da próxima edição local.
+
+[documentMerge.test.ts](../../src/cloud/documentMerge.test.ts) cobre união por IDs, exclusões, reordenação, limites e recusa de alterações incompatíveis. [concurrency.test.ts](../../src/cloud/vault/concurrency.test.ts) exercita clientes cifrados independentes, conciliação de documentos e preservação da edição seguinte. A autenticação/rede desses cenários usa fixtures; não há prova física desta correção por esses testes.
 
 O canal e o isolamento HTTP têm testes próprios em [live.test.ts](../../src/ink/live.test.ts) e [live-ink.test.mjs](../../server/live-ink.test.mjs), incluindo pausa por backpressure, retomada em `drain` e encerramento de conexão bloqueada. Para o artigo, a hipótese observável é que a passagem do rascunho ao modelo compartilhado facilita registrar e discutir evidências. Medir latência entre dispositivos, preservação de traços, interrupções, conflitos e interferência com edição textual; não inferir melhoria pedagógica só pela presença da sincronização.
 
