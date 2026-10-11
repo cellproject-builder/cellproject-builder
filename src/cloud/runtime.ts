@@ -27,6 +27,9 @@ export interface RemoteRefreshOptions {
   apply?: (documents: readonly CloudDocument[]) => void;
 }
 type Operation = { key: string; value: string; operationId: string; baseRevision?: number; baseValue?: string | null; rejected?: true };
+const MEDIA_BYTE_CACHE_LIMIT = 32 * 1024 * 1024;
+type PendingMediaRead = { metadata: CloudMedia; controller: AbortController; promise: Promise<ArrayBuffer> };
+const sameMediaBytes = (before: CloudMedia, after: CloudMedia | undefined) => !!after && before.sha256 === after.sha256 && before.size === after.size && before.mime === after.mime;
 export class CloudConflictError extends Error { constructor() { super('Há um conflito remoto. Seu rascunho foi preservado.'); } }
 export class CloudHttpError extends Error { constructor(public status: number, message: string, public code?: string) { super(message); } }
 export const mutationHeaders = { 'Content-Type': 'application/json', 'X-Cellproject-Request': '1' };
@@ -98,6 +101,8 @@ export class CloudRuntime {
   private status: CloudStatus = { pending: 0, issue: null, saving: false };
   private mediaMetadata = new Map<string, CloudMedia>();
   private mediaBytes = new Map<string, ArrayBuffer>();
+  private mediaByteSize = 0;
+  private mediaReads = new Map<string, PendingMediaRead>();
   private localChain: Promise<void> = Promise.resolve();
   private localGeneration = 0;
   // The UI can keep a full snapshot while reconciliation installs remote entities.
@@ -207,8 +212,7 @@ export class CloudRuntime {
     if (changes.length && options.apply) this.withRemoteApply(() => options.apply!(changes));
     for (const doc of changes) this.confirmed.set(doc.key, doc);
     const metadata = new Map(media.map(item => [item.id, item]));
-    for (const [id, old] of this.mediaMetadata) if (metadata.get(id)?.sha256 !== old.sha256) this.mediaBytes.delete(id);
-    this.mediaMetadata = metadata;
+    this.replaceMediaMetadata(metadata);
     if (this.options.persistence) await this.persistCheckpoint();
     if (changes.length) for (const listener of this.remoteListeners) listener(changes);
     return true;
@@ -245,8 +249,7 @@ export class CloudRuntime {
       catch (reason) { this.confirmed = before; throw reason; }
       if (options.apply) for (const doc of changes) { this.lastLocalValues.set(doc.key, doc.value); this.pendingApplication.delete(doc.key); }
       const metadata = new Map(snapshot.media.map(item => [item.id, { ...item }]));
-      for (const [id, old] of this.mediaMetadata) if (metadata.get(id)?.sha256 !== old.sha256) this.mediaBytes.delete(id);
-      this.mediaMetadata = metadata;
+      this.replaceMediaMetadata(metadata);
       // Persist the recovered state too; a later unchanged poll no longer
       // rewrites the journal and must not leave an obsolete warning in it.
       if (this.hasTransientReadIssue()) this.publish({ issue: null });
@@ -323,8 +326,7 @@ export class CloudRuntime {
     for (const [key, value] of drafts) if (this.lastLocalValues.get(key) !== value) this.pendingApplication.add(key);
     this.confirmed = remote; this.drafts = drafts; this.queue = replacements;
     const metadata = new Map(media.map(item => [item.id, item]));
-    for (const [id, old] of this.mediaMetadata) if (metadata.get(id)?.sha256 !== old.sha256) this.mediaBytes.delete(id);
-    this.mediaMetadata = metadata;
+    this.replaceMediaMetadata(metadata);
     this.publish({ issue: null });
     await this.persistCheckpoint();
     // A reload between these boundaries can reconcile the now-orphaned rejected
@@ -391,16 +393,59 @@ export class CloudRuntime {
     this.publish({ issue: null }); await this.drain();
   }
   requestFetch(): typeof fetch { return this.fetcher; }
-  dispose() { if (this.disposed) return; this.disposed = true; this.vaultDisposer?.(); if (this.vaultDisposer) configureVault(null); this.mediaBytes.clear(); this.mediaMetadata.clear(); this.confirmed.clear(); this.drafts.clear(); this.queue = []; this.remoteListeners.clear(); this.publish({ issue: null }); }
+  dispose() { if (this.disposed) return; this.disposed = true; for (const read of this.mediaReads.values()) read.controller.abort(new Error('Sessão encerrada.')); this.mediaReads.clear(); this.vaultDisposer?.(); if (this.vaultDisposer) configureVault(null); this.mediaBytes.clear(); this.mediaByteSize = 0; this.mediaMetadata.clear(); this.confirmed.clear(); this.drafts.clear(); this.queue = []; this.remoteListeners.clear(); this.publish({ issue: null }); }
   media(): CloudMedia[] { return [...this.mediaMetadata.values()].map(item => ({ ...item })); }
-  cachedMedia(id: string): ArrayBuffer | null { return this.mediaBytes.get(id)?.slice(0) ?? null; }
+  private removeMediaBytes(id: string) {
+    const bytes = this.mediaBytes.get(id);
+    if (bytes) { this.mediaByteSize -= bytes.byteLength; this.mediaBytes.delete(id); }
+  }
+  private cacheMediaBytes(id: string, bytes: ArrayBuffer) {
+    this.removeMediaBytes(id);
+    if (bytes.byteLength > MEDIA_BYTE_CACHE_LIMIT) return;
+    while (this.mediaByteSize + bytes.byteLength > MEDIA_BYTE_CACHE_LIMIT) this.removeMediaBytes(this.mediaBytes.keys().next().value!);
+    this.mediaBytes.set(id, bytes); this.mediaByteSize += bytes.byteLength;
+  }
+  private invalidateMedia(id: string) {
+    this.removeMediaBytes(id);
+    this.mediaReads.get(id)?.controller.abort(new Error('O arquivo remoto mudou durante a leitura.'));
+    this.mediaReads.delete(id);
+  }
+  private replaceMediaMetadata(metadata: Map<string, CloudMedia>) {
+    for (const [id, old] of this.mediaMetadata) if (!sameMediaBytes(old, metadata.get(id))) this.invalidateMedia(id);
+    this.mediaMetadata = metadata;
+  }
+  private assertMediaRead(id: string, metadata: CloudMedia, signal: AbortSignal) {
+    if (this.disposed) throw new Error('Sessão encerrada.');
+    signal.throwIfAborted();
+    if (!sameMediaBytes(metadata, this.mediaMetadata.get(id))) throw new Error('O arquivo remoto mudou durante a leitura.');
+  }
+  cachedMedia(id: string): ArrayBuffer | null {
+    const bytes = this.mediaBytes.get(id); if (!bytes) return null;
+    this.mediaBytes.delete(id); this.mediaBytes.set(id, bytes);
+    return bytes.slice(0);
+  }
   async readMedia(id: string): Promise<ArrayBuffer | null> {
-    const cached = this.mediaBytes.get(id); if (cached) return cached.slice(0);
+    if (this.disposed) throw new Error('Sessão encerrada.');
+    const cached = this.cachedMedia(id); if (cached) return cached;
     const metadata = this.mediaMetadata.get(id); if (!metadata) return null;
-    const response = await sessionAwareFetch(`/api/cloud/media/${encodeURIComponent(id)}`, { credentials: 'same-origin', cache: 'no-store' }, this.fetcher);
-    if (!response.ok) throw new CloudHttpError(response.status, 'Não foi possível ler o arquivo remoto.');
-    const bytes = await response.arrayBuffer(); if (bytes.byteLength !== metadata.size || await sha256(bytes) !== metadata.sha256) throw new Error('Integridade do arquivo remoto inválida.');
-    if (this.disposed) throw new Error('Sessão encerrada.'); this.mediaBytes.set(id, bytes); return bytes.slice(0);
+    let pending = this.mediaReads.get(id);
+    if (!pending) {
+      const controller = new AbortController();
+      const promise: Promise<ArrayBuffer> = (async () => {
+        const response = await sessionAwareFetch(`/api/cloud/media/${encodeURIComponent(id)}`, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal }, this.fetcher);
+        this.assertMediaRead(id, metadata, controller.signal);
+        if (!response.ok) throw new CloudHttpError(response.status, 'Não foi possível ler o arquivo remoto.');
+        const bytes = await response.arrayBuffer();
+        this.assertMediaRead(id, metadata, controller.signal);
+        if (bytes.byteLength !== metadata.size || await sha256(bytes) !== metadata.sha256) throw new Error('Integridade do arquivo remoto inválida.');
+        this.assertMediaRead(id, metadata, controller.signal);
+        this.cacheMediaBytes(id, bytes); return bytes;
+      })().finally(() => { if (this.mediaReads.get(id)?.promise === promise) this.mediaReads.delete(id); });
+      pending = { metadata, controller, promise }; this.mediaReads.set(id, pending);
+    }
+    const bytes = await pending.promise;
+    this.assertMediaRead(id, pending.metadata, pending.controller.signal);
+    return bytes.slice(0);
   }
   async writeMedia(record: { id: string; mime: string; name: string; projectId?: string; createdAt?: number; bytes: ArrayBuffer }) {
     if (this.disposed) throw new Error('Sessão encerrada.');
@@ -408,10 +453,13 @@ export class CloudRuntime {
     this.mutationEpoch++;
     this.pendingMediaWrites++;
     try {
-    const hash = await sha256(record.bytes), existing = this.mediaMetadata.get(record.id);
-    if (existing && (existing.sha256 !== hash || existing.mime !== record.mime || existing.size !== record.bytes.byteLength)) throw new CloudConflictError();
+    // Own the bytes before hashing: the caller may retain and mutate its buffer.
+    const bytes = record.bytes.slice(0), hash = await sha256(bytes);
+    if (this.disposed) throw new Error('Sessão encerrada.');
+    const existing = this.mediaMetadata.get(record.id);
+    if (existing && (existing.sha256 !== hash || existing.mime !== record.mime || existing.size !== bytes.byteLength)) throw new CloudConflictError();
     if (!existing) {
-      const { bytes, ...metadata } = record;
+      const { bytes: _bytes, ...metadata } = record;
       const operationId = crypto.randomUUID();
       const result = await cloudJson<{ id: string; sha256: string; size: number }>('/api/cloud/media', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ ...metadata, sha256: hash, base64: encodeBytes(bytes), operationId }) }, this.fetcher);
       if (result.id !== record.id || result.sha256 !== hash || result.size !== bytes.byteLength) throw new Error('Upload não confirmado.');
@@ -419,7 +467,8 @@ export class CloudRuntime {
       this.mediaMetadata.set(record.id, { ...metadata, sha256: hash, size: bytes.byteLength });
       if (this.options.persistence) { await this.persistCheckpoint(); await this.options.acknowledgeOperation?.(operationId); }
     }
-    this.mediaBytes.set(record.id, record.bytes.slice(0));
+    if (this.disposed) throw new Error('Sessão encerrada.');
+    this.invalidateMedia(record.id); this.cacheMediaBytes(record.id, bytes);
     if (this.options.persistence) await this.persistCheckpoint();
     } finally { this.pendingMediaWrites--; }
   }

@@ -1,0 +1,2707 @@
+{
+  "order": "baseline board×3, baseline planner×3, candidate board×3, candidate planner×3; one concurrent-suite candidate warmup excluded",
+  "baseline": [
+    {
+      "run": 1,
+      "variant": "baseline",
+      "surface": "board",
+      "scenario": "tour",
+      "elapsedMs": 2356.9,
+      "before": {
+        "createdWorkers": 0,
+        "maxWorkers": 0,
+        "pdfReads": 0,
+        "pdfReadBytes": 0,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 15,
+        "maxWorkers": 15,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 15,
+        "canvases": 15,
+        "rasterBytes": 4896000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 10,
+          "maxWorkers": 10,
+          "pdfReads": 10,
+          "pdfReadBytes": 31284118,
+          "liveWorkers": 10,
+          "canvases": 10,
+          "rasterBytes": 3264000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.699999999998909,
+        "max": 12.700000000000728,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 2,
+      "variant": "baseline",
+      "surface": "board",
+      "scenario": "dense",
+      "elapsedMs": 825.1,
+      "before": {
+        "createdWorkers": 15,
+        "maxWorkers": 15,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 15,
+        "canvases": 15,
+        "rasterBytes": 4896000,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 30,
+          "maxWorkers": 30,
+          "pdfReads": 30,
+          "pdfReadBytes": 101831355,
+          "liveWorkers": 30,
+          "canvases": 30,
+          "rasterBytes": 9792000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 25,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 3,
+      "variant": "baseline",
+      "surface": "board",
+      "scenario": "release",
+      "elapsedMs": 1725.5,
+      "before": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 30,
+          "maxWorkers": 30,
+          "pdfReads": 30,
+          "pdfReadBytes": 101831355,
+          "liveWorkers": 30,
+          "canvases": 30,
+          "rasterBytes": 9792000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 19,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 4,
+      "variant": "baseline",
+      "surface": "board",
+      "scenario": "tour",
+      "elapsedMs": 2245.2,
+      "before": {
+        "createdWorkers": 0,
+        "maxWorkers": 0,
+        "pdfReads": 0,
+        "pdfReadBytes": 0,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 15,
+        "maxWorkers": 15,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 15,
+        "canvases": 15,
+        "rasterBytes": 4896000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 10,
+          "maxWorkers": 10,
+          "pdfReads": 10,
+          "pdfReadBytes": 31284118,
+          "liveWorkers": 10,
+          "canvases": 10,
+          "rasterBytes": 3264000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 18.700000000000728,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 5,
+      "variant": "baseline",
+      "surface": "board",
+      "scenario": "dense",
+      "elapsedMs": 724.1,
+      "before": {
+        "createdWorkers": 15,
+        "maxWorkers": 15,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 15,
+        "canvases": 15,
+        "rasterBytes": 4896000,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 30,
+          "maxWorkers": 30,
+          "pdfReads": 30,
+          "pdfReadBytes": 101831355,
+          "liveWorkers": 30,
+          "canvases": 30,
+          "rasterBytes": 9792000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.80000000000291,
+        "max": 37.69999999999709,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 6,
+      "variant": "baseline",
+      "surface": "board",
+      "scenario": "release",
+      "elapsedMs": 1707.8,
+      "before": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 30,
+          "maxWorkers": 30,
+          "pdfReads": 30,
+          "pdfReadBytes": 101831355,
+          "liveWorkers": 30,
+          "canvases": 30,
+          "rasterBytes": 9792000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.599999999998545,
+        "max": 15.099999999998545,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 7,
+      "variant": "baseline",
+      "surface": "board",
+      "scenario": "tour",
+      "elapsedMs": 2251.2,
+      "before": {
+        "createdWorkers": 0,
+        "maxWorkers": 0,
+        "pdfReads": 0,
+        "pdfReadBytes": 0,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 15,
+        "maxWorkers": 15,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 15,
+        "canvases": 15,
+        "rasterBytes": 4896000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 10,
+          "maxWorkers": 10,
+          "pdfReads": 10,
+          "pdfReadBytes": 31284118,
+          "liveWorkers": 10,
+          "canvases": 10,
+          "rasterBytes": 3264000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.799999999999272,
+        "max": 18.700000000000728,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 8,
+      "variant": "baseline",
+      "surface": "board",
+      "scenario": "dense",
+      "elapsedMs": 715,
+      "before": {
+        "createdWorkers": 15,
+        "maxWorkers": 15,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 15,
+        "canvases": 15,
+        "rasterBytes": 4896000,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 30,
+          "maxWorkers": 30,
+          "pdfReads": 30,
+          "pdfReadBytes": 101831355,
+          "liveWorkers": 30,
+          "canvases": 30,
+          "rasterBytes": 9792000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 7.099999999998545,
+        "max": 43.60000000000218,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 9,
+      "variant": "baseline",
+      "surface": "board",
+      "scenario": "release",
+      "elapsedMs": 1720.4,
+      "before": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 30,
+          "maxWorkers": 30,
+          "pdfReads": 30,
+          "pdfReadBytes": 101831355,
+          "liveWorkers": 30,
+          "canvases": 30,
+          "rasterBytes": 9792000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 11.099999999998545,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 10,
+      "variant": "baseline",
+      "surface": "planner",
+      "scenario": "tour",
+      "elapsedMs": 2374.8,
+      "before": {
+        "createdWorkers": 0,
+        "maxWorkers": 0,
+        "pdfReads": 0,
+        "pdfReadBytes": 0,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 15,
+        "maxWorkers": 15,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 15,
+        "canvases": 15,
+        "rasterBytes": 4896000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 10,
+          "maxWorkers": 10,
+          "pdfReads": 10,
+          "pdfReadBytes": 31284118,
+          "liveWorkers": 10,
+          "canvases": 10,
+          "rasterBytes": 3264000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.400000000001455,
+        "max": 18.700000000004366,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 11,
+      "variant": "baseline",
+      "surface": "planner",
+      "scenario": "dense",
+      "elapsedMs": 728.5,
+      "before": {
+        "createdWorkers": 15,
+        "maxWorkers": 15,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 15,
+        "canvases": 15,
+        "rasterBytes": 4896000,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 30,
+          "maxWorkers": 30,
+          "pdfReads": 30,
+          "pdfReadBytes": 101831355,
+          "liveWorkers": 30,
+          "canvases": 30,
+          "rasterBytes": 9792000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.80000000000291,
+        "max": 18.099999999998545,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 12,
+      "variant": "baseline",
+      "surface": "planner",
+      "scenario": "release",
+      "elapsedMs": 1715,
+      "before": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 30,
+          "maxWorkers": 30,
+          "pdfReads": 30,
+          "pdfReadBytes": 101831355,
+          "liveWorkers": 30,
+          "canvases": 30,
+          "rasterBytes": 9792000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 13,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 13,
+      "variant": "baseline",
+      "surface": "planner",
+      "scenario": "tour",
+      "elapsedMs": 2243.4,
+      "before": {
+        "createdWorkers": 0,
+        "maxWorkers": 0,
+        "pdfReads": 0,
+        "pdfReadBytes": 0,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 15,
+        "maxWorkers": 15,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 15,
+        "canvases": 15,
+        "rasterBytes": 4896000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 10,
+          "maxWorkers": 10,
+          "pdfReads": 10,
+          "pdfReadBytes": 31284118,
+          "liveWorkers": 10,
+          "canvases": 10,
+          "rasterBytes": 3264000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 12.5,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 14,
+      "variant": "baseline",
+      "surface": "planner",
+      "scenario": "dense",
+      "elapsedMs": 721.5,
+      "before": {
+        "createdWorkers": 15,
+        "maxWorkers": 15,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 15,
+        "canvases": 15,
+        "rasterBytes": 4896000,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 30,
+          "maxWorkers": 30,
+          "pdfReads": 30,
+          "pdfReadBytes": 101831355,
+          "liveWorkers": 30,
+          "canvases": 30,
+          "rasterBytes": 9792000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 8.799999999995634,
+        "max": 37.69999999999709,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 15,
+      "variant": "baseline",
+      "surface": "planner",
+      "scenario": "release",
+      "elapsedMs": 1719,
+      "before": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 30,
+          "maxWorkers": 30,
+          "pdfReads": 30,
+          "pdfReadBytes": 101831355,
+          "liveWorkers": 30,
+          "canvases": 30,
+          "rasterBytes": 9792000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 9.80000000000291,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 16,
+      "variant": "baseline",
+      "surface": "planner",
+      "scenario": "tour",
+      "elapsedMs": 2256,
+      "before": {
+        "createdWorkers": 0,
+        "maxWorkers": 0,
+        "pdfReads": 0,
+        "pdfReadBytes": 0,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 15,
+        "maxWorkers": 15,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 15,
+        "canvases": 15,
+        "rasterBytes": 4896000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 10,
+          "maxWorkers": 10,
+          "pdfReads": 10,
+          "pdfReadBytes": 31284118,
+          "liveWorkers": 10,
+          "canvases": 10,
+          "rasterBytes": 3264000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 15,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 15,
+          "canvases": 15,
+          "rasterBytes": 4896000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 22.5,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 17,
+      "variant": "baseline",
+      "surface": "planner",
+      "scenario": "dense",
+      "elapsedMs": 962.6,
+      "before": {
+        "createdWorkers": 15,
+        "maxWorkers": 15,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 15,
+        "canvases": 15,
+        "rasterBytes": 4896000,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 30,
+          "maxWorkers": 30,
+          "pdfReads": 30,
+          "pdfReadBytes": 101831355,
+          "liveWorkers": 30,
+          "canvases": 30,
+          "rasterBytes": 9792000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 12.5,
+        "max": 75,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 18,
+      "variant": "baseline",
+      "surface": "planner",
+      "scenario": "release",
+      "elapsedMs": 1715.6,
+      "before": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 30,
+        "maxWorkers": 30,
+        "pdfReads": 30,
+        "pdfReadBytes": 101831355,
+        "liveWorkers": 30,
+        "canvases": 30,
+        "rasterBytes": 9792000,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 30,
+          "maxWorkers": 30,
+          "pdfReads": 30,
+          "pdfReadBytes": 101831355,
+          "liveWorkers": 30,
+          "canvases": 30,
+          "rasterBytes": 9792000,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 9.400000000001455,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    }
+  ],
+  "candidate": [
+    {
+      "run": 2,
+      "variant": "candidate",
+      "surface": "board",
+      "scenario": "tour",
+      "elapsedMs": 2438.9,
+      "before": {
+        "createdWorkers": 0,
+        "maxWorkers": 0,
+        "pdfReads": 0,
+        "pdfReadBytes": 0,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 15,
+        "maxWorkers": 2,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 10,
+          "maxWorkers": 2,
+          "pdfReads": 10,
+          "pdfReadBytes": 31284118,
+          "liveWorkers": 0,
+          "canvases": 10,
+          "rasterBytes": 3254400,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 15,
+          "rasterBytes": 4881600,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 5,
+          "rasterBytes": 1627200,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 0,
+          "rasterBytes": 0,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 12.39999999999418,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 3,
+      "variant": "candidate",
+      "surface": "board",
+      "scenario": "dense",
+      "elapsedMs": 1631.6,
+      "before": {
+        "createdWorkers": 15,
+        "maxWorkers": 2,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 30,
+        "rasterBytes": 9763200,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 45,
+          "maxWorkers": 2,
+          "pdfReads": 45,
+          "pdfReadBytes": 148757532,
+          "liveWorkers": 0,
+          "canvases": 30,
+          "rasterBytes": 9763200,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.600000000005821,
+        "max": 12.199999999982538,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 4,
+      "variant": "candidate",
+      "surface": "board",
+      "scenario": "release",
+      "elapsedMs": 1720.4,
+      "before": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 30,
+        "rasterBytes": 9763200,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 45,
+          "maxWorkers": 2,
+          "pdfReads": 45,
+          "pdfReadBytes": 148757532,
+          "liveWorkers": 0,
+          "canvases": 0,
+          "rasterBytes": 0,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 12.800000000017462,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 5,
+      "variant": "candidate",
+      "surface": "board",
+      "scenario": "tour",
+      "elapsedMs": 2439.5,
+      "before": {
+        "createdWorkers": 0,
+        "maxWorkers": 0,
+        "pdfReads": 0,
+        "pdfReadBytes": 0,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 15,
+        "maxWorkers": 2,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 10,
+          "maxWorkers": 2,
+          "pdfReads": 10,
+          "pdfReadBytes": 31284118,
+          "liveWorkers": 0,
+          "canvases": 10,
+          "rasterBytes": 3254400,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 15,
+          "rasterBytes": 4881600,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 5,
+          "rasterBytes": 1627200,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 0,
+          "rasterBytes": 0,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.599999999976717,
+        "max": 21.10000000000582,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 6,
+      "variant": "candidate",
+      "surface": "board",
+      "scenario": "dense",
+      "elapsedMs": 1423.3,
+      "before": {
+        "createdWorkers": 15,
+        "maxWorkers": 2,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 30,
+        "rasterBytes": 9763200,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 45,
+          "maxWorkers": 2,
+          "pdfReads": 45,
+          "pdfReadBytes": 148757532,
+          "liveWorkers": 0,
+          "canvases": 30,
+          "rasterBytes": 9763200,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.7999999999883585,
+        "max": 11.60000000000582,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 7,
+      "variant": "candidate",
+      "surface": "board",
+      "scenario": "release",
+      "elapsedMs": 1713.8,
+      "before": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 30,
+        "rasterBytes": 9763200,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 45,
+          "maxWorkers": 2,
+          "pdfReads": 45,
+          "pdfReadBytes": 148757532,
+          "liveWorkers": 0,
+          "canvases": 0,
+          "rasterBytes": 0,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 11.800000000017462,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 8,
+      "variant": "candidate",
+      "surface": "board",
+      "scenario": "tour",
+      "elapsedMs": 2462.2,
+      "before": {
+        "createdWorkers": 0,
+        "maxWorkers": 0,
+        "pdfReads": 0,
+        "pdfReadBytes": 0,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 15,
+        "maxWorkers": 2,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 10,
+          "maxWorkers": 2,
+          "pdfReads": 10,
+          "pdfReadBytes": 31284118,
+          "liveWorkers": 0,
+          "canvases": 10,
+          "rasterBytes": 3254400,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 15,
+          "rasterBytes": 4881600,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 5,
+          "rasterBytes": 1627200,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 0,
+          "rasterBytes": 0,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 12.400000000023283,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 9,
+      "variant": "candidate",
+      "surface": "board",
+      "scenario": "dense",
+      "elapsedMs": 1632,
+      "before": {
+        "createdWorkers": 15,
+        "maxWorkers": 2,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 30,
+        "rasterBytes": 9763200,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 45,
+          "maxWorkers": 2,
+          "pdfReads": 45,
+          "pdfReadBytes": 148757532,
+          "liveWorkers": 0,
+          "canvases": 30,
+          "rasterBytes": 9763200,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.800000000017462,
+        "max": 18.79999999998836,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 10,
+      "variant": "candidate",
+      "surface": "board",
+      "scenario": "release",
+      "elapsedMs": 1707.2,
+      "before": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 30,
+        "rasterBytes": 9763200,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 45,
+          "maxWorkers": 2,
+          "pdfReads": 45,
+          "pdfReadBytes": 148757532,
+          "liveWorkers": 0,
+          "canvases": 0,
+          "rasterBytes": 0,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 17.70000000001164,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 11,
+      "variant": "candidate",
+      "surface": "planner",
+      "scenario": "tour",
+      "elapsedMs": 2661.2,
+      "before": {
+        "createdWorkers": 0,
+        "maxWorkers": 0,
+        "pdfReads": 0,
+        "pdfReadBytes": 0,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 15,
+        "maxWorkers": 2,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 10,
+          "maxWorkers": 2,
+          "pdfReads": 10,
+          "pdfReadBytes": 31284118,
+          "liveWorkers": 0,
+          "canvases": 10,
+          "rasterBytes": 3254400,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 15,
+          "rasterBytes": 4881600,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 5,
+          "rasterBytes": 1627200,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 0,
+          "rasterBytes": 0,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.400000000023283,
+        "max": 18.89999999999418,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 12,
+      "variant": "candidate",
+      "surface": "planner",
+      "scenario": "dense",
+      "elapsedMs": 2143.2,
+      "before": {
+        "createdWorkers": 15,
+        "maxWorkers": 2,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 30,
+        "rasterBytes": 9763200,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 45,
+          "maxWorkers": 2,
+          "pdfReads": 45,
+          "pdfReadBytes": 148757532,
+          "liveWorkers": 0,
+          "canvases": 30,
+          "rasterBytes": 9763200,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.699999999982538,
+        "max": 13,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 13,
+      "variant": "candidate",
+      "surface": "planner",
+      "scenario": "release",
+      "elapsedMs": 1722.7,
+      "before": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 30,
+        "rasterBytes": 9763200,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 45,
+          "maxWorkers": 2,
+          "pdfReads": 45,
+          "pdfReadBytes": 148757532,
+          "liveWorkers": 0,
+          "canvases": 0,
+          "rasterBytes": 0,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.400000000023283,
+        "max": 15.39999999999418,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 14,
+      "variant": "candidate",
+      "surface": "planner",
+      "scenario": "tour",
+      "elapsedMs": 2970.7,
+      "before": {
+        "createdWorkers": 0,
+        "maxWorkers": 0,
+        "pdfReads": 0,
+        "pdfReadBytes": 0,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 15,
+        "maxWorkers": 2,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 10,
+          "maxWorkers": 2,
+          "pdfReads": 10,
+          "pdfReadBytes": 31284118,
+          "liveWorkers": 0,
+          "canvases": 10,
+          "rasterBytes": 3254400,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 5,
+          "rasterBytes": 1627200,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 5,
+          "rasterBytes": 1627200,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 0,
+          "rasterBytes": 0,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.400000000023283,
+        "max": 18.699999999982538,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 15,
+      "variant": "candidate",
+      "surface": "planner",
+      "scenario": "dense",
+      "elapsedMs": 2142,
+      "before": {
+        "createdWorkers": 15,
+        "maxWorkers": 2,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 30,
+        "rasterBytes": 9763200,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 45,
+          "maxWorkers": 2,
+          "pdfReads": 45,
+          "pdfReadBytes": 148757532,
+          "liveWorkers": 0,
+          "canvases": 30,
+          "rasterBytes": 9763200,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 7.300000000017462,
+        "max": 14.799999999988358,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 16,
+      "variant": "candidate",
+      "surface": "planner",
+      "scenario": "release",
+      "elapsedMs": 1720.6,
+      "before": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 30,
+        "rasterBytes": 9763200,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 45,
+          "maxWorkers": 2,
+          "pdfReads": 45,
+          "pdfReadBytes": 148757532,
+          "liveWorkers": 0,
+          "canvases": 0,
+          "rasterBytes": 0,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.400000000023283,
+        "max": 20.300000000017462,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 17,
+      "variant": "candidate",
+      "surface": "planner",
+      "scenario": "tour",
+      "elapsedMs": 2653.7,
+      "before": {
+        "createdWorkers": 0,
+        "maxWorkers": 0,
+        "pdfReads": 0,
+        "pdfReadBytes": 0,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 15,
+        "maxWorkers": 2,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 10,
+          "maxWorkers": 2,
+          "pdfReads": 10,
+          "pdfReadBytes": 31284118,
+          "liveWorkers": 0,
+          "canvases": 10,
+          "rasterBytes": 3254400,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 15,
+          "rasterBytes": 4881600,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 5,
+          "rasterBytes": 1627200,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 0,
+          "rasterBytes": 0,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.400000000023283,
+        "max": 18.79999999998836,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 18,
+      "variant": "candidate",
+      "surface": "planner",
+      "scenario": "dense",
+      "elapsedMs": 1821,
+      "before": {
+        "createdWorkers": 15,
+        "maxWorkers": 2,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 30,
+        "rasterBytes": 9763200,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 45,
+          "maxWorkers": 2,
+          "pdfReads": 45,
+          "pdfReadBytes": 148757532,
+          "liveWorkers": 0,
+          "canvases": 30,
+          "rasterBytes": 9763200,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 12.5,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    },
+    {
+      "run": 19,
+      "variant": "candidate",
+      "surface": "planner",
+      "scenario": "release",
+      "elapsedMs": 1721.4,
+      "before": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 30,
+        "rasterBytes": 9763200,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 45,
+        "maxWorkers": 2,
+        "pdfReads": 45,
+        "pdfReadBytes": 148757532,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 45,
+          "maxWorkers": 2,
+          "pdfReads": 45,
+          "pdfReadBytes": 148757532,
+          "liveWorkers": 0,
+          "canvases": 0,
+          "rasterBytes": 0,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 6.5,
+        "max": 15.5,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    }
+  ]
+}

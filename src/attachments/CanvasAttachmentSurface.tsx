@@ -84,14 +84,14 @@ export function CanvasAttachmentSurface({ scope, containerRef, english = false }
         onImport={files => void attach(files)} onAddLink={value => { try { const resource = resourceLink(value); updateCanvasAttachments(scope, latest => ({ ...latest, resources: [...latest.resources, resource] })); setError(''); } catch { fail(); } }}
         onPlace={ids => place(ids)} onOpen={resource => setReading([resource.id])} onRemove={id => { try { updateCanvasAttachments(scope, latest => removeCanvasResource(latest, id)); setError(''); } catch { fail(); } }} />
     </div>
-    {!!library.cards.length && <ViewportPortal><div className="canvas-resource-layer">{library.cards.map(card => <AttachmentCard key={card.id} card={card} resources={card.resourceIds.flatMap(id => resourceMap.has(id) ? [resourceMap.get(id)!] : [])} english={english}
+    {!!library.cards.length && <ViewportPortal><div className="canvas-resource-layer">{library.cards.map(card => <AttachmentCard key={card.id} card={card} resources={card.resourceIds.flatMap(id => resourceMap.has(id) ? [resourceMap.get(id)!] : [])} english={english} visibilityRoot={containerRef}
       onOpen={() => setReading(card.resourceIds)} onUpdate={patch => { try { updateCanvasAttachments(scope, latest => ({ ...latest, cards: latest.cards.map(item => item.id === card.id ? { ...item, ...patch } : item) })); } catch { fail(); } }}
       onRemove={() => { try { updateCanvasAttachments(scope, latest => ({ ...latest, cards: latest.cards.filter(item => item.id !== card.id) })); } catch { fail(); } }} />)}</div></ViewportPortal>}
     {!!readingResources.length && <Suspense fallback={null}><Reader key={reading.join(':')} resources={readingResources} english={english} onClose={() => setReading([])} onDiscuss={discuss} /></Suspense>}
   </>;
 }
 
-function AttachmentCard({ card, resources, english, onOpen, onUpdate, onRemove }: { card: CanvasAttachmentCard; resources: CanvasResource[]; english: boolean; onOpen(): void; onUpdate(patch: Partial<CanvasAttachmentCard>): void; onRemove(): void }) {
+function AttachmentCard({ card, resources, english, visibilityRoot, onOpen, onUpdate, onRemove }: { card: CanvasAttachmentCard; resources: CanvasResource[]; english: boolean; visibilityRoot: RefObject<HTMLDivElement>; onOpen(): void; onUpdate(patch: Partial<CanvasAttachmentCard>): void; onRemove(): void }) {
   const api = useReactFlow(), [live, setLive] = useState<Partial<CanvasAttachmentCard>>({});
   const gesture = useRef<{ id: number; x: number; y: number; resize: boolean; release(): void } | null>(null), pending = useRef<Partial<CanvasAttachmentCard>>({});
   const resource = resources[0], t = (pt: string, en: string) => english ? en : pt;
@@ -124,7 +124,7 @@ function AttachmentCard({ card, resources, english, onOpen, onUpdate, onRemove }
       if (direction) { event.preventDefault(); event.stopPropagation(); onUpdate({ x: card.x + direction[0] * (event.shiftKey ? 40 : 10), y: card.y + direction[1] * (event.shiftKey ? 40 : 10) }); }
     }}>
     <div className="canvas-resource-grip" title={t('Arrastar cartão', 'Drag card')} aria-hidden="true"><i/></div>
-    <button className="canvas-resource-open" aria-label={`${t('Abrir', 'Open')} ${resource.name}`} onClick={onOpen}><CanvasResourcePreview resource={resource} english={english} /><span><b>{resource.name}</b><small>{resources.length > 1 ? `${resources.length} ${t('anexos', 'attachments')}` : resource.kind.toUpperCase()}</small><ChevronRightIcon /></span></button>
+    <button className="canvas-resource-open" aria-label={`${t('Abrir', 'Open')} ${resource.name}`} onClick={onOpen}><CanvasResourcePreview resource={resource} english={english} visibilityRoot={visibilityRoot} /><span><b>{resource.name}</b><small>{resources.length > 1 ? `${resources.length} ${t('anexos', 'attachments')}` : resource.kind.toUpperCase()}</small><ChevronRightIcon /></span></button>
     <button className="canvas-resource-remove" aria-label={t('Remover cartão do canvas', 'Remove card from canvas')} title={t('Remover cartão do canvas', 'Remove card from canvas')} onClick={onRemove}><TrashIcon /></button>
     <div className="canvas-resource-resize" role="button" tabIndex={0} aria-label={t('Redimensionar cartão', 'Resize card')} onPointerDown={event => start(event, true)} onKeyDown={event => { if (event.key.startsWith('Arrow')) { event.preventDefault(); event.stopPropagation(); onUpdate({ width: Math.max(140, Math.min(1600, card.width + (event.key === 'ArrowLeft' ? -10 : event.key === 'ArrowRight' ? 10 : 0))), height: Math.max(120, Math.min(1600, card.height + (event.key === 'ArrowUp' ? -10 : event.key === 'ArrowDown' ? 10 : 0))) }); } }} />
   </div>;

@@ -4,6 +4,7 @@ Relatórios registram um recorte datado: comandos, observações e limites. Eles
 
 | Relatório | Recorte |
 | --- | --- |
+| [PDFs nos canvases — 11/10/2026](pdf-performance-2026-10-11.md) | Comparação compilada com workers reais, 30/100 cartões, ciclo do leitor, preflight e cache limitado; ganhos de retenção e custos de reprocessamento separados |
 | [Conversa e edição do plano — 11/10/2026](planner-conversation-2026-10-11.md) | Entrada central com referência ao modo avançado da Megavale, conflitos de revisão, rascunhos manuais, undo e bateria integrada |
 | [Controles, notas e anexos — 11/10/2026](canvas-controls-attachments-2026-10-11.md) | Reconstrução da barra compartilhada, editor silencioso, cartões padrão, cabeçalho único e biblioteca de originais com leitor PDF |
 | [Layout completo de execução — 11/10/2026](execution-layout-2026-10-11.md) | Moldura, cabeçalho fixo, colunas/faixas, sprint em foco, opções móveis e revisão independente |

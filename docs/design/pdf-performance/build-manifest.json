@@ -1,0 +1,63 @@
+{
+  "baselineCommit": "2d2e20fccc93d23845bd12cc327a13008a75619f",
+  "candidateNote": "Frozen rendering/lifecycle/import changes; cloud runtime was frozen before its cache change and is tested separately.",
+  "packageLockSha256": "fa78b7b0e1d3014f6909354644b4893f874ca75a074b240c67fe935235ab9a35",
+  "sources": {
+    "baseline": {
+      "attachments/AttachmentPdfPage.tsx": "f3b152b35469de4692a1f66f45b5fbbf4b44f5b0dd1c5a3542b293da8e82d04c",
+      "attachments/CanvasResourcePreview.tsx": "e4b9d0958edb607ba1b3bea5a0562d5693cbd771c02dba5f1e26224506f50a33",
+      "attachments/CanvasAttachmentSurface.tsx": "602cb632b32549a65c7bd3849a19f71bdac0e814f199de4858dfd0524bfb4a07",
+      "attachments/canvasDomain.ts": "867d57d3c36ba1176134f436d2517bc1751de4220e16959353af2ef39c6924c3",
+      "cloud/runtime.ts": "134d8748b329656c5c01a78ff117aeea2afd4851b04b2b67adcacd4e2f98f827"
+    },
+    "candidate": {
+      "attachments/AttachmentPdfPage.tsx": "4ebb319df6cdc5fefd8bc3dd7323a788259b31f170f40e53fec0c215a3421311",
+      "attachments/CanvasResourcePreview.tsx": "9bb7690cc7447d5675a55d335011b14c59bdf1069e7f9dbc8bd460d3941fa9aa",
+      "attachments/CanvasAttachmentSurface.tsx": "363889e2b3ef92c56f8ff99a744c9bfe5d0b6188c16cc58edd41896153d6fd28",
+      "attachments/canvasDomain.ts": "f7e265c38f8884f7394029eb6b40b294729db701374390562d55a879d08f252a",
+      "cloud/runtime.ts": "134d8748b329656c5c01a78ff117aeea2afd4851b04b2b67adcacd4e2f98f827",
+      "attachments/pdfThumbnailQueue.ts": "4ed70ab0f771cdb0889631d580dba2b4d2374776309d1146270b5e8b461f7839"
+    }
+  },
+  "fixture": {
+    "main.tsx": "8b70fa1660ddec273735a13ccf8d48ef2c31f8a7eef66b383b450a253d2e47f3",
+    "instrumentation.ts": "9c736f978dc9305a9495447d37fefda36611895181b94166fc8833b87d4fc5eb",
+    "pdf.ts": "d1a5bbd2da0f41703597efdca0a4ec07aad0d89d73783140b442202a37e958ec",
+    "vite.config.ts": "be4d938c266f75d9053476c5f62f0bc983021966f0894b2df3f96eb708bda49b",
+    "index.html": "6ea17dad58755c48cfcfedb20af44aa78e58ee2b6164d5f88e1dbc024cef8b92"
+  },
+  "assets": {
+    "baseline/assets/AttachmentPdfPage-C76GyRiH.js": "1a33210bee1e401c480dae02aee89de01b2cf88a4dc148ccfa1335a8b6c9c404",
+    "baseline/assets/AttachmentPdfPage-C76GyRiH.js.map": "6c3e9ee05f19cfa2c769290bf5851fa174b7e881726a9f9ad333b8312761c180",
+    "baseline/assets/CanvasAttachmentReader-5wLueLS1.css": "5c96159b76761bec3b52f5eccd3bb47d4cc1e5e0264fda6a660dad4c998c7d31",
+    "baseline/assets/CanvasAttachmentReader-C1g_RbCh.js": "b5ddc4735efa3e3c80e98fb5cea84ff8139f36c8046142da921ead443f80439b",
+    "baseline/assets/CanvasAttachmentReader-C1g_RbCh.js.map": "bf339790f1ca2ecd41066a20cfb3e180cca7090498864ce588a26dbc4e8c1582",
+    "baseline/assets/domain-DsbQdORt.js": "277a749ae47cb4e9d07811efcde7e23d4c5721ee0ad202ff1d0cc559d21781ab",
+    "baseline/assets/domain-DsbQdORt.js.map": "c244e26aff9c7cb69f5c6de1e1a0f3c080bdf0a0a8f246c51e56b997df4949ec",
+    "baseline/assets/extract-CZdL5b0m.js": "7457796397c420ad1f973bcc03e84f537d45175d20e60ca721a9774514882516",
+    "baseline/assets/extract-CZdL5b0m.js.map": "600dc3992dc66f091b9eaf17767293d71f9f41d6bfb4d11d2cbd59b3811dcd7f",
+    "baseline/assets/index-B2pvmN7c.js": "60e78a4bb10cd71514d1877cfe5dda2bfeca3dfbc9d8a0d9d524136de4a8d1da",
+    "baseline/assets/index-B2pvmN7c.js.map": "d3133dc098533a78be2a7a8c11be3c40add0be8deabcc4c2ba4ec7dc75ce568b",
+    "baseline/assets/index-laE0s0oW.css": "f72a9c20b529319e13d9ce8cad78f8ae6da7cdc8e4127831d6b08c0fc0b78a35",
+    "baseline/assets/pdf.worker.min-DIYK5BU9.js": "7fbdd35fc1b789c2785a6878facd3f732ff83607c61b76cda36aa77f133ed1a8",
+    "baseline/assets/pdf.worker.min-DIYK5BU9.js.map": "29ee66728f6480f3d32e2fda52bee00d84474ab460edc68cf5ba5a07bd2845dd",
+    "baseline/assets/pdf.worker.min-FHbmGBN0.mjs": "51a2fd1ea47f1a9b0814e65e0c336c739c54957795ee774e8f93cb81e8028dd1",
+    "baseline/index.html": "2d3d17d371ffb838cf07dbb927bbc6adf0ba4786b808b3ee76e22c9f9ce22255",
+    "candidate/assets/AttachmentPdfPage-BiPhVJd0.js": "114db6cff9e3b754ed5293cf17e17934a9c663115ce039e2a349306ba65290e3",
+    "candidate/assets/AttachmentPdfPage-BiPhVJd0.js.map": "2b8a06f788f0ea15f3990dadee2c7a3bd4715062d9ddd2fec8ac42fa76fe8f01",
+    "candidate/assets/CanvasAttachmentReader-5wLueLS1.css": "5c96159b76761bec3b52f5eccd3bb47d4cc1e5e0264fda6a660dad4c998c7d31",
+    "candidate/assets/CanvasAttachmentReader-C0N9xamH.js": "57f4bec80db833f7dd8a1d4ff85865c7097a7379dd6e32b7ce67a69d1e366c6e",
+    "candidate/assets/CanvasAttachmentReader-C0N9xamH.js.map": "96b61106b7141d7f5f215bc48b565c0c8f9d63bbb5b556837fe6ce6451db8e22",
+    "candidate/assets/domain-DsbQdORt.js": "277a749ae47cb4e9d07811efcde7e23d4c5721ee0ad202ff1d0cc559d21781ab",
+    "candidate/assets/domain-DsbQdORt.js.map": "e38fcb3be6b5b2855879c99807b04502317b413f9c67648501279b7a4f6d7bcd",
+    "candidate/assets/extract-CtqIJUN2.js": "f77bb3faad7c3ee6d60c1557128b71e1262a468c2abc3780f725d93d795bd6c8",
+    "candidate/assets/extract-CtqIJUN2.js.map": "cf599620fe4fa8d3ff6e4ee6aaf5f175be544d8f609d6baff9e58918533eb957",
+    "candidate/assets/index-CpIsUKcR.js": "08bcb99c5a3073e684721634f25ae85b67174918b2118827e78f437579ec9b8b",
+    "candidate/assets/index-CpIsUKcR.js.map": "16ef0268348d3ef892bcc8d79e75bd8c511102f807db8ddbbfd376ab83d044be",
+    "candidate/assets/index-laE0s0oW.css": "f72a9c20b529319e13d9ce8cad78f8ae6da7cdc8e4127831d6b08c0fc0b78a35",
+    "candidate/assets/pdf.worker.min-BrLe80WF.js": "8e5e9eb7697c1366961eb21e421ddcd8362fb87e7a574b83f442aed0d5e07a2e",
+    "candidate/assets/pdf.worker.min-BrLe80WF.js.map": "f8d611382d6809ef388c2bd3898aac9d4d66606ec0c47accf97c0ecd4e67632a",
+    "candidate/assets/pdf.worker.min-FHbmGBN0.mjs": "51a2fd1ea47f1a9b0814e65e0c336c739c54957795ee774e8f93cb81e8028dd1",
+    "candidate/index.html": "a10574f69a1d24e5eddbf20f28d7ed91b0b67ba157e02aa6a6edc2b9dd764f5c"
+  }
+}

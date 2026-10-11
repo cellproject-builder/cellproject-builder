@@ -1,0 +1,102 @@
+{
+  "reason": "Full Vitest suite ran concurrently; exclude timing comparison.",
+  "records": [
+    {
+      "run": 1,
+      "variant": "candidate",
+      "surface": "board",
+      "scenario": "tour",
+      "elapsedMs": 7676.3,
+      "before": {
+        "createdWorkers": 0,
+        "maxWorkers": 0,
+        "pdfReads": 0,
+        "pdfReadBytes": 0,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "after": {
+        "createdWorkers": 15,
+        "maxWorkers": 2,
+        "pdfReads": 15,
+        "pdfReadBytes": 46926177,
+        "liveWorkers": 0,
+        "canvases": 0,
+        "rasterBytes": 0,
+        "busy": 0,
+        "errors": 0
+      },
+      "stages": [
+        {
+          "createdWorkers": 10,
+          "maxWorkers": 2,
+          "pdfReads": 10,
+          "pdfReadBytes": 31284118,
+          "liveWorkers": 0,
+          "canvases": 10,
+          "rasterBytes": 3254400,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 5,
+          "rasterBytes": 1627200,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 5,
+          "rasterBytes": 1627200,
+          "busy": 0,
+          "errors": 0
+        },
+        {
+          "createdWorkers": 15,
+          "maxWorkers": 2,
+          "pdfReads": 15,
+          "pdfReadBytes": 46926177,
+          "liveWorkers": 0,
+          "canvases": 0,
+          "rasterBytes": 0,
+          "busy": 0,
+          "errors": 0
+        }
+      ],
+      "frames": {
+        "p95": 12.600000000002183,
+        "max": 168.90000000000146,
+        "longTasks": 0,
+        "longTaskMax": 0
+      },
+      "files": [
+        {
+          "name": "synthetic-vector-20.pdf",
+          "bytes": 2064545
+        },
+        {
+          "name": "synthetic-scan-20.pdf",
+          "bytes": 4724212
+        }
+      ],
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1.5
+      }
+    }
+  ]
+}

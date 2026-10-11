@@ -14,6 +14,7 @@ Os comandos abaixo não exigem inferência paga no modo padrão. As suítes live
 | `npm test` / `npm run test:gateway` | Suítes cliente e Node; provedores/serviços simulados onde indicado |
 | `npm run test:planning-quality` | Testa captura e limites do [laboratório de planos](../docs/design/plan-quality/README.md) com transporte roteirizado; não faz inferência paga |
 | `npm run bench:planner` | CPU em árvores sintéticas de 100 a 12.000 nós, abertas/resolvidas; salva JSON em `.codex-audit-planning-performance`, falha se qualquer operação/invariante falhar. Não mede FPS nem carga de servidor |
+| [pdf-performance/README.md](pdf-performance/README.md) | Bateria manual com PDFs sintéticos reais, componente compartilhado compilado e workers reais. Compara versões congeladas em origem local isolada; conta workers, cópias de bytes e raster retido. Não usa projetos/contas reais nem mede o transporte cifrado da nuvem |
 | `npm run bench:gateway` / `npm run test:planner-load` | 11 cenários HTTP locais com rajadas de 20/50; handlers reais, autenticação/provedores/RPC simulados. Mede limites/isolamento/recuperação, sem chamadas externas ou prova de capacidade Railway/Supabase. O benchmark salva somente `gateway-load-latest.json` local; preserva a evidência datada |
 | [test-vault-sql.mjs](test-vault-sql.mjs) | Postgres WASM isolado com fixtures fabricadas, runtime temporário PGlite 0.5.8. Ler instruções no cabeçalho; não instala dependência no projeto nem valida Supabase gerenciado |
 

@@ -58,15 +58,33 @@ export async function importCanvasResource(file: File, scope: CanvasAttachmentSc
   const guard = watchCanvasAttachmentScope(scope);
   try {
     guard.assert(); signal?.throwIfAborted();
-    const media = await storeCanvasFile(file, `${scope.kind}:${scope.id}`, signal);
-    guard.assert(); signal?.throwIfAborted();
+    // Match original-file storage's legacy inference without uploading first.
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    const mime = file.type || ({ pdf: 'application/pdf', txt: 'text/plain', md: 'text/markdown', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' } as Record<string, string>)[ext] || '';
+    const id = nanoid(12);
+    const pending = canvasResourceSchema.parse({ id, name: file.name.slice(0, 240), kind: mime === 'application/pdf' ? 'pdf' : mime.startsWith('image/') ? 'image' : 'text', mediaId: id, mime, size: file.size, text: null, url: null, addedAt: Date.now() });
+    const initial = getCanvasAttachments(scope);
+    canvasAttachmentsSchema.parse({ ...initial, resources: [...initial.resources, pending] });
     let text: string | null = null, pages: number | undefined;
-    if (media.mime === 'application/pdf') {
+    if (mime === 'application/pdf') {
+      const header = file.slice(0, 5);
+      const signature = typeof header.text === 'function' ? await header.text() : await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsText(header);
+      });
+      guard.assert(); signal?.throwIfAborted();
+      if (signature !== '%PDF-') throw new Error('visualPdfInvalid');
       const { extractPdfText } = await import('@/kb/extract');
+      guard.assert(); signal?.throwIfAborted();
       const extracted = await extractPdfText(file, undefined, { signal, maxPages: 100, maxChars: 24_000 });
       text = extracted.text || null; pages = extracted.pageCount;
-    } else if (media.mime.startsWith('text/')) text = (await file.text()).slice(0, 24_000);
+    } else if (mime.startsWith('text/')) text = (await file.text()).slice(0, 24_000);
     guard.assert(); signal?.throwIfAborted();
-    return canvasResourceSchema.parse({ id: nanoid(12), name: file.name.slice(0, 240), kind: media.mime === 'application/pdf' ? 'pdf' : media.mime.startsWith('image/') ? 'image' : 'text', mediaId: media.id, mime: media.mime, size: media.size, text, url: null, addedAt: Date.now(), ...(pages ? { pages } : {}) });
+    const resource = canvasResourceSchema.parse({ ...pending, text, ...(pages !== undefined ? { pages } : {}) });
+    // Extraction may outlive a concurrent library edit; validate its latest budget.
+    const latest = getCanvasAttachments(scope);
+    canvasAttachmentsSchema.parse({ ...latest, resources: [...latest.resources, resource] });
+    const media = await storeCanvasFile(file, `${scope.kind}:${scope.id}`, signal);
+    guard.assert(); signal?.throwIfAborted();
+    return canvasResourceSchema.parse({ ...resource, mediaId: media.id, mime: media.mime, size: media.size });
   } finally { guard.dispose(); }
 }
