@@ -32,6 +32,8 @@ O ciclo de investigação e o acompanhamento de tarefas são relacionados por re
 
 ## Pipeline e fronteiras
 
+Na visão geral, [ProjectDescription.tsx](../../src/workspace/ProjectDescription.tsx) apresenta objetivos extensos como prévia textual de até três linhas. A ação de leitura abre o conteúdo completo em uma região com rolagem, reutilizando Markdown para títulos, listas, tabelas e links, com capitalização técnica preservada. O trecho exibido não é um resumo gerado por IA nem substitui o objetivo salvo. Títulos e breadcrumbs longos têm truncamento visual independente do ícone, sem encurtar o valor persistido. O [ensaio visual local](../design/project-overview/index.html) usa somente dados sintéticos.
+
 | Camada | Responsabilidade |
 | --- | --- |
 | Entrada e shell | [Projects.tsx](../../src/workspace/Projects.tsx) apresenta projetos e formulários; [Workspace.tsx](../../src/workspace/Workspace.tsx) coordena superfícies, visão geral, navegação e retorno à origem das tarefas. |

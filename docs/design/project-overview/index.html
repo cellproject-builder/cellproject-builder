@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dynamic Diary · visão geral compacta</title><link rel="stylesheet" href="/src/index.css"></head>
+<body><div id="root"></div><script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { CloudRuntime, configureCloud } from '/src/cloud/runtime.ts';
+// In-memory persistence is installed before any application store loads.
+// Opening this fixture never imports or changes the browser's projects.
+const documents = new Map();
+configureCloud(new CloudRuntime({documents:[],media:[]}, async (input, init) => {
+  const key = decodeURIComponent(String(input).split('/').at(-1));
+  if (init?.method !== 'PUT') throw new Error('The overview fixture cannot access remote services.');
+  const {value} = JSON.parse(init.body);
+  const revision = (documents.get(key)?.revision ?? 0) + 1;
+  documents.set(key, {key,value,revision});
+  return Response.json({revision});
+}));
+const [{Workspace}, {useWorkspaceStore}, {useLocaleStore}, {initializeTheme}] = await Promise.all([
+  import('/src/workspace/Workspace.tsx'), import('/src/workspace/store.ts'),
+  import('/src/i18n/index.ts'), import('/src/theme.ts'),
+]);
+await useWorkspaceStore.persist.rehydrate();
+useLocaleStore.setState({locale:'pt-BR'}); initializeTheme();
+const objective = `# DUOAXION · requisitos do projeto
+
+O DuoAxion é um robô de mesa com base fixa, dois braços e garras. Este exemplo sintético exercita uma descrição extensa sem dominar a visão geral.
+
+## Mecânica
+
+| Requisito | Valor |
+| --- | --- |
+| Braços | 2, com as mesmas peças dos dois lados |
+| Eixos por braço | 6 + garra |
+| Servos | 14 MG90S |
+| Controle | ESP32 e PCA9685 |
+
+- Conferir as dimensões dos componentes.
+- Registrar os limites e testar cada articulação antes da montagem.
+- Comparar referências e guardar as observações.
+
+## Referências
+
+[Fonte de exemplo](https://example.test/spec)
+
+` + 'Este é um contexto ilustrativo para verificar a leitura e a navegação. '.repeat(28);
+const id=useWorkspaceStore.getState().createProject('DuoAxion · requisitos do projeto — '+ 'descrição extensa e referências de montagem '.repeat(12), objective);
+useWorkspaceStore.getState().selectProject(id); useWorkspaceStore.getState().navigate('overview');
+createRoot(document.getElementById('root')).render(React.createElement(Workspace,{planner:null}));
+</script></body></html>

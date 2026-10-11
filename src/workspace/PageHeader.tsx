@@ -24,7 +24,7 @@ export function PageHeader({ title, titleIcon, description, controls, actions }:
         {shell?.navigation}
         <div className="ws-page-header-location">
           {shell?.breadcrumb && <div className="ws-breadcrumb">{shell.breadcrumb}</div>}
-          <h1 title={title}>{titleIcon}{title}</h1>
+          <h1 title={title}>{titleIcon}<span className="ws-page-header-title">{title}</span></h1>
           {shell?.status}
         </div>
       </div>

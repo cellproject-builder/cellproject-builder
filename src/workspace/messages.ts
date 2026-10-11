@@ -1,4 +1,5 @@
 export const workspaceEn = {
+  projectContext: 'About this project', readProjectDescription: 'Read full description', collapseProjectDescription: 'Collapse',
   research: {
     kicker: 'Research objective · SENAI', title: 'From plan to evidence',
     objective: 'Develop and evaluate an AI-assisted plan deconstruction method grounded in physical evidence, applied to building a two-arm robot.',
@@ -43,6 +44,7 @@ export const workspaceEn = {
 };
 
 export const workspacePtBR: typeof workspaceEn = {
+  projectContext: 'Sobre o projeto', readProjectDescription: 'Ler descrição completa', collapseProjectDescription: 'Recolher',
   research: {
     kicker: 'Objetivo do artigo · SENAI', title: 'Do plano à evidência',
     objective: 'Desenvolver e avaliar um método de desconstrução de planos com IA orientado por evidências físicas, aplicado à construção de um robô de dois braços.',

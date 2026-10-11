@@ -69,10 +69,12 @@ export function ExplanationContent({
   text,
   variant = 'panel',
   idPrefix,
+  preserveHeadingCase = false,
 }: {
   text: string;
   variant?: Variant;
   idPrefix?: string;
+  preserveHeadingCase?: boolean;
 }) {
   const reading = variant === 'reading';
   const lines = text.split('\n');
@@ -162,7 +164,7 @@ export function ExplanationContent({
       headingIdx++;
       blocks.push(
         <div key={i} id={id} className={headingCls}>
-          {renderInline(sentenceCase(heading))}
+          {renderInline(preserveHeadingCase ? heading : sentenceCase(heading))}
         </div>,
       );
       continue;

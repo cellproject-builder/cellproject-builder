@@ -26,6 +26,7 @@ import type { ManagedProject, Surface, Task, TaskStatus } from './types';
 import { Empty, Icon, attempt } from './ui';
 import { PageHeader, PageHeaderContext } from './PageHeader';
 import { ProjectIcon } from './project-appearance/projectIcons';
+import { ProjectDescription } from './ProjectDescription';
 import './design-system.css';
 import './workspace.css';
 import './PageHeader.css';
@@ -46,7 +47,8 @@ function Overview({ project, onAdd, onPlan, onNotes, onEditProject }: { project:
   const progress = projectProgress(project.planner?.project ?? null);
   const evidence = projectEvidenceProgress(project.planner?.project ?? null);
   return <div className="ws-page">
-    <PageHeader title={project.name} titleIcon={<ProjectIcon appearance={project.appearance} size={20}/>} description={project.objective || tr.objectivePlaceholder} actions={<button className="ws-button" onClick={onEditProject}><Icon name="edit" size={16} />{tr.edit}</button>} />
+    <PageHeader title={project.name} titleIcon={<ProjectIcon appearance={project.appearance} size={20}/>} actions={<button className="ws-button" onClick={onEditProject}><Icon name="edit" size={16} />{tr.edit}</button>} />
+    <ProjectDescription key={project.id} text={project.objective}/>
     <section className="ws-panel ws-plan-focus">
       <div className="ws-plan-intro"><div className="ws-plan-icon"><Icon name="planner" size={25} /></div><h2>{tr.planner}</h2><p>{tr.planHint}</p><button className="ws-button primary" onClick={onPlan}>{project.planner?.project ? tr.continuePlan : tr.buildPlan}<Icon name="arrow" size={15} /></button></div>
       <div className="ws-plan-summary"><h3>{tr.planProgress}</h3>{progress.total > 0 ? <><div className="ws-plan-count"><span aria-hidden><ProgressRing total={progress.total} done={progress.done} withProof={evidence.withEvidence} size={32} /></span><strong>{tr.resolvedParts(progress.done, progress.total)}</strong></div><p>{tr.evidenceCount(evidence.withEvidence)} · {tr.knownCount(evidence.assumedKnown)}</p></> : <p>{tr.draftPlan}</p>}<small>{tr.planProgressHint}</small></div>
@@ -117,7 +119,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
   const mobileMenu = <button className="ws-icon-button ws-mobile-menu" aria-label={tr.navigation} aria-expanded={sideOpen} aria-controls="workspace-sidebar" onClick={() => setSideOpen(!sideOpen)}><Icon name="menu" /></button>;
   const headerShell = {
     navigation: mobileMenu,
-    breadcrumb: project && surface !== 'projects' && surface !== 'boards' ? <><button onClick={() => navigate('projects')}>{tr.projects}</button><span>/</span>{surface !== 'overview' && <><button className="ws-project-identity" onClick={() => go('overview')}><ProjectIcon appearance={project.appearance} size={14}/>{project.name}</button><span>/</span></>}</> : null,
+    breadcrumb: project && surface !== 'projects' && surface !== 'boards' ? <><button onClick={() => navigate('projects')}>{tr.projects}</button><span>/</span>{surface !== 'overview' && <><button className="ws-project-identity" title={project.name} onClick={() => go('overview')}><ProjectIcon appearance={project.appearance} size={14}/><span>{project.name}</span></button><span>/</span></>}</> : null,
     status: project?.archived && surface !== 'projects' && surface !== 'boards' ? <span className="ws-badge">{tr.archived}</span> : null,
   };
   return <AssistantChatDockProvider><div className={`ws-app ${surface === 'notes' ? 'notes-surface' : ''} ${canvasMaximized ? 'is-canvas-maximized' : ''}`}>
@@ -135,7 +137,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
     <div className="ws-main">{surface === 'planner' && project && <header className="ws-header">
       {mobileMenu}
       <div className="ws-breadcrumb">
-        <button onClick={() => navigate('projects')}>{tr.projects}</button><span>/</span><button className="ws-project-identity" onClick={() => go('overview')}><ProjectIcon appearance={project.appearance} size={14}/>{project.name}</button><span>/</span>
+        <button onClick={() => navigate('projects')}>{tr.projects}</button><span>/</span><button className="ws-project-identity" title={project.name} onClick={() => go('overview')}><ProjectIcon appearance={project.appearance} size={14}/><span>{project.name}</span></button><span>/</span>
         <strong>{tr.planner}</strong>
       </div>
       {project?.archived && <span className="ws-badge">{tr.archived}</span>}
