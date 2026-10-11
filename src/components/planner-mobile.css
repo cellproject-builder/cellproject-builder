@@ -30,7 +30,6 @@
   .planner-topbar .planner-workspace-location>span:last-of-type { display:none; }
 }
 @container planner-shell (max-width:1080px) {
-  .planner-topbar .planner-pdfs-action,
   .planner-topbar .planner-model-action,
   .planner-topbar .planner-overview-action,
   .planner-topbar .planner-header-divider { display:none; }
@@ -51,7 +50,6 @@
 
 /* Also works when TopBar is rendered without the workspace shell. */
 @media (max-width:1080px) {
-  .planner-topbar .planner-pdfs-action,
   .planner-topbar .planner-model-action,
   .planner-topbar .planner-overview-action,
   .planner-topbar .planner-header-divider,

@@ -344,15 +344,6 @@ export function TopBar() {
       <div className="planner-header-divider w-px h-5 bg-border-base shrink-0" aria-hidden />
 
       <button
-        onClick={() => setKbOpen(true)}
-        className="planner-pdfs-action tap btn btn-ghost shrink-0"
-        title={tr.topBar.kbTitle}
-      >
-        <span>{tr.topBar.myPdfs}</span>
-        {kbCount > 0 && <span className="chip bg-ai-accent/12 text-ai-accent tabular-nums">{kbCount}</span>}
-      </button>
-
-      <button
         onClick={() => setSettingsOpen(true)}
         className="planner-model-action tap btn btn-ghost shrink-0 max-w-[220px]"
         title={
@@ -474,7 +465,7 @@ export function TopBar() {
                 setKbOpen(true);
                 setMenuOpen(false);
               }}
-              className={`${menuItemClass} planner-secondary-menu`}
+              className={menuItemClass}
             >
               <span>{tr.topBar.myPdfs}</span>
               {kbCount > 0 && <span className={`${menuHintClass} tabular-nums`}>{kbCount}</span>}
