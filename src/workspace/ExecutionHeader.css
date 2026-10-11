@@ -1,0 +1,69 @@
+/* One main pane, integrated chrome and an independently scrolling body. */
+.ws-content.is-execution { overflow:hidden; border:1px solid var(--ws-border); border-radius:var(--ws-radius-panel); background:var(--ws-surface); }
+.ws-app .ws-page.ws-execution-page { display:flex; flex-direction:column; height:100%; min-height:0; min-width:0; padding:0; }
+.ws-execution-scroll { flex:1; min-height:0; min-width:0; overflow:auto; overscroll-behavior:contain; }
+.ws-execution-header {
+  position:relative; z-index:5; flex:none; display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  grid-template-areas:'location options actions';
+  align-items:center; gap:8px; min-height:50px; padding:0 12px;
+  border-bottom:1px solid var(--ws-border); background:var(--ws-surface);
+}
+.ws-execution-header.has-search { grid-template-columns:minmax(0,1fr) minmax(100px,180px) auto auto; grid-template-areas:'location search options actions'; }
+.ws-execution-location { grid-area:location; display:flex; align-items:center; min-width:0; gap:6px; }
+.ws-execution-identity { display:flex; align-items:center; gap:8px; min-width:0; }
+.ws-execution-identity .ws-breadcrumb { min-width:0; flex:0 1 auto; max-width:220px; overflow:hidden; }
+.ws-execution-identity .ws-breadcrumb>button:first-child, .ws-execution-identity .ws-breadcrumb>span:first-of-type { display:none; }
+.ws-execution-identity .ws-breadcrumb button { flex-shrink:1; }
+.ws-page .ws-execution-header h1 { font-size:var(--ws-text-sm); font-weight:var(--ws-weight-semibold); line-height:20px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ws-execution-search { grid-area:search; display:flex; align-items:center; min-width:0; }
+.ws-execution-search .ws-search { width:100%; min-width:0; height:30px; }
+.ws-execution-search input { width:100%; min-width:0; }
+.ws-execution-header .ws-execution-search-toggle { grid-area:search-toggle; display:none; }
+.ws-execution-options { grid-area:options; min-width:0; }
+.ws-execution-header .ws-execution-options-toggle { display:none; position:relative; }
+.ws-execution-filter-dot { position:absolute; top:5px; right:5px; width:5px; height:5px; border-radius:50%; background:rgb(var(--accent)); }
+.ws-execution-options-content, .ws-execution-filters { display:flex; align-items:center; gap:8px; min-width:0; }
+.ws-execution-view-switch { flex:none; }
+.ws-execution-view-switch button { display:flex; align-items:center; justify-content:center; gap:5px; height:28px; padding:0 8px; font-size:var(--ws-text-xs); }
+.ws-execution-view-switch svg { width:14px; height:14px; }
+.ws-execution-filters .ws-select { height:28px; max-width:156px; font-size:var(--ws-text-xs); }
+.ws-execution-actions { grid-area:actions; display:flex; align-items:center; gap:4px; }
+.ws-execution-actions>.ws-button { min-height:30px; height:30px; padding:0 10px; font-size:var(--ws-text-xs); }
+.ws-execution-actions svg { width:15px; height:15px; }
+/* List and cycle views keep the reference's separate, quiet control strip. */
+.ws-execution-header:not([data-view=board]) { grid-template-columns:minmax(0,1fr) auto; grid-template-areas:'location actions' 'options options'; row-gap:0; }
+.ws-execution-header.has-search:not([data-view=board]) { grid-template-columns:minmax(0,1fr) minmax(100px,240px) auto; grid-template-areas:'location search actions' 'options options options'; }
+.ws-execution-header:not([data-view=board]) :is(.ws-execution-location,.ws-execution-search,.ws-execution-actions) { min-height:50px; }
+.ws-execution-header:not([data-view=board]) .ws-execution-options { margin-inline:-12px; padding:0 12px; min-height:34px; border-top:1px solid var(--ws-border); background:rgb(var(--bg-elevated)/.2); }
+@container workspace-page (max-width:1000px) {
+  .ws-execution-header, .ws-execution-header:not([data-view=board]) { grid-template-columns:minmax(0,1fr) auto auto; grid-template-areas:'location options actions'; gap:6px; padding-block:4px; min-height:50px; }
+  .ws-execution-header.has-search, .ws-execution-header.has-search:not([data-view=board]) { grid-template-columns:minmax(0,1fr) minmax(80px,180px) auto auto; grid-template-areas:'location search options actions'; }
+  .ws-execution-header:not([data-view=board]) :is(.ws-execution-location,.ws-execution-search,.ws-execution-actions) { min-height:0; }
+  .ws-execution-header:not([data-view=board]) .ws-execution-options { margin:0; padding:0; min-height:0; border:0; background:none; }
+  .ws-execution-identity .ws-breadcrumb { display:none; }
+  .ws-execution-header .ws-execution-options-toggle { display:flex; }
+  .ws-execution-options-content { display:none; }
+  .ws-execution-options.is-open .ws-execution-options-content { position:absolute; top:calc(100% + 4px); right:8px; display:flex; flex-direction:column; align-items:stretch; width:min(300px,calc(100cqw - 16px)); padding:10px; border:1px solid var(--ws-border); border-radius:var(--ws-radius-panel); background:var(--ws-surface); box-shadow:var(--ws-shadow-island); }
+  .ws-execution-options.is-open .ws-execution-view-switch { display:flex; }
+  .ws-execution-options.is-open .ws-execution-view-switch button { flex:1; min-height:44px; height:auto; padding:4px 6px; }
+  .ws-execution-options.is-open .ws-execution-filters { display:block; }
+  .ws-execution-options.is-open .ws-execution-filters .ws-select { width:100%; max-width:none; min-height:44px; font-size:16px; }
+}
+@container workspace-page (max-width:620px) {
+  .ws-execution-header, .ws-execution-header:not([data-view=board]) { min-height:54px; gap:4px; padding:4px 6px; }
+  .ws-execution-header.has-search, .ws-execution-header.has-search:not([data-view=board]) { grid-template-columns:minmax(0,1fr) 44px 44px 44px; grid-template-areas:'location search-toggle options actions'; }
+  .ws-execution-header .ws-icon-button { width:44px; height:44px; min-width:44px; }
+  .ws-execution-header .ws-execution-search { display:none; }
+  .ws-execution-header .ws-execution-search-toggle { display:flex; }
+  .ws-execution-header.is-search-open { grid-template-areas:'location search-toggle options actions' 'search search search search'; }
+  .ws-execution-header.is-search-open .ws-execution-search { display:block; padding:0 2px 4px; }
+  .ws-execution-header.is-search-open .ws-search { min-height:44px; }
+  .ws-execution-header .ws-execution-actions>.ws-button { width:44px; min-width:44px; height:44px; padding:0; font-size:0; }
+  .ws-execution-header .ws-execution-actions>.ws-button svg { width:20px; height:20px; }
+  .ws-page .ws-execution-header h1 { font-size:var(--ws-text-sm); }
+}
+@media (pointer:coarse) {
+  .ws-execution-header :is(.ws-icon-button,.ws-button,.ws-select,.ws-segmented button) { min-height:44px; }
+  .ws-execution-header { min-height:54px; }
+}

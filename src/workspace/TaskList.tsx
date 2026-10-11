@@ -2,7 +2,6 @@ import { useId, useState } from 'react';
 import { ChevronDownIcon, ChevronRightIcon, PlusIcon } from '@/components/ui/SoftIcons';
 import { useLocaleStore, useT } from '@/i18n';
 import { TASK_STATUSES, type Task, type TaskStatus } from './types';
-import { StatusIcon } from './TaskPresentation';
 import { TaskRow } from './TaskRow';
 
 interface TaskListProps {
@@ -29,7 +28,7 @@ export function TaskList({ tasks, onEdit, onAdd, commentCounts }: TaskListProps)
         : `${isCollapsed ? 'Expandir' : 'Recolher'} ${tr[status]}`;
 
       return <section className="ws-issue-group" key={status} aria-labelledby={headingId}>
-        <div className="ws-issue-group-heading">
+        <header className="ws-issue-group-heading">
           <h2 id={headingId}><button
             className="ws-issue-group-toggle"
             aria-label={toggleLabel}
@@ -38,14 +37,13 @@ export function TaskList({ tasks, onEdit, onAdd, commentCounts }: TaskListProps)
             onClick={() => setCollapsed((current) => ({ ...current, [status]: !current[status] }))}
           >
             {isCollapsed ? <ChevronRightIcon aria-hidden="true" /> : <ChevronDownIcon aria-hidden="true" />}
-            <StatusIcon status={status} />
             <span>{tr[status]}</span>
             <span className="ws-count">{group.length}</span>
           </button></h2>
           <button className="ws-icon-button" aria-label={`${tr.addTask} · ${tr[status]}`} onClick={() => onAdd(status)}>
             <PlusIcon aria-hidden="true" />
           </button>
-        </div>
+        </header>
         <div id={contentId} hidden={isCollapsed}>
           {group.map((task) => <TaskRow key={task.id} task={task} onEdit={onEdit} commentCount={commentCounts[task.id] ?? 0} />)}
           {!group.length && <p className="ws-issue-list-empty">{tr.emptyColumn}</p>}

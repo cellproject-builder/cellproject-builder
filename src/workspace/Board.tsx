@@ -1,27 +1,21 @@
 import { useMemo, useState } from 'react';
-import { PlusIcon, RowsIcon, ViewVerticalIcon } from '@/components/ui/SoftIcons';
+import { PlusIcon } from '@/components/ui/SoftIcons';
 import { useT } from '@/i18n';
 import { useWorkspaceStore } from './store';
 import { TASK_STATUSES, type Task, type TaskStatus } from './types';
 import { Empty, Icon, attempt } from './ui';
-import { PageHeader } from './PageHeader';
+import { ExecutionHeader, type ExecutionView } from './ExecutionHeader';
 import { TaskCard, TASK_DRAG_TYPE } from './TaskCard';
 import { TaskList } from './TaskList';
 import { StatusIcon, taskReference } from './TaskPresentation';
+import { readTaskViewPreference, writeTaskViewPreference, type TaskView } from './taskViewPreference';
 import './Board.css';
-import { readPreference, writePreference } from '@/cloud/storage';
-
-type TaskView = 'board' | 'list';
-const VIEW_KEY = 'dynamic_diary:task-view';
-function initialView(): TaskView {
-  try { return readPreference(VIEW_KEY) === 'list' ? 'list' : 'board'; } catch { return 'board'; }
-}
 
 export function Board({ projectId, onEdit, onAdd }: { projectId: string; onEdit: (task: Task) => void; onAdd: (status?: TaskStatus) => void }) {
   const tr = useT().workspace;
   const allTasks = useWorkspaceStore((s) => s.tasks);
   const comments = useWorkspaceStore((s) => s.comments);
-  const [view, setView] = useState<TaskView>(initialView);
+  const [view, setView] = useState<TaskView>(readTaskViewPreference);
   const [query, setQuery] = useState('');
   const [priority, setPriority] = useState('');
   const [over, setOver] = useState<TaskStatus | null>(null);
@@ -31,19 +25,17 @@ export function Board({ projectId, onEdit, onAdd }: { projectId: string; onEdit:
     counts[comment.taskId] = (counts[comment.taskId] ?? 0) + 1;
     return counts;
   }, {}), [comments]);
-  const changeView = (next: TaskView) => {
+  const changeView = (next: ExecutionView) => {
+    if (next === 'scrum') { useWorkspaceStore.getState().navigate('scrum'); return; }
     setView(next); setOver(null);
-    writePreference(VIEW_KEY, next);
+    writeTaskViewPreference(next);
   };
   return <div className="ws-page ws-board-page ws-execution-page">
-    <PageHeader title={tr.kanban} controls={<>
-      <label className="ws-search"><Icon name="search" /><input aria-label={tr.searchTasks} placeholder={tr.searchTasks} value={query} onChange={(e) => setQuery(e.target.value)} /></label>
-      <select className="ws-select" aria-label={tr.priority} value={priority} onChange={(e) => setPriority(e.target.value)}><option value="">{tr.allPriorities}</option>{(['low', 'medium', 'high'] as const).map((p) => <option key={p} value={p}>{tr[p]}</option>)}</select>
-      <div className="ws-segmented ws-view-switch" role="group" aria-label={tr.taskView}>
-        <button aria-label={tr.boardView} title={tr.boardView} aria-pressed={view === 'board'} className={view === 'board' ? 'selected' : ''} onClick={() => changeView('board')}><ViewVerticalIcon aria-hidden="true" /></button>
-        <button aria-label={tr.listView} title={tr.listView} aria-pressed={view === 'list'} className={view === 'list' ? 'selected' : ''} onClick={() => changeView('list')}><RowsIcon aria-hidden="true" /></button>
-      </div>
-    </>} actions={<button className="ws-button primary" onClick={() => onAdd()}><PlusIcon aria-hidden="true" />{tr.newTask}</button>} />
+    <ExecutionHeader title={view === 'board' ? tr.executionBoard : tr.tasks} view={view} onViewChange={changeView}
+      search={<label className="ws-search"><Icon name="search" /><input aria-label={tr.searchTasks} placeholder={tr.searchTasks} value={query} onChange={(e) => setQuery(e.target.value)} /></label>}
+      filters={<select className="ws-select" aria-label={tr.priority} value={priority} onChange={(e) => setPriority(e.target.value)}><option value="">{tr.allPriorities}</option>{(['low', 'medium', 'high'] as const).map((p) => <option key={p} value={p}>{tr[p]}</option>)}</select>}
+      filterActive={!!priority}
+      actions={<button className="ws-button primary" aria-label={tr.newTask} onClick={() => onAdd()}><PlusIcon aria-hidden="true" />{tr.newTask}</button>} />
     {tasks.length === 0 && (query || priority) ? <Empty icon="kanban" title={tr.noResults} hint={tr.noResultsHint} /> : view === 'list' ?
       <TaskList tasks={tasks} onEdit={onEdit} onAdd={onAdd} commentCounts={commentCounts} /> :
       <div className="ws-board" role="region" aria-label={tr.boardView} tabIndex={0}>{TASK_STATUSES.map((status) => {
@@ -57,7 +49,6 @@ export function Board({ projectId, onEdit, onAdd }: { projectId: string; onEdit:
         <div className="ws-column-content" role="region" aria-label={tr[status]} tabIndex={0}>
           {column.map((task) => <TaskCard key={task.id} task={task} commentCount={commentCounts[task.id] ?? 0} onEdit={onEdit} onDragEnd={() => setOver(null)} />)}
           {!column.length && <p className="ws-column-empty">{tr.emptyColumn}</p>}
-          <button className="ws-column-add" onClick={() => onAdd(status)}><PlusIcon aria-hidden="true" />{tr.addTask}</button>
         </div>
       </section>;
     })}</div>}

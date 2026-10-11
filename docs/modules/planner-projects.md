@@ -80,6 +80,14 @@ Antes de materializar sugestões, o serviço rejeita IDs temporários vazios/rep
 
 `importPlanTasks(projectId)` percorre o snapshot do projeto e importa somente nós `kind === 'passo'` que sejam folhas e não estejam descartados. Registra `sourceNodeId`/`sourcePlanId`, inicia a tarefa em `todo` e evita repetir a mesma origem. É uma importação explícita de conteúdo, não uma sincronização bidirecional de estados. Editar/decompor o plano depois não é descrito como atualização automática das tarefas já importadas.
 
+## Layout das superfícies de execução
+
+Kanban, lista e Scrum compartilham [ExecutionHeader](../../src/workspace/ExecutionHeader.tsx) e uma moldura principal com rolagem interna. O cabeçalho reúne projeto, visualização, filtros e criação; no celular, opções secundárias ficam recolhidas e a busca abre no próprio cabeçalho. [Board](../../src/workspace/Board.tsx) mantém filtros e preferência local quadro/lista; mudar para Scrum preserva as mesmas tarefas e ações do domínio.
+
+O quadro organiza colunas transparentes alinhadas pelo topo, títulos compactos, contagens e cards com referência, prioridade e metadados existentes. A lista usa grupos em faixas e linhas alinhadas. [Scrum](../../src/workspace/Scrum.tsx) começa pela sprint em foco, com navegação entre ciclos reais, objetivo, progresso calculado e contagem dos estados; timeline, tarefas da sprint, backlog e histórico vêm em seguida. Não são inventados responsáveis, métricas de saúde ou estimativas de execução para preencher a interface.
+
+O [sistema visual](../design/system.md#issue-board-and-list) descreve propriedade dos componentes e breakpoints; a [rodada de layout](../reports/execution-layout-2026-10-11.md) registra validação. [ExecutionHeader.test.tsx](../../src/workspace/ExecutionHeader.test.tsx), [Board.test.tsx](../../src/workspace/Board.test.tsx) e [Scrum.timeline.test.tsx](../../src/workspace/Scrum.timeline.test.tsx) cobrem teclado, navegação, filtros, atribuição, progresso e histórico. A apresentação não altera schemas ou persistência dos projetos.
+
 ## Tinta livre no mapa
 
 A opção de desenhar abre uma paleta compacta sobre o canvas. Caneta, bico de pena, monoline, lápis e marca-texto compartilham geometria SVG e estilos com Board e notas. Régua restringe o traço a um segmento reto; borracha remove traços inteiros atingidos. Pressão e amostras coalescidas são aproveitadas quando o navegador as fornece.

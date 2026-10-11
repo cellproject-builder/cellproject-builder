@@ -71,6 +71,16 @@ const changeFilter = (label: string, value: string) => {
 };
 
 describe('shared Kanban and list task views', () => {
+  it('opens Scrum from the shared view switch without changing tasks or the saved collection view', async () => {
+    const taskId = store.getState().createTask(projectId, { title: 'Keep execution context', status: 'review' });
+    await renderBoard();
+    act(() => Simulate.click(button('List view')));
+    act(() => Simulate.click(button('Scrum')));
+    expect(store.getState().surface).toBe('scrum');
+    expect(localStorage.getItem(VIEW_KEY)).toBe('list');
+    expect(store.getState().tasks[taskId]).toMatchObject({ title: 'Keep execution context', status: 'review', projectId });
+  });
+
   it('keeps the same project tasks and combined filters when switching views', async () => {
     const release = store.getState().createTask(projectId, { title: 'Release website', priority: 'high', description: 'Ship the landing page' });
     store.getState().createTask(projectId, { title: 'Release announcement', priority: 'low', status: 'doing' });
