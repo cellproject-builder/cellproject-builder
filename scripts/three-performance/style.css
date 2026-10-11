@@ -1,0 +1,12 @@
+:root { color-scheme: dark; font: 13px/1.4 system-ui,sans-serif; color: #e7e0f0; background: #101014; --ws-radius-panel: 12px; }
+body { margin: 18px auto; padding: 0 20px; max-width: 1180px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h1 { font-size: 20px; margin: 0; } p { color: #b6adc4; margin: 6px 0; }
+.badge { border: 1px solid #494051; border-radius: 12px; padding: 5px 10px; color: #baa5dc; }
+.controls { display: flex; align-items: end; gap: 7px; flex-wrap: wrap; margin: 14px 0; }
+label { display: grid; gap: 3px; font-size: 11px; color: #c2b8d1; }
+button,select { font: inherit; color: inherit; border: 1px solid #514459; border-radius: 8px; background: #28222f; padding: 8px; }
+button { cursor: pointer; }.stage { height: min(58vh,600px); min-height: 360px; max-height: 600px; border: 1px solid #39333f; border-radius: 12px; overflow: hidden; background: radial-gradient(#46404f 0.6px,transparent 0.6px) 0 0/16px 16px,#111016; position: relative; }
+.react-flow__node-tile { border: 1px solid #52426055; border-radius: 12px; pointer-events: none; }
+.tile-label { position: absolute; bottom: 5px; left: 9px; color: #b7a7c9; font-size: 10px; }
+.limit { font-size: 11px; } pre { border: 1px solid #39333f; border-radius: 12px; padding: 14px; max-height: 280px; overflow: auto; font-size: 11px; white-space: pre-wrap; }

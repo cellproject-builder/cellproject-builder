@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { SceneV1 } from '../types';
-import { objectGeometry } from './objectGeometry';
+import { addModelMeshes } from './modelMeshes';
 import { withinGeometryBudget } from '../geometrySchema';
 
 export interface AssemblyGroup { partId: string; objectIds: string[]; explodeOffset: [number, number, number] }
@@ -26,21 +26,7 @@ export function modelItem(definition: SceneV1, assemblyGroups: AssemblyGroup[] =
     const node = new THREE.Group(); node.name = `part:${part.partId}`; group.add(node);
     return { ...part, node, offset: new THREE.Vector3().fromArray(part.explodeOffset) };
   });
-  const materials: Array<{ material: THREE.MeshStandardMaterial; partId: string | null }> = [];
-  const geometries = new Map<string, THREE.BufferGeometry>();
-  for (const object of definition.objects) {
-    const geometryKey = object.type === 'custom' ? JSON.stringify(object.geometry) : object.type;
-    let geometry = geometries.get(geometryKey);
-    if (!geometry) { geometry = objectGeometry(object); geometries.set(geometryKey, geometry); disposables.push(geometry); }
-    const material = new THREE.MeshStandardMaterial({ color: object.color, roughness: .6, metalness: .18,
-      side: object.geometry?.kind === 'buffer' ? THREE.DoubleSide : THREE.FrontSide });
-    const mesh = new THREE.Mesh(geometry, material);
-    const part = parts.find(item => item.objectIds.includes(object.id));
-    mesh.name = object.id; mesh.userData.objectId = object.id; mesh.userData.partId = part?.partId ?? null;
-    mesh.position.fromArray(object.position); mesh.rotation.set(...object.rotation); mesh.scale.fromArray(object.scale);
-    (part?.node ?? group).add(mesh); disposables.push(material);
-    materials.push({ material, partId: part?.partId ?? null });
-  }
+  const materials = addModelMeshes(definition.objects, group, parts, disposables);
   // Fit the union of both endpoints once. The view stays still while parts move,
   // and a bounding sphere keeps either endpoint visible at any orbit angle.
   const bounds = new THREE.Box3().setFromObject(group);
@@ -100,8 +86,9 @@ export function modelItem(definition: SceneV1, assemblyGroups: AssemblyGroup[] =
       if (selection === nextSelection) return animating;
       selection = nextSelection;
       guides.forEach(guide => { guide.material.opacity = selection === null ? .24 : guide.partId === selection ? .65 : .08; });
-      for (const { material, partId } of materials) {
+      for (const { material, partId, setDimmed } of materials) {
         const dimmed = selection !== null && partId !== selection;
+        setDimmed?.(dimmed);
         material.opacity = dimmed ? .35 : 1;
         material.transparent = dimmed; material.depthWrite = !dimmed;
         material.emissive.set(0x000000);

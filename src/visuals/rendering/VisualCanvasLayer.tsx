@@ -63,6 +63,19 @@ function renderItemIdentity(artifact: VisualArtifact, artifacts: VisualArtifact[
     modelAssemblyCurrent(artifact) ? artifact.assembly?.groups : null]);
 }
 
+/** Copy scalar inputs: React Flow can mutate its node lookup and measured records in place. */
+function invalidateOnChangedValues(read: () => Array<number | string | null>, invalidate: () => void) {
+  let previous = read();
+  return {
+    rebase: () => { previous = read(); },
+    notify: () => {
+      const next = read();
+      if (next.length === previous.length && next.every((value, index) => value === previous[index])) return;
+      previous = next; invalidate();
+    },
+  };
+}
+
 /** One transparent GPU surface, repainted only on changes or while a transition runs. */
 export function VisualCanvasLayer({ artifacts, onAvailability }: { artifacts: VisualArtifact[]; onAvailability: (available: boolean) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -89,6 +102,11 @@ export function VisualCanvasLayer({ artifacts, onAvailability }: { artifacts: Vi
       if (!alive || contextLost || document.hidden || frame) return;
       frame = requestAnimationFrame(draw);
     };
+    const liveRect = (artifact: VisualArtifact) => {
+      const live = api.getNode(`visual:${artifact.id}`);
+      return live ? { x: live.position.x, y: live.position.y, width: live.width ?? live.measured?.width ?? artifact.width,
+        height: live.height ?? live.measured?.height ?? artifact.height } : artifact;
+    };
     const draw = (time: number) => {
       frame = 0;
       if (!alive || contextLost || document.hidden) { previousTime = null; return; }
@@ -102,9 +120,7 @@ export function VisualCanvasLayer({ artifacts, onAvailability }: { artifacts: Vi
       const viewport = api.getViewport(); let animating = false;
       for (const artifact of latest.current) {
         const item = items.get(artifact.id)?.item; if (!item) continue;
-        const live = api.getNode(`visual:${artifact.id}`);
-        const liveRect = live ? { x: live.position.x, y: live.position.y, width: live.width ?? live.measured?.width ?? artifact.width, height: live.height ?? live.measured?.height ?? artifact.height } : artifact;
-        let rect = artifactScreenRect(liveRect, viewport);
+        let rect = artifactScreenRect(liveRect(artifact), viewport);
         if (item.imageSize) rect = containedImageRect(rect, item.imageSize.width, item.imageSize.height);
         const pass = viewportPass(rect, width, height); if (!pass) continue;
         if (item.setView) {
@@ -138,6 +154,9 @@ export function VisualCanvasLayer({ artifacts, onAvailability }: { artifacts: Vi
           } catch { /* Missing media is surfaced by the artifact fallback. */ }
         })();
       }
+      // Prop changes can replace IDs or rectangles without a store notification.
+      // The next comparison must start from the inputs of this reconciled drawing.
+      flowChanged.rebase(); viewChanged.rebase();
       invalidate();
     };
     reconcileRef.current = reconcile;
@@ -150,7 +169,22 @@ export function VisualCanvasLayer({ artifacts, onAvailability }: { artifacts: Vi
     };
     canvas.addEventListener('webglcontextlost', onLost); canvas.addEventListener('webglcontextrestored', onRestored);
     document.addEventListener('visibilitychange', visibility);
-    const unsubscribeFlow = flowStore.subscribe(invalidate), unsubscribeView = useVisualViewStore.subscribe(invalidate);
+    const flowChanged = invalidateOnChangedValues(() => {
+      const viewport = api.getViewport(), values = [viewport.x, viewport.y, viewport.zoom];
+      for (const artifact of latest.current) {
+        const rect = liveRect(artifact); values.push(rect.x, rect.y, rect.width, rect.height);
+      }
+      return values;
+    }, invalidate);
+    const viewChanged = invalidateOnChangedValues(() => {
+      const view = useVisualViewStore.getState(), values: Array<number | string | null> = [];
+      for (const artifact of latest.current) if (artifact.kind === 'model' && artifact.scene) {
+        values.push(view.angles[artifact.id] ?? 0, view.pitches[artifact.id] ?? 0, view.zooms[artifact.id] ?? 1,
+          view.explosions[artifact.id] ?? 0, view.selectedParts[artifact.id] ?? null);
+      }
+      return values;
+    }, invalidate);
+    const unsubscribeFlow = flowStore.subscribe(flowChanged.notify), unsubscribeView = useVisualViewStore.subscribe(viewChanged.notify);
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(invalidate) : null;
     if (canvas.parentElement) observer?.observe(canvas.parentElement);
     window.addEventListener('resize', invalidate);

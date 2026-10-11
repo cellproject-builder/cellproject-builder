@@ -8,15 +8,17 @@ import { useVisualViewStore } from './viewStore';
 import { modelSceneFingerprint } from '../modelAssembly';
 
 const audit = vi.hoisted(() => ({
-  renderers: [] as Array<{ render: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn>; setSize: ReturnType<typeof vi.fn> }>,
+  renderers: [] as Array<{ render: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn>; setSize: ReturnType<typeof vi.fn>; setViewport: ReturnType<typeof vi.fn> }>,
   geometries: [] as Array<{ dispose: MockInstance<() => void> }>,
   frames: new Map<number, FrameRequestCallback>(), nextFrame: 0,
   flow: new Set<() => void>(), observers: [] as Array<{ notify(): void; disconnect: ReturnType<typeof vi.fn> }>,
   viewport: { x: 0, y: 0, zoom: 1 }, hidden: false,
+  nodes: new Map<string, { position: { x: number; y: number }; width?: number; height?: number; measured?: { width?: number; height?: number } }>(),
+  selectionKeyPressed: false,
   assemblyCurrent: false, readMedia: vi.fn(),
 }));
 vi.mock('@xyflow/react', () => {
-  const api = { getViewport: () => audit.viewport, getNode: () => undefined };
+  const api = { getViewport: () => audit.viewport, getNode: (id: string) => audit.nodes.get(id) };
   const store = { subscribe: (listener: () => void) => { audit.flow.add(listener); return () => audit.flow.delete(listener); } };
   return { useReactFlow: () => api, useStoreApi: () => store };
 });
@@ -57,7 +59,7 @@ async function frame(elapsed = 1000 / 60) {
 }
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  audit.renderers.length = 0; audit.geometries.length = 0; audit.frames.clear(); audit.flow.clear(); audit.observers.length = 0; audit.nextFrame = 0; audit.hidden = false; audit.viewport = { x: 0, y: 0, zoom: 1 }; time = performance.now(); availability.mockClear(); audit.assemblyCurrent = false; audit.readMedia.mockReset();
+  audit.renderers.length = 0; audit.geometries.length = 0; audit.frames.clear(); audit.flow.clear(); audit.observers.length = 0; audit.nextFrame = 0; audit.hidden = false; audit.viewport = { x: 0, y: 0, zoom: 1 }; audit.nodes.clear(); audit.selectionKeyPressed = false; time = performance.now(); availability.mockClear(); audit.assemblyCurrent = false; audit.readMedia.mockReset();
   vi.stubGlobal('WebGL2RenderingContext', class {});
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { audit.frames.set(++audit.nextFrame, callback); return audit.nextFrame; });
   vi.stubGlobal('cancelAnimationFrame', (id: number) => audit.frames.delete(id));
@@ -70,6 +72,82 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('shared visual renderer lifecycle', () => {
+  it('does not redraw 3D artifacts when flow notifications only change selection UI or another node', async () => {
+    await render([model('left'), model('right')]); await frame();
+    const renderer = audit.renderers[0]; expect(renderer.render).toHaveBeenCalledTimes(2);
+    audit.selectionKeyPressed = true; for (const listener of audit.flow) listener();
+    expect(audit.frames.size).toBe(0);
+    audit.nodes.set('plan-step', { position: { x: 400, y: 300 } });
+    for (const listener of audit.flow) listener();
+    expect(audit.frames.size).toBe(0); expect(renderer.render).toHaveBeenCalledTimes(2);
+  });
+
+  it('repaints live movement and measured resizing even when the node lookup and records retain identity', async () => {
+    const live = { position: { x: 0, y: 0 }, measured: { width: 200, height: 180 }, width: undefined as number | undefined, height: undefined as number | undefined };
+    audit.nodes.set('visual:motor', live); await render(); await frame();
+    const renderer = audit.renderers[0];
+    live.position.x = 30; for (const listener of audit.flow) listener();
+    expect(audit.frames.size).toBe(1); await frame();
+    expect(renderer.setViewport).toHaveBeenLastCalledWith(30, 420, 200, 180);
+    live.measured.width = 260; live.measured.height = 220;
+    for (const listener of audit.flow) listener();
+    expect(audit.frames.size).toBe(1); await frame();
+    expect(renderer.setViewport).toHaveBeenLastCalledWith(30, 380, 260, 220);
+    live.width = 280; live.height = 240; for (const listener of audit.flow) listener();
+    expect(audit.frames.size).toBe(1); await frame();
+    expect(renderer.setViewport).toHaveBeenLastCalledWith(30, 360, 280, 240);
+    // Explicit dimensions win over measured dimensions in the renderer too.
+    live.measured.width = 999; for (const listener of audit.flow) listener();
+    expect(audit.frames.size).toBe(0); expect(renderer.render).toHaveBeenCalledTimes(4);
+  });
+
+  it('repaints camera transforms mutated in place and ignores subsequent unchanged notifications', async () => {
+    await render(); await frame(); const renderer = audit.renderers[0];
+    audit.viewport.x = 20; audit.viewport.y = 40; audit.viewport.zoom = 1.5;
+    for (const listener of audit.flow) listener();
+    expect(audit.frames.size).toBe(1); await frame();
+    expect(renderer.setViewport).toHaveBeenLastCalledWith(20, 290, 300, 270);
+    for (const listener of audit.flow) listener();
+    expect(audit.frames.size).toBe(0); expect(renderer.render).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores views outside this canvas and unchanged views while retaining rotation of present models', async () => {
+    await render([model('left'), model('right')]); await frame(); const renderer = audit.renderers[0];
+    const views = useVisualViewStore.getState();
+    views.orbit('another-canvas-model', .2, .1); views.zoomBy('another-canvas-model', -100);
+    views.setExplosion('another-canvas-model', 1); views.selectPart('another-canvas-model', 'part');
+    expect(audit.frames.size).toBe(0); expect(renderer.render).toHaveBeenCalledTimes(2);
+    views.orbit('left', .2, .1); expect(audit.frames.size).toBe(1); await frame();
+    expect(renderer.render).toHaveBeenCalledTimes(4);
+    views.orbit('left', 0, 0); views.zoomBy('left', 0); views.setExplosion('left', 0); views.selectPart('left', null);
+    expect(audit.frames.size).toBe(0);
+  });
+
+  it('rebases view comparisons when replacing an artifact with a previously configured model', async () => {
+    const views = useVisualViewStore.getState(); views.zoomBy('right', -100);
+    await render([model('left')]); await frame();
+    await render([model('right')]); await frame();
+    const renderer = audit.renderers[0], camera = renderer.render.mock.lastCall![1] as THREE.PerspectiveCamera;
+    expect(camera.zoom).toBeGreaterThan(1);
+    // Reset returns to the old artifact's value, but changes what is currently drawn.
+    views.reset('right'); expect(audit.frames.size).toBe(1); await frame();
+    expect(camera.zoom).toBe(1); expect(renderer.render).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(['motor', 'replacement'])('rebases flow comparisons after replacing artifact geometry with ID %s', async id => {
+    const artifact = model(); await render([artifact]); await frame();
+    await render([{ ...artifact, id, x: 80, width: 240 }]); await frame();
+    const renderer = audit.renderers[0];
+    expect(renderer.setViewport).toHaveBeenLastCalledWith(80, 420, 240, 180);
+    // React Flow can publish the original rectangle after a prop-based update,
+    // including a replacement that keeps the same artifact ID.
+    audit.nodes.set(`visual:${id}`, { position: { x: 0, y: 0 }, width: 200, height: 180 });
+    for (const listener of audit.flow) listener();
+    expect(audit.frames.size).toBe(1); await frame();
+    expect(renderer.setViewport).toHaveBeenLastCalledWith(0, 420, 200, 180);
+    expect(renderer.render).toHaveBeenCalledTimes(3);
+  });
+
   it('stops at rest and repaints on viewport, 3D view and container changes', async () => {
     await render([model('left'), model('right')]); await frame();
     expect(audit.renderers[0].render).toHaveBeenCalledTimes(2); expect(audit.frames.size).toBe(0);
@@ -146,6 +224,20 @@ describe('shared visual renderer lifecycle', () => {
     const image = document.createElement('img'); image.width = 32; image.height = 24; const texture = new THREE.Texture(image); const disposed = vi.spyOn(texture, 'dispose');
     await act(async () => finish(texture));
     expect(disposed).toHaveBeenCalledOnce(); expect(revoke).toHaveBeenCalledWith('blob:fixture'); expect(audit.frames.size).toBe(0);
+  });
+
+  it('draws an image that finishes loading after the canvas has become idle', async () => {
+    audit.readMedia.mockResolvedValue(new Blob(['image']));
+    const revoke = vi.fn(); vi.stubGlobal('URL', { createObjectURL: () => 'blob:fixture', revokeObjectURL: revoke });
+    let finish!: (texture: THREE.Texture<HTMLImageElement>) => void;
+    vi.spyOn(THREE.TextureLoader.prototype, 'loadAsync').mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    await render([model(), { ...model('reference'), kind: 'image', scene: null, mediaId: 'media' }]); await frame();
+    expect(audit.renderers[0].render).toHaveBeenCalledOnce(); expect(audit.frames.size).toBe(0);
+    const image = document.createElement('img'); image.width = 32; image.height = 24;
+    await act(async () => finish(new THREE.Texture(image)));
+    expect(audit.frames.size).toBe(1); await frame();
+    expect(audit.renderers[0].render).toHaveBeenCalledTimes(3); expect(audit.frames.size).toBe(0);
+    expect(revoke).toHaveBeenCalledWith('blob:fixture');
   });
 
   it('refreshes a dependent assembly when its original source model changes', async () => {

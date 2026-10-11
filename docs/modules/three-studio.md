@@ -104,6 +104,10 @@ Bytes de anexos e imagens são referenciados por ID. [media](../../src/visuals/m
 
 O renderer usa uma superfície WebGL transparente compartilhada, viewport/scissor por artefato e desenho sob demanda. Movimento e inspeção reutilizam recursos GPU quando a entrada geométrica não muda. Perda/restauração de contexto e liberação de recursos têm tratamento explícito. Os controles DOM continuam no React Flow; WebGL 2 indisponível apresenta fallback. Transparência do renderer não remove o fundo de fotografias.
 
+Peças opacas repetidas são agrupadas em `InstancedMesh` quando pelo menos quatro objetos compartilham geometria, cor e grupo móvel. [modelMeshes](../../src/visuals/rendering/modelMeshes.ts) conserva as transformações e o mapeamento `instanceId → objectIds`; não modifica o documento, a tesselação ou as peças da montagem. Escalas refletidas continuam em meshes individuais. Na inspeção, grupos atenuados voltam temporariamente a meshes individuais, pois o Three.js não ordena transparência por instância. Limpar a seleção reutiliza o lote opaco. Cada artefato continua responsável por seus recursos; ainda não há pool entre cópias.
+
+Notificações de seleção e estado de outros canvases não solicitam desenho quando viewport, retângulos e controles 3D permanecem iguais. Os comparadores copiam valores escalares, incluindo registros mutados pelo React Flow, e atualizam sua base na reconciliação. Mudanças reais, chegada de mídia, resize, transições e restauração continuam invalidando. Isso filtra eventos irrelevantes; uma mudança real ainda redesenha todas as vistas visíveis da superfície compartilhada. Ver [ensaio local e limites](../reports/client-performance-2026-10-11.md).
+
 ## Evidências e verificações
 
 | Evidência | O que permite inspecionar |
@@ -115,6 +119,7 @@ O renderer usa uma superfície WebGL transparente compartilhada, viewport/scisso
 | [decompositionResearch.test.ts](../../src/visuals/decompositionResearch.test.ts) | Leitura documental, trechos, variantes, códigos, quantidades e lacunas |
 | [decomposition.test.ts](../../src/visuals/decomposition.test.ts), [decompositionGeometry.test.ts](../../src/visuals/decompositionGeometry.test.ts) | Artefato filho, conservação do original, reaproveitamento exato, contexto não classificado, dossiê e geometria aplicados juntos |
 | [customGeometry.test.ts](../../src/visuals/rendering/customGeometry.test.ts), [modelItem.test.ts](../../src/visuals/rendering/modelItem.test.ts), [lifecycle](../../src/visuals/rendering/VisualCanvasLayer.lifecycle.test.tsx) | Geometria/recursos Three.js, inspeção e ciclo de desenho |
+| [modelItem.batching.test.ts](../../src/visuals/rendering/modelItem.batching.test.ts) | Lotes, IDs, transformações, furos customizados, escala refletida, transparência e descarte |
 | [DecompositionPanel.test.tsx](../../src/visuals/ui/DecompositionPanel.test.tsx), [TabbedVisualExplorer.test.tsx](../../src/visuals/ui/TabbedVisualExplorer.test.tsx) | Controles, pesquisa pendente, aprovação, cancelamento e abas concorrentes |
 | [portable.test.ts](../../src/visuals/portable.test.ts), [artifactClipboard.test.ts](../../src/visuals/artifactClipboard.test.ts), [visualTools.test.ts](../../src/ai/visualTools.test.ts) | Portabilidade, cópia independente e ação do chat sem falsa aplicação |
 

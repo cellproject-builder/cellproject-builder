@@ -1,0 +1,2070 @@
+{
+  "date": "2026-10-11",
+  "baseline": "36bf93e3b141aacfca81fe3b49f820def3161280",
+  "note": "Local synthetic optimized React/WebGL workload; timings are not GPU duration or application-wide latency. The first build-contaminated baseline is excluded. Both off controls share the same pre-review invalidation filter; only model batching differs. Final filtered variant includes the reviewed rebase correction.",
+  "provenance": [
+    {
+      "variant": "baseline",
+      "bundle": "index-f2K7FZOH.js",
+      "visualCanvasLayerSHA256": "330f9b767b924813211ea272b0194df712ad0857878bbb0f0101a64992d281b8",
+      "filter": false,
+      "source": "../../../../src/visuals/rendering/VisualCanvasLayer.tsx"
+    },
+    {
+      "variant": "pilot",
+      "bundle": "index-D3Cb7Crq.js",
+      "visualCanvasLayerSHA256": "330f9b767b924813211ea272b0194df712ad0857878bbb0f0101a64992d281b8",
+      "filter": false,
+      "source": "../../../../src/visuals/rendering/VisualCanvasLayer.tsx"
+    },
+    {
+      "variant": "baseline-off",
+      "bundle": "index-C4uWL5V3.js",
+      "visualCanvasLayerSHA256": "7425f9cafa7e2898e7c132ed43e52d2a38d09dae5d51a521c996e8b6606a7ee2",
+      "filter": true,
+      "source": "../../../../src/visuals/rendering/VisualCanvasLayer.tsx"
+    },
+    {
+      "variant": "pilot-off",
+      "bundle": "index-lTF-1LrS.js",
+      "visualCanvasLayerSHA256": "7425f9cafa7e2898e7c132ed43e52d2a38d09dae5d51a521c996e8b6606a7ee2",
+      "filter": true,
+      "source": "../../../../src/visuals/rendering/VisualCanvasLayer.tsx"
+    },
+    {
+      "variant": "filtered",
+      "bundle": "index-CiD9ucl9.js",
+      "visualCanvasLayerSHA256": "cb3cacc9c8a9be9faa8dc6b38de3f3492638c13225bb774382c1e7b16b971ccd",
+      "filter": true,
+      "rebase": true,
+      "source": "../../../../src/visuals/rendering/VisualCanvasLayer.tsx",
+      "sourceHashes": {
+        "modelMeshes.ts": "f56815847161c541ffcf07fed435c17d2fa3b4fb0ae3492712c6f830dc474083",
+        "modelItem.ts": "b020ad598d87b6fe3b50caa440d502b250c8bd64845930300383c61f957e3155",
+        "VisualCanvasLayer.tsx": "cb3cacc9c8a9be9faa8dc6b38de3f3492638c13225bb774382c1e7b16b971ccd"
+      }
+    }
+  ],
+  "measurements": [
+    {
+      "run": "baseline-controlled",
+      "rounds": [
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "idle",
+          "actualMs": 1803.5999999996275,
+          "updateSteps": 286,
+          "displayFrameIntervalsMs": {
+            "samples": 286,
+            "p50": 6.2000000000116415,
+            "p95": 6.400000000008731,
+            "max": 14.19999999999709
+          },
+          "compositor": {
+            "renderedFrames": 0,
+            "renderCpuMs": {
+              "p50": null,
+              "p95": null,
+              "max": null
+            },
+            "drawCalls": {
+              "total": 0,
+              "p50PerFrame": null,
+              "p95PerFrame": null
+            },
+            "triangles": {
+              "total": 0,
+              "p50PerFrame": null,
+              "p95PerFrame": null
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 80,
+                "estimatedBufferBytes": 16800,
+                "cumulativeUploadBytes": 65496,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "pan",
+          "actualMs": 1894.5,
+          "updateSteps": 26,
+          "displayFrameIntervalsMs": {
+            "samples": 26,
+            "p50": 74.89999999999418,
+            "p95": 75.30000000000291,
+            "max": 81.19999999999709
+          },
+          "compositor": {
+            "renderedFrames": 26,
+            "renderCpuMs": {
+              "p50": 70.59999999962747,
+              "p95": 74.70000000018626,
+              "max": 80.29999999981374
+            },
+            "drawCalls": {
+              "total": 266240,
+              "p50PerFrame": 10240,
+              "p95PerFrame": 10240
+            },
+            "triangles": {
+              "total": 3194880,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 80,
+                "estimatedBufferBytes": 16800,
+                "cumulativeUploadBytes": 65496,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 26,
+          "longTaskTotalMs": 1876.0,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "zoom",
+          "actualMs": 1930.2999999998137,
+          "updateSteps": 25,
+          "displayFrameIntervalsMs": {
+            "samples": 25,
+            "p50": 75,
+            "p95": 81.40000000000873,
+            "max": 93.60000000000582
+          },
+          "compositor": {
+            "renderedFrames": 25,
+            "renderCpuMs": {
+              "p50": 73,
+              "p95": 81,
+              "max": 84.40000000037253
+            },
+            "drawCalls": {
+              "total": 256000,
+              "p50PerFrame": 10240,
+              "p95PerFrame": 10240
+            },
+            "triangles": {
+              "total": 3072000,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 80,
+                "estimatedBufferBytes": 16800,
+                "cumulativeUploadBytes": 65496,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 25,
+          "longTaskTotalMs": 1909.0,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1922,
+          "updateSteps": 21,
+          "displayFrameIntervalsMs": {
+            "samples": 21,
+            "p50": 87.69999999999709,
+            "p95": 100.09999999999127,
+            "max": 100.10000000000582
+          },
+          "compositor": {
+            "renderedFrames": 21,
+            "renderCpuMs": {
+              "p50": 89.40000000037253,
+              "p95": 100,
+              "max": 102.70000000018626
+            },
+            "drawCalls": {
+              "total": 215040,
+              "p50PerFrame": 10240,
+              "p95PerFrame": 10240
+            },
+            "triangles": {
+              "total": 2580480,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 80,
+                "estimatedBufferBytes": 16800,
+                "cumulativeUploadBytes": 65496,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 21,
+          "longTaskTotalMs": 1905.0,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1941.7000000001863,
+          "updateSteps": 24,
+          "displayFrameIntervalsMs": {
+            "samples": 24,
+            "p50": 81.19999999999709,
+            "p95": 87.40000000000873,
+            "max": 93.79999999998836
+          },
+          "compositor": {
+            "renderedFrames": 24,
+            "renderCpuMs": {
+              "p50": 79,
+              "p95": 87.20000000018626,
+              "max": 91
+            },
+            "drawCalls": {
+              "total": 245760,
+              "p50PerFrame": 10240,
+              "p95PerFrame": 10240
+            },
+            "triangles": {
+              "total": 2949120,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 80,
+                "estimatedBufferBytes": 16800,
+                "cumulativeUploadBytes": 65496,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 24,
+          "longTaskTotalMs": 1921.0,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1901.6000000005588,
+          "updateSteps": 26,
+          "displayFrameIntervalsMs": {
+            "samples": 26,
+            "p50": 74.70000000001164,
+            "p95": 75.29999999998836,
+            "max": 81.30000000000291
+          },
+          "compositor": {
+            "renderedFrames": 26,
+            "renderCpuMs": {
+              "p50": 71.5,
+              "p95": 77,
+              "max": 78
+            },
+            "drawCalls": {
+              "total": 266240,
+              "p50PerFrame": 10240,
+              "p95PerFrame": 10240
+            },
+            "triangles": {
+              "total": 3194880,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 80,
+                "estimatedBufferBytes": 16800,
+                "cumulativeUploadBytes": 65496,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 26,
+          "longTaskTotalMs": 1878.0,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "irrelevant-ui",
+          "actualMs": 1940.2000000001863,
+          "updateSteps": 26,
+          "displayFrameIntervalsMs": {
+            "samples": 26,
+            "p50": 75,
+            "p95": 81.19999999999709,
+            "max": 81.39999999999418
+          },
+          "compositor": {
+            "renderedFrames": 26,
+            "renderCpuMs": {
+              "p50": 72.29999999981374,
+              "p95": 79.80000000074506,
+              "max": 81
+            },
+            "drawCalls": {
+              "total": 266240,
+              "p50PerFrame": 10240,
+              "p95PerFrame": 10240
+            },
+            "triangles": {
+              "total": 3194880,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 80,
+                "estimatedBufferBytes": 16800,
+                "cumulativeUploadBytes": 65496,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 26,
+          "longTaskTotalMs": 1919.0,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        }
+      ]
+    },
+    {
+      "run": "pilot-controlled",
+      "rounds": [
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "idle",
+          "actualMs": 1806.5,
+          "updateSteps": 284,
+          "displayFrameIntervalsMs": {
+            "samples": 284,
+            "p50": 6.299999999999272,
+            "p95": 6.400000000001455,
+            "max": 37.5
+          },
+          "compositor": {
+            "renderedFrames": 0,
+            "renderCpuMs": {
+              "p50": null,
+              "p95": null,
+              "max": null
+            },
+            "drawCalls": {
+              "total": 0,
+              "p50PerFrame": null,
+              "p95PerFrame": null
+            },
+            "triangles": {
+              "total": 0,
+              "p50PerFrame": null,
+              "p95PerFrame": null
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 160,
+                "estimatedBufferBytes": 672160,
+                "cumulativeUploadBytes": 724952,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "pilot-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "pan",
+          "actualMs": 1805.2000000001863,
+          "updateSteps": 257,
+          "displayFrameIntervalsMs": {
+            "samples": 257,
+            "p50": 6.299999999999272,
+            "p95": 12.5,
+            "max": 18.900000000001455
+          },
+          "compositor": {
+            "renderedFrames": 257,
+            "renderCpuMs": {
+              "p50": 2.5,
+              "p95": 6.1000000005587935,
+              "max": 8.100000000558794
+            },
+            "drawCalls": {
+              "total": 20560,
+              "p50PerFrame": 80,
+              "p95PerFrame": 80
+            },
+            "triangles": {
+              "total": 31580160,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 160,
+                "estimatedBufferBytes": 672160,
+                "cumulativeUploadBytes": 724952,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "pilot-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "zoom",
+          "actualMs": 1804.2000000001863,
+          "updateSteps": 282,
+          "displayFrameIntervalsMs": {
+            "samples": 282,
+            "p50": 6.299999999999272,
+            "p95": 6.5,
+            "max": 18.700000000000728
+          },
+          "compositor": {
+            "renderedFrames": 282,
+            "renderCpuMs": {
+              "p50": 2.2000000001862645,
+              "p95": 3.3999999994412065,
+              "max": 4.7999999998137355
+            },
+            "drawCalls": {
+              "total": 22560,
+              "p50PerFrame": 80,
+              "p95PerFrame": 80
+            },
+            "triangles": {
+              "total": 34652160,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 160,
+                "estimatedBufferBytes": 672160,
+                "cumulativeUploadBytes": 724952,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "pilot-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1806.9000000003725,
+          "updateSteps": 286,
+          "displayFrameIntervalsMs": {
+            "samples": 286,
+            "p50": 6.200000000000728,
+            "p95": 6.400000000001455,
+            "max": 15.299999999999272
+          },
+          "compositor": {
+            "renderedFrames": 286,
+            "renderCpuMs": {
+              "p50": 1.900000000372529,
+              "p95": 3.2000000001862645,
+              "max": 7.7000000001862645
+            },
+            "drawCalls": {
+              "total": 22880,
+              "p50PerFrame": 80,
+              "p95PerFrame": 80
+            },
+            "triangles": {
+              "total": 35143680,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 160,
+                "estimatedBufferBytes": 672160,
+                "cumulativeUploadBytes": 724952,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "pilot-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1805.5,
+          "updateSteps": 289,
+          "displayFrameIntervalsMs": {
+            "samples": 289,
+            "p50": 6.299999999999272,
+            "p95": 6.399999999997817,
+            "max": 10.299999999999272
+          },
+          "compositor": {
+            "renderedFrames": 289,
+            "renderCpuMs": {
+              "p50": 1.6000000005587935,
+              "p95": 2.199999999254942,
+              "max": 3
+            },
+            "drawCalls": {
+              "total": 23120,
+              "p50PerFrame": 80,
+              "p95PerFrame": 80
+            },
+            "triangles": {
+              "total": 35512320,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 160,
+                "estimatedBufferBytes": 672160,
+                "cumulativeUploadBytes": 724952,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "pilot-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1804,
+          "updateSteps": 289,
+          "displayFrameIntervalsMs": {
+            "samples": 289,
+            "p50": 6.299999999999272,
+            "p95": 6.400000000001455,
+            "max": 9.700000000000728
+          },
+          "compositor": {
+            "renderedFrames": 289,
+            "renderCpuMs": {
+              "p50": 1.400000000372529,
+              "p95": 1.900000000372529,
+              "max": 2.699999999254942
+            },
+            "drawCalls": {
+              "total": 23120,
+              "p50PerFrame": 80,
+              "p95PerFrame": 80
+            },
+            "triangles": {
+              "total": 35512320,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 160,
+                "estimatedBufferBytes": 672160,
+                "cumulativeUploadBytes": 724952,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "pilot-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "irrelevant-ui",
+          "actualMs": 1807.2999999998137,
+          "updateSteps": 289,
+          "displayFrameIntervalsMs": {
+            "samples": 289,
+            "p50": 6.299999999999272,
+            "p95": 6.399999999997817,
+            "max": 11.30000000000291
+          },
+          "compositor": {
+            "renderedFrames": 289,
+            "renderCpuMs": {
+              "p50": 1.599999999627471,
+              "p95": 2.099999999627471,
+              "max": 4.5
+            },
+            "drawCalls": {
+              "total": 23120,
+              "p50PerFrame": 80,
+              "p95PerFrame": 80
+            },
+            "triangles": {
+              "total": 35512320,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 160,
+                "estimatedBufferBytes": 672160,
+                "cumulativeUploadBytes": 724952,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "pilot-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        }
+      ]
+    },
+    {
+      "run": "baseline-repeat",
+      "rounds": [
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 2024.7000000001863,
+          "updateSteps": 21,
+          "displayFrameIntervalsMs": {
+            "samples": 21,
+            "p50": 93.70000000000027,
+            "p95": 118.90000000000009,
+            "max": 131.20000000000073
+          },
+          "compositor": {
+            "renderedFrames": 21,
+            "renderCpuMs": {
+              "p50": 93.8999999994412,
+              "p95": 114.09999999962747,
+              "max": 126.09999999962747
+            },
+            "drawCalls": {
+              "total": 215040,
+              "p50PerFrame": 10240,
+              "p95PerFrame": 10240
+            },
+            "triangles": {
+              "total": 2580480,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 80,
+                "estimatedBufferBytes": 16800,
+                "cumulativeUploadBytes": 65496,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 21,
+          "longTaskTotalMs": 2005.0,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 2157,
+          "updateSteps": 12,
+          "displayFrameIntervalsMs": {
+            "samples": 12,
+            "p50": 150.10000000000036,
+            "p95": 231.30000000000018,
+            "max": 237.59999999999945
+          },
+          "compositor": {
+            "renderedFrames": 12,
+            "renderCpuMs": {
+              "p50": 157,
+              "p95": 226.29999999981374,
+              "max": 238.79999999981374
+            },
+            "drawCalls": {
+              "total": 122880,
+              "p50PerFrame": 10240,
+              "p95PerFrame": 10240
+            },
+            "triangles": {
+              "total": 1474560,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 80,
+                "estimatedBufferBytes": 16800,
+                "cumulativeUploadBytes": 65496,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 12,
+          "longTaskTotalMs": 2136.0,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1999.2999999998137,
+          "updateSteps": 9,
+          "displayFrameIntervalsMs": {
+            "samples": 9,
+            "p50": 218.89999999999964,
+            "p95": 268.90000000000055,
+            "max": 318.7000000000007
+          },
+          "compositor": {
+            "renderedFrames": 9,
+            "renderCpuMs": {
+              "p50": 221.79999999981374,
+              "p95": 270.3999999994412,
+              "max": 312.5
+            },
+            "drawCalls": {
+              "total": 92160,
+              "p50PerFrame": 10240,
+              "p95PerFrame": 10240
+            },
+            "triangles": {
+              "total": 1105920,
+              "p50PerFrame": 122880,
+              "p95PerFrame": 122880
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 80,
+                "estimatedBufferBytes": 16800,
+                "cumulativeUploadBytes": 65496,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 9,
+          "longTaskTotalMs": 1985.0,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        }
+      ]
+    },
+    {
+      "run": "baseline-off",
+      "rounds": [
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1943.7999999998137,
+          "updateSteps": 26,
+          "displayFrameIntervalsMs": {
+            "samples": 26,
+            "p50": 74.90000000000146,
+            "p95": 81.19999999999891,
+            "max": 81.39999999999964
+          },
+          "compositor": {
+            "instrumented": false,
+            "renderedFrames": null,
+            "renderCpuMs": null,
+            "drawCalls": null,
+            "triangles": null,
+            "resources": null,
+            "reason": "Public WebGL wrappers are disabled; display rAF intervals and Long Tasks remain available."
+          },
+          "longTaskCount": 26,
+          "longTaskTotalMs": 1918.0,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentationEnabled": false,
+            "webglInstrumentation": "Disabled before context creation. No WebGL or getContext wrappers; display rAF and Long Tasks only."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 2165.600000000559,
+          "updateSteps": 23,
+          "displayFrameIntervalsMs": {
+            "samples": 23,
+            "p50": 75,
+            "p95": 106.29999999999927,
+            "max": 181.29999999999927
+          },
+          "compositor": {
+            "instrumented": false,
+            "renderedFrames": null,
+            "renderCpuMs": null,
+            "drawCalls": null,
+            "triangles": null,
+            "resources": null,
+            "reason": "Public WebGL wrappers are disabled; display rAF intervals and Long Tasks remain available."
+          },
+          "longTaskCount": 23,
+          "longTaskTotalMs": 2147.0,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentationEnabled": false,
+            "webglInstrumentation": "Disabled before context creation. No WebGL or getContext wrappers; display rAF and Long Tasks only."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 2002.800000000745,
+          "updateSteps": 21,
+          "displayFrameIntervalsMs": {
+            "samples": 21,
+            "p50": 92.39999999999964,
+            "p95": 112.70000000000073,
+            "max": 118.60000000000036
+          },
+          "compositor": {
+            "instrumented": false,
+            "renderedFrames": null,
+            "renderCpuMs": null,
+            "drawCalls": null,
+            "triangles": null,
+            "resources": null,
+            "reason": "Public WebGL wrappers are disabled; display rAF intervals and Long Tasks remain available."
+          },
+          "longTaskCount": 21,
+          "longTaskTotalMs": 1986.0,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentationEnabled": false,
+            "webglInstrumentation": "Disabled before context creation. No WebGL or getContext wrappers; display rAF and Long Tasks only."
+          }
+        }
+      ]
+    },
+    {
+      "run": "pilot-off",
+      "rounds": [
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1808.2000000001863,
+          "updateSteps": 287,
+          "displayFrameIntervalsMs": {
+            "samples": 287,
+            "p50": 6.299999999999272,
+            "p95": 6.399999999999636,
+            "max": 14
+          },
+          "compositor": {
+            "instrumented": false,
+            "renderedFrames": null,
+            "renderCpuMs": null,
+            "drawCalls": null,
+            "triangles": null,
+            "resources": null,
+            "reason": "Public WebGL wrappers are disabled; display rAF intervals and Long Tasks remain available."
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "pilot-measured-snapshot",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentationEnabled": false,
+            "webglInstrumentation": "Disabled before context creation. No WebGL or getContext wrappers; display rAF and Long Tasks only."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1807.9000000003725,
+          "updateSteps": 287,
+          "displayFrameIntervalsMs": {
+            "samples": 287,
+            "p50": 6.299999999999272,
+            "p95": 6.399999999999636,
+            "max": 24
+          },
+          "compositor": {
+            "instrumented": false,
+            "renderedFrames": null,
+            "renderCpuMs": null,
+            "drawCalls": null,
+            "triangles": null,
+            "resources": null,
+            "reason": "Public WebGL wrappers are disabled; display rAF intervals and Long Tasks remain available."
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "pilot-measured-snapshot",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentationEnabled": false,
+            "webglInstrumentation": "Disabled before context creation. No WebGL or getContext wrappers; display rAF and Long Tasks only."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "boxes"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1806.6000000005588,
+          "updateSteps": 289,
+          "displayFrameIntervalsMs": {
+            "samples": 289,
+            "p50": 6.299999999999272,
+            "p95": 6.399999999999636,
+            "max": 10.699999999998909
+          },
+          "compositor": {
+            "instrumented": false,
+            "renderedFrames": null,
+            "renderCpuMs": null,
+            "drawCalls": null,
+            "triangles": null,
+            "resources": null,
+            "reason": "Public WebGL wrappers are disabled; display rAF intervals and Long Tasks remain available."
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "pilot-measured-snapshot",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentationEnabled": false,
+            "webglInstrumentation": "Disabled before context creation. No WebGL or getContext wrappers; display rAF and Long Tasks only."
+          }
+        }
+      ]
+    },
+    {
+      "run": "baseline-mixed",
+      "rounds": [
+        {
+          "config": {
+            "models": 1,
+            "objects": 512,
+            "geometry": "mixed"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1809.5,
+          "updateSteps": 271,
+          "displayFrameIntervalsMs": {
+            "samples": 271,
+            "p50": 6.299999999999272,
+            "p95": 12.300000000000182,
+            "max": 12.699999999999818
+          },
+          "compositor": {
+            "renderedFrames": 271,
+            "renderCpuMs": {
+              "p50": 5.2000000001862645,
+              "p95": 7.1000000005587935,
+              "max": 10.900000000372529
+            },
+            "drawCalls": {
+              "total": 138752,
+              "p50PerFrame": 512,
+              "p95PerFrame": 512
+            },
+            "triangles": {
+              "total": 63964672,
+              "p50PerFrame": 236032,
+              "p95PerFrame": 236032
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 16,
+                "estimatedBufferBytes": 48696,
+                "cumulativeUploadBytes": 97392,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 8,
+            "objects": 512,
+            "geometry": "mixed"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1854.2999999998137,
+          "updateSteps": 51,
+          "displayFrameIntervalsMs": {
+            "samples": 51,
+            "p50": 37.5,
+            "p95": 42.30000000000109,
+            "max": 43.80000000000109
+          },
+          "compositor": {
+            "renderedFrames": 51,
+            "renderCpuMs": {
+              "p50": 36,
+              "p95": 39.700000000186265,
+              "max": 43.10000000055879
+            },
+            "drawCalls": {
+              "total": 208896,
+              "p50PerFrame": 4096,
+              "p95PerFrame": 4096
+            },
+            "triangles": {
+              "total": 96301056,
+              "p50PerFrame": 1888256,
+              "p95PerFrame": 1888256
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 128,
+                "estimatedBufferBytes": 389568,
+                "cumulativeUploadBytes": 438264,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "mixed"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1903.2000000001863,
+          "updateSteps": 22,
+          "displayFrameIntervalsMs": {
+            "samples": 22,
+            "p50": 87.5,
+            "p95": 93.70000000000073,
+            "max": 100
+          },
+          "compositor": {
+            "renderedFrames": 22,
+            "renderCpuMs": {
+              "p50": 84.5,
+              "p95": 93.90000000037253,
+              "max": 96.70000000018626
+            },
+            "drawCalls": {
+              "total": 225280,
+              "p50PerFrame": 10240,
+              "p95PerFrame": 10240
+            },
+            "triangles": {
+              "total": 103854080,
+              "p50PerFrame": 4720640,
+              "p95PerFrame": 4720640
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 320,
+                "estimatedBufferBytes": 973920,
+                "cumulativeUploadBytes": 1022616,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 22,
+          "longTaskTotalMs": 1886.0,
+          "environment": {
+            "variant": "baseline-36bf93e",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        }
+      ]
+    },
+    {
+      "run": "pilot-mixed",
+      "rounds": [
+        {
+          "config": {
+            "models": 1,
+            "objects": 512,
+            "geometry": "mixed"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1805.5,
+          "updateSteps": 286,
+          "displayFrameIntervalsMs": {
+            "samples": 286,
+            "p50": 6.299999999999272,
+            "p95": 6.399999999999636,
+            "max": 15.199999999999818
+          },
+          "compositor": {
+            "renderedFrames": 286,
+            "renderCpuMs": {
+              "p50": 0.5,
+              "p95": 0.7999999998137355,
+              "max": 1.300000000745058
+            },
+            "drawCalls": {
+              "total": 1144,
+              "p50PerFrame": 4,
+              "p95PerFrame": 4
+            },
+            "triangles": {
+              "total": 67505152,
+              "p50PerFrame": 236032,
+              "p95PerFrame": 236032
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 20,
+                "estimatedBufferBytes": 81464,
+                "cumulativeUploadBytes": 134256,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "pilot-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 8,
+            "objects": 512,
+            "geometry": "mixed"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1807.7999999998137,
+          "updateSteps": 289,
+          "displayFrameIntervalsMs": {
+            "samples": 289,
+            "p50": 6.299999999999272,
+            "p95": 6.399999999999636,
+            "max": 9.300000000001091
+          },
+          "compositor": {
+            "renderedFrames": 289,
+            "renderCpuMs": {
+              "p50": 1.2000000001862645,
+              "p95": 2.099999999627471,
+              "max": 3.5
+            },
+            "drawCalls": {
+              "total": 9248,
+              "p50PerFrame": 32,
+              "p95PerFrame": 32
+            },
+            "triangles": {
+              "total": 545705984,
+              "p50PerFrame": 1888256,
+              "p95PerFrame": 1888256
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 160,
+                "estimatedBufferBytes": 651712,
+                "cumulativeUploadBytes": 704504,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "pilot-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "mixed"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1802.9000000003725,
+          "updateSteps": 288,
+          "displayFrameIntervalsMs": {
+            "samples": 288,
+            "p50": 6.299999999999272,
+            "p95": 6.399999999999636,
+            "max": 9.200000000000728
+          },
+          "compositor": {
+            "renderedFrames": 288,
+            "renderCpuMs": {
+              "p50": 2.099999999627471,
+              "p95": 3.099999999627471,
+              "max": 4.7000000001862645
+            },
+            "drawCalls": {
+              "total": 23040,
+              "p50PerFrame": 80,
+              "p95PerFrame": 80
+            },
+            "triangles": {
+              "total": 1359544320,
+              "p50PerFrame": 4720640,
+              "p95PerFrame": 4720640
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 400,
+                "estimatedBufferBytes": 1629280,
+                "cumulativeUploadBytes": 1682072,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "pilot-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        }
+      ]
+    },
+    {
+      "run": "filtered",
+      "rounds": [
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "mixed"
+          },
+          "scenario": "idle",
+          "actualMs": 1806.2000000001863,
+          "updateSteps": 287,
+          "displayFrameIntervalsMs": {
+            "samples": 287,
+            "p50": 6.299999999999272,
+            "p95": 6.400000000000546,
+            "max": 16.5
+          },
+          "compositor": {
+            "instrumented": true,
+            "renderedFrames": 0,
+            "renderCpuMs": {
+              "p50": null,
+              "p95": null,
+              "max": null
+            },
+            "drawCalls": {
+              "total": 0,
+              "p50PerFrame": null,
+              "p95PerFrame": null
+            },
+            "triangles": {
+              "total": 0,
+              "p50PerFrame": null,
+              "p95PerFrame": null
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 400,
+                "estimatedBufferBytes": 1629280,
+                "cumulativeUploadBytes": 1682072,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "filtered-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentationEnabled": true,
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "mixed"
+          },
+          "scenario": "irrelevant-ui",
+          "actualMs": 1806.2999999998137,
+          "updateSteps": 286,
+          "displayFrameIntervalsMs": {
+            "samples": 286,
+            "p50": 6.299999999999272,
+            "p95": 6.399999999999636,
+            "max": 12.399999999999636
+          },
+          "compositor": {
+            "instrumented": true,
+            "renderedFrames": 0,
+            "renderCpuMs": {
+              "p50": null,
+              "p95": null,
+              "max": null
+            },
+            "drawCalls": {
+              "total": 0,
+              "p50PerFrame": null,
+              "p95PerFrame": null
+            },
+            "triangles": {
+              "total": 0,
+              "p50PerFrame": null,
+              "p95PerFrame": null
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 400,
+                "estimatedBufferBytes": 1629280,
+                "cumulativeUploadBytes": 1682072,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "filtered-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentationEnabled": true,
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "mixed"
+          },
+          "scenario": "pan",
+          "actualMs": 1814.7000000001863,
+          "updateSteps": 237,
+          "displayFrameIntervalsMs": {
+            "samples": 237,
+            "p50": 6.299999999999272,
+            "p95": 12.600000000000364,
+            "max": 49.79999999999927
+          },
+          "compositor": {
+            "instrumented": true,
+            "renderedFrames": 237,
+            "renderCpuMs": {
+              "p50": 2.400000000372529,
+              "p95": 6.2999999998137355,
+              "max": 16.5
+            },
+            "drawCalls": {
+              "total": 18960,
+              "p50PerFrame": 80,
+              "p95PerFrame": 80
+            },
+            "triangles": {
+              "total": 1118791680,
+              "p50PerFrame": 4720640,
+              "p95PerFrame": 4720640
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 400,
+                "estimatedBufferBytes": 1629280,
+                "cumulativeUploadBytes": 1682072,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "filtered-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentationEnabled": true,
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "mixed"
+          },
+          "scenario": "zoom",
+          "actualMs": 1802.7000000001863,
+          "updateSteps": 285,
+          "displayFrameIntervalsMs": {
+            "samples": 285,
+            "p50": 6.299999999999272,
+            "p95": 6.399999999999636,
+            "max": 12.599999999998545
+          },
+          "compositor": {
+            "instrumented": true,
+            "renderedFrames": 285,
+            "renderCpuMs": {
+              "p50": 2.2999999998137355,
+              "p95": 3.1000000005587935,
+              "max": 4.1000000005587935
+            },
+            "drawCalls": {
+              "total": 22800,
+              "p50PerFrame": 80,
+              "p95PerFrame": 80
+            },
+            "triangles": {
+              "total": 1345382400,
+              "p50PerFrame": 4720640,
+              "p95PerFrame": 4720640
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 400,
+                "estimatedBufferBytes": 1629280,
+                "cumulativeUploadBytes": 1682072,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "filtered-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentationEnabled": true,
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        },
+        {
+          "config": {
+            "models": 20,
+            "objects": 512,
+            "geometry": "mixed"
+          },
+          "scenario": "orbit-one",
+          "actualMs": 1804.5,
+          "updateSteps": 288,
+          "displayFrameIntervalsMs": {
+            "samples": 288,
+            "p50": 6.299999999999272,
+            "p95": 6.400000000001455,
+            "max": 11.700000000000728
+          },
+          "compositor": {
+            "instrumented": true,
+            "renderedFrames": 288,
+            "renderCpuMs": {
+              "p50": 1.7999999998137355,
+              "p95": 2.2999999998137355,
+              "max": 2.5
+            },
+            "drawCalls": {
+              "total": 23040,
+              "p50PerFrame": 80,
+              "p95PerFrame": 80
+            },
+            "triangles": {
+              "total": 1359544320,
+              "p50PerFrame": 4720640,
+              "p95PerFrame": 4720640
+            },
+            "resources": [
+              {
+                "drawingBuffer": [
+                  1178,
+                  492
+                ],
+                "liveBuffers": 400,
+                "estimatedBufferBytes": 1629280,
+                "cumulativeUploadBytes": 1682072,
+                "liveTextures": 9,
+                "livePrograms": 1,
+                "vendor": "Google Inc. (NVIDIA)",
+                "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+              }
+            ]
+          },
+          "longTaskCount": 0,
+          "longTaskTotalMs": null,
+          "environment": {
+            "variant": "filtered-worktree",
+            "productionReact": true,
+            "devicePixelRatio": 1,
+            "viewport": [
+              1730,
+              849
+            ],
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            "webglInstrumentationEnabled": true,
+            "webglInstrumentation": "Public WebGL draw*/viewport/buffer/texture/program methods; no renderer mock; no gl.finish."
+          }
+        }
+      ]
+    }
+  ]
+}

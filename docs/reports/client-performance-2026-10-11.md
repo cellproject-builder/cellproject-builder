@@ -102,7 +102,7 @@ A primeira bateria foi integrada em `391fa18` e publicada no Railway. O lote ref
 
 O compositor atual já usa um contexto WebGL 2 compartilhado, transparência, recorte por viewport e renderização sob demanda. No Chrome do notebook desta rodada, o renderer reportou ANGLE/D3D11 com NVIDIA GeForce RTX 4060 Laptop GPU. Essa observação confirma aquele contexto, não o desempenho ou o suporte de um tablet/celular.
 
-As correções não removem geometria customizada, peças individuais, materiais, vista explodida nem detalhes do modelo salvo. Instancing, preparação em Worker, orçamento adaptativo de pixels e WebGPU são pilotos separados na proposta; não foram apresentados como recursos entregues nesta rodada.
+As duas primeiras baterias não removem geometria customizada, peças individuais, materiais, vista explodida nem detalhes do modelo salvo. Naquela etapa, instancing, preparação em Worker, orçamento adaptativo de pixels e WebGPU ainda eram pilotos propostos. O ensaio adicional de instancing abaixo registra sua implementação e limitações; Workers, orçamento adaptativo adicional e WebGPU continuam pendentes.
 
 Ainda é necessário medir frames p50/p95, long tasks e latência de entrada em build de produção, com pan/zoom, digitação e inspeção 3D comparáveis; repetir no S9 com caneta física e em celular. Uma melhora em microbenchmarks não basta para encerrar a queixa de lentidão.
 
@@ -125,3 +125,96 @@ Uma reexecução final de oito arquivos do grafo, desenho, estúdio e refinament
 O lote adicional do polling passou 111 testes em seis arquivos: runtime (40), transporte (45), repositório offline (16), sincronização (cinco unitários e dois de integração) e bootstrap offline (três). A revisão independente também verificou isolamento de referências, snapshots incompletos e durabilidade após falha.
 
 Na integração desse lote, outros 41 testes passaram em quatro arquivos de bootstrap, concorrência entre transportes, retomada de sessão e adapters. O build de produção também passou novamente. A verificação local ocorreu antes de qualquer atualização da produção; a aba de uso do usuário não foi utilizada para validar o código ainda não integrado.
+
+## Ensaio adicional: submissão de peças repetidas à GPU
+
+A pesquisa examinou mecanismos públicos do Three.js Editor, PlayCanvas Editor, Babylon.js/Inspector e R3F/drei. [Referências, revisões e comparação arquitetural](../design/client-rendering-performance.md#referências-de-editores-3d-reais). Ela favoreceu evoluir o compositor existente: um contexto compartilhado e desenho sob demanda já estavam presentes. Trocar o motor não eliminaria por si só materiais/meshes individuais, preparação antecipada ou notificações irrelevantes.
+
+O baseline `36bf93e` criava um material e um mesh para cada objeto, mesmo quando geometria e cor eram iguais. Vinte artefatos de 512 objetos resultavam em 10.240 chamadas de desenho por frame. [modelMeshes](../../src/visuals/rendering/modelMeshes.ts) agora agrupa ao menos quatro objetos opacos de geometria/cor/grupo móvel compatíveis em `InstancedMesh`. Mantém transformações, IDs, geometria customizada e tesselação. Escalas refletidas ficam individuais; durante atenuação por seleção, os lotes afetados usam meshes individuais para preservar a ordenação transparente. Limpar a seleção reutiliza os lotes.
+
+### Protocolo e ambiente
+
+React otimizado, React Flow, compositor, fábrica de modelos, geometria, Three.js e WebGL reais. Chrome 155/Windows no notebook i7-13650HX + RTX 4060 Laptop, ANGLE/D3D11, DPR 1, viewport 1.730 × 849, drawing buffer 1.178 × 492. Uma única aba em primeiro plano. Cargas sintéticas, sem conta, persistência, rede de API ou projetos do usuário. Somente fronteiras de mídia/decomposição não exercitadas foram substituídas para impedir hidratação de conta.
+
+Cada rodada de interação dura aproximadamente 1,8 segundo. Preparação e aquecimento ficam fora dela; a etapa de preparação inclui 580 ms de espera deliberada e não deve ser interpretada como tempo puro de criação. Não havia builds/suítes nossas durante as rodadas reportadas. A primeira medição concorrente com uma compilação foi descartada.
+
+Wrappers das APIs públicas WebGL contam draw calls e triângulos de todos os viewports; o tempo de CPU mede o callback que emitiu chamadas, incluindo submissão e instrumentação. **Não é tempo da GPU.** O monitor rAF mede cadência da thread, não apresentação física ou latência da caneta. O ensaio também foi repetido sem wrappers WebGL/getContext; nesse controle as contagens e o tempo de CPU do renderer ficam explicitamente indisponíveis.
+
+[Dados das rodadas e hashes dos bundles/fontes](data/three-compositor-2026-10-11.json). O [fixture reproduzível](../../scripts/three-performance/README.md) prepara um novo ensaio local a partir de uma referência Git explícita; não recria automaticamente as condições históricas da máquina.
+
+### Carga de caixas repetidas
+
+Vinte modelos × 512 objetos, quatro cores, transformações variadas. Baseline e primeiro piloto usam exatamente o mesmo compositor, anterior à filtragem de eventos. Mediana das três medianas de CPU de órbita; pan/zoom são rodadas únicas:
+
+| Indicador | Baseline | Instancing |
+| --- | ---: | ---: |
+| Chamadas por frame | 10.240 | 80 |
+| Triângulos por frame | 122.880 | 122.880 |
+| CPU por frame na órbita, mediana | 79,0 ms | 1,6 ms |
+| CPU por frame no pan, p50 / p95 | 70,6 / 74,7 ms | 2,5 / 6,1 ms |
+| CPU por frame no zoom, p50 / p95 | 73,0 / 81,0 ms | 2,2 / 3,4 ms |
+| Repouso: frames com draw calls | 0 | 0 |
+
+A redução de chamadas foi de 99,22%, mantendo os triângulos. As três medianas de órbita do baseline foram 89,4 / 79,0 / 71,5 ms; no piloto, 1,9 / 1,6 / 1,4 ms. Uma repetição posterior do baseline variou para 93,9 / 157,0 / 221,8 ms. Essa variação está preservada nos dados e impede tratar o quociente de tempos como um ganho universal. Não se identificou uma causa suficiente para atribuí-la a temperatura, GC ou carga externa.
+
+Controle sem wrappers WebGL, três rodadas por versão, mesmos modelos/tamanho/aba:
+
+| Indicador de cadência | Baseline sem wrappers | Piloto sem wrappers |
+| --- | --- | --- |
+| Intervalo rAF p50 por rodada | 74,9 / 75,0 / 92,4 ms | 6,3 / 6,3 / 6,3 ms |
+| Intervalo rAF p95 por rodada | 81,2 / 106,3 / 112,7 ms | 6,4 / 6,4 / 6,4 ms |
+| Long Tasks por rodada | 26 / 23 / 21 | 0 / 0 / 0 |
+
+Ambos os controles sem wrappers contêm o mesmo filtro de invalidação inicial, anterior à correção de revisão. Durante órbita, esse filtro continua invalidando por mudanças reais e a comparação entre os dois controles isola o agrupamento de modelos. Comparar seleção irrelevante desses controles contra os bundles originais misturaria mudanças e não foi usado como resultado isolado.
+
+### Formas mistas, ainda repetidas
+
+Caixas, cilindros, esferas e toros, 512 objetos por modelo, com quatro combinações de forma/cor repetidas. Uma rodada de órbita por carga/versão, instrumentada:
+
+| Modelos | Chamadas/frame antes → depois | Triângulos/frame, iguais | CPU p50 antes → depois | CPU p95 antes → depois |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 512 → 4 | 236.032 | 5,2 → 0,5 ms | 7,1 → 0,8 ms |
+| 8 | 4.096 → 32 | 1.888.256 | 36,0 → 1,2 ms | 39,7 → 2,1 ms |
+| 20 | 10.240 → 80 | 4.720.640 | 84,5 → 2,1 ms | 93,9 → 3,1 ms |
+
+Vinte modelos tiveram 22 Long Tasks antes e zero depois. Cada modelo permanece dentro do orçamento de geometria existente. Isso amplia o ensaio para mais formas, mas continua favorecendo repetição; não demonstra o mesmo ganho em malhas únicas, muitos materiais distintos ou grupos móveis que não podem ser agrupados.
+
+### Filtragem de notificações irrelevantes
+
+O compositor recebia todas as notificações dos stores React Flow/controles 3D. Agora compara viewport, retângulos e controles dos modelos presentes, copiando escalares para suportar mutações internas do React Flow. Reconciliação atualiza a base dos comparadores. Resize, mídia tardia, transições e restauração de contexto continuam solicitando desenho.
+
+A revisão independente encontrou um caso de snapshot antigo após trocar os artefatos: resetar o zoom do novo modelo podia coincidir com os valores do modelo anterior e ser ignorado. Três regressões reproduziram isso antes da correção; o rebase cobre troca de ID e atualização de retângulo mantendo o ID.
+
+No bundle final, com os mesmos vinte modelos mistos, alternar `selectionKeyPressed` por 1,8 s emitiu **zero frames/chamadas de desenho**; repouso também ficou em zero. Pan, zoom e órbita continuaram desenhando 80 chamadas/frame e 4.720.640 triângulos/frame. CPU p50 foi 2,4 / 2,3 / 1,8 ms, respectivamente; não houve Long Tasks nessas rodadas. O pan teve intervalo rAF p95 de 12,6 ms e máximo de 49,8 ms: não foi uma cadência absolutamente constante.
+
+### Limites e próximos gargalos
+
+- O ganho medido é de cenas sintéticas repetitivas no notebook. Ainda faltam modelos reais grandes, material/transparência variados, sessão prolongada e S9/celular com entrada física. Não se declara resolvida a lentidão de toda a aplicação.
+- O compositor ainda prepara modelos fora da tela e serializa identidades de cenas durante reconciliação. Uma mudança real numa vista ainda limpa/desenha todas as vistas visíveis; apenas pular vistas limpas apagaria seus pixels. Cache por vista exige composição e orçamento explícito de memória.
+- Recursos ainda pertencem a cada artefato; não há pool entre cópias. Instancing reduz materiais e submissões compatíveis, mas adiciona matrizes de instância. Contadores de buffers/heap não são VRAM total nem comprovam ausência de vazamentos.
+- Backups grandes continuam realizando conversões/canonicalizações repetidas de base64. A alocação intermediária encontrada nesta bateria foi corrigida conforme abaixo; a repetição dessas operações ainda merece avaliação separada. Limites e validação criptográfica permanecem intactos.
+- Workers de geometria/decodificação, orçamento adaptativo adicional de pixels, cache FBO e WebGPU continuam candidatos sujeitos a benchmark. Não houve mudança para renderização no servidor.
+
+### Conversão de envelopes grandes
+
+A primeira suíte ampla encontrou o teste de splice de chunks de backup acima de 20 s; reexecuções também excederam o timeout. A fixture usa 16 MiB + 1 byte, duas exportações e importação com o último chunk trocado entre pacotes. A inspeção localizou `Uint8Array.from(atob(value), callback)`: a conversão de um iterável grande cria trabalho e intermediários antes de produzir os bytes. Testes diagnósticos com Blob nativo/Node e FileReader/JSDOM concentraram o custo em decodificação/decriptação, e não nas leituras; houve carga concorrente nesses diagnósticos e seus tempos não são uma comparação controlada entre ambientes.
+
+[unb64](../../src/cloud/vault/crypto.ts) agora aloca o array de bytes diretamente e copia os code units Latin-1 retornados por `atob`. O limite de tamanho decodificado é conferido antes da alocação. Regex, limite do texto codificado, reconversão canônica, validações repetidas de envelope, AES-GCM, AAD e derivação de chave não foram removidos ou relaxados. Isso não muda formato, chaves ou dados persistidos.
+
+O teste de backup original, sem alterar os 20 s ou a carga, passou em 7,055 s na primeira reexecução após a mudança. O arquivo inteiro passou três testes; mais seis testes de criptografia passaram. As novas verificações cobrem todos os valores de byte através do limite de 8.192 bytes, padding não canônico, alfabeto inválido, vazio e limites codificados/decodificados. Esse resultado é regressão do caso que estourava o timeout, não benchmark geral de importação em todos os aparelhos.
+
+### Revisão e fixtures de persistência
+
+Duas revisões independentes examinaram batching, propriedade de recursos, transparência e contrato de montagem. O filtro recebeu a correção P2 descrita acima e passou 16 testes de ciclo de vida. A decodificação recebeu revisão independente de equivalência de bytes/limites/autenticação, sem achados adicionais.
+
+A bateria ampla inicial executou 200 arquivos: 193 passaram, dois foram pulados e cinco falharam (seis testes e um erro não tratado). Além do timeout de backup, quatro arquivos de testes ainda interceptavam a antiga fachada de persistência ou trocavam owner antes de drenar a fila do grafo. As mesmas falhas foram reproduzidas no `36bf93e` limpo. As fixtures agora interceptam o backend IndexedDB realmente capturado e aguardam o flush correto. Mantêm exigências de erro/ordenação e verificam a gravação real após retry/liberação. Seus 35 testes passaram sem erro não tratado; não houve alteração de runtime para contornar esses testes.
+
+### Verificação final deste lote
+
+`npm test -- --maxWorkers=3` concluiu em 371,44 s: **198 arquivos aprovados, dois pulados; 1.945 testes aprovados e oito pulados**. Os testes pulados são integrações live com provedores, não habilitadas nesta execução. Inclui os quatro testes novos de instancing, os 16 de ciclo de vida e os casos de criptografia/persistência acima. O teste pesado de backup passou também na suíte ampla: três casos em 12,647 s, mantendo o timeout original. Não houve falha nem erro não tratado.
+
+`npm run build` aprovou TypeScript e Vite novamente após a alteração de base64 (Vite: 39,90 s). Permanecem os avisos de chunks acima de 500 kB: Three.js em 565,46 kB e App em 668,65 kB, antes de gzip. `npm run check:bundle` passou, sem módulos de funcionalidades carregados antecipadamente (`eagerFeatureModules: []`). Essa auditoria foi executada antes da mudança local no corpo de `unb64`, que não altera imports ou fronteiras de carregamento.
+
+`npm run bench:three -- --baseline 36bf93e --prepare-only` e a execução padrão com a mesma referência concluíram com código zero. A segunda congelou e compilou baseline/candidato em diretório ignorado próprio (279/280 módulos), com manifesto de hashes e verificação das fronteiras de conta/rede. Não executou novas medições de navegador; as métricas reportadas continuam sendo as rodadas preservadas acima. A revisão final independente não encontrou outra regressão concreta.
+
+`npm run check:repo` passou na árvore final: 34 documentos mantidos, 829 links locais e sete fronteiras transitivas de módulos, sem alvos quebrados ou dependências proibidas. `git diff --check` também passou. A aplicação local continuou disponível em `http://127.0.0.1:5190/`; as medições desta bateria ocorreram no fixture local, não na aba de produção do usuário.
