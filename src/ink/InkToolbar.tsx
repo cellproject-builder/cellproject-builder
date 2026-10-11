@@ -5,6 +5,7 @@ import { InkStroke } from './InkStroke';
 import { InkPaletteOverlayContext } from './InkPaletteOverlay';
 import { createInkSettings, inkTools, type InkSettings, type InkTool } from './model';
 import './ink.css';
+import './inkPalette.css';
 
 export interface InkToolbarProps { value: InkSettings; onChange(value: InkSettings): void; english?: boolean; disabled?: boolean; className?: string }
 const names: Record<InkTool, [string, string]> = { pen: ['Caneta', 'Pen'], fountain: ['Bico de pena', 'Fountain pen'], monoline: ['Monoline', 'Monoline'], pencil: ['Lápis', 'Pencil'], highlighter: ['Marca-texto', 'Highlighter'] };
@@ -12,12 +13,14 @@ const icons = { pen: PenIcon, fountain: FountainPenIcon, monoline: Pencil1Icon, 
 
 export function InkToolbar({ value, onChange, english = false, disabled = false, className }: InkToolbarProps) {
   const t = (pt: string, en: string) => english ? en : pt;
-  const [expanded, setExpanded] = useState(false), host = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null), dialog = useRef<HTMLDivElement>(null), panel = useId();
+  const [popup, setPopup] = useState<'brush' | 'appearance' | null>(null);
+  const host = useRef<HTMLDivElement>(null), brushTrigger = useRef<HTMLButtonElement>(null), settingsTrigger = useRef<HTMLButtonElement>(null), dialog = useRef<HTMLDivElement>(null), panel = useId();
+  const expanded = popup !== null, trigger = popup === 'brush' ? brushTrigger : settingsTrigger;
   const overlay = useContext(InkPaletteOverlayContext), overlayTarget = overlay?.target ?? null, dock = overlay?.dock;
   const [position, setPosition] = useState<CSSProperties>();
   useEffect(() => {
     if (!expanded) return;
-    const close = (event: globalThis.PointerEvent) => { if (!host.current?.contains(event.target as Node) && !dialog.current?.contains(event.target as Node)) setExpanded(false); };
+    const close = (event: globalThis.PointerEvent) => { if (!host.current?.contains(event.target as Node) && !dialog.current?.contains(event.target as Node)) setPopup(null); };
     document.addEventListener('pointerdown', close, true);
     return () => document.removeEventListener('pointerdown', close, true);
   }, [expanded]);
@@ -59,25 +62,31 @@ export function InkToolbar({ value, onChange, english = false, disabled = false,
       window.visualViewport?.removeEventListener('scroll', update);
       observer?.disconnect();
     };
-  }, [expanded, overlayTarget, dock]);
+  }, [popup, overlayTarget, dock, trigger]);
   useLayoutEffect(() => {
-    if (expanded && overlayTarget) dialog.current?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
-  }, [expanded, overlayTarget]);
-  useEffect(() => { if (disabled) setExpanded(false); }, [disabled]);
-  const settings = expanded && <div ref={dialog} id={panel} className={`ink-settings-panel${overlayTarget ? ' ink-settings-panel--overlay' : ''}`} style={overlayTarget ? position : undefined} role="dialog" aria-label={t('Aparência do traço', 'Stroke appearance')} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setExpanded(false); trigger.current?.focus(); } }}>
+    if (expanded) dialog.current?.querySelector<HTMLElement>(popup === 'brush' ? '[aria-pressed=true]' : 'input[type=range]')?.focus({ preventScroll: true });
+  }, [popup, overlayTarget]);
+  useEffect(() => { if (disabled) setPopup(null); }, [disabled]);
+  const settings = expanded && <div ref={dialog} id={panel} className={`ink-settings-panel ink-tool-popover${overlayTarget ? ' ink-settings-panel--overlay' : ''}`} style={overlayTarget ? position : undefined} role="dialog" aria-label={popup === 'brush' ? t('Tipo de traço', 'Brush type') : t('Aparência do traço', 'Stroke appearance')} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setPopup(null); trigger.current?.focus(); } }}>
+    {popup === 'brush' ? <>
+      <div className="ink-settings-heading">{t('Tipo de traço', 'Brush type')}</div>
+      <div className="ink-brush-options" role="group" aria-label={t('Tipo de traço', 'Brush type')}>
+        {inkTools.map(tool => { const Brush = icons[tool]; return <button type="button" key={tool} data-ink-brush-option={tool} disabled={disabled} title={names[tool][english ? 1 : 0]} aria-label={names[tool][english ? 1 : 0]} aria-pressed={value.tool === tool}
+          onClick={() => { onChange({ ...createInkSettings(tool), color: value.color }); setPopup(null); brushTrigger.current?.focus(); }}><Brush size={18} /><span>{names[tool][english ? 1 : 0]}</span></button>; })}
+      </div>
+    </> : <>
     <div className="ink-settings-heading"><span>{names[value.tool][english ? 1 : 0]}</span><svg className="ink-preview" viewBox="0 0 64 28" aria-hidden="true"><InkStroke stroke={{ ...value, points: [{ x: 5, y: 21, pressure: .2 }, { x: 18, y: 7, pressure: .45 }, { x: 32, y: 21, pressure: .7 }, { x: 46, y: 7, pressure: .9 }, { x: 59, y: 14, pressure: .6 }] }} /></svg></div>
+    <label className="ink-appearance-color"><span>{t('Cor', 'Color')}</span><input type="color" aria-label={t('Cor do traço', 'Stroke color')} value={value.color} disabled={disabled} onChange={event => onChange({ ...value, color: event.target.value })} /></label>
     <label className="ink-range"><span>{t('Espessura', 'Width')}</span><input type="range" min=".25" max="24" step=".25" aria-label={t('Espessura do traço', 'Stroke width')} value={value.width} disabled={disabled} onChange={event => onChange({ ...value, width: Number(event.target.value) })} /><output>{value.width}</output></label>
     <label className="ink-range"><span>{t('Opacidade', 'Opacity')}</span><input type="range" min="5" max="100" step="1" aria-label={t('Opacidade do traço', 'Stroke opacity')} value={Math.round(value.opacity * 100)} disabled={disabled} onChange={event => onChange({ ...value, opacity: Number(event.target.value) / 100 })} /><output>{Math.round(value.opacity * 100)}%</output></label>
+    </>}
     </div>;
-  return <div ref={host} className={`ink-toolbar${className ? ` ${className}` : ''}`} role="group" aria-label={t('Pincéis e aparência do traço', 'Brushes and stroke appearance')}>
-    <div className="ink-brushes" role="group" aria-label={t('Tipo de traço', 'Brush type')}>
-      {inkTools.map(tool => { const Brush = icons[tool]; return <button type="button" key={tool} disabled={disabled} title={names[tool][english ? 1 : 0]} aria-label={names[tool][english ? 1 : 0]} aria-pressed={value.tool === tool}
-        onClick={() => onChange({ ...createInkSettings(tool), color: value.color })}>
-        <Brush width={19} height={19} />
-      </button>; })}
-    </div>
-    <label className="ink-color" title={t('Cor do traço', 'Stroke color')}><span className="ink-label">{t('Cor', 'Color')}</span><input type="color" aria-label={t('Cor do traço', 'Stroke color')} value={value.color} disabled={disabled} onChange={event => onChange({ ...value, color: event.target.value })} /></label>
-    <button ref={trigger} type="button" className="ink-settings-trigger" disabled={disabled} title={t('Ajustar traço', 'Stroke settings')} aria-label={t('Ajustar traço', 'Stroke settings')} aria-expanded={expanded} aria-controls={expanded ? panel : undefined} onClick={() => setExpanded(!expanded)}><OptionsIcon width={17} height={17} /></button>
+  const Brush = icons[value.tool], brushLabel = names[value.tool][english ? 1 : 0];
+  return <div ref={host} className={`ink-toolbar is-compact${className ? ` ${className}` : ''}`} role="group" aria-label={t('Pincéis e aparência do traço', 'Brushes and stroke appearance')}>
+    <button ref={brushTrigger} type="button" className="ink-brush-trigger" data-ink-brush-trigger data-tool={value.tool} disabled={disabled}
+      title={brushLabel} aria-label={`${t('Escolher caneta', 'Choose brush')}: ${brushLabel}`} aria-haspopup="dialog" aria-expanded={popup === 'brush'} aria-controls={popup === 'brush' ? panel : undefined}
+      onClick={() => setPopup(popup === 'brush' ? null : 'brush')}><Brush size={19} /><i aria-hidden="true" style={{ backgroundColor: value.color }} /></button>
+    <button ref={settingsTrigger} type="button" className="ink-settings-trigger" disabled={disabled} title={t('Ajustar traço', 'Stroke settings')} aria-label={t('Ajustar traço', 'Stroke settings')} aria-haspopup="dialog" aria-expanded={popup === 'appearance'} aria-controls={popup === 'appearance' ? panel : undefined} onClick={() => setPopup(popup === 'appearance' ? null : 'appearance')}><OptionsIcon width={17} height={17} /></button>
     {overlayTarget ? createPortal(settings, overlayTarget) : settings}
   </div>;
 }

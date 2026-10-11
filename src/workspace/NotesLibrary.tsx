@@ -76,7 +76,7 @@ export function NotesLibrary({ projectId, notes, folders, selectedId, filter, co
   const narrowed = !!query.trim() || filter !== 'all' || recentActive;
   const preview = (note: Note) => <button type="button" key={note.id} className={`ws-note-preview ${selectedId === note.id ? 'selected' : ''}`} aria-current={selectedId === note.id || undefined} onClick={() => onSelect(note.id)}>
     <div><strong>{note.title || tr.untitled}</strong>{note.pinned && <Icon name="pin" size={13} />}</div>
-    <p><time>{shortDate(note.updatedAt)}</time><span>{note.blocks.find((b) => b.text.trim())?.text || tr.notePlaceholder}</span></p>
+    <p><time>{shortDate(note.updatedAt)}</time><span>{note.blocks.find((b) => b.text.trim())?.text || (note.canvas?.items.length || note.canvas?.strokes.length || note.ink?.strokes.length ? english ? 'Drawings and images' : 'Desenhos e imagens' : english ? 'Empty note' : 'Nota vazia')}</span></p>
     {note.projectId && filter === 'trash' && <small>{projects[note.projectId]?.name}</small>}
   </button>;
   const notesByFolder = new Map<string | null, Note[]>();

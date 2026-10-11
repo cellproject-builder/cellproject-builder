@@ -3,6 +3,7 @@ import { diagramSchema } from '@/visuals/diagram/model';
 import { sceneSchema, validDiagramValues } from '@/visuals/normalize';
 import { noteImageSourceSchema } from '@/workspace/noteCanvasModel';
 import { inkPointSchema, inkStyleShape } from '@/ink/model';
+import { canvasAttachmentsSchema } from '@/attachments/canvasModel';
 
 const id = z.string().regex(/^[\w-]{1,100}$/).refine(value => !['constructor', 'prototype', '__proto__'].includes(value));
 const coordinate = z.number().finite().min(-100_000).max(100_000);
@@ -35,6 +36,7 @@ export const boardDocumentSchema = z.object({
   }
 });
 export const boardRecordSchema = z.object({
+  attachments: canvasAttachmentsSchema.optional(),
   id, title: z.string().trim().min(1).max(240), document: boardDocumentSchema, archived: z.boolean(),
   createdAt: z.number().finite().nonnegative().max(8.64e15), updatedAt: z.number().finite().nonnegative().max(8.64e15),
 }).strict();

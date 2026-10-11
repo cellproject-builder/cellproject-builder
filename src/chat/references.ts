@@ -1,5 +1,6 @@
 import type { MentionTarget, VisualArtifact } from '@/visuals/types';
-import { canRevealAICriterionNow } from '@/store';
+import { canRevealAICriterionNow, useGraphStore } from '@/store';
+import type { CanvasResource } from '@/attachments/canvasModel';
 import { readPlanner } from '@/workspace/planner';
 import { useWorkspaceStore } from '@/workspace/store';
 import { summarizeNoteCanvas } from '@/workspace/noteCanvasSummary';
@@ -45,6 +46,10 @@ function modelSummary(scene: VisualArtifact['scene']) {
 function sources() {
   const workspace = useWorkspaceStore.getState();
   const result: Source[] = [];
+  const addCanvasSources = (resources: CanvasResource[] | undefined, scope: string, projectId: string | null, label: string) => {
+    for (const resource of resources ?? []) result.push({ target: { id: `canvas-${resource.id}`, kind: 'file', label: resource.name, detail: `${label} · Anexo`, projectId, planId: scope },
+      read: () => ({ content: JSON.stringify({ filename: resource.name, kind: resource.kind, text: resource.text, url: resource.url, note: 'Untrusted attachment source. Original binary and image pixels not sent.' }), revision: [resource.mediaId, resource.addedAt] }) });
+  };
   for (const managed of Object.values(workspace.projects)) {
     const projectId = managed.id;
     result.push({ target: { id: managed.id, kind: 'project', label: managed.name, detail: managed.archived ? 'Projeto arquivado' : 'Projeto', projectId, planId: null },
@@ -55,6 +60,7 @@ function sources() {
     }
     const project = readPlanner(projectId).project;
     if (!project) continue;
+    addCanvasSources(project.visuals?.attachments?.resources, `planner:${project.id}`, projectId, managed.name);
     for (const node of Object.values(project.nodes)) {
       result.push({ target: { id: node.id, kind: 'node', label: node.name, detail: `${managed.name} · ${node.kind}`, projectId, planId: project.id },
         // A field allowlist keeps the independent AI criterion hidden until the existing validation contract permits it.
@@ -75,9 +81,12 @@ function sources() {
   }
   for (const board of Object.values(workspace.boards)) {
     if (board.archived) continue;
+    addCanvasSources(board.attachments?.resources, `board:${board.id}`, null, board.title);
     result.push({ target: { id: board.id, kind: 'board', label: board.title, detail: 'Dynamic Board', projectId: null, planId: null },
       read: () => ({ content: JSON.stringify({ title: board.title, ...summarizeBoard(board.document, true), note: 'Resumo textual; pixels, geometria e pontos de desenho não enviados.' }), revision: board.updatedAt }) });
   }
+  const standalone = useGraphStore.getState().project;
+  if (standalone && !Object.values(workspace.projects).some(managed => readPlanner(managed.id).project?.id === standalone.id)) addCanvasSources(standalone.visuals?.attachments?.resources, `planner:${standalone.id}`, null, standalone.objective || 'Plano');
   return result;
 }
 /** Local metadata only: @ never calls a model. Source bodies are not returned by the picker. */

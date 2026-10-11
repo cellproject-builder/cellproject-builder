@@ -5,6 +5,7 @@ import { toast } from '@/components/ui/Toast';
 import { useGraphStore } from '@/store';
 import { useWorkspaceStore } from '@/workspace/store';
 import { requestChatReferences } from '@/references/chatHandoff';
+import { CanvasAttachmentSurface } from '@/attachments/CanvasAttachmentSurface';
 import { getPlannerOwnerId } from '@/workspace/planner';
 import type { Project } from '@/types';
 import { TabbedVisualExplorer as VisualExplorer } from './ui/TabbedVisualExplorer';
@@ -148,6 +149,7 @@ export const VisualWorkspaceBridge = memo(function VisualWorkspaceBridge({ proje
     };
   }, [containerRef, en, onAdd, point, project.id]);
   return <>
+    <CanvasAttachmentSurface key={`attachments:${project.id}`} scope={{kind:'planner',id:project.id}} containerRef={containerRef} english={en}/>
     {dropHint && <div className="visual-drop-feedback" role="status"><span style={{ left: dropHint.x, top: dropHint.y }}><b aria-hidden>＋</b>{en ? 'Drop to add to the plan' : 'Solte para adicionar ao plano'}</span></div>}
     {workspace.artifacts.length > 0 && <Suspense fallback={null}><VisualCanvasLayer artifacts={workspace.artifacts} onAvailability={availability} /></Suspense>}
     <div className="visual-canvas-actions" aria-label={en ? 'Visual tools' : 'Ferramentas visuais'}>

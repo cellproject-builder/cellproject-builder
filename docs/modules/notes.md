@@ -1,6 +1,6 @@
 # Notas e caderno visual
 
-Visão canônica do módulo, atualizada em 11/10/2026. A descrição detalhada da entrega e de sua validação histórica está em [notes-visual-notebook.md](../notes-visual-notebook.md); este documento organiza responsabilidades, dados e limites para manutenção e uso em artigos.
+Visão canônica do módulo, atualizada em 11/10/2026. A descrição detalhada da entrega e de sua validação histórica está em [notes-visual-notebook.md](../notes-visual-notebook.md); a reconstrução mais recente do editor está em [notebook-editor.md](../design/notebook-editor.md). Este documento organiza responsabilidades, dados e limites para manutenção e uso em artigos.
 
 ## Finalidade e estado
 
@@ -9,6 +9,7 @@ Notas permitem registrar texto e explorar uma ideia com desenho, imagens e diagr
 | Estado | Capacidade |
 | --- | --- |
 | Implementado | Biblioteca unificada, pastas pessoais, agrupamento virtual por projeto, busca por título e blocos, filtro de recentes, ordenação por nome/atualização, fixação, lixeira/restauração, vínculos opcionais, editor de blocos e maximização. |
+| Implementado | Escrita com um único convite inicial no corpo, barra compacta, opções da nota e ações contextuais por parágrafo; inserção discreta de bloco com foco no novo campo. |
 | Implementado | Caderno vetorial opcional com seleção, caneta, borracha, régua, texto livre, imagens raster, diagramas SVG interativos, zoom e desfazer/refazer de operações. |
 | Implementado | Desenho livre sobre título e blocos de texto em `NoteInkOverlay`, sem substituir ou desmontar a escrita. Caneta, bico de pena, monoline, lápis e marca-texto usam o motor compartilhado `src/ink`; cotas e persistência da nota continuam próprias. |
 | Implementado, dependente de IA | Ditado por um controle único da nota; chat contextual para revisão, pesquisa web com fontes e geração de diagramas na nota, inclusive pessoal e sem plano. O compositor visual direto mantém sua prévia. |
@@ -20,13 +21,15 @@ O caderno é uma folha de coordenadas delimitadas dentro de uma nota. O [Dynamic
 ## Fluxo da pessoa
 
 1. Abrir o Diário geral ou as notas de um projeto. O filtro geral pode incluir notas vinculadas; o filtro de projeto limita a lista àquele `projectId`.
-2. Criar uma nota geral, diretamente numa pasta pessoal ou no subgrupo de um projeto. Escrever título e blocos `text`, `heading`, `bullet` ou `check`; aplicar negrito/itálico e marcar checklists.
-3. Opcionalmente ligar a nota a projeto/tarefa e pasta. Trocar o projeto remove o vínculo anterior de tarefa para impedir referência cruzada.
+2. Criar uma nota geral, diretamente numa pasta pessoal ou no subgrupo de um projeto. O corpo vazio mostra um único convite para escrever. Escrever título e blocos `text`, `heading`, `bullet` ou `check`; aplicar negrito/itálico e marcar checklists. O pequeno `+` na margem acrescenta um parágrafo e coloca o foco nele.
+3. Abrir **Opções da nota** para fixar, ajustar vínculos ou enviar à lixeira. Opcionalmente ligar a nota a projeto/tarefa e pasta. Trocar o projeto remove o vínculo anterior de tarefa para impedir referência cruzada.
 4. Abrir o lápis/caderno. Desenhar, apagar, usar régua, inserir texto ou colar/importar imagens. Expandir mantém o mesmo editor; zoom muda a visualização, não as coordenadas salvas.
-5. Usar o microfone da barra para ditar no título ou parágrafo em edição. Abrir **IA** para conversar com a nota como referência visível; pedir pesquisa, revisão ou um diagrama. Selecionar um trecho e usar sua ação de IA prepara um rascunho no mesmo chat, sem enviar automaticamente. O compositor visual direto continua disponível nas ferramentas do caderno.
+5. Usar o único microfone da barra para ditar no título ou parágrafo em edição. Abrir **IA** para conversar com a nota como referência visível; pedir pesquisa, revisão ou um diagrama. **Ações do parágrafo** reúne formatação e IA num menu discreto na margem. Selecionar um trecho e usar sua ação de IA prepara um rascunho no mesmo chat, sem enviar automaticamente. Escape fecha o menu e devolve o foco ao parágrafo, preservando a seleção. O compositor visual direto continua disponível nas ferramentas do caderno.
 6. Fixar, buscar, mover de pasta, enviar à lixeira ou restaurar. A nota na lixeira é apresentada como somente leitura; remover uma pasta preserva suas notas sem pasta.
 
 A busca normal da biblioteca considera título e texto dos blocos, não OCR dos desenhos/imagens ou todas as legendas internas do caderno. A seleção do editor continua aberta quando uma edição deixa de corresponder à busca. Excluir uma tarefa não exclui a nota: o store limpa `taskId`.
+
+A prévia de uma nota sem texto usa **Nota vazia** ou **Desenhos e imagens**, conforme o conteúdo visual. Ela não repete o convite de escrita do corpo. Notas antigas com vários blocos vazios conservam todos os blocos e IDs; apenas o primeiro apresenta esse convite. Abrir o editor não reescreve esses registros nem migra o modelo de nota, canvas ou traços.
 
 ### Organização da biblioteca
 
@@ -44,6 +47,7 @@ As ações e a navegação usam a família SVG compartilhada de [SoftIcons.tsx](
 | --- | --- |
 | Escopo e navegação | [Workspace.tsx](../../src/workspace/Workspace.tsx) escolhe Diário ou escopo de projeto e entrega a nota solicitada. |
 | Biblioteca e editor | [Notes.tsx](../../src/workspace/Notes.tsx) coordena seleção, filtros, editor, vínculos, lixeira, salvamento e maximização; [NotesLibrary.tsx](../../src/workspace/NotesLibrary.tsx) organiza grupos e prévias. |
+| Ações compactas | [NoteActionMenu.tsx](../../src/workspace/NoteActionMenu.tsx) controla os menus da nota/parágrafo e o retorno de foco; [NotesEditor.css](../../src/workspace/NotesEditor.css) apresenta a barra, a margem de ações e o controle de inserir bloco. |
 | Texto assistido e ditado | [NoteTextActions.tsx](../../src/workspace/NoteTextActions.tsx) encaminha trecho/parágrafo ao chat compartilhado; [AudioField.tsx](../../src/audio/AudioField.tsx) fornece um único controle com destino externo, reaproveitando gravação e transcrição. |
 | Pesquisa e criação contextual | [ai/noteTools.ts](../../src/ai/noteTools.ts) recebe a identidade da nota congelada no envio, pesquisa com [ai/research.ts](../../src/ai/research.ts) e acrescenta diagramas validados sem exigir um planner. |
 | Integração do caderno | [NoteNotebook.tsx](../../src/workspace/NoteNotebook.tsx) controla colagem, importação, leitura de mídia, cancelamento e inserção independente de diagramas. |
@@ -101,6 +105,7 @@ Importações usam `registerDataIngestion` desde a primeira leitura até convers
 | Testes existentes | Comportamentos examinados |
 | --- | --- |
 | [NotesLibrary.test.tsx](../../src/workspace/NotesLibrary.test.tsx), [Notes.test.tsx](../../src/workspace/Notes.test.tsx) | Pastas pessoais e virtuais, ausência de duplicação, criação contextual, recentes de sete dias, ordem alfabética, busca, escopo, seleção, editor maximizado, manutenção de foco e comunicação de erro ao salvar. |
+| [Notes.editor.test.tsx](../../src/workspace/Notes.editor.test.tsx) | Convite único de escrita, preservação de blocos vazios e desenhos legados, inserção compacta com foco, opções da nota e retorno de foco/seleção ao fechar as ações do parágrafo. |
 | [SoftIcons.test.tsx](../../src/components/ui/SoftIcons.test.tsx) | Consistência da família SVG, dimensões, refs, nomes acessíveis e preservação de aparência legada. |
 | [NoteTextActions.test.tsx](../../src/workspace/NoteTextActions.test.tsx), [AssistantChat.test.tsx](../../src/chat/AssistantChat.test.tsx) | Seleção/parágrafo, formatação, referência explícita, rascunho preservado, ausência de envio automático e destino de conversa válido. |
 | [AudioDictationButton.test.tsx](../../src/audio/AudioDictationButton.test.tsx), [Notes.test.tsx](../../src/workspace/Notes.test.tsx), [Workspace.notes-chat.test.tsx](../../src/workspace/Workspace.notes-chat.test.tsx) | Controle único, seleção do título/parágrafo, cancelamento, composição, edição concorrente e chat sobre a nota maximizada. |
@@ -112,6 +117,8 @@ Importações usam `registerDataIngestion` desde a primeira leitura até convers
 | [noteDiagram.test.ts](../../src/workspace/noteDiagram.test.ts), [NoteDiagramComposer.test.tsx](../../src/workspace/NoteDiagramComposer.test.tsx) | Contexto autorizado, exclusão de pixels, assinaturas semânticas, prévia, aplicação explícita, cancelamento e retenção de prévia quando a inserção falha. |
 
 O [registro histórico de validação](../notes-visual-notebook.md#validação) distingue testes simulados, verificações no navegador e uma chamada real com pedido sintético. A contagem de suíte registrada ali corresponde àquela entrega, não a uma nova execução nesta revisão documental. Toque/caneta tiveram eventos simulados; isso não equivale a teste de hardware físico. O diagrama sintético de alavanca não comprova um ensaio mecânico.
+
+Na [reconstrução do editor](../design/notebook-editor.md#verificação), os cinco novos casos de `Notes.editor` falharam antes da implementação e passaram após a mudança. A rodada registrada reuniu 43 testes de `Notes.editor`, `Notes`, `NoteTextActions`, `Notes.canvas` e `NotesLibrary`. Essa evidência DOM cobre os fluxos e a preservação de dados descritos, mas não comprova a qualidade visual em desktop/celular nem o uso em hardware físico. Esta atualização documental não executou uma nova rodada de testes ou validação visual.
 
 ## Lacunas e diagnóstico de modularização
 

@@ -203,6 +203,7 @@ it('selects a stroke crossing the lasso and deletes it as one undoable action', 
 it('moves anchored highlighter ink after a section grows without exceeding the saved brush width', () => {
   const stage = openInk(), anchor = host.querySelector<HTMLElement>('[data-ink-anchor="block:paragraph"]')!;
   vi.mocked(anchor.getBoundingClientRect).mockReturnValue(rect(10, 120, 300, 80));
+  act(() => Simulate.click(host.querySelector('[data-ink-brush-trigger]')!));
   act(() => Simulate.click(button('Marca-texto')));
   pointer(stage, 'pointerDown', 40, 140); pointer(stage, 'pointerUp', 130, 160);
   vi.mocked(anchor.getBoundingClientRect).mockReturnValue(rect(10, 120, 600, 80));

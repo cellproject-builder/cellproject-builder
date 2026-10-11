@@ -1,5 +1,7 @@
 # Paleta compacta do Dynamic Board — 11/10/2026
 
+> Registro histórico da implementação anterior. A reconstrução posterior, com histórico sempre acessível e escolhas abertas por clique, está descrita em [Controles compactos de tinta](../design/compact-ink-controls.md). As medidas e capturas abaixo não representam a barra atual.
+
 ## Alteração
 
 O painel fixo de 300 px, que quebrava ferramentas em várias fileiras, foi substituído no Dynamic Board por uma faixa única. O canvas largo usa a lateral esquerda em coluna; o canvas alto usa o topo em linha. A orientação acompanha o tamanho real do canvas, inclusive na maximização, sem observar cada frame do desenho.

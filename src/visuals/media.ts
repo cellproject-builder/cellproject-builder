@@ -90,9 +90,10 @@ function storedProjects(): Project[] {
   return [graph.project, graph.archivedProject, graph.replacedArchive?.project,
     ...Object.values(useWorkspaceStore.getState().projects).flatMap(p => [p.planner?.project, p.planner?.archivedProject])].filter((p): p is Project => Boolean(p));
 }
-function referencedIds(projects = storedProjects()) {
+function referencedIds(projects = storedProjects(), scopeId?: string) {
   const ids = new Set<string>();
   for (const project of projects) { try { for (const id of collectVisualMediaIds(project)) ids.add(id); } catch { /* Invalid snapshots are isolated by projectBoundary. */ } }
+  for (const board of Object.values(useWorkspaceStore.getState().boards)) if (!scopeId || scopeId === `board:${board.id}`) for (const resource of board.attachments?.resources ?? []) if (resource.mediaId) ids.add(resource.mediaId);
   return ids;
 }
 function releaseReferencedPending() { if (!pendingMedia.size) return; for (const id of referencedIds()) pendingMedia.delete(id); }
@@ -114,9 +115,11 @@ export async function collectUnreferencedVisualMedia(now = Date.now()): Promise<
   mediaWrites = operation.catch(() => {}); await operation;
 }
 async function persistMedia(records: MediaRecord[], projectId: string) {
+  const owner = getCloudRuntime();
   const operation = mediaWrites.then(async () => {
+    if (getCloudRuntime() !== owner) throw new Error('visualProjectChanged');
     releaseReferencedPending();
-    const cloud = getCloudRuntime();
+    const cloud = owner;
     if (cloud) {
       const stored = cloud.media(), incoming = new Map(records.map(record => [record.id, record]));
       const currentProject = stored.filter(record => record.projectId === projectId);
@@ -125,13 +128,17 @@ async function persistMedia(records: MediaRecord[], projectId: string) {
       if (projectBytes > MAX_VISUAL_STORAGE_BYTES) throw new Error('visualProjectStorageFull');
       const total = stored.reduce((sum, record) => sum + record.size, 0) + records.filter(record => !stored.some(existing => existing.id === record.id)).reduce((sum, record) => sum + record.bytes.byteLength, 0);
       if (total > MAX_GLOBAL_MEDIA_BYTES) throw new Error('visualStorageFull');
-      for (const record of records) await cloud.writeMedia({ ...record, projectId, createdAt: record.createdAt ?? Date.now() });
+      for (const record of records) {
+        if (getCloudRuntime() !== owner) throw new Error('visualProjectChanged');
+        await cloud.writeMedia({ ...record, projectId, createdAt: record.createdAt ?? Date.now() });
+      }
+      if (getCloudRuntime() !== owner) throw new Error('visualProjectChanged');
       return;
     }
     await pruneStoredMedia(Date.now());
     const stored = await entries<string, MediaRecord>(db);
     const recordsById = new Map(stored);
-    const projectRefs = referencedIds(storedProjects().filter(p => p.id === projectId));
+    const projectRefs = referencedIds(storedProjects().filter(p => p.id === projectId || `planner:${p.id}` === projectId), projectId);
     for (const [id, pending] of pendingMedia) if (pending.projectId === projectId && Date.now() - pending.createdAt < ORPHAN_GRACE_MS) projectRefs.add(id);
     for (const record of records) projectRefs.add(record.id);
     const incoming = new Map(records.map(record => [record.id, record]));
@@ -145,6 +152,7 @@ async function persistMedia(records: MediaRecord[], projectId: string) {
     }
     if (total > MAX_GLOBAL_MEDIA_BYTES) throw new Error('visualStorageFull');
     for (const record of records) {
+      if (getCloudRuntime() !== owner) throw new Error('visualProjectChanged');
       await set(record.id, { ...record, createdAt: record.createdAt ?? Date.now(), projectId }, db);
       pendingMedia.set(record.id, { projectId, createdAt: Date.now() });
     }
@@ -157,20 +165,34 @@ function inferredMime(file: File) {
   const ext = file.name.split('.').pop()?.toLowerCase();
   return ({ pdf: 'application/pdf', txt: 'text/plain', md: 'text/markdown', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' } as Record<string, string>)[ext ?? ''] ?? '';
 }
-async function writeMedia(file: Blob, name: string, signal?: AbortSignal): Promise<MediaRecord & { imageSize: ImageSize | null }> {
+async function writeMedia(file: Blob, name: string, signal?: AbortSignal, scopeId?: string): Promise<MediaRecord & { imageSize: ImageSize | null }> {
   signal?.throwIfAborted();
-  const projectId = currentVisualScope().projectId;
+  const projectId = scopeId ?? currentVisualScope().projectId;
+  const owner = getCloudRuntime();
   if (file.size > MAX_VISUAL_FILE_BYTES) throw new Error('visualFileTooLarge');
   const bytes = await fileBytes(file); signal?.throwIfAborted(); validateBytes(bytes, file.type);
   const imageSize = await validateImage(bytes, file.type, signal);
   const record = { id: nanoid(), mime: file.type, name, bytes, createdAt: Date.now(), projectId };
+  signal?.throwIfAborted();
+  if (getCloudRuntime() !== owner) throw new Error('visualProjectChanged');
   await persistMedia([record], projectId); signal?.throwIfAborted();
   return { ...record, imageSize };
 }
+/** Shared original-file storage. Callers own the document guard; account changes are never retargeted. */
+export async function storeCanvasFile(file: File, scopeId: string, signal?: AbortSignal): Promise<{ id: string; mime: string; size: number }> {
+  if (!scopeId || scopeId.length > 200) throw new Error('visualProjectChanged');
+  const finish = registerDataIngestion();
+  try {
+    const mime = inferredMime(file);
+    const record = await writeMedia(new Blob([file], { type: mime }), file.name.slice(0, 240), signal, scopeId);
+    return { id: record.id, mime: record.mime, size: record.bytes.byteLength };
+  } finally { finish(); }
+}
 export async function readVisualMedia(mediaId: string): Promise<Blob | null> {
   const cloud = getCloudRuntime();
-  if (cloud) { const metadata = cloud.media().find(record => record.id === mediaId); if (!metadata) return null; const bytes = await cloud.readMedia(mediaId); return bytes ? new Blob([bytes], { type: metadata.mime }) : null; }
+  if (cloud) { const metadata = cloud.media().find(record => record.id === mediaId); if (!metadata) return null; const bytes = await cloud.readMedia(mediaId); if (getCloudRuntime() !== cloud) throw new Error('visualProjectChanged'); return bytes ? new Blob([bytes], { type: metadata.mime }) : null; }
   const record = await get<MediaRecord>(mediaId, db);
+  if (getCloudRuntime() !== cloud) throw new Error('visualProjectChanged');
   return record ? new Blob([record.bytes], { type: record.mime }) : null;
 }
 /** Original local bytes only; no provider URL downloads or hidden image selection. */

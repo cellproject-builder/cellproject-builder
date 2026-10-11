@@ -24,7 +24,11 @@ let host:HTMLDivElement,root:Root,id:string;
 beforeEach(async()=>{await flushWorkspacePersistence();vi.clearAllMocks();flow.viewport={x:0,y:0,zoom:1};flow.setViewport.mockImplementation(async next=>{flow.viewport=next;return true;});(globalThis as {IS_REACT_ACT_ENVIRONMENT?:boolean}).IS_REACT_ACT_ENVIRONMENT=true;useWorkspaceStore.setState({boards:{},activeBoardId:null,projects:{},notes:{},surface:'boards'});id=useWorkspaceStore.getState().createBoard('Sketch');host=document.createElement('div');document.body.append(host);root=createRoot(host);act(()=>root.render(<BoardCanvas boardId={id} onBack={vi.fn()}/>));});
 afterEach(async()=>{act(()=>root.unmount());await flushWorkspacePersistence();configureLiveInk(null);configureCloud(null);host.remove();});
 const openPalette=()=>{const trigger=host.querySelector<HTMLButtonElement>('[data-ink-palette-trigger]');if(trigger?.getAttribute('aria-expanded')==='false')act(()=>trigger.click());};
-const click=(label:string)=>{if(!host.querySelector(`[aria-label="${label}"]`))openPalette();act(()=>Simulate.click(host.querySelector(`[aria-label="${label}"]`)!));};
+const click=(label:string)=>{
+  if(!host.querySelector(`[aria-label="${label}"]`))openPalette();
+  if(['Caneta','Bico de pena','Monoline','Lápis','Marca-texto'].includes(label)&&!host.querySelector(`[aria-label="${label}"]`))act(()=>host.querySelector<HTMLButtonElement>('[data-ink-brush-trigger]')!.click());
+  act(()=>Simulate.click(host.querySelector(`[aria-label="${label}"]`)!));
+};
 const key=(key:string,options:Record<string,unknown>={})=>act(()=>Simulate.keyDown(host.querySelector('[data-board-canvas]')!,{key,...options}));
 const items=()=>useWorkspaceStore.getState().boards[id].document.items;
 const pointer=(type:'pointerDown'|'pointerMove'|'pointerUp'|'pointerCancel'|'lostPointerCapture',x:number,y:number,extra:Record<string,unknown>={})=>{const values={pointerId:1,button:0,isPrimary:true,clientX:x,clientY:y,pointerType:'mouse',...extra};act(()=>Simulate[type](host.querySelector('.db-drawing-layer')!,values));};
@@ -101,8 +105,55 @@ it('docks one compact palette while drawing and collapsing it keeps drawing acti
   click('Desenhar');expect(host.querySelector('[data-ink-palette-trigger]')).not.toBeNull();
   expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();expect(host.querySelector('.db-tools')).toBeNull();
   openPalette();expect(host.querySelectorAll('.db-tools')).toHaveLength(1);expect(host.querySelectorAll('.ink-toolbar')).toHaveLength(1);
-  click('Recolher ferramentas de desenho');expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();
+  act(()=>host.querySelector<HTMLButtonElement>('[data-ink-palette-trigger]')!.click());expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();
   pointer('pointerDown',10,20,{pointerType:'pen'});pointer('pointerUp',30,40,{pointerType:'pen'});expect(items()).toHaveLength(1);
+});
+it('keeps undo and redo usable on the collapsed drawing rail without expanding tools',()=>{
+  click('Desenhar');
+  expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();
+  expect(host.querySelector<HTMLButtonElement>('.ink-palette-undo')!.disabled).toBe(true);
+  expect(host.querySelector('.ink-palette-redo')).toBeNull();
+  pointer('pointerDown',10,20,{pointerType:'pen'});pointer('pointerUp',30,40,{pointerType:'pen'});
+  const stroke=items()[0];
+  expect(host.querySelector<HTMLButtonElement>('.ink-palette-undo')!.disabled).toBe(false);
+  act(()=>host.querySelector<HTMLButtonElement>('.ink-palette-undo')!.click());
+  expect(items()).toHaveLength(0);expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();
+  act(()=>host.querySelector<HTMLButtonElement>('.ink-palette-redo')!.click());
+  expect(items()).toEqual([stroke]);expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();
+  expect(host.querySelector('.ink-palette-redo')).toBeNull();
+});
+it('opens drawing and brush choices only after explicit activation',()=>{
+  click('Desenhar');
+  const trigger=host.querySelector<HTMLButtonElement>('[data-ink-palette-trigger]')!;
+  act(()=>{trigger.focus();Simulate.pointerEnter(trigger,{pointerType:'pen'} as never);});
+  expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();
+  act(()=>trigger.click());
+  const brush=host.querySelector<HTMLButtonElement>('[data-ink-brush-trigger]')!;
+  expect(host.querySelector('[data-ink-brush-option]')).toBeNull();
+  act(()=>{brush.focus();Simulate.pointerEnter(brush,{pointerType:'pen'} as never);});
+  expect(host.querySelector('[aria-label="Tipo de traço"]')).toBeNull();
+  act(()=>brush.click());
+  const highlighter=host.querySelector<HTMLButtonElement>('[data-ink-brush-option="highlighter"]')!;
+  expect(highlighter).not.toBeNull();act(()=>highlighter.click());
+  expect(host.querySelector('[data-ink-brush-option]')).toBeNull();
+  pointer('pointerDown',10,20,{pointerType:'pen'});pointer('pointerUp',30,40,{pointerType:'pen'});
+  expect(items()[0]).toMatchObject({kind:'drawing',tool:'highlighter',opacity:.28});
+  expect(host.querySelectorAll('[aria-label="Desfazer"]')).toHaveLength(1);
+});
+it('leaves drawing from the collapsed rail and exposes creation controls only outside drawing',()=>{
+  const creation=['Adicionar cartão','Adicionar texto','Adicionar imagem','Gerar diagrama','Gerar 3D','Buscar imagens'];
+  for(const label of creation)expect(host.querySelector(`[aria-label="${label}"]`)).not.toBeNull();
+  click('Desenhar');
+  for(const label of creation)expect(host.querySelector(`[aria-label="${label}"]`)).toBeNull();
+  openPalette();
+  for(const label of creation)expect(host.querySelector(`[aria-label="${label}"]`)).toBeNull();
+  act(()=>host.querySelector<HTMLButtonElement>('[data-ink-palette-trigger]')!.click());
+  pointer('pointerDown',10,20,{pointerType:'pen'});pointer('pointerMove',30,40,{pointerType:'pen'});
+  const exit=host.querySelector<HTMLButtonElement>('.ink-palette-exit')!;
+  expect(exit.getAttribute('aria-label')).toBe('Voltar à seleção');act(()=>exit.click());
+  expect(host.querySelector('[data-ink-palette]')).toBeNull();expect(host.querySelector('.db-drawing-layer')).toBeNull();
+  expect(items()).toHaveLength(0);expect(hasActiveDataIngestions()).toBe(false);
+  for(const label of creation)expect(host.querySelector(`[aria-label="${label}"]`)).not.toBeNull();
 });
 it('touch pans in drawing mode without ink or a durable write until release, and without adding undo history',()=>{
   click('Adicionar cartão');const card=items()[0];click('Desenhar');const before=useWorkspaceStore.getState().boards[id];
@@ -249,7 +300,7 @@ it('commits a pressure-aware drawing once and cancels a second gesture without a
 });
 it('erases whole strokes in one undoable gesture and preserves cancelled erasing',()=>{
   click('Desenhar');pointer('pointerDown',100,100);pointer('pointerUp',200,100);
-  click('Adicionar cartão');const original=items();
+  click('Voltar à seleção');click('Adicionar cartão');const original=items();
   click('Borracha de traços');pointer('pointerDown',150,40);pointer('pointerMove',150,140);
   expect(items()).toEqual(original);pointer('pointerCancel',150,140);expect(items()).toEqual(original);
   pointer('pointerDown',150,40);pointer('pointerUp',150,140);expect(items()).toHaveLength(1);expect(items()[0].kind).toBe('card');

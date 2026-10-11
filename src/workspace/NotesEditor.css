@@ -1,0 +1,50 @@
+/* One writing surface; tools stay at its edge instead of floating over every line. */
+.ws-notes .ws-note-editor .ws-note-toolbar {gap:2px; min-height:42px; padding:4px 8px; margin:8px 10px 0; box-shadow:none; background:transparent; backdrop-filter:none; -webkit-backdrop-filter:none;}
+.ws-notes .ws-note-editor .ws-note-format {flex:none; margin-right:6px; padding-right:8px; border-right:1px solid rgb(var(--border-base)/.45);}
+.ws-notes .ws-note-editor .ws-note-toolbar .ws-icon-button {width:30px; min-width:30px; height:30px; padding:4px;}
+.ws-notes .ws-note-editor .ws-note-toolbar .ws-note-assistant {width:30px; padding:4px;}
+.ws-notes .ws-note-editor .ws-note-assistant span {display:none;}
+.ws-notes .ws-note-editor .ws-save-state {padding-inline:5px; font-size:10px; white-space:nowrap;}
+.ws-notes .ws-note-editor .ws-note-paper {padding:24px clamp(26px,5vw,64px) 100px;}
+.ws-notes .ws-note-document {max-width:820px; min-height:55vh; margin-inline:auto;}
+.ws-notes .ws-note-date {text-align:left; margin-bottom:14px; font-size:11px;}
+.ws-notes .ws-note-title {margin-bottom:24px;}
+.ws-notes .ws-note-blocks {gap:7px;}
+.ws-notes .ws-note-block textarea[data-block] {font-size:15px; line-height:1.8;}
+.ws-note-action-menu {position:relative; flex:none; color:rgb(var(--text-muted));}
+.ws-note-action-menu>summary {display:grid; place-items:center; width:30px; height:30px; border-radius:var(--ws-radius-control,8px); list-style:none; cursor:pointer; user-select:none;}
+.ws-note-action-menu>summary::-webkit-details-marker {display:none;}
+.ws-note-action-menu>summary:hover, .ws-note-action-menu[open]>summary {color:rgb(var(--text-primary)); background:rgb(var(--text-primary)/.06);}
+.ws-note-action-menu>summary:focus-visible, .ws-note-options-panel button:focus-visible {outline:2px solid var(--ws-focus); outline-offset:2px;}
+.ws-note-options-panel {position:absolute; right:0; top:calc(100% + 6px); z-index:25; display:grid; gap:2px; width:190px; padding:5px; border:1px solid rgb(var(--border-base)/.5); border-radius:var(--ws-radius-row,12px); background:rgb(var(--bg-secondary)); box-shadow:var(--ws-shadow-island);}
+.ws-note-options-panel button {display:flex; align-items:center; gap:9px; padding:9px; min-height:36px; border-radius:7px; color:rgb(var(--text-secondary)); text-align:left; font-size:12px;}
+.ws-note-options-panel button:hover {background:rgb(var(--text-primary)/.06);}
+.ws-note-options-panel button>svg {flex:none;}
+.ws-note-paragraph-options {position:absolute; left:-29px; top:0; z-index:6;}
+.ws-note-paragraph-options>summary {width:25px; height:27px; opacity:.25;}
+.ws-note-block:hover>.ws-note-paragraph-options>summary, .ws-note-block:focus-within>.ws-note-paragraph-options>summary, .ws-note-paragraph-options[open]>summary {opacity:1;}
+.ws-note-paragraph-options>.ws-note-actions {left:0; right:auto; bottom:calc(100% + 5px); min-width:218px; max-width:min(270px,calc(100vw - 42px)); border:1px solid rgb(var(--border-base)/.5); background:rgb(var(--bg-secondary)); opacity:1; visibility:visible; pointer-events:auto;}
+.ws-note-paragraph-options:not([open])>.ws-note-actions {display:none;}
+.ws-notes .ws-remove-block {right:-27px; top:2px; width:24px; height:27px; display:grid; place-items:center; border-radius:6px;}
+.ws-notes .ws-note-editor .ws-add-block {display:grid; place-items:center; width:28px; min-height:28px; height:28px; padding:0; margin:8px 0 0 -29px; border-radius:7px; color:rgb(var(--text-muted)); opacity:.4;}
+.ws-notes .ws-note-editor .ws-add-block:hover, .ws-notes .ws-note-editor .ws-add-block:focus-visible {opacity:1; background:rgb(var(--text-primary)/.05);}
+.ws-notes .ws-note-editor .ws-add-block:focus-visible {outline:2px solid var(--ws-focus); outline-offset:2px;}
+@media (max-width:700px) {
+  .ws-notes .ws-note-editor .ws-note-toolbar {flex-wrap:wrap; margin:4px 4px 0; padding:4px; gap:2px;}
+  .ws-notes .ws-note-editor .ws-note-format {flex:1 1 auto; order:0; margin-right:0; padding-right:4px;}
+  .ws-notes .ws-note-editor .ws-note-format select {max-width:88px; min-height:36px; font-size:14px;}
+  .ws-notes .ws-note-editor .ws-note-toolbar .ws-icon-button {width:36px; min-width:36px; height:36px;}
+  .ws-notes .ws-note-editor .ws-note-insert-tools {order:1; flex:1 0 auto;}
+  .ws-notes .ws-note-editor .ws-save-state {order:2; margin-left:auto;}
+  .ws-note-options {order:3;}
+  .ws-notes .ws-note-editor .ws-note-toolbar>button:last-child {order:4;}
+  .ws-notes .ws-note-editor .ws-note-paper {padding:20px 31px max(80px,env(safe-area-inset-bottom));}
+  .ws-notes .ws-note-block textarea[data-block] {font-size:16px;}
+}
+@media (pointer:coarse) {
+  .ws-note-paragraph-options>summary {opacity:.65; min-height:32px;}
+  .ws-notes .ws-note-editor .ws-add-block {min-height:36px; height:36px; opacity:.65;}
+}
+@media (forced-colors:active) {
+  .ws-note-action-menu>summary, .ws-note-options-panel, .ws-note-paragraph-options>.ws-note-actions, .ws-add-block {border:1px solid CanvasText;}
+}

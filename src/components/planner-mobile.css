@@ -2,6 +2,79 @@
    their geometry and zoom, so making touch controls readable never reflows it. */
 .planner-legend-symbol { display:none; }
 
+/* One screen-space header owns project navigation and the plan controls.
+   Query the planner's width, which also changes with the workspace sidebar. */
+.ws-content.is-planner { container:planner-shell / inline-size; }
+.planner-topbar { min-width:0; min-height:52px; padding-block:4px; gap:8px; }
+.planner-topbar .planner-project-summary { flex:1; min-width:0; }
+.planner-topbar .planner-topbar-spacer { display:none; }
+.planner-topbar .planner-workspace-location { flex:1; overflow:hidden; gap:6px; }
+.planner-topbar .planner-workspace-location>button { flex:none; }
+.planner-topbar .planner-workspace-location>.ws-project-identity { flex:0 1 auto; min-width:0; max-width:220px; color:rgb(var(--text-primary)); font-weight:600; }
+.planner-topbar .planner-workspace-location>.ws-project-identity>svg { flex:none; }
+.planner-topbar .planner-surface-label { font-size:12px; font-weight:400; }
+.planner-topbar .planner-header-lenses { display:inline-flex; }
+.planner-topbar .planner-secondary-menu,
+.planner-topbar .planner-overview-menu,
+.planner-topbar .planner-lens-menu { display:none; }
+.planner-topbar [role="menu"] { max-height:70dvh; overflow:auto; overscroll-behavior:contain; }
+.planner-topbar .planner-view-switch { flex:none; }
+
+@container planner-shell (max-width:1440px) {
+  .planner-topbar .planner-node-breadcrumbs { display:none; }
+}
+@container planner-shell (max-width:1240px) {
+  .planner-topbar .planner-model-action>span { display:none; }
+  .planner-topbar .planner-progress-count { display:none; }
+  .planner-topbar .planner-surface-label { display:none; }
+  .planner-topbar .planner-workspace-location>span:last-of-type { display:none; }
+}
+@container planner-shell (max-width:1080px) {
+  .planner-topbar .planner-pdfs-action,
+  .planner-topbar .planner-model-action,
+  .planner-topbar .planner-overview-action,
+  .planner-topbar .planner-header-divider { display:none; }
+  .planner-topbar .planner-secondary-menu,
+  .planner-topbar .planner-overview-menu { display:flex; }
+  .planner-topbar div.planner-secondary-menu { display:block; }
+}
+@container planner-shell (max-width:880px) {
+  .planner-topbar .planner-header-lenses { display:none; }
+  .planner-topbar .planner-lens-menu { display:block; }
+}
+@container planner-shell (max-width:620px) {
+  .planner-topbar .planner-workspace-location>button:first-child,
+  .planner-topbar .planner-workspace-location>span,
+  .planner-topbar .planner-surface-label,
+  .planner-topbar .planner-progress-count { display:none; }
+}
+
+/* Also works when TopBar is rendered without the workspace shell. */
+@media (max-width:1080px) {
+  .planner-topbar .planner-pdfs-action,
+  .planner-topbar .planner-model-action,
+  .planner-topbar .planner-overview-action,
+  .planner-topbar .planner-header-divider,
+  .planner-topbar .planner-node-breadcrumbs,
+  .planner-topbar .planner-progress-count,
+  .planner-topbar .planner-surface-label { display:none; }
+  .planner-topbar .planner-workspace-location>span:last-of-type { display:none; }
+  .planner-topbar .planner-secondary-menu,
+  .planner-topbar .planner-overview-menu { display:flex; }
+  .planner-topbar div.planner-secondary-menu { display:block; }
+}
+@media (max-width:880px) {
+  .planner-topbar .planner-header-lenses { display:none; }
+  .planner-topbar .planner-lens-menu { display:block; }
+}
+@media (max-width:620px) {
+  .planner-topbar .planner-workspace-location>button:first-child,
+  .planner-topbar .planner-workspace-location>span { display:none; }
+}
+@media (pointer:coarse) {
+  .planner-topbar button { min-height:44px; }
+}
+
 @media (max-width:767px) {
   .planner-topbar { min-height:56px; padding:4px 8px; gap:6px; }
   .planner-project-summary { flex:1; gap:6px; font-size:14px; line-height:1.4; }
@@ -28,8 +101,8 @@
   [data-layout-mode] .react-flow:has(.react-flow__controls) ~ .visual-canvas-actions { left:64px; bottom:24px; flex-direction:row; gap:8px; }
   /* Drawing has its own compact palette. Hide the other floating controls
      while it is open instead of stacking them beneath the pen controls. */
-  [data-layout-mode]:has(.planner-ink-tools.is-open) .react-flow__controls,
-  [data-layout-mode]:has(.planner-ink-tools.is-open) .visual-canvas-actions { visibility:hidden; pointer-events:none; }
+  [data-layout-mode]:has(.planner-ink-palette.is-open) .react-flow__controls,
+  [data-layout-mode]:has(.planner-ink-palette.is-open) .visual-canvas-actions { visibility:hidden; pointer-events:none; }
 }
 
 @media (max-width:359px) {

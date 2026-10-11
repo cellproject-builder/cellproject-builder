@@ -17,8 +17,10 @@ import { NotesLibrary, type NoteFilter } from './NotesLibrary';
 import { PageHeaderContext } from './PageHeader';
 import { NoteNotebook, type NoteNotebookTools } from './NoteNotebook';
 import { NoteInkOverlay } from './NoteInkOverlay';
+import { NoteActionMenu } from './NoteActionMenu';
 import { isDeferredJSONStorage, type JSONPersistenceSnapshot } from '@/data/selectiveJSONStorage';
 import './NotesNotebook.css';
+import './NotesEditor.css';
 
 const noPersistenceSubscription = () => () => {};
 const immediatePersistenceSnapshot: JSONPersistenceSnapshot = { pending: false, error: null, revision: 0, savedRevision: 0 };
@@ -71,6 +73,7 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
   const patch = (value: Parameters<ReturnType<typeof useWorkspaceStore.getState>['updateNote']>[1]) => attempt(() => useWorkspaceStore.getState().updateNote(note.id, value));
   const updateBlock = (id: string, value: Partial<NoteBlock>) => patch({ blocks: note.blocks.map((block) => block.id === id ? { ...block, ...value } : block) });
   const selectedBlock = note.blocks.find((b) => b.id === activeBlock) ?? note.blocks[0];
+  const blankNote = !note.blocks.some(block => block.text.trim());
   const focusBlock = (id: string) => requestAnimationFrame(() => editorRef.current?.querySelector<HTMLTextAreaElement>(`[data-block="${id}"]`)?.focus());
   const addBlock = (type: BlockType, afterId = activeBlock) => {
     const block: NoteBlock = { id: nanoid(10), type, text: '', ...(type === 'check' ? { checked: false } : {}) };
@@ -116,11 +119,13 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
       </div>}
       <span className={`ws-save-state ${saveState === 'error' ? 'save-error' : ''}`} role="status">{saveState === 'saved' ? tr.saved : saveState === 'error' ? tr.saveFailed : tr.saving}</span>
       {saveState === 'error' && <button className="ws-icon-button" aria-label={tr.retrySave} title={tr.retrySave} onClick={() => patch({})}><Icon name="scrum" size={15} /></button>}
-      {trashed ? <button className="ws-button small" onClick={onRestore}>{tr.restore}</button> : <>
-        <button className={`ws-icon-button ws-note-secondary ${note.pinned ? 'is-pinned' : ''}`} aria-label={note.pinned ? tr.unpin : tr.pin} title={note.pinned ? tr.unpin : tr.pin} aria-pressed={note.pinned} onClick={() => patch({ pinned: !note.pinned })}><Icon name="pin" /></button>
-        <button className="ws-icon-button ws-note-secondary" aria-label={tr.noteLink} title={tr.noteLink} aria-expanded={connections} onClick={() => setConnections(!connections)}><Icon name="projects" /></button>
-        <button className="ws-icon-button ws-note-secondary" aria-label={tr.trashNote} title={tr.trashNote} onClick={onTrash}><Icon name="trash" /></button>
-      </>}
+      {trashed ? <button className="ws-button small" onClick={onRestore}>{tr.restore}</button> : <NoteActionMenu label={english ? 'Note options' : 'Opções da nota'} className="ws-note-options" returnFocus={dictationTarget}>
+        <div className="ws-note-options-panel">
+          <button type="button" aria-label={note.pinned ? tr.unpin : tr.pin} aria-pressed={note.pinned} onClick={() => patch({ pinned: !note.pinned })}><Icon name="pin" size={16}/><span>{note.pinned ? tr.unpin : tr.pin}</span></button>
+          <button type="button" aria-label={tr.noteLink} aria-expanded={connections} onClick={() => setConnections(!connections)}><Icon name="projects" size={16}/><span>{tr.noteLink}</span></button>
+          <button type="button" aria-label={tr.trashNote} onClick={onTrash}><Icon name="trash" size={16}/><span>{tr.trashNote}</span></button>
+        </div>
+      </NoteActionMenu>}
       <button type="button" className="ws-icon-button" aria-label={maximized ? tr.restoreEditor : tr.maximizeEditor} title={maximized ? `${tr.restoreEditor} (Esc)` : tr.maximizeEditor} aria-pressed={maximized} onMouseDown={(e) => e.preventDefault()} onClick={onToggleMaximized}>{maximized ? <ExitFullScreenIcon aria-hidden="true" /> : <EnterFullScreenIcon aria-hidden="true" />}</button>
     </div>
     <div className="ws-note-ink-tools-host" ref={inkToolsRef} hidden={(!drawing && !notebookVisible && !note.canvas) || trashed} />
@@ -135,18 +140,18 @@ function NoteEditor({ note, onTrash, onRestore, maximized, onToggleMaximized }: 
       <p className="ws-note-date">{new Intl.DateTimeFormat(document.documentElement.lang || 'pt-BR', { dateStyle: 'long', timeStyle: 'short' }).format(note.updatedAt)}</p>
       <AutoText className="ws-note-title" data-ink-anchor="title" aria-label={tr.noteTitle} placeholder={tr.untitled} value={note.title} readOnly={trashed} onChange={(e) => patch({ title: e.target.value })} />
       {note.projectId && <span className="ws-note-project-label"><Icon name="projects" size={13} />{projects[note.projectId]?.name}{note.taskId && ` / ${tasks[note.taskId]?.title ?? ''}`}</span>}
-      <div className="ws-note-blocks">{note.blocks.map((block) => <div className={`ws-note-block type-${block.type} ${block.checked ? 'is-checked' : ''} ${block.bold ? 'is-bold' : ''} ${block.italic ? 'is-italic' : ''}`} key={block.id} data-ink-anchor={`block:${block.id}`}>
+      <div className="ws-note-blocks">{note.blocks.map((block, index) => <div className={`ws-note-block type-${block.type} ${block.checked ? 'is-checked' : ''} ${block.bold ? 'is-bold' : ''} ${block.italic ? 'is-italic' : ''}`} key={block.id} data-ink-anchor={`block:${block.id}`}>
         {!trashed && <NoteTextActions noteId={note.id} block={block} input={() => editorRef.current?.querySelector<HTMLTextAreaElement>(`[data-block="${block.id}"]`)} onFormat={(value) => updateBlock(block.id, value)} />}
         {block.type === 'check' && <input type="checkbox" disabled={trashed} aria-label={block.text || tr.checklist} checked={!!block.checked} onChange={(e) => updateBlock(block.id, { checked: e.target.checked })} />}
         {block.type === 'bullet' && <span className="ws-bullet" aria-hidden>•</span>}
-        <AutoText data-block={block.id} aria-label={block.type === 'check' ? tr.checklist : tr[block.type]} value={block.text} placeholder={tr.notePlaceholder} readOnly={trashed} onFocus={() => setActiveBlock(block.id)} onChange={(e) => updateBlock(block.id, { text: e.target.value })} onKeyDown={(e) => {
+        <AutoText data-block={block.id} aria-label={block.type === 'check' ? tr.checklist : tr[block.type]} value={block.text} placeholder={blankNote && index === 0 ? tr.notePlaceholder : ''} readOnly={trashed} onFocus={() => setActiveBlock(block.id)} onChange={(e) => updateBlock(block.id, { text: e.target.value })} onKeyDown={(e) => {
           if (trashed) return;
           if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); addBlock(block.type === 'heading' ? 'text' : block.type, block.id); }
           if (e.key === 'Backspace' && !block.text && note.blocks.length > 1) { e.preventDefault(); removeBlock(block.id); }
         }} />
         {!trashed && <button className="ws-remove-block" aria-label={tr.removeBlock} onClick={() => removeBlock(block.id)}><Icon name="close" size={13} /></button>}
       </div>)}</div>
-      {!trashed && <button className="ws-add-block" onClick={() => addBlock('text')}><Icon name="plus" size={14} />{tr.addBlock}</button>}
+      {!trashed && <button type="button" className="ws-add-block" aria-label={tr.addBlock} title={tr.addBlock} onClick={() => addBlock('text')}><Icon name="plus" size={15} /></button>}
       <NoteNotebook ref={notebook} note={note} editorRef={editorRef} visible={notebookVisible || !!note.canvas} onReveal={() => setNotebookVisible(true)} english={english} toolsRef={inkToolsRef} toolsVisible={!drawing && (notebookVisible || !!note.canvas)}/>
       <NoteInkOverlay note={note} bodyRef={bodyRef} toolsRef={inkToolsRef} drawing={drawing} onDrawingChange={setDrawing} english={english}/>
       </div>

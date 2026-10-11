@@ -21,7 +21,12 @@ beforeEach(() => {
   act(() => root.render(<Harness />));
 });
 afterEach(() => { act(() => root.unmount()); configureLiveInk(null); host.remove(); vi.restoreAllMocks(); });
-const click = (name: string) => { if (!host.querySelector(`button[aria-label="${name}"]`) && host.querySelector('[data-ink-palette-trigger]')) act(() => Simulate.click(host.querySelector('[data-ink-palette-trigger]')!)); act(() => Simulate.click(host.querySelector(`button[aria-label="${name}"]`)!)); };
+const click = (name: string) => {
+  const trigger=host.querySelector<HTMLButtonElement>('[data-ink-palette-trigger]');
+  if (!host.querySelector(`button[aria-label="${name}"]`) && trigger?.getAttribute('aria-expanded')==='false') act(() => trigger.click());
+  if (['Caneta','Bico de pena','Monoline','Lápis','Marca-texto'].includes(name) && !host.querySelector(`button[aria-label="${name}"]`)) act(() => host.querySelector<HTMLButtonElement>('[data-ink-brush-trigger]')!.click());
+  act(() => Simulate.click(host.querySelector(`button[aria-label="${name}"]`)!));
+};
 function pointer(type: 'pointerDown' | 'pointerMove' | 'pointerUp' | 'pointerCancel' | 'lostPointerCapture', x: number, y: number, extra: Record<string, unknown> = {}) {
   act(() => Simulate[type](host.querySelector('[data-planner-ink]')!, { pointerId: 1, clientX: x, clientY: y, button: 0, pressure: .7, pointerType: 'pen', isPrimary: true, ...extra } as never));
 }
@@ -33,8 +38,95 @@ it('adds reversible free ink in plan world coordinates without moving or changin
   pointer('pointerUp', 70, 50);
   expect(useGraphStore.getState().project!.visuals!.ink!.strokes[0]).toMatchObject({ x: -30, y: 10, tool: 'highlighter', opacity: .28 });
   expect(useGraphStore.getState().project!.nodes).toBe(nodes);
-  click('Desfazer tinta'); expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(0);
-  click('Refazer tinta'); expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(1);
+  click('Desfazer'); expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(0);
+  click('Refazer'); expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(1);
+});
+it('keeps undo and redo usable on the collapsed plan rail without changing plan topology', () => {
+  const {nodes,edges}=useGraphStore.getState().project!;
+  click('Desenhar no plano');
+  expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();
+  expect(host.querySelector<HTMLButtonElement>('.ink-palette-undo')!.disabled).toBe(true);
+  expect(host.querySelector('.ink-palette-redo')).toBeNull();
+  pointer('pointerDown',20,20);pointer('pointerUp',70,50);
+  const stroke=useGraphStore.getState().project!.visuals!.ink!.strokes[0];
+  expect(host.querySelector<HTMLButtonElement>('.ink-palette-undo')!.disabled).toBe(false);
+  act(()=>host.querySelector<HTMLButtonElement>('.ink-palette-undo')!.click());
+  expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(0);
+  expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();
+  act(()=>host.querySelector<HTMLButtonElement>('.ink-palette-redo')!.click());
+  expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toEqual([stroke]);
+  expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();expect(host.querySelector('.ink-palette-redo')).toBeNull();
+  expect(useGraphStore.getState().project!.nodes).toBe(nodes);expect(useGraphStore.getState().project!.edges).toBe(edges);
+});
+it('handles undo and redo shortcuts from focused collapsed rail controls', () => {
+  click('Desenhar no plano'); pointer('pointerDown',20,20); pointer('pointerUp',70,50);
+  const stroke = useGraphStore.getState().project!.visuals!.ink!.strokes[0], outerKey = vi.fn();
+  window.addEventListener('keydown', outerKey);
+  const key = (target: HTMLElement, options: KeyboardEventInit) => {
+    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...options });
+    act(() => { target.focus(); target.dispatchEvent(event); });
+    expect(event.defaultPrevented).toBe(true);
+  };
+  try {
+    key(host.querySelector<HTMLButtonElement>('.ink-palette-undo')!, { key: 'z', ctrlKey: true });
+    expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(0);
+    key(host.querySelector<HTMLButtonElement>('.ink-palette-redo')!, { key: 'Z', ctrlKey: true, shiftKey: true });
+    expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toEqual([stroke]);
+    key(host.querySelector<HTMLButtonElement>('[data-ink-palette-trigger]')!, { key: 'z', metaKey: true });
+    expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(0);
+    key(host.querySelector<HTMLButtonElement>('[data-ink-palette-trigger]')!, { key: 'Y', metaKey: true });
+    expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toEqual([stroke]);
+    expect(host.querySelector('[data-ink-palette-controls]')).toBeNull(); expect(outerKey).not.toHaveBeenCalled();
+  } finally { window.removeEventListener('keydown', outerKey); }
+});
+it('collapses choices before Escape exits drawing from the rail without reaching the canvas shell', () => {
+  click('Desenhar no plano'); click('Ferramentas do plano');
+  const outerKey = vi.fn(); window.addEventListener('keydown', outerKey);
+  const escape = () => {
+    const trigger = host.querySelector<HTMLButtonElement>('[data-ink-palette-trigger]')!;
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    act(() => { trigger.focus(); trigger.dispatchEvent(event); });
+    expect(event.defaultPrevented).toBe(true);
+  };
+  try {
+    escape();
+    expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();
+    expect(host.querySelector<HTMLElement>('[data-planner-ink]')!.style.pointerEvents).toBe('auto');
+    escape();
+    expect(host.querySelector('[data-ink-palette]')).toBeNull();
+    expect(host.querySelector<HTMLElement>('[data-planner-ink]')!.style.pointerEvents).toBe('none');
+    expect(host.querySelector('[aria-label="Desenhar no plano"]')).not.toBeNull(); expect(outerKey).not.toHaveBeenCalled();
+  } finally { window.removeEventListener('keydown', outerKey); }
+});
+it('opens plan drawing and brush choices only after explicit activation', () => {
+  click('Desenhar no plano');
+  const trigger=host.querySelector<HTMLButtonElement>('[data-ink-palette-trigger]')!;
+  act(()=>{trigger.focus();Simulate.pointerEnter(trigger,{pointerType:'pen'} as never);});
+  expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();
+  act(()=>trigger.click());
+  const brush=host.querySelector<HTMLButtonElement>('[data-ink-brush-trigger]')!;
+  expect(host.querySelector('[data-ink-brush-option]')).toBeNull();
+  act(()=>{brush.focus();Simulate.pointerEnter(brush,{pointerType:'pen'} as never);});
+  expect(host.querySelector('[aria-label="Tipo de traço"]')).toBeNull();
+  act(()=>brush.click());
+  expect(host.querySelector('[data-ink-brush-option="highlighter"]')).not.toBeNull();
+  act(()=>host.querySelector<HTMLButtonElement>('[data-ink-brush-option="highlighter"]')!.click());
+  expect(host.querySelector('[data-ink-brush-option]')).toBeNull();
+  pointer('pointerDown',20,20);pointer('pointerUp',70,50);
+  expect(useGraphStore.getState().project!.visuals!.ink!.strokes[0]).toMatchObject({tool:'highlighter',opacity:.28});
+  expect(host.querySelectorAll('[aria-label="Desfazer"]')).toHaveLength(1);
+  for(const label of ['Adicionar cartão','Adicionar texto','Adicionar imagem','Gerar diagrama','Gerar 3D','Buscar imagens'])expect(host.querySelector(`[aria-label="${label}"]`)).toBeNull();
+});
+it('leaves plan drawing from the collapsed rail and cancels the unfinished stroke', () => {
+  const project=useGraphStore.getState().project!;
+  click('Desenhar no plano');pointer('pointerDown',20,20);pointer('pointerMove',70,50);
+  expect(host.querySelector('[data-ink-palette-controls]')).toBeNull();expect(hasActiveDataIngestions()).toBe(true);
+  const exit=host.querySelector<HTMLButtonElement>('.ink-palette-exit')!;
+  expect(exit.getAttribute('aria-label')).toBe('Voltar ao mapa');act(()=>exit.click());
+  expect(host.querySelector('[data-ink-palette]')).toBeNull();
+  expect(host.querySelector<HTMLElement>('[data-planner-ink]')!.style.pointerEvents).toBe('none');
+  expect(host.querySelector('[aria-label="Desenhar no plano"]')).not.toBeNull();
+  expect(useGraphStore.getState().project).toBe(project);expect(hasActiveDataIngestions()).toBe(false);
 });
 it('pans and pinches with touch in drawing mode without editing nodes or holding refresh', () => {
   const project = useGraphStore.getState().project!;
@@ -129,14 +221,14 @@ it('erases only ink and leaves plan topology unchanged', () => {
   click('Borracha'); pointer('pointerDown', 40, 32); pointer('pointerUp', 40, 32);
   expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(0);
   expect(useGraphStore.getState().project!.edges).toBe(edges);
-  click('Desfazer tinta'); expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(1);
+  click('Desfazer'); expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(1);
 });
 it('erases ink crossed between sparse and coalesced eraser samples without touching the plan', () => {
   const nodes = useGraphStore.getState().project!.nodes;
   click('Desenhar no plano'); pointer('pointerDown', 50, 10); pointer('pointerUp', 50, 30);
   click('Borracha'); pointer('pointerDown', 0, 20); pointer('pointerMove', 100, 20); pointer('pointerUp', 100, 20);
   expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(0);
-  click('Desfazer tinta'); expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(1);
+  click('Desfazer'); expect(useGraphStore.getState().project!.visuals!.ink!.strokes).toHaveLength(1);
   pointer('pointerDown', 0, 20);
   act(() => Simulate.pointerMove(host.querySelector('[data-planner-ink]')!, { pointerId: 1, clientX: 0, clientY: 80, button: 0, pointerType: 'pen', nativeEvent: { getCoalescedEvents: () => [{ clientX: 100, clientY: 20, pointerType: 'pen' }] } } as never));
   pointer('pointerUp', 0, 80);

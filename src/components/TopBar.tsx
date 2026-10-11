@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useGraphStore,
   breadcrumbFor,
@@ -18,6 +18,7 @@ import { ApiKeyGate } from './ApiKeyGate';
 import { ProgressRing } from '@/components/ui/ProgressRing';
 import { hasActiveAIActions } from '@/ai/actions';
 import { exportVisualPlan, prepareVisualPlanImport, watchVisualImportContext } from '@/visuals/portable';
+import { PageHeaderContext } from '@/workspace/PageHeader';
 import './planner-mobile.css';
 
 // Nome curto do modelo ativo: rótulo conhecido, senão o id sem o prefixo do
@@ -27,6 +28,7 @@ const modelLabel = (provider: keyof typeof KNOWN_MODELS, id: string): string =>
 
 export function TopBar() {
   const tr = useT();
+  const shell = useContext(PageHeaderContext);
   const project = useGraphStore((s) => s.project);
   const selectedId = useGraphStore((s) => s.selectedNodeId);
   const lens = useGraphStore((s) => s.lens);
@@ -76,7 +78,7 @@ export function TopBar() {
   useEffect(() => {
     if (!menuOpen) return;
     const items = () =>
-      Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+      Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? []).filter(item => item.getClientRects().length > 0);
     // Só o teclado leva o foco ao primeiro item (como no macOS): aberto com
     // o ponteiro, nenhum item abre realçado.
     if (menuByKeyboard.current) items()[0]?.focus();
@@ -236,20 +238,25 @@ export function TopBar() {
   const progressLabel = tr.topBar.progressLabel(progress.done, progress.total, evidence.withEvidence, evidence.assumedKnown);
 
   return (
-    <div className="planner-topbar glass-host border-b relative z-20 shrink-0 min-h-[calc(52px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] flex items-center px-3 sm:px-4 gap-1.5 sm:gap-3 text-control">
+    <header className={`planner-topbar ${shell ? 'is-integrated' : ''} glass-host border-b relative z-20 shrink-0 min-h-[calc(52px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] flex items-center px-3 sm:px-4 gap-1.5 sm:gap-3 text-control`}>
+      {shell?.navigation}
       <div className="planner-project-summary flex items-center gap-2 min-w-0 overflow-hidden">
+        {shell ? <><nav className="planner-workspace-location ws-breadcrumb" aria-label={tr.topBar.breadcrumbAria}>
+          {shell.breadcrumb}<strong className="planner-surface-label">{tr.workspace.planner}</strong>
+        </nav>{shell.status}</> : <>
         <span className="text-text-primary font-semibold truncate hidden sm:inline">{project?.name}</span>
         {/* Mobile: sem o prefixo "Demo ·" — o nome do projeto é o que cabe. */}
         <span className="text-text-primary font-semibold truncate sm:hidden" title={project?.name}>
           {shortName}
         </span>
-        {inDemo && (
+        </>}
+        {inDemo && !shell && (
           <span title={tr.topBar.demoBadgeTitle} className="chip shrink-0 bg-bg-elevated text-text-secondary hidden sm:inline-flex">
             {tr.topBar.demoBadge}
           </span>
         )}
         {progress.total > 0 && (
-          <span className="flex items-center gap-1.5 shrink-0" title={progressLabel}>
+          <span className="planner-header-progress flex items-center gap-1.5 shrink-0" title={progressLabel}>
             <ProgressRing
               total={progress.total}
               done={progress.done}
@@ -258,10 +265,10 @@ export function TopBar() {
               strokeWidth={2.5}
               label={progressLabel}
             />
-            <span aria-hidden className="sm:hidden text-footnote text-text-muted tabular-nums">
+            <span aria-hidden className="planner-progress-count sm:hidden text-footnote text-text-muted tabular-nums">
               {progress.done}/{progress.total}
             </span>
-            <span aria-hidden className="hidden sm:inline text-footnote text-text-muted tabular-nums">
+            <span aria-hidden className="planner-progress-count hidden sm:inline text-footnote text-text-muted tabular-nums">
               {tr.topBar.progressCompact(progress.done, progress.total, evidence.withEvidence)}
             </span>
           </span>
@@ -269,7 +276,7 @@ export function TopBar() {
         {viewMode === 'graph' && crumbs.some((c) => c.id !== project?.rootId) && (
           <nav
             aria-label={tr.topBar.breadcrumbAria}
-            className="hidden lg:flex items-center gap-0.5 min-w-0 overflow-hidden ml-1"
+            className="planner-node-breadcrumbs hidden lg:flex items-center gap-0.5 min-w-0 overflow-hidden ml-1"
           >
             {/* A raiz é o título do projeto, já na toolbar: começa abaixo dela. */}
             {crumbs.filter((c) => c.id !== project?.rootId).map((c, i, list) => (
@@ -318,7 +325,7 @@ export function TopBar() {
         <>
           {/* Mobile: o seletor de lente flutua no canvas (GraphCanvas) — aqui o
               título do projeto precisa do espaço. */}
-          <div role="group" aria-label={tr.topBar.lensSelectAria} className="segmented hidden md:inline-flex shrink-0">
+          <div role="group" aria-label={tr.topBar.lensSelectAria} className="planner-header-lenses segmented shrink-0">
             {LENSES.map((l) => (
               <button
                 key={l.value}
@@ -334,11 +341,11 @@ export function TopBar() {
         </>
       )}
 
-      <div className="hidden sm:block w-px h-5 bg-border-base shrink-0" aria-hidden />
+      <div className="planner-header-divider w-px h-5 bg-border-base shrink-0" aria-hidden />
 
       <button
         onClick={() => setKbOpen(true)}
-        className="tap btn btn-ghost hidden sm:inline-flex shrink-0"
+        className="planner-pdfs-action tap btn btn-ghost shrink-0"
         title={tr.topBar.kbTitle}
       >
         <span>{tr.topBar.myPdfs}</span>
@@ -347,7 +354,7 @@ export function TopBar() {
 
       <button
         onClick={() => setSettingsOpen(true)}
-        className="tap btn btn-ghost hidden md:inline-flex shrink-0 max-w-[220px]"
+        className="planner-model-action tap btn btn-ghost shrink-0 max-w-[220px]"
         title={
           activeProvider
             ? tr.topBar.modelTitle(PROVIDER_LABELS[activeProvider], activeModel ?? '')
@@ -358,6 +365,8 @@ export function TopBar() {
         <GearIcon />
         {modelName && <span className="font-sans text-footnote text-text-muted truncate">{modelName}</span>}
       </button>
+
+      {shell?.onOverview && <button className="planner-overview-action tap btn btn-ghost shrink-0" onClick={shell.onOverview}>{tr.workspace.backWorkspace}</button>}
 
       <div className="relative shrink-0" ref={menuRef}>
         <button
@@ -450,14 +459,22 @@ export function TopBar() {
             >
               {tr.topBar.exportJson}
             </button>
-            <div role="separator" className="divider my-1 mx-2.5 md:hidden" />
+            {shell?.onOverview && <button role="menuitem" className={`${menuItemClass} planner-overview-menu`} onClick={() => { setMenuOpen(false); shell.onOverview?.(); }}>{tr.workspace.backWorkspace}</button>}
+            {viewMode === 'graph' && <div className="planner-lens-menu">
+              <div role="separator" className="divider my-1 mx-2.5" />
+              <div role="group" aria-label={tr.topBar.lensSelectAria}>
+                {LENSES.map(option => <button key={option.value} role="menuitemradio" aria-checked={lens === option.value} className={menuItemClass}
+                  onClick={() => { setLens(option.value); setMenuOpen(false); }}>{option.label}<span aria-hidden>{lens === option.value ? '✓' : ''}</span></button>)}
+              </div>
+            </div>}
+            <div role="separator" className="planner-secondary-menu divider my-1 mx-2.5" />
             <button
               role="menuitem"
               onClick={() => {
                 setKbOpen(true);
                 setMenuOpen(false);
               }}
-              className={`${menuItemClass} sm:hidden`}
+              className={`${menuItemClass} planner-secondary-menu`}
             >
               <span>{tr.topBar.myPdfs}</span>
               {kbCount > 0 && <span className={`${menuHintClass} tabular-nums`}>{kbCount}</span>}
@@ -469,7 +486,7 @@ export function TopBar() {
                 setMenuOpen(false);
               }}
               // No desktop o botão de ajustes já está na toolbar.
-              className={`${menuItemClass} md:hidden`}
+              className={`${menuItemClass} planner-secondary-menu`}
             >
               <span>{tr.topBar.settingsAction}</span>
               {modelName && (
@@ -494,7 +511,7 @@ export function TopBar() {
 
       <KnowledgeRepo open={kbOpen} onClose={() => setKbOpen(false)} />
       {settingsOpen && <ApiKeyGate onClose={() => setSettingsOpen(false)} />}
-    </div>
+    </header>
   );
 }
 

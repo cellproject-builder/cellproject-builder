@@ -93,6 +93,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
   const [noteMaximized, setNoteMaximized] = useState(false);
   const [taskEditor, setTaskEditor] = useState<{ task?: Task; status?: TaskStatus } | null>(null);
   const project = activeProjectId ? projects[activeProjectId] : undefined;
+  const hasPlan = useGraphStore(s => !!s.project);
   useEffect(() => { initializeWorkspace(); return connectPlanner(); }, []);
   useEffect(() => { setSideOpen(false); setTaskEditor(null); collapseChat(); }, [surface, activeProjectId]);
   useEffect(() => {
@@ -127,6 +128,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
     navigation: mobileMenu,
     breadcrumb: project && surface !== 'projects' && surface !== 'boards' ? <><button onClick={() => navigate('projects')}>{tr.projects}</button><span>/</span>{surface !== 'overview' && <><button className="ws-project-identity" title={project.name} onClick={() => go('overview')}><ProjectIcon appearance={project.appearance} size={14}/><span>{project.name}</span></button><span>/</span></>}</> : null,
     status: project?.archived && surface !== 'projects' && surface !== 'boards' ? <span className="ws-badge">{tr.archived}</span> : null,
+    onOverview: surface === 'planner' && project ? () => go('overview') : undefined,
   };
   return <AssistantChatDockProvider><div className={`ws-app ${surface === 'notes' ? 'notes-surface' : ''} ${canvasMaximized && !chatExpanded ? 'is-canvas-maximized' : ''} ${chatExpanded ? 'is-chat-expanded' : ''}`}>
     {sideOpen && <button className="ws-sidebar-scrim" aria-label={tr.close} onClick={() => setSideOpen(false)} />}
@@ -141,15 +143,11 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
       {project && <><p className="ws-nav-label ws-project-nav-title" title={project.name}><ProjectIcon appearance={project.appearance} size={14}/><span>{project.name}</span>{project.archived && <span className="ws-badge">{tr.archived}</span>}</p><nav>{(['planner', 'overview', 'kanban', 'scrum', 'notes'] as const).map(navItem)}</nav></>}
       <div className="ws-sidebar-bottom"><button className="ws-nav-item" aria-label={tr.preferences} title={tr.preferences} aria-haspopup="dialog" aria-expanded={settings} onClick={() => setSettings(true)}><GearIcon width={18} height={18} aria-hidden="true" /><span>{tr.preferences}</span></button><div className="ws-sidebar-tools"><LanguageToggle /><span><i />{isCloudEnabled() ? 'Workspace na nuvem' : tr.localData}</span></div></div>
     </aside>
-    <div className="ws-main"><div className="dd-chat-mobile-navigation" hidden={!chatExpanded}>{mobileMenu}</div><FullChatDock/>{surface === 'planner' && project && <header className="ws-header" hidden={chatExpanded}>
-      {mobileMenu}
-      <div className="ws-breadcrumb">
-        <button onClick={() => navigate('projects')}>{tr.projects}</button><span>/</span><button className="ws-project-identity" title={project.name} onClick={() => go('overview')}><ProjectIcon appearance={project.appearance} size={14}/><span>{project.name}</span></button><span>/</span>
-        <strong>{tr.planner}</strong>
-      </div>
-      {project?.archived && <span className="ws-badge">{tr.archived}</span>}
-      <button className="ws-button small ws-push-right" onClick={() => go('overview')}>{tr.backWorkspace}</button>
-    </header>}
+    <div className="ws-main"><div className="dd-chat-mobile-navigation" hidden={!chatExpanded}>{mobileMenu}</div><FullChatDock/>
+      {surface === 'planner' && project && !hasPlan && <header className="ws-header" hidden={chatExpanded}>
+        {mobileMenu}<div className="ws-breadcrumb">{headerShell.breadcrumb}<strong>{tr.planner}</strong></div>{headerShell.status}
+        <button className="ws-button small ws-push-right" onClick={() => go('overview')}>{tr.backWorkspace}</button>
+      </header>}
       <PageHeaderContext.Provider value={headerShell}>
       <Suspense fallback={<div role="status" aria-busy="true" className="ws-page">{english ? 'Loading…' : 'Carregando…'}</div>}>
       <main hidden={chatExpanded} className={`ws-content ${surface === 'boards' ? 'is-boards' : ''} ${surface === 'notes' ? 'is-notes' : ''} ${project && (surface === 'kanban' || surface === 'scrum') ? 'is-execution' : ''} ${surface === 'planner' && project ? 'is-planner' : ''}`} key={`${surface}-${surface === 'notes' ? noteScope : surface === 'boards' ? 'boards' : activeProjectId}`}>

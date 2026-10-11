@@ -87,12 +87,10 @@
   .ws-app .db-canvas-header { height:54px; padding:5px 6px; }
   .ws-app .db-canvas-header>.db-title-audio-field>input[data-audio-input="true"] { font-size:16px; }
   .ws-app .db-canvas-shell.is-maximized .db-canvas-header { height:calc(54px + env(safe-area-inset-top)); }
-  .ws-app .db-tools { top:auto; bottom:calc(72px + env(safe-area-inset-bottom)); max-width:calc(100% - 16px); padding:5px; gap:3px; scrollbar-width:thin; }
+  .ws-app .db-canvas>.db-tools { top:auto; bottom:calc(72px + env(safe-area-inset-bottom)); max-width:calc(100% - 16px); padding:5px; gap:3px; scrollbar-width:thin; }
   .ws-app :is(.db-tools button,.db-view-tools button) { width:44px; height:44px; }
   .ws-app :is(.db-tools,.db-view-tools) button>svg { width:20px; height:20px; }
   .ws-app .db-view-tools { left:8px; bottom:calc(10px + env(safe-area-inset-bottom)); }
-  .ws-app .db-pen-options { top:10px; width:calc(100% - 16px); padding:5px; flex-wrap:wrap; justify-content:center; max-width:calc(100% - 16px); }
-  .ws-app .db-ruler-toggle { width:40px; height:40px; }
   .ws-app .db-ink-hint { font-size:13px; bottom:calc(136px + env(safe-area-inset-bottom)); }
   .ws-app .db-object-count { font-size:12px; bottom:26px; right:12px; }
   .ws-app .db-status { font-size:14px; bottom:calc(136px + env(safe-area-inset-bottom)); }
@@ -100,7 +98,4 @@
 @media (max-width:360px) {
   .ws-app .ws-page-header.has-controls .ws-page-header-controls { grid-template-columns:minmax(0,1fr); }
   .ws-app .ws-page-header-controls .ws-search { grid-column:1; }
-  .ws-app .db-pen-options>.ink-toolbar { width:100%; }
-  .ws-app .db-pen-options .ink-brushes { width:100%; }
-  .ws-app .db-ruler-toggle { position:absolute; right:5px; bottom:5px; }
 }

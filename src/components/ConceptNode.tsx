@@ -1,8 +1,7 @@
 import { memo } from 'react';
-import { Handle, Position, useStore as useRfStore, type NodeProps } from '@xyflow/react';
+import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { ConceptNodeData, NodeKind } from '@/types';
-import { useGraphStore, confidenceBand, isActionableKind } from '@/store';
-import { useAIReveal } from '@/hooks/useAIReveal';
+import { useGraphStore, confidenceBand } from '@/store';
 import { useT } from '@/i18n';
 import { acceptSuggestionsWithUndo, rejectSuggestionWithUndo } from './suggestionActions';
 import type { Messages } from '@/i18n';
@@ -107,14 +106,14 @@ export interface NodeExtras {
 
 type Props = NodeProps & { data: ConceptNodeData & NodeExtras };
 
-function KindTag({ kind, tr, compact }: { kind: NodeKind; tr: Messages; compact?: boolean }) {
+function KindTag({ kind, tr }: { kind: NodeKind; tr: Messages }) {
   const label = tr.conceptNode[kind];
   return (
     <span title={label} className="inline-flex items-center gap-1 shrink-0 text-caption text-text-muted">
       <span aria-hidden className="text-text-faint">
         {KIND_ICON[kind] ?? '◇'}
       </span>
-      {compact ? <span className="sr-only">{label}</span> : <span>{label}</span>}
+      <span>{label}</span>
     </span>
   );
 }
@@ -153,15 +152,9 @@ function LockMark({ tr }: { tr: Messages }) {
 
 function ConceptNodeImpl({ data, selected }: Props) {
   const tr = useT();
-  // Subscribe only to the discrete zoom bucket (re-render on crossing, not on
-  // every zoom frame), and read `blocked` from precomputed data instead of
-  // subscribing to the whole project — so memo() actually holds.
-  const level = useRfStore<'far' | 'mid' | 'near'>((s) =>
-    s.transform[2] < 0.6 ? 'far' : s.transform[2] < 1.1 ? 'mid' : 'near',
-  );
+  // The card stays brief at every zoom. React Flow scales it in world space;
+  // zoom no longer changes its contents or starts criterion-reveal timers.
   const confirmNode = useGraphStore((s) => s.confirmNode);
-  // Mesmo gate do tutor: só depois do lock E da janela de desfazer.
-  const { revealed: revealCheck } = useAIReveal(data);
 
   const band = confidenceBand(data.confidence);
   const blocked = !data.confirmado && !!data.blocked;
@@ -248,34 +241,6 @@ function ConceptNodeImpl({ data, selected }: Props) {
     <span className="chip !h-[18px] bg-accent/12 text-accent">{tr.conceptNode.next}</span>
   ) : null;
 
-  if (level === 'far') {
-    // Visão geral: estado pelo ponto, tipo pelo glifo, nome em até 2 linhas.
-    return (
-      <div
-        className={`${baseClass} ${
-          structural ? 'w-[280px] px-3.5 py-3' : 'w-[250px] px-3 py-2.5'
-        } flex items-center gap-2`}
-      >
-        <Handle type="target" position={Position.Top} />
-        {!structural && <StatusDot status={status} tr={tr} />}
-        <KindTag kind={data.kind} tr={tr} compact />
-        <span
-          className={`flex-1 min-w-0 line-clamp-2 ${
-            structural ? 'text-title3 font-semibold' : 'text-control font-medium'
-          }`}
-        >
-          {data.name}
-        </span>
-        <span className="shrink-0 flex items-center gap-1.5">
-          {stepTag}
-          {blocked && <LockMark tr={tr} />}
-        </span>
-        <Handle type="source" position={Position.Bottom} />
-        <SideHandles />
-      </div>
-    );
-  }
-
   const header = (
     <div className="flex items-center gap-1.5 mb-1.5 min-h-[18px]">
       {!structural && <StatusDot status={status} tr={tr} />}
@@ -299,7 +264,7 @@ function ConceptNodeImpl({ data, selected }: Props) {
         e.stopPropagation();
         confirmNode(data.id);
       }}
-      className={`tap btn btn-secondary w-full !text-state-done ${level === 'near' ? 'mt-3' : 'mt-2'}`}
+      className="tap btn btn-secondary w-full !text-state-done mt-2"
     >
       {data.kind === 'recurso'
         ? tr.conceptNode.quickHaveResource
@@ -309,58 +274,15 @@ function ConceptNodeImpl({ data, selected }: Props) {
     </button>
   ) : null;
 
-  if (level === 'mid') {
-    return (
-      <div className={`${baseClass} w-[260px] p-3`}>
-        <Handle type="target" position={Position.Top} />
-        {header}
-        <div className={`${structural ? 'text-title3' : 'text-control'} font-semibold mb-1`}>{data.name}</div>
-        <div className="text-footnote text-text-secondary line-clamp-2">{data.oQue}</div>
-        {quickConfirm}
-        <Handle type="source" position={Position.Bottom} />
-        <SideHandles />
-      </div>
-    );
-  }
-
-  // Critério do usuário ANTES do da IA: o "como saber" da IA só aparece
-  // depois do lock (ou do nó fechado por outro caminho). Zoom não fura o gate.
-  const showCheckLine = !!data.comoConfirmar && isActionableKind(data.kind) && data.kind !== 'decisao';
-
   return (
-    <div className={`${baseClass} w-[300px] p-3.5`}>
+    <div className={`${baseClass} w-[260px] p-3`}>
       <Handle type="target" position={Position.Top} />
       {header}
-      <div className={`${structural ? 'text-title3' : 'text-control'} font-semibold mb-2`}>{data.name}</div>
-      {(data.oQue || data.porQue || showCheckLine) && (
-        <div className="border-t border-border-base/70 pt-2 space-y-1.5">
-          {data.oQue && (
-            <div className="text-footnote">
-              <span className="text-text-muted font-medium">{tr.conceptNode.whatPrefix}</span>{' '}
-              <span className="text-text-secondary">{data.oQue}</span>
-            </div>
-          )}
-          {data.porQue && (
-            <div className="text-footnote">
-              <span className="text-text-muted font-medium">{tr.conceptNode.whyPrefix}</span>{' '}
-              <span className="text-text-secondary">{data.porQue}</span>
-            </div>
-          )}
-          {showCheckLine && (
-            <div className="text-footnote">
-              <span className="text-text-muted font-medium">{tr.conceptNode.checkPrefix}</span>{' '}
-              {revealCheck ? (
-                <span className="text-text-secondary">{data.comoConfirmar}</span>
-              ) : (
-                <span className="text-text-muted">{tr.conceptNode.criterionLocked}</span>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      <div className={`${structural ? 'text-title3' : 'text-control'} font-semibold mb-1`}>{data.name}</div>
+      <div className="text-footnote text-text-secondary line-clamp-2">{data.oQue}</div>
       {quickConfirm}
       <Handle type="source" position={Position.Bottom} />
-        <SideHandles />
+      <SideHandles />
     </div>
   );
 }

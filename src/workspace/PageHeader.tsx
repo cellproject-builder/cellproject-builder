@@ -5,6 +5,7 @@ export const PageHeaderContext = createContext<{
   navigation: ReactNode;
   breadcrumb: ReactNode;
   status: ReactNode;
+  onOverview?: () => void;
 } | null>(null);
 
 type PageHeaderProps = {

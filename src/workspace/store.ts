@@ -117,7 +117,7 @@ export interface WorkspaceState {
   legacyImported: boolean;
   createBoard: (title?: string) => string;
   openBoard: (id: string) => void;
-  updateBoard: (id: string, patch: Partial<Pick<BoardRecord, 'title' | 'archived' | 'document'>>) => void;
+  updateBoard: (id: string, patch: Partial<Pick<BoardRecord, 'title' | 'archived' | 'document' | 'attachments'>>) => void;
   updateBoardViewport: (id: string, viewport: BoardDocument['viewport']) => void;
   createProject: (name: string, objective?: string, appearance?: ProjectAppearance) => string;
   updateProject: (id: string, patch: Partial<Pick<ManagedProject, 'name' | 'objective' | 'archived' | 'appearance'>>) => void;

@@ -26,15 +26,21 @@ function OverlayHarness({ dock = 'left' }: { dock?: InkPaletteDock }) {
 it('offers five accessible brushes and controlled color, width and opacity', () => {
   function Harness() { const [value, onChange] = useState(createInkSettings()); latest = value; return <InkToolbar value={value} onChange={onChange} />; }
   act(() => root.render(<Harness />));
-  expect(host.querySelectorAll('button[aria-pressed]')).toHaveLength(5);
+  expect(host.querySelectorAll('[data-ink-brush-option]')).toHaveLength(0);
+  expect(host.querySelectorAll('.ink-toolbar>button')).toHaveLength(2);
+  act(() => host.querySelector<HTMLButtonElement>('[data-ink-brush-trigger]')!.click());
+  expect(host.querySelectorAll('[data-ink-brush-option]')).toHaveLength(5);
   act(() => host.querySelector<HTMLButtonElement>('[aria-label="Bico de pena"]')!.click());
   expect(latest.tool).toBe('fountain');
+  expect(host.querySelectorAll('[data-ink-brush-option]')).toHaveLength(0);
+  act(() => host.querySelector<HTMLButtonElement>('[data-ink-brush-trigger]')!.click());
   act(() => host.querySelector<HTMLButtonElement>('[aria-label="Marca-texto"]')!.click());
   expect(latest.tool).toBe('highlighter');
   expect(latest.opacity).toBeLessThan(1);
-  expect(host.querySelector('[aria-label="Marca-texto"]')?.getAttribute('aria-pressed')).toBe('true');
-  act(() => Simulate.change(host.querySelector('[aria-label="Cor do traço"]')!, { target: { value: '#123456' } } as never));
+  expect(host.querySelector('[data-ink-brush-trigger]')?.getAttribute('data-tool')).toBe('highlighter');
+  expect(host.querySelector('[aria-label="Cor do traço"]')).toBeNull();
   act(() => host.querySelector<HTMLButtonElement>('[aria-label="Ajustar traço"]')!.click());
+  act(() => Simulate.change(host.querySelector('[aria-label="Cor do traço"]')!, { target: { value: '#123456' } } as never));
   act(() => Simulate.change(host.querySelector('[aria-label="Espessura do traço"]')!, { target: { value: '12' } } as never));
   act(() => Simulate.change(host.querySelector('[aria-label="Opacidade do traço"]')!, { target: { value: '45' } } as never));
   expect(latest).toMatchObject({ color: '#123456', width: 12, opacity: .45 });
@@ -128,7 +134,9 @@ it('adds repeatable graphite grain to pencil ink while retaining one selectable 
 
 it('uses English labels and disables every interactive brush control', () => {
   act(() => root.render(<InkToolbar value={createInkSettings()} onChange={() => {}} english disabled />));
-  expect(host.querySelector('[aria-label="Highlighter"]')).not.toBeNull();
+  expect(host.querySelector('[aria-label="Choose brush: Pen"]')).not.toBeNull();
+  expect(host.querySelector('[aria-label="Stroke settings"]')).not.toBeNull();
+  expect(host.querySelectorAll('[data-ink-brush-option]')).toHaveLength(0);
   expect([...host.querySelectorAll<HTMLInputElement>('button,input')].every(control => control.disabled)).toBe(true);
 });
 

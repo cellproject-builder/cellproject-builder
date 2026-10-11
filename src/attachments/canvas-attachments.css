@@ -1,0 +1,57 @@
+.canvas-attachment-library { position:relative; display:inline-flex; flex:none; }
+.canvas-attachment-trigger { position:relative; display:inline-flex; align-items:center; justify-content:center; width:32px; min-height:32px; padding:0; border:1px solid transparent; border-radius:8px; background:transparent; color:rgb(var(--text-secondary)); cursor:pointer; touch-action:manipulation; }
+.canvas-attachment-trigger:hover,.canvas-attachment-trigger[aria-expanded=true] { background:rgb(var(--bg-elevated)); color:rgb(var(--text-primary)); }
+.canvas-attachment-badge { position:absolute; top:-3px; right:-5px; min-width:14px; height:14px; padding:0 3px; border:1px solid rgb(var(--bg-secondary)); border-radius:8px; background:rgb(var(--bg-elevated)); color:rgb(var(--text-secondary)); font-size:9px; line-height:12px; text-align:center; }
+.canvas-attachment-panel { --attachment-control-size:32px; position:fixed; z-index:160; display:flex; flex-direction:column; box-sizing:border-box; overflow:hidden; max-width:calc(100vw - 24px); border:1px solid rgb(var(--border-base)/.7); border-radius:12px; background:rgb(var(--bg-secondary)); color:rgb(var(--text-primary)); box-shadow:0 10px 32px rgb(0 0 0/.2); font-family:inherit; font-size:12px; line-height:1.4; }
+.canvas-attachment-panel * { box-sizing:border-box; }
+.canvas-attachment-panel button,.canvas-attachment-panel input,.canvas-attachment-panel select { font:inherit; color:inherit; }
+.canvas-attachment-panel button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:var(--attachment-control-size); border:1px solid transparent; border-radius:7px; padding:0 8px; background:transparent; cursor:pointer; touch-action:manipulation; }
+.canvas-attachment-panel button:hover:not(:disabled) { background:rgb(var(--bg-elevated)); }
+.canvas-attachment-panel button:disabled { cursor:default; opacity:.45; }
+.canvas-attachment-trigger:focus-visible,.canvas-attachment-panel :is(button,input,select):focus-visible { outline:2px solid rgb(var(--ai-accent)); outline-offset:2px; }
+.canvas-attachment-panel svg { flex:none; }
+.canvas-attachment-heading { flex:none; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px 6px 12px; border-bottom:1px solid rgb(var(--border-base)/.5); }
+.canvas-attachment-heading h2 { display:flex; align-items:center; gap:8px; margin:0; font-size:14px; font-weight:600; }
+.canvas-attachment-heading h2 span { padding:1px 5px; border-radius:5px; background:rgb(var(--bg-elevated)); color:rgb(var(--text-muted)); font-size:11px; font-weight:500; }
+.canvas-attachment-panel .canvas-attachment-icon { flex:none; width:var(--attachment-control-size); padding:0; color:rgb(var(--text-muted)); }
+.canvas-attachment-import { flex:none; display:grid; gap:6px; padding:10px 10px 8px; }
+.canvas-attachment-panel .canvas-attachment-upload { width:100%; justify-content:flex-start; border-color:rgb(var(--border-base)/.6); background:rgb(var(--bg-primary)/.35); }
+.canvas-attachment-upload small { margin-left:auto; color:rgb(var(--text-muted)); font-size:10px; }
+.canvas-attachment-link { display:flex; align-items:center; min-width:0; gap:6px; padding-left:8px; border:1px solid rgb(var(--border-base)/.55); border-radius:8px; background:rgb(var(--bg-primary)/.35); color:rgb(var(--text-muted)); }
+.canvas-attachment-panel input:is([type=url],[type=search]) { width:100%; min-width:0; min-height:var(--attachment-control-size); padding:0; border:0; border-radius:4px; outline-offset:0; background:transparent; }
+.canvas-attachment-panel input::placeholder { color:rgb(var(--text-muted)); }
+.canvas-attachment-error,.canvas-attachment-status { margin:0; overflow-wrap:anywhere; font-size:11px; }
+.canvas-attachment-error { color:rgb(var(--state-problem)); }
+.canvas-attachment-status { color:rgb(var(--text-muted)); }
+.canvas-attachment-filters { flex:none; display:flex; align-items:center; min-width:0; gap:6px; padding:0 10px 8px; }
+.canvas-attachment-search { display:flex; flex:1; align-items:center; min-width:0; gap:6px; padding:0 8px; border:1px solid rgb(var(--border-base)/.5); border-radius:7px; color:rgb(var(--text-muted)); }
+.canvas-attachment-filters select { min-width:0; max-width:122px; min-height:var(--attachment-control-size); padding:0 6px; border:1px solid rgb(var(--border-base)/.5); border-radius:7px; background:rgb(var(--bg-secondary)); }
+.canvas-attachment-list { flex:1 1 auto; min-height:0; overflow:auto; overscroll-behavior:contain; margin:0; padding:0 6px 6px; list-style:none; }
+.canvas-attachment-list>li[data-resource-id] { display:flex; align-items:center; gap:6px; min-height:54px; padding:4px; border-radius:8px; cursor:grab; }
+.canvas-attachment-list>li[data-resource-id]:hover,.canvas-attachment-list>li[data-selected=true] { background:rgb(var(--bg-elevated)/.65); }
+.canvas-attachment-select { display:flex; flex:none; align-items:center; justify-content:center; width:20px; min-height:var(--attachment-control-size); cursor:pointer; }
+.canvas-attachment-select input { width:14px; height:14px; margin:0; accent-color:rgb(var(--ai-accent)); cursor:pointer; }
+.canvas-attachment-kind { color:rgb(var(--text-muted)); }
+.canvas-attachment-panel .canvas-attachment-open { display:flex; flex:1; flex-direction:column; align-items:flex-start; justify-content:center; gap:2px; min-width:0; padding:3px 0; text-align:left; }
+.canvas-attachment-open>span,.canvas-attachment-open>small { display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.canvas-attachment-open>span { font-weight:500; }
+.canvas-attachment-open>small { color:rgb(var(--text-muted)); font-size:10px; font-weight:400; }
+.canvas-attachment-panel .canvas-attachment-remove:hover { color:rgb(var(--state-problem)); }
+.canvas-attachment-empty { padding:20px 8px; color:rgb(var(--text-muted)); text-align:center; }
+.canvas-attachment-selection { display:flex; flex:none; align-items:center; gap:6px; min-height:44px; padding:6px 8px; border-top:1px solid rgb(var(--border-base)/.5); }
+.canvas-attachment-selection>span { flex:1; color:rgb(var(--text-muted)); font-size:11px; }
+.canvas-attachment-panel .canvas-attachment-place { border-color:rgb(var(--border-base)/.55); background:rgb(var(--bg-elevated)); font-weight:500; }
+@media (max-width:600px),(pointer:coarse) {
+  .canvas-attachment-trigger { width:44px; min-height:44px; }
+  .canvas-attachment-panel { --attachment-control-size:44px; }
+  .canvas-attachment-panel input:is([type=url],[type=search]),.canvas-attachment-filters select { font-size:16px; }
+  .canvas-attachment-select { width:28px; }
+  .canvas-attachment-list>li[data-resource-id] { gap:4px; padding-inline:2px; }
+  .canvas-attachment-kind { display:none; }
+  .canvas-attachment-upload small { font-size:9px; }
+  .canvas-attachment-selection { gap:4px; padding-inline:6px; }
+}
+@media (forced-colors:active) {
+  .canvas-attachment-panel,.canvas-attachment-panel :is(button,input,select) { border-color:CanvasText; }
+  .canvas-attachment-list>li[data-selected=true] { outline:1px solid Highlight; }
+}

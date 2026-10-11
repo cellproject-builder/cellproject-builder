@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react';
+import { useEffect, useRef, useState, type KeyboardEventHandler, type PointerEvent, type RefObject } from 'react';
 import { useReactFlow, useViewport } from '@xyflow/react';
 import { nanoid } from 'nanoid';
+import { HandIcon } from '@/components/ui/SoftIcons';
 import { useGraphStore } from '@/store';
 import { useWorkspaceStore } from '@/workspace/store';
 import { registerDataIngestion } from '@/cloud/activity';
@@ -72,6 +73,14 @@ export function PlannerInkLayer({ project, containerRef, english = false }: { pr
       apply(rebaseInk(direction === 'past' ? operation.after : operation.before, direction === 'past' ? operation.before : operation.after, latest()));
       history.current[direction].pop(); history.current[direction === 'past' ? 'future' : 'past'].push(operation); refresh(value => value + 1);
     } catch { setError(t('Não foi possível restaurar esta alteração.', 'This change could not be restored.')); }
+  };
+  const handleDrawingKey: KeyboardEventHandler<HTMLDivElement> = event => {
+    if (!active || event.defaultPrevented) return;
+    const key = event.key.toLowerCase();
+    if (key === 'escape') { event.preventDefault(); event.stopPropagation(); reset(); setActive(false); }
+    else if ((event.ctrlKey || event.metaKey) && (key === 'z' || key === 'y')) {
+      event.preventDefault(); event.stopPropagation(); travel(key === 'y' || event.shiftKey ? 'future' : 'past');
+    }
   };
   const point = (event: { clientX: number; clientY: number; pointerType?: string; pressure?: number }): InkPoint => {
     const position = api.screenToFlowPosition({ x: event.clientX, y: event.clientY });
@@ -146,20 +155,14 @@ export function PlannerInkLayer({ project, containerRef, english = false }: { pr
       {liveInk.remote.filter(value => !saved.some(stroke => stroke.id === (value.stroke.id ?? value.gestureId))).map(value => <g key={`${value.sender}:${value.gestureId}`} transform={`translate(${value.stroke.x ?? 0} ${value.stroke.y ?? 0})`}><InkStroke stroke={value.stroke} data-planner-remote-stroke={value.gestureId} /></g>)}
       {preview && <g transform={`translate(${preview.x} ${preview.y})`}><InkStroke stroke={preview} /></g>}
     </g></svg>
-    <div ref={stage} data-planner-ink className="planner-ink-input" style={{ pointerEvents: active ? 'auto' : 'none' }} tabIndex={active ? 0 : -1} role="group" aria-label={t('Desenho livre no plano', 'Free drawing on plan')} onPointerDown={event => route(event, 'down')} onPointerMove={event => route(event, 'move')} onPointerUp={event => route(event, 'up')} onPointerCancel={event => route(event, 'up', true)} onLostPointerCapture={event => { if (pointers.current.hasPointer(event.pointerId)) route(event, 'up', true); }} onKeyDown={event => {
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); reset(); setActive(false); }
-      else if ((event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase())) { event.preventDefault(); event.stopPropagation(); travel(event.key === 'y' || event.shiftKey ? 'future' : 'past'); }
-    }} />
-    {!active ? <div className="planner-ink-tools">{button('pen', t('Desenhar no plano', 'Draw on plan'), () => { setActive(true); setEraser(false); containerRef.current?.querySelector<HTMLElement>('[data-planner-ink]')?.focus({ preventScroll: true }); })}</div> : <InkPalette label={t('Ferramentas do plano', 'Plan drawing tools')} english={english} className="planner-ink-palette">
+    <div ref={stage} data-planner-ink className="planner-ink-input" style={{ pointerEvents: active ? 'auto' : 'none' }} tabIndex={active ? 0 : -1} role="group" aria-label={t('Desenho livre no plano', 'Free drawing on plan')} onPointerDown={event => route(event, 'down')} onPointerMove={event => route(event, 'move')} onPointerUp={event => route(event, 'up')} onPointerCancel={event => route(event, 'up', true)} onLostPointerCapture={event => { if (pointers.current.hasPointer(event.pointerId)) route(event, 'up', true); }} onKeyDown={handleDrawingKey} />
+    {!active ? <div className="planner-ink-tools">{button('pen', t('Desenhar no plano', 'Draw on plan'), () => { setActive(true); setEraser(false); containerRef.current?.querySelector<HTMLElement>('[data-planner-ink]')?.focus({ preventScroll: true }); })}</div> : <InkPalette label={t('Ferramentas do plano', 'Plan drawing tools')} english={english} className="planner-ink-palette" variant="strip" preview={eraser ? <Icon name="eraser"/> : undefined} onUndo={() => travel('past')} canUndo={!!history.current.past.length} onRedo={() => travel('future')} canRedo={!!history.current.future.length} onExit={() => { reset(); setActive(false); }} exitLabel={t('Voltar ao mapa', 'Back to map')} onKeyDown={handleDrawingKey}>
         <InkToolbar value={settings} onChange={value => { reset(); setSettings(value); setEraser(false); }} english={english} />
         <div className="planner-ink-actions" role="toolbar" aria-label={t('Ações do desenho', 'Drawing actions')}>
           {button('eraser', t('Borracha', 'Eraser'), () => { reset(); setEraser(!eraser); }, eraser)}
           {button('ruler', t('Régua — traço reto', 'Ruler — straight line'), () => { reset(); setRuler(!ruler); }, ruler)}
-          {button('undo', t('Desfazer tinta', 'Undo ink'), () => travel('past'), undefined, !history.current.past.length)}
-          {button('redo', t('Refazer tinta', 'Redo ink'), () => travel('future'), undefined, !history.current.future.length)}
-          {button('close', t('Voltar ao mapa', 'Back to map'), () => { reset(); setActive(false); })}
         </div>
-        <label className="ink-finger-option"><input type="checkbox" aria-label={t('Desenhar com dedo', 'Draw with finger')} checked={fingerDrawing} onChange={event => { reset(); setFingerDrawing(event.target.checked); }} />{t('Desenhar com dedo', 'Draw with finger')}</label>
+        <label className="ink-finger-option" title={t('Desenhar com dedo', 'Draw with finger')}><input type="checkbox" aria-label={t('Desenhar com dedo', 'Draw with finger')} checked={fingerDrawing} onChange={event => { reset(); setFingerDrawing(event.target.checked); }} /><HandIcon width={19} height={19}/><span>{t('Desenhar com dedo', 'Draw with finger')}</span></label>
       {error && <span role="status">{error}</span>}
     </InkPalette>}
   </>;

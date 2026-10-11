@@ -117,12 +117,14 @@ describe('free note canvas', () => {
   });
   it('persists distinct ink tools and transparency in the optional notebook', () => {
     const stage = mount();
+    act(() => Simulate.click(host.querySelector('[data-ink-brush-trigger]')!));
     act(() => Simulate.click(host.querySelector('[aria-label="Marca-texto"]')!));
     pointer(stage, 'pointerDown', 10, 20); pointer(stage, 'pointerMove', 60, 40); pointer(stage, 'pointerUp', 60, 40);
     expect(last.strokes[0]).toMatchObject({ tool: 'highlighter', opacity: .28 });
     expect(last.strokes[0].width).toBeGreaterThan(3);
     const highlight = host.querySelector(`[data-note-stroke="${last.strokes[0].id}"]`)!;
     expect(Number(highlight.getAttribute('opacity'))).toBeLessThan(1);
+    act(() => Simulate.click(host.querySelector('[data-ink-brush-trigger]')!));
     act(() => Simulate.click(host.querySelector('[aria-label="Monoline"]')!));
     pointer(stage, 'pointerDown', 10, 60); pointer(stage, 'pointerUp', 60, 70);
     expect(last.strokes[1]).toMatchObject({ tool: 'monoline' });

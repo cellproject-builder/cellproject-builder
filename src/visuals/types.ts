@@ -60,6 +60,7 @@ export interface VisualModelAssembly {
   selectedNodeIds: string[]; selectedImageIds: string[]; sources: DecompositionSource[]; unknowns: string[];
 }
 export interface VisualWorkspace {
+  attachments?: import('@/attachments/canvasModel').CanvasAttachments;
   ink?: import('@/ink/canvasModel').CanvasInkDocument;
   version: 1; mode: 'approval' | 'automatic'; artifacts: VisualArtifact[]; proposals: VisualProposal[];
   drafts: { search: VisualPromptInput; model: VisualPromptInput };

@@ -31,6 +31,7 @@ Entrada mantida em 10/10/2026. As fichas descrevem o código desta revisão e ap
 | Projetos e fontes | [Anexos](plan-attachments.md), [aparência](project-appearance.md), [pesquisa no chat](chat-component-research.md) |
 | Continuidade do assistente | [Contexto, compactação e referência Codex](design/chat-context-strategy.md), [módulo de chat e histórico](modules/chat-and-dairo.md) |
 | Superfícies visuais | [Abas do estúdio](visual-studio-tabs.md), [caderno](notes-visual-notebook.md), [validação do canvas](visual-canvas-validation.md) |
+| Canvas e leitura | [Barra compacta de tinta](design/compact-ink-controls.md), [editor de notas](design/notebook-editor.md), [biblioteca de anexos e leitor](design/canvas-attachments.md) |
 | Modelagem | [Guia adaptado de skills](visual-modeling-skills.md), [decomposição](design/object-decomposition.md), [geração avançada](design/advanced-model-generation.md) |
 | Evolução proposta | [Biblioteca de fontes nos canvases](superpowers/specs/2026-10-10-canvas-source-library-design.md), [direção do Dairo](dairo-direction.md), [assinatura Codex para futura versão open source](design/codex-subscription-feasibility.md), [conceito inicial](CONCEPT.md) |
 

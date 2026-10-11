@@ -1,6 +1,6 @@
 # Dynamic Board
 
-Visão canônica do módulo, conferida no código em 10/10/2026. O nome do produto é Dynamic Diary; os nomes `cellproject-*` ainda usados na persistência são contratos de compatibilidade. Este documento descreve implementação e limites observáveis, sem substituir o [desenho original](../superpowers/specs/2026-10-10-dynamic-board-design.md) ou afirmar eficácia em pesquisa.
+Visão canônica do módulo, conferida no código em 11/10/2026. O nome do produto é Dynamic Diary; os nomes `cellproject-*` ainda usados na persistência são contratos de compatibilidade. Este documento descreve implementação e limites observáveis, sem substituir o [desenho original](../superpowers/specs/2026-10-10-dynamic-board-design.md) ou afirmar eficácia em pesquisa.
 
 ## Finalidade e estado
 
@@ -10,6 +10,7 @@ O Dynamic Board é um espaço livre para escrever, desenhar e relacionar ideias 
 | --- | --- |
 | Implementado | Biblioteca de quadros nomeados; busca pelo título; arquivamento e restauração; canvas com pan/zoom; cartões, texto, traços livres, imagens, diagramas SVG e modelos 3D; conexões opcionais; seleção, movimento, redimensionamento, cópia, duplicação, remoção e desfazer/refazer. |
 | Implementado | Cinco instrumentos de tinta compartilhados, cor, espessura, opacidade, régua, borracha de traço e laço de seleção; prévia temporária entre dispositivos quando o canal cifrado está disponível. |
+| Implementado | Biblioteca de anexos compartilhada com o planner: clipe, importação de PDF/imagem/texto, links, cartões ou decks no canvas e leitor sobre o quadro. |
 | Implementado, dependente de serviços | Compositor de IA para diagrama, 3D, busca de imagens e aprimoramento de um texto. Requer a configuração/capacidade correspondente. O resultado aparece como proposta antes da inserção. |
 | Experimental no sentido de uso | Diagramas e modelos gerados são representações exploratórias. Validação de schema não transforma uma ilustração em ensaio, medição ou prova de compatibilidade física. |
 | Planejado | Transformar um quadro em plano por uma ação explícita. Não há conversão automática entregue. |
@@ -19,7 +20,7 @@ O quadro livre também é diferente do [Kanban de tarefas](../../src/workspace/B
 ## Fluxo da pessoa
 
 1. Abrir Dynamic Board na navegação e criar ou reabrir um quadro. A biblioteca mostra objetos e data de atualização; quadros arquivados ficam numa lista recuperável.
-2. Inserir cartão/texto, desenhar, colar/importar imagens ou colar artefatos compatíveis. Posições pertencem ao espaço do canvas, inclusive coordenadas negativas.
+2. Inserir cartão/texto, desenhar, colar/importar imagens ou colar artefatos compatíveis. O clipe abre a biblioteca de anexos; importar adiciona a fonte à biblioteca, e arrastar ou adicionar ao canvas cria seu cartão. Posições pertencem ao espaço do canvas, inclusive coordenadas negativas.
 3. Mover, redimensionar e conectar objetos. Texto aceita formatação por Markdown; desenhos são traços vetoriais. Conexões são relações livres, sem hierarquia de plano ou significado físico automático.
 4. Opcionalmente abrir o compositor, escrever o pedido e escolher se o conteúdo do quadro entra no contexto. Referências `@` são objetos do próprio quadro.
 5. Examinar a prévia e seus controles. Inserir/aplicar exige uma ação explícita. Minimizar mantém a geração; fechar cancela. Uma proposta desatualizada não pode ser aplicada.
@@ -29,11 +30,13 @@ Atalhos e foco ficam no canvas, preservando campos de edição. `Ctrl+D` duplica
 
 Como esse histórico guarda documentos completos, a chegada de um documento externo invalida as operações anteriores da sessão. Isso impede que desfazer uma ação antiga apague um item recebido do outro dispositivo; novas ações iniciam um histórico sobre a versão recebida. Durante arrasto ou redimensionamento, um guard impede a substituição por snapshots remotos e é liberado na conclusão, cancelamento ou saída da superfície.
 
-## Desenho e paleta
+## Desenho e barra de ferramentas
 
-Desde 11/10/2026, as ferramentas do desenho abrem numa faixa única: coluna na lateral de um canvas largo e linha no topo de um canvas alto. A faixa acompanha o tamanho da superfície, mantém alvos de 44 px e rola no próprio eixo. Canetas e régua aparecem primeiro; espessura/opacidade abrem num popover dentro do canvas, sem aumentar a faixa. Recolher permanece acessível durante a rolagem. O [relatório da paleta compacta](../reports/compact-ink-palette-2026-10-11.md) registra as verificações e os limites do ensaio responsivo.
+No modo de desenho, a barra começa recolhida com três ações persistentes: indicador do modo atual (caneta, borracha ou laço), desfazer e voltar à seleção. Desfazer permanece visível e fica desabilitado sem histórico; refazer aparece somente enquanto há uma operação a refazer. Nenhuma dessas ações exige abrir as escolhas de ferramentas. Sair cancela um traço provisório, preservando os itens já salvos.
 
-A paleta reutiliza [InkToolbar](../../src/ink/InkToolbar.tsx) e o renderer [InkStroke](../../src/ink/InkStroke.tsx). Os instrumentos são caneta, bico de pena, monoline, lápis e marca-texto. Cor e instrumento ficam à mão; espessura e opacidade aparecem no ajuste de traço. Pontos de pressão e eventos coalescidos são usados quando fornecidos pelo navegador. O bico de pena usa orientação fixa e o lápis uma textura determinística; não são simuladores completos de materiais ou sensores físicos.
+Um clique/toque no indicador abre ou recolhe as ferramentas; passar o mouse/caneta ou receber foco não abre o painel. A faixa segue uma coluna junto à lateral quando o canvas é largo e tem altura suficiente; em uma superfície alta ou curta, segue uma linha no topo. As escolhas rolam no próprio eixo sem retirar as ações persistentes. Os controles medem 36 px no desktop e 44 px em tela estreita ou ponteiro de toque. Escape recolhe as escolhas e devolve foco ao indicador; recolher mantém o modo de desenho. Botões de adicionar cartão/texto/imagem e gerar diagrama/3D/buscar imagem pertencem ao modo de seleção, fora da barra de desenho.
+
+A barra reutiliza [InkPalette](../../src/ink/InkPalette.tsx), [InkToolbar](../../src/ink/InkToolbar.tsx) e o renderer [InkStroke](../../src/ink/InkStroke.tsx). O seletor de instrumento abre por um segundo clique explícito, mostrando caneta, bico de pena, monoline, lápis e marca-texto. Cor, espessura e opacidade ficam no popover de ajuste de traço, dentro dos limites do canvas; não ampliam a faixa. Pontos de pressão e eventos coalescidos são usados quando fornecidos pelo navegador. O bico de pena usa orientação fixa e o lápis uma textura determinística; não são simuladores completos de materiais ou sensores físicos. O [relatório da paleta compacta](../reports/compact-ink-palette-2026-10-11.md) registra uma etapa anterior do desenho da interface; os contratos atuais são exercitados por `InkPalette.test.tsx`, `InkToolbar.test.tsx` e `BoardCanvas.test.tsx`.
 
 Cada gesto concluído cria um item de desenho. Cancelar não salva a prévia. A borracha remove traços atingidos pelo caminho, inclusive entre amostras afastadas; não recorta apenas um pedaço do traço. O laço seleciona objetos para as ações existentes do quadro. A régua restringe o novo traço a um segmento reto.
 
@@ -46,6 +49,7 @@ O [transporte ao vivo](ink-live-sync.md) envia prévias cifradas do escopo `boar
 | Navegação | [Workspace.tsx](../../src/workspace/Workspace.tsx) carrega a superfície `boards` sob demanda e suspende o chat geral nessa superfície. |
 | Biblioteca | [DynamicBoards.tsx](../../src/boards/DynamicBoards.tsx) seleciona quadros, busca títulos e chama ações de arquivar/restaurar. |
 | Interação | [BoardCanvas.tsx](../../src/boards/BoardCanvas.tsx) adapta documentos ao React Flow, coordena gestos, clipboard, histórico local, imagens e compositor. |
+| Anexos compartilhados | [CanvasAttachmentSurface.tsx](../../src/attachments/CanvasAttachmentSurface.tsx) integra biblioteca, cartões e leitor; [canvasDomain.ts](../../src/attachments/canvasDomain.ts) adapta o catálogo ao registro do quadro, sem criar um tipo novo de `BoardItem`. |
 | Objetos | [BoardItemNode.tsx](../../src/boards/BoardItemNode.tsx) implementa edição e ferramentas por tipo; [BoardText.tsx](../../src/boards/BoardText.tsx) controla texto/formatação. |
 | Operações puras | [operations.ts](../../src/boards/operations.ts) copia seleções, remapeia IDs/relações na colagem, remove conexões incidentes e converte traços para coordenadas locais. |
 | IA e revisão | [BoardComposer.tsx](../../src/boards/BoardComposer.tsx) mantém prévia e aplicação; [generation.ts](../../src/boards/generation.ts) gera/busca sem mutar o quadro. |
@@ -58,7 +62,7 @@ O reuso do renderer e dos schemas visuais não liga o quadro ao planner. Diagram
 
 O contrato está em [model.ts](../../src/boards/model.ts):
 
-- `BoardRecord`: `id`, `title`, `document`, `archived`, `createdAt`, `updatedAt`; sem `projectId` ou `noteId`.
+- `BoardRecord`: `id`, `title`, `document`, `archived`, `createdAt`, `updatedAt` e `attachments` opcional; sem `projectId` ou `noteId`.
 - `BoardDocument` versão 1: `items`, `edges`, `viewport`. Cada item tem ID, tipo, posição e tamanho. Os tipos são `card`, `text`, `drawing`, `image`, `diagram` e `model`.
 - Diagrama guarda documento declarativo e valores atuais dos parâmetros; modelo guarda `SceneV1`; imagem guarda raster inline e rótulo; desenho guarda pontos locais, cor, espessura e, opcionalmente, instrumento, opacidade e pressão por ponto. Campos opcionais preservam a forma e a aparência de documentos legados.
 - Até 200 itens, 500 conexões, 4.096 pontos por desenho e 100 mil pontos de desenho por quadro. Conexões precisam apontar para itens presentes; IDs duplicados são rejeitados.
@@ -68,6 +72,14 @@ O contrato está em [model.ts](../../src/boards/model.ts):
 `boards` viaja no envelope `cellproject-workspace`, versão 2, junto aos demais dados do workspace. `activeBoardId` e seleção/histórico do canvas não são persistidos. A ausência de `boards` é aceita para envelopes antigos. Um quadro incompatível faz a hidratação falhar com preservação da origem; não é descartado silenciosamente.
 
 O [repositório selecionado](../../src/data/workspaceRepository.ts) delega ao armazenamento local ou ao runtime de nuvem configurado. Quadros não criam um backend próprio. [workspaceTransfer.ts](../../src/data/workspaceTransfer.ts) inclui quadros em backup e exportação por linhas. Cofre, autenticação, conflitos e transporte pertencem à infraestrutura existente; a presença desse caminho no código não comprova sincronização ou implantação remota no momento da leitura.
+
+## Biblioteca e leitura de anexos
+
+O [contrato compartilhado de anexos](../design/canvas-attachments.md) atende Board e Construtor de Planos com a mesma biblioteca. O clipe aceita PDF, PNG/JPEG/WebP, TXT/Markdown e URLs HTTP(S). Selecionar várias fontes e adicioná-las ao canvas cria um deck; abrir o cartão mostra o leitor sobre o quadro. O PDF carrega e renderiza a página atual sob demanda. Links mostram endereço seguro e abertura externa; não executam HTML remoto dentro do canvas. Usar no chat referencia a fonte e abre o compositor, sem enviar a mensagem automaticamente.
+
+`BoardRecord.attachments` guarda catálogo, metadados, texto extraído limitado e posições dos cartões. Os originais importados ficam no repositório de mídia existente, referenciados por `mediaId`; os bytes não são inseridos em `BoardDocument`. Imagens antigas ou inseridas pelo caminho nativo de imagem continuam inline e não são migradas automaticamente. PDFs legados que guardaram somente texto precisam ser reanexados para recuperar o original; PDFs escaneados não recebem OCR nesta entrega.
+
+Os cartões de anexo são uma camada de coordenadas do React Flow, fora de `BoardDocument.items`. Podem ser movidos, redimensionados, abertos e removidos individualmente, mas ainda não entram na seleção múltipla, no clipboard/duplicação, no histórico de desfazer/refazer do quadro ou no `fitView` dos nós. Remover um cartão preserva a fonte na biblioteca. A pesquisa do chat continua usando as ferramentas existentes; salvar automaticamente um resultado confirmado na biblioteca ainda não é uma ação integrada.
 
 ## Contexto de IA e integração de imagens
 
@@ -93,6 +105,7 @@ Os arquivos abaixo são evidência de contratos exercitados por testes, não res
 | [generation.test.ts](../../src/boards/generation.test.ts), [BoardComposer.test.tsx](../../src/boards/BoardComposer.test.tsx) | Contexto restrito, invalidação semântica, geração declarativa, mídia registrada, prévia, inserção explícita e minimização/cancelamento. |
 | [BoardModelPreview.test.tsx](../../src/boards/BoardModelPreview.test.tsx) | Renderização sob demanda, teclado, zoom, visibilidade, restauração de contexto e liberação de GPU. |
 | [geometry.test.ts](../../src/ink/geometry.test.ts), [InkToolbar.test.tsx](../../src/ink/InkToolbar.test.tsx), [live.test.ts](../../src/ink/live.test.ts) | Geometria/estilos de tinta, controles compactos e frames cifrados; integração do gesto e cancelamento também pertence a `BoardCanvas.test.tsx`. |
+| [canvasModel.test.ts](../../src/attachments/canvasModel.test.ts), [canvasDomain.test.ts](../../src/attachments/canvasDomain.test.ts), [CanvasAttachmentLibrary.test.tsx](../../src/attachments/CanvasAttachmentLibrary.test.tsx), [CanvasAttachmentReader.test.tsx](../../src/attachments/CanvasAttachmentReader.test.tsx) | Catálogo/decks, isolamento por canvas, importação, ações da biblioteca e leitura sob demanda. Esses testes não acrescentam anexos ao histórico ou clipboard do `BoardDocument`. |
 
 Muitos testes de interface simulam eventos/serviços; testes de geração controlam respostas. Isso não demonstra fidelidade das respostas reais do provedor, desempenho em todo dispositivo ou usabilidade em campo. Não há resultado de comparação científica deste módulo registrado aqui.
 
