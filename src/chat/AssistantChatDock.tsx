@@ -9,13 +9,16 @@ const ChatDockContext = createContext<{
   setFullTarget: (target: HTMLDivElement | null) => void;
   canvasTarget: HTMLDivElement | null;
   setCanvasTarget: (target: HTMLDivElement | null) => void;
+  canvasMaximized: boolean;
+  setCanvasMaximized: (maximized: boolean) => void;
 } | null>(null);
 
 export function AssistantChatDockProvider({ children }: { children: ReactNode }) {
   const [target, setTarget] = useState<HTMLDivElement | null>(null);
   const [fullTarget, setFullTarget] = useState<HTMLDivElement | null>(null);
   const [canvasTarget, setCanvasTarget] = useState<HTMLDivElement | null>(null);
-  const value = useMemo(() => ({ target, setTarget, fullTarget, setFullTarget, canvasTarget, setCanvasTarget }), [target, fullTarget, canvasTarget]);
+  const [canvasMaximized, setCanvasMaximized] = useState(false);
+  const value = useMemo(() => ({ target, setTarget, fullTarget, setFullTarget, canvasTarget, setCanvasTarget, canvasMaximized, setCanvasMaximized }), [target, fullTarget, canvasTarget, canvasMaximized]);
   return <ChatDockContext.Provider value={value}>{children}</ChatDockContext.Provider>;
 }
 
@@ -35,10 +38,12 @@ export function FullChatDock() {
 export function useFullChatDockTarget() { return useContext(ChatDockContext)?.fullTarget ?? null; }
 
 /** Outside the transformed node layer: anchored to the visible canvas, never a graph node. */
-export function CanvasChatDock() {
+export function CanvasChatDock({ maximized = false }: { maximized?: boolean }) {
   const dock = useContext(ChatDockContext);
   const host = useRef<HTMLDivElement | null>(null);
   const setCanvasTarget = dock?.setCanvasTarget;
+  const setCanvasMaximized = dock?.setCanvasMaximized;
+  useEffect(() => { setCanvasMaximized?.(maximized); return () => setCanvasMaximized?.(false); }, [maximized, setCanvasMaximized]);
   const registerTarget = useCallback((target: HTMLDivElement | null) => { host.current = target; setCanvasTarget?.(target); }, [setCanvasTarget]);
   const [viewport, setViewport] = useState({ inset: 0, height: 0 });
   useEffect(() => {
@@ -58,3 +63,4 @@ export function CanvasChatDock() {
   return <div ref={registerTarget} className="dd-chat-canvas-host" data-keyboard-open={viewport.inset > 100 || undefined} style={style} />;
 }
 export function useCanvasChatDockTarget() { return useContext(ChatDockContext)?.canvasTarget ?? null; }
+export function useCanvasChatMaximized() { return useContext(ChatDockContext)?.canvasMaximized ?? false; }

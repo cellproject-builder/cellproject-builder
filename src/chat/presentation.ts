@@ -4,4 +4,6 @@ import { create } from 'zustand';
 export const useChatPresentation = create<{
   expanded: boolean;
   setExpanded: (expanded: boolean) => void;
-}>((set) => ({ expanded: false, setExpanded: (expanded) => set({ expanded }) }));
+  canvasLauncher: { y: number } | null;
+  setCanvasLauncher: (position: { y: number } | null) => void;
+}>((set) => ({ expanded: false, setExpanded: (expanded) => set({ expanded }), canvasLauncher: null, setCanvasLauncher: (canvasLauncher) => set({ canvasLauncher }) }));

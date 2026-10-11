@@ -61,7 +61,7 @@ beforeEach(async () => {
   vi.mocked(runAssistant).mockReset();
   vi.mocked(addChatImageReference).mockReset();
   viewport.mobile = false;
-  useChatPresentation.setState({ expanded: false });
+  useChatPresentation.setState({ expanded: false, canvasLauncher: null });
   Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
   await useConfigStore.persist.rehydrate();
   await useChatStore.persist.rehydrate();
@@ -85,13 +85,92 @@ function PlannerHarness({ planner = true }: { planner?: boolean }) {
   </AssistantChatDockProvider>;
 }
 
-function CanvasHarness({ suspended = false }: { suspended?: boolean }) {
+function CanvasHarness({ suspended = false, maximized = false }: { suspended?: boolean; maximized?: boolean }) {
   return <AssistantChatDockProvider><FullChatDock />
-    <div data-testid="canvas"><button>Canvas control</button><CanvasChatDock />
+    <div data-testid="canvas"><button>Canvas control</button><CanvasChatDock maximized={maximized} />
       <input aria-label="Manual plan edit" defaultValue="My draft" />
     </div><AssistantChat suspended={suspended} />
   </AssistantChatDockProvider>;
 }
+
+function dragCanvasEntry(pointerType: string, destination: { x: number; y: number }, cancel = false) {
+  const entry = host.querySelector<HTMLButtonElement>('.dd-chat-trigger')!;
+  const dock = host.querySelector<HTMLElement>('.dd-chat-canvas-host')!;
+  vi.spyOn(dock, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, left: 0, top: 0, width: 1000, height: 700, right: 1000, bottom: 700, toJSON() {} });
+  const start = { pointerId: 7, isPrimary: true, button: 0, pointerType, clientX: 500, clientY: 670 };
+  act(() => Simulate.pointerDown(entry, start));
+  act(() => Simulate.pointerMove(entry, { ...start, clientX: destination.x, clientY: destination.y }));
+  act(() => (cancel ? Simulate.pointerCancel : Simulate.pointerUp)(entry, { ...start, clientX: destination.x, clientY: destination.y }));
+  return entry;
+}
+
+it.each(['mouse', 'touch', 'pen'])('docks the canvas entry with %s without opening the conversation on release', pointerType => {
+  useChatStore.setState({ open: false });
+  act(() => root.render(<CanvasHarness />));
+  const entry = dragCanvasEntry(pointerType, { x: 990, y: 350 });
+  act(() => Simulate.click(entry, { detail: 1 }));
+  expect(useChatStore.getState().open).toBe(false);
+  expect(entry.dataset.placement).toBe('edge');
+  act(() => Simulate.keyDown(entry, { key: 'Enter' }));
+  act(() => Simulate.click(entry, { detail: 0 }));
+  expect(host.querySelector('.dd-chat.is-canvas')).not.toBeNull();
+});
+
+it('returns the launcher to the canvas when dragged away from the edge', () => {
+  useChatStore.setState({ open: false });
+  act(() => root.render(<CanvasHarness />));
+  dragCanvasEntry('touch', { x: 990, y: 350 });
+  const entry = dragCanvasEntry('touch', { x: 500, y: 640 });
+  expect(entry.dataset.placement).toBe('center');
+  expect(useChatStore.getState().open).toBe(false);
+});
+
+it('cancels a drag without moving the launcher or opening chat', () => {
+  useChatStore.setState({ open: false });
+  act(() => root.render(<CanvasHarness />));
+  const entry = dragCanvasEntry('pen', { x: 990, y: 350 }, true);
+  act(() => Simulate.click(entry, { detail: 1 }));
+  expect(entry.dataset.placement).toBe('center');
+  expect(useChatStore.getState().open).toBe(false);
+});
+
+it.each(['mouse', 'touch', 'pen'])('keeps a %s tap with small movement as a normal chat activation', pointerType => {
+  useChatStore.setState({ open: false });
+  act(() => root.render(<CanvasHarness />));
+  const entry = dragCanvasEntry(pointerType, { x: 502, y: 671 });
+  act(() => Simulate.click(entry, { detail: 1 }));
+  expect(host.querySelector('.dd-chat.is-canvas')).not.toBeNull();
+});
+
+it.each(['capture', 'blur'])('cancels an interrupted drag on %s and accepts the next tap', interruption => {
+  useChatStore.setState({ open: false });
+  act(() => root.render(<CanvasHarness />));
+  const entry = host.querySelector<HTMLButtonElement>('.dd-chat-trigger')!;
+  const pointer = { pointerId: 7, isPrimary: true, button: 0, pointerType: 'touch', clientX: 500, clientY: 670 };
+  act(() => Simulate.pointerDown(entry, pointer));
+  act(() => Simulate.pointerMove(entry, { ...pointer, clientX: 900, clientY: 300 }));
+  act(() => interruption === 'capture' ? Simulate.lostPointerCapture(entry, pointer) : window.dispatchEvent(new Event('blur')));
+  expect(entry.classList.contains('is-dragging')).toBe(false);
+  expect(entry.dataset.placement).toBe('center');
+  act(() => Simulate.pointerDown(entry, pointer));
+  act(() => Simulate.pointerUp(entry, pointer));
+  act(() => Simulate.click(entry, { detail: 1 }));
+  expect(host.querySelector('.dd-chat.is-canvas')).not.toBeNull();
+});
+
+it('uses an inside-edge icon in fullscreen and restores the normal placement without losing a draft', () => {
+  act(() => root.render(<CanvasHarness />));
+  act(() => Simulate.change(host.querySelector<HTMLTextAreaElement>('.dd-chat-composer textarea')!, { target: { value: 'Keep my draft' } } as never));
+  act(() => Simulate.click(host.querySelector<HTMLButtonElement>('[aria-label="Fechar chat"]')!));
+  act(() => root.render(<CanvasHarness maximized />));
+  expect(host.querySelector<HTMLButtonElement>('.dd-chat-trigger')!.dataset.placement).toBe('edge');
+  act(() => root.render(<CanvasHarness />));
+  const entry = host.querySelector<HTMLButtonElement>('.dd-chat-trigger')!;
+  expect(entry.dataset.placement).toBe('center');
+  act(() => Simulate.click(entry));
+  expect(host.querySelector('.dd-chat-composer textarea')?.textContent).toBe('Keep my draft');
+  expect(host.querySelectorAll('.dd-chat-composer')).toHaveLength(1);
+});
 
 it('anchors the entry and one nonmodal conversation inside the canvas, even when maximized', () => {
   useChatStore.setState({ open: false });

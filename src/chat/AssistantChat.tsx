@@ -11,7 +11,8 @@ import { ChatBubbleIcon, EnterFullScreenIcon, ExitFullScreenIcon, HistoryIcon } 
 import { ExplanationContent } from '@/components/Markdown';
 import { actionLabel, chatEn, chatPt } from './messages';
 import { chatCooldownUntil, retryChatPersistence, sendChatMessage, stopChat, useChatStore } from './store';
-import { useChatDockTarget, useFullChatDockTarget, useCanvasChatDockTarget } from './AssistantChatDock';
+import { useChatDockTarget, useFullChatDockTarget, useCanvasChatDockTarget, useCanvasChatMaximized } from './AssistantChatDock';
+import { CanvasChatEntry } from './CanvasChatEntry';
 import { useChatPresentation } from './presentation';
 import { ChatHistory } from './ChatHistory';
 import { captureChatTurnContext, useChatFocusStore } from './turnContext';
@@ -36,6 +37,7 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   const fullTarget = useFullChatDockTarget();
   const dockTarget = useChatDockTarget();
   const canvasTarget = useCanvasChatDockTarget();
+  const canvasMaximized = useCanvasChatMaximized();
   const mobile = useIsMobile();
   const canvas = !!canvasTarget && !expanded;
   const docked = !!dockTarget && !canvas && !mobile && !expanded;
@@ -209,7 +211,7 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
       <ChatComposer text={input} onText={setInput} references={references} onReferences={next => { setReferences(next); setReferenceError(''); }} files={files} onFiles={setFiles} onFilesBusy={setFilesBusy} scopeKey={`${state.sessionId}:${contextProjectId}`} projectId={contextProjectId} inputRef={inputRef} english={english} placeholder={composerPlaceholder} sendLabel={tr.send} stopLabel={tr.stop} disabled={!state.hydrated || !!state.archivedAt} canSend={(!!input.trim() || !!files.length) && !filesBusy && ready && state.hydrated && !state.archivedAt && !choosingImage && cooldownSeconds <= 0} running={state.running} onSubmit={send} onStop={stopChat} />
       </div></div>
     </section>;
-  const trigger = <button ref={triggerRef} className={`dd-chat-trigger ${canvas ? 'is-canvas-entry' : ''} ${state.running ? 'is-working' : ''} ${state.open && (canvas || docked || mobile || expanded) ? 'is-hidden' : ''}`} onClick={() => state.setOpen(!state.open)} aria-expanded={state.open} aria-controls={state.open ? `${titleId}-panel` : undefined} aria-label={tr.open} title={canvas ? `${english ? 'Talk about the plan' : 'Conversar com o plano'} · Ctrl/⌘ + Shift + Space` : tr.open}><ChatIcon />{canvas && <span>{input.trim() || references.length || files.length ? (english ? 'Continue' : 'Continuar') : (english ? 'Chat' : 'Conversar')}</span>}{state.running && <i />}</button>;
+  const trigger = canvas && canvasTarget ? <CanvasChatEntry ref={triggerRef} host={canvasTarget} maximized={canvasMaximized} hidden={state.open} working={state.running} label={tr.open} text={input.trim() || references.length || files.length ? (english ? 'Continue' : 'Continuar') : (english ? 'Chat' : 'Conversar')} title={`${english ? 'Drag to the edge to dock' : 'Arraste até a borda para encaixar'} · Ctrl/⌘ + Shift + Space`} open={state.open} controls={state.open ? `${titleId}-panel` : undefined} onActivate={() => state.setOpen(!state.open)}><ChatIcon /></CanvasChatEntry> : <button ref={triggerRef} className={`dd-chat-trigger ${state.running ? 'is-working' : ''} ${state.open && (docked || mobile || expanded) ? 'is-hidden' : ''}`} onClick={() => state.setOpen(!state.open)} aria-expanded={state.open} aria-controls={state.open ? `${titleId}-panel` : undefined} aria-label={tr.open} title={tr.open}><ChatIcon />{state.running && <i />}</button>;
   return <>
     {canvasTarget && !expanded ? createPortal(<>{trigger}{panel}</>, canvasTarget) : trigger}
     {state.open && modal && <div className="dd-chat-scrim" aria-hidden="true" onClick={close} />}

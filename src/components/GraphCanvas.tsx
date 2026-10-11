@@ -1446,7 +1446,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       </ReactFlow>
       {project && <VisualWorkspaceBridge project={project} containerRef={containerRef} selectedArtifactId={selectedVisualId?.slice(7) ?? null} onSelectArtifact={selectVisualArtifact} />}
       {project && <PlannerInkLayer key={project.id} project={project} containerRef={containerRef} />}
-      <CanvasChatDock />
+      <CanvasChatDock maximized={maximized} />
     </div>
   );
 }
