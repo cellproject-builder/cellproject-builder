@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CloudRuntime, configureCloud, type CloudProvider } from '@/cloud/runtime';
 import { useConfigStore, type Provider } from '@/config/store';
 import { useLocaleStore } from '@/i18n';
-import { EMPTY_OBJECTIVE_DRAFT, useGraphStore } from '@/store';
+import { EMPTY_OBJECTIVE_DRAFT, flushGraphPersistence, useGraphStore } from '@/store';
 import { useWorkspaceStore, flushWorkspacePersistence } from '@/workspace/store';
 import { useKBStore } from '@/kb/store';
 import { flushChatPersistence, useChatStore } from '@/chat/store';
@@ -38,7 +38,8 @@ beforeEach(async () => {
     objectiveDraft: { ...EMPTY_OBJECTIVE_DRAFT, objective: 'Investigar a carga da primeira junta' } });
   useChatStore.setState({ messages: [], modelHistory: [], pendingHistory: null, open: true, running: false, hydrated: true, rateLimits: {} });
   useConfigStore.setState({ activeProvider: null, providers: {}, webResearchEnabled: false });
-  await Promise.all([flushWorkspacePersistence(), flushChatPersistence()]);
+  // Flush the local graph before serverProviders switches persistence owners.
+  await Promise.all([flushWorkspacePersistence(), flushChatPersistence(), flushGraphPersistence()]);
   vi.spyOn(useKBStore.getState(), 'getContextFor').mockResolvedValue([]);
   inference.chat.mockReset().mockResolvedValue({ text: 'Resposta usando o provedor do servidor.', messages: [] });
   inference.outlines.mockReset().mockResolvedValue([outline]);
@@ -49,6 +50,8 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await act(async () => root.unmount()); host.remove();
+  // Unmount may cancel an outline and enqueue a final graph draft for this owner.
+  await flushGraphPersistence();
   await cloud?.flush(); configureCloud(null);
   await Promise.all([flushWorkspacePersistence(), flushChatPersistence()]);
   vi.restoreAllMocks(); vi.unstubAllGlobals();

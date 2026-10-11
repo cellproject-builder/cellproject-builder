@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { get as idbGet } from 'idb-keyval';
-import { workspaceRepository } from '@/data/workspaceRepository';
+import { IndexedDbWorkspaceRepository } from '@/data/workspaceRepository';
 import { createWorkspaceBackup, restoreWorkspaceBackup, workspaceToDatabaseRows } from '@/data/workspaceTransfer';
 import { DEMO_PLAN_PREFIX, loadWorkspaceDemo } from './demoData';
 import { flushWorkspacePersistence, useWorkspaceStore as store } from './store';
@@ -93,13 +93,20 @@ describe('local workspace demonstration', () => {
   it('reports persistence failure instead of claiming the examples were saved', async () => {
     await flushWorkspacePersistence();
     const failure = new Error('storage unavailable');
-    const write = vi.spyOn(workspaceRepository, 'setItem').mockRejectedValue(failure);
-    try { await expect(loadWorkspaceDemo()).rejects.toBe(failure); }
+    const write = vi.spyOn(IndexedDbWorkspaceRepository.prototype, 'save').mockRejectedValue(failure);
+    try {
+      await expect(loadWorkspaceDemo()).rejects.toBe(failure);
+      expect(write).toHaveBeenCalledWith('cellproject-workspace', expect.any(String));
+      expect(Object.keys(store.getState().projects)).toHaveLength(3);
+    }
     finally {
       write.mockRestore();
-      store.getState().navigate('projects');
+      // Retry the identical content after the backend recovers.
+      store.setState({});
       await flushWorkspacePersistence();
     }
+    const persisted = JSON.parse((await idbGet<string>('cellproject-workspace'))!);
+    expect(persisted.state.projects).toEqual(store.getState().projects);
   });
 
   it('repairs only the original overlapping demo coordinates and keeps content, custom layouts and real plans intact', async () => {

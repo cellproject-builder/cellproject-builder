@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { flushWorkspacePersistence, useWorkspaceStore as store } from '@/workspace/store';
-import { workspaceRepository } from '@/data/workspaceRepository';
+import { IndexedDbWorkspaceRepository } from '@/data/workspaceRepository';
 import { requestWorkspaceUI } from '@/workspace/uiRequests';
 import { useConfigStore } from '@/config/store';
 import { useSidebarStore } from '@/workspace/sidebarPreference';
@@ -125,19 +125,29 @@ it('reports the explicit chat context separately from the visible workspace proj
 
 it('serializes parallel tool calls until the prior mutation is persisted', async () => {
   await flushWorkspacePersistence();
-  let release!: () => void;
-  const write = vi.spyOn(workspaceRepository, 'setItem').mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve; }));
+  let release: (() => void) | undefined;
+  const repository = new IndexedDbWorkspaceRepository(), save = repository.save.bind(repository);
+  const write = vi.spyOn(IndexedDbWorkspaceRepository.prototype, 'save').mockImplementationOnce((key, value) =>
+    new Promise<void>((resolve) => { release = resolve; }).then(() => save(key, value)));
   const events: string[] = [];
   const tools = createAssistantTools(new AbortController().signal, (event) => events.push(`${event.action}:${event.status}`), 'Crie um projeto');
   const options = { toolCallId: 'parallel', messages: [] };
   const first = tools.workspace_action.execute!({ action: 'create_project', name: 'Em ordem' }, options);
   const second = tools.workspace_read.execute!({ collection: 'projects' }, options);
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  expect(events).toEqual(['create_project:running']);
-  release();
-  await Promise.all([first, second]);
-  expect(events).toEqual(['create_project:running', 'create_project:done', 'workspace_read:running', 'workspace_read:done']);
-  write.mockRestore();
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(write).toHaveBeenCalledOnce();
+    expect(events).toEqual(['create_project:running']);
+    release!();
+    await Promise.all([first, second]);
+    expect(events).toEqual(['create_project:running', 'create_project:done', 'workspace_read:running', 'workspace_read:done']);
+    const persisted = JSON.parse((await repository.load('cellproject-workspace'))!);
+    expect(persisted.state.projects).toEqual(store.getState().projects);
+  } finally {
+    release?.();
+    await Promise.all([first, second]);
+    write.mockRestore();
+  }
 });
 
 it('rejects duplicate block IDs before creating a note', async () => {

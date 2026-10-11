@@ -4,7 +4,7 @@ import { useWorkspaceStore as workspace, flushWorkspacePersistence } from '@/wor
 import { capturePlanner, initializeWorkspace, openPlanner } from '@/workspace/planner';
 import { executePlannerAction } from './plannerTools';
 import { createAssistantTools } from './workspaceTools';
-import { workspaceRepository } from '@/data/workspaceRepository';
+import { IndexedDbWorkspaceRepository } from '@/data/workspaceRepository';
 import * as plannerAI from './service';
 import { useKBStore } from '@/kb/store';
 import type { ConceptNodeData } from '@/types';
@@ -50,12 +50,20 @@ it('cannot invent the user criterion or bypass the confirmation rules', () => {
 it('reports persistence failures from planner tools instead of claiming success', async () => {
   const id = withPlan('A'), nodeId = useGraphStore.getState().project!.rootId;
   await flushWorkspacePersistence();
-  const write = vi.spyOn(workspaceRepository, 'setItem').mockRejectedValue(new Error('quota'));
+  // Local persistence captures this backend before it queues a write.
+  const write = vi.spyOn(IndexedDbWorkspaceRepository.prototype, 'save').mockRejectedValue(new Error('quota'));
   const tools = createAssistantTools(new AbortController().signal, () => {}, 'Renomeie');
-  const result = await tools.planner_action.execute!({ action: 'update_node', projectId: id, nodeId, patch: { name: 'Renomeado' } }, { toolCallId: 'planner', messages: [] });
-  expect(result).toMatchObject({ ok: false, result: { applied: true, saved: false } });
-  write.mockRestore();
-  workspace.setState({}); await flushWorkspacePersistence();
+  try {
+    const result = await tools.planner_action.execute!({ action: 'update_node', projectId: id, nodeId, patch: { name: 'Renomeado' } }, { toolCallId: 'planner', messages: [] });
+    expect(write).toHaveBeenCalledWith('cellproject-workspace', expect.any(String));
+    expect(result).toMatchObject({ ok: false, result: { applied: true, saved: false } });
+    expect(workspace.getState().projects[id].planner!.project!.nodes[nodeId].name).toBe('Renomeado');
+  } finally {
+    write.mockRestore();
+    workspace.setState({}); await flushWorkspacePersistence();
+  }
+  const persisted = JSON.parse((await new IndexedDbWorkspaceRepository().load('cellproject-workspace'))!);
+  expect(persisted.state.projects[id].planner.project.nodes[nodeId].name).toBe('Renomeado');
 });
 
 function withContextualPlan() {
