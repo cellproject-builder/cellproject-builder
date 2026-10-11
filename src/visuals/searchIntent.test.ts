@@ -40,6 +40,42 @@ describe('image search intent', () => {
     const sent = JSON.parse(deps.generate.mock.calls[0][0].prompt);
     expect(sent).toEqual({ request: input.text, context });
   });
+  it.each(['reference', 'attachment'] as const)('searches a %s without typed text and does not mistake electrical quantities for model codes', async source => {
+    deps.config.mockReturnValue({ provider: 'test' });
+    const description = 'Fonte chaveada SH0505, 5 volts e 5 amperes. Capacitor eletrolítico de 1000 µF, 16 volts. Fusível de 5 amperes.';
+    const request = { text: '', mentions: source === 'reference' ? [{ id: 'power', kind: 'node' as const, label: 'Fonte, capacitor e proteção', detail: 'Recurso', fingerprint: 'v1' }] : [],
+      attachments: source === 'attachment' ? [{ id: 'spec', name: 'fonte.md', mime: 'text/markdown', byteLength: 200, text: description, mediaId: null }] : [] };
+    const context = JSON.stringify(source === 'reference' ? { selected: [{ label: request.mentions[0].label, text: description }] } : { attachments: [{ name: 'fonte.md', text: description }] });
+    deps.generate.mockResolvedValue({ finishReason: 'stop', object: {
+      query: 'SH0505 power supply, 1000uF capacitor and 5A fuse', label: 'Fonte, capacitor e fusível',
+      targets: [
+        { query: 'SH0505 switching power supply 5V 5A', aliases: ['SH0505 power supply'], identifiers: ['SH0505'] },
+        { query: '1000uF 16V electrolytic capacitor', aliases: ['electrolytic capacitor'], identifiers: [] },
+        { query: '5A fuse', aliases: ['fuse'], identifiers: [] },
+      ], uncertainty: '', unresolved: false,
+    } });
+    const result = await resolveImageSearchIntent(request, context, { signal: new AbortController().signal });
+    expect(imageSearchQueries(result)).toEqual(['SH0505 switching power supply 5V 5A', '1000uF 16V electrolytic capacitor', '5A fuse']);
+    expect(result.targets?.map(target => target.identifiers)).toEqual([['SH0505'], [], []]);
+  });
+  it('keeps every selected component when the model returns bilingual aliases for a reference-only search', async () => {
+    deps.config.mockReturnValue({ provider: 'test' });
+    const targets = [
+      { query: '5V 5A regulated power supply', aliases: ['Fonte regulada', 'regulated power supply'], identifiers: [] },
+      { query: 'fuse and cut-off button', aliases: ['Fusível e botão de corte', 'fuse and cut-off button'], identifiers: [] },
+      { query: 'SH0505 converter', aliases: ['Conversor SH0505', 'SH0505 converter'], identifiers: ['SH0505'] },
+      { query: '1000 µF capacitor', aliases: ['Capacitor eletrolítico', 'electrolytic capacitor'], identifiers: [] },
+      { query: 'network cable', aliases: ['Cabo de rede', 'network cable'], identifiers: [] },
+      { query: 'protection box', aliases: ['Caixa de proteção', 'protection box'], identifiers: [] },
+    ];
+    deps.generate.mockResolvedValue({ finishReason: 'stop', object: { query: 'power supply, capacitor and protection', label: 'Fonte, capacitor e proteção', targets, uncertainty: '', unresolved: false } });
+    const request = { text: '', mentions: [{ id: 'power', kind: 'node' as const, label: 'Fonte, capacitor e proteção', detail: 'Recurso', fingerprint: 'v1' }], attachments: [] };
+    const result = await resolveImageSearchIntent(request, JSON.stringify({ selected: [{ text: 'Fonte 5 V / 5 A; conversor SH0505; capacitor 1000 µF; fusível; botão de corte; cabo de rede; caixa de proteção.' }] }), { signal: new AbortController().signal });
+    expect(result.targets).toEqual(targets);
+    expect(imageSearchQueries(result)).toEqual(targets.map(target => target.query));
+    expect(result.targetTerms.length).toBeLessThanOrEqual(8);
+    for (const target of targets) expect(result.targetTerms).toContain(target.aliases[0]);
+  });
   it('rejects ambiguous or truncated model answers rather than falling back to the broad user sentence', async () => {
     deps.config.mockReturnValue({ provider: 'test' });
     deps.generate.mockResolvedValue({ finishReason: 'stop', object: { query: '', label: '', targets: [], uncertainty: '', unresolved: true } });

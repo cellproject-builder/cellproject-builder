@@ -43,6 +43,38 @@ beforeEach(async () => {
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
 
 describe('visual popup interaction', () => {
+  it('searches a selected @ node without requiring any typed instruction', async () => {
+    const node: MentionTarget = { ...target, id: 'power-node', kind: 'node', label: 'Fonte, capacitor e proteção', detail: 'Recurso' };
+    props.listMentions = () => [node];
+    await act(async () => root.render(<VisualExplorer {...props} />));
+    await type('[data-visual-popup="search"] textarea', '@Fonte');
+    await key('[data-visual-popup="search"] textarea', 'Enter');
+    expect(host.querySelector<HTMLTextAreaElement>('[data-visual-popup="search"] textarea')?.value).toBe('');
+    expect(host.querySelector('[data-visual-popup="search"] .visual-chip')?.textContent).toContain(node.label);
+    expect(button('Search').disabled).toBe(false);
+    expect(props.onSearch).not.toHaveBeenCalled();
+    await click('Search');
+    expect(props.onSearch).toHaveBeenCalledWith({ text: '', mentions: [node], attachments: [] }, expect.any(AbortSignal));
+    expect(host.querySelectorAll('.visual-grid .visual-card').length).toBeGreaterThan(0);
+  });
+  it('searches an imported document body without requiring typed text', async () => {
+    const attachment = { id: 'power-spec', name: 'componentes.md', mime: 'text/markdown', byteLength: 80, mediaId: 'power-media', text: 'Fonte regulada 5 V 5 A e capacitor de 1000 µF.' };
+    props.onAttach = vi.fn(async () => attachment);
+    await act(async () => root.render(<VisualExplorer {...props} />));
+    const picker = host.querySelector<HTMLInputElement>('[data-visual-popup="search"] input[type="file"]')!;
+    Object.defineProperty(picker, 'files', { configurable: true, value: [new File([attachment.text], attachment.name, { type: attachment.mime })] });
+    await act(async () => picker.dispatchEvent(new Event('change', { bubbles: true })));
+    expect(button('Search').disabled).toBe(false);
+    await click('Search');
+    expect(props.onSearch).toHaveBeenCalledWith({ text: '', mentions: [], attachments: [attachment] }, expect.any(AbortSignal));
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+  });
+  it('keeps search disabled when neither text nor selected sources exist', async () => {
+    expect(button('Search').disabled).toBe(true);
+    await key('[data-visual-popup="search"] textarea', 'Enter');
+    await click('Search');
+    expect(props.onSearch).not.toHaveBeenCalled();
+  });
   it('reuses references and the existing proposal cycle when switching to a diagram', async () => {
     const selectedNode = { ...target, id: '9_A-b', kind: 'node' as const, label: 'Servo' };
     props.selectedNode = selectedNode;

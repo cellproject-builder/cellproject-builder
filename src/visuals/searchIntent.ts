@@ -41,7 +41,11 @@ function queryIdentifiers(query: string): string[] {
   // Conservative part codes; ordinary translated object names stay semantic aliases.
   const codes = query.match(/\b(?=[A-Za-z0-9_-]*[A-Za-z])(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*\b/g) ?? [];
   const named = query.match(/\b[A-Z]{2,12}[- ]+\d{1,4}\b/g) ?? [];
-  return [...new Set([...codes, ...named])].filter(code => !/^(?:2d|3d|4k|8k)$/i.test(code));
+  // A translated/compacted quantity ("1000 µF" → "1000uF", "5 volts"
+  // → "5V") is a search descriptor, not an invented component model.
+  // Keep real part codes such as 1N4007, 2N2222 and ESP32 mandatory.
+  const quantity = /^\d+(?:[pnumkMGµμ]?(?:V|A|F|H|W|Hz|Ohms?)|mAh|Ah|mm|cm|m|kg|g|rpm)$/i;
+  return [...new Set([...codes, ...named])].filter(code => !/^(?:2d|3d|4k|8k)$/i.test(code) && !quantity.test(code));
 }
 
 /** Resolve the object before web retrieval: search plugins cannot infer an omitted referent. */
@@ -67,10 +71,10 @@ Priority: explicit user object/model > explicitly selected @ reference or attach
 Read the reference body: if it says "quatro motores de passo" and the user asks "os motores daqui", the object is stepper motors, not complete robots, robotics companies or logos. Do not add a NEMA size, model, brand, dimensions or specifications absent from the request/reference. Unspecified variants remain unspecified.
 Return one short, self-contained search query, preferably in English for technical parts, aimed at product photos, component photos or technical illustrations. Avoid conversational instructions and project boilerplate. Include ONLY known discriminating specifications.
 When a SELECTED reference names several components and the request is empty or asks for them all, include EACH component as its own target. "Arduino Uno e cabo USB" means TWO objects: an Arduino Uno board and a USB data cable, not just a cable compatible with Arduino. Only narrow to one when the explicit user request does so. Do not turn unrelated project/background components into requested targets. A kit or assembly explicitly requested as one object can remain one target.
-targets contains one group per requested object, each with aliases and identifiers. aliases are discriminating object names for matching image captions and filenames, preferably English AND the user's language. Each alias must stand alone as a meaningful object name (e.g. "stepper motor", "motor de passo"), not isolated generic modifiers such as "robot", "reference", "component", "photo" or "construction". Max 8 unique aliases TOTAL and 600 alias characters TOTAL across all targets. With many components, prioritize one self-contained alias per target over translated synonyms; never drop a requested component to add synonyms.
+targets contains one group per requested object, each with aliases and identifiers. aliases are discriminating object names for matching image captions and filenames, preferably English AND the user's language. Each alias must stand alone as a meaningful object name (e.g. "stepper motor", "motor de passo"), not isolated generic modifiers such as "robot", "reference", "component", "photo" or "construction". Max 8 unique aliases per target and 600 alias characters TOTAL across all targets. With many components, prioritize one self-contained alias per target over translated synonyms; never drop a requested component to add synonyms.
 Each target.query is an independent, self-contained retrieval query for THAT object alone, with useful known descriptors (e.g. "Arduino Uno board", "USB data cable"). Do not mix the names of independent objects into an accessory query. Compatibility wording like "cable for Arduino Uno" belongs only to the cable target, never to the board target. Never include a connector type or board revision absent from the request/reference.
 Retrieval queries and image-matching aliases serve DIFFERENT purposes. aliases must include the object's shortest meaningful nominal name, including the known model when relevant (e.g. "Arduino Uno", "USB cable", "stepper motor"). Do not make every alias require descriptive words such as "board", "data", "photograph" or "front view": a real image caption may omit those words. Put functional requirements and view descriptors in target.query, and preserve known model/family codes in identifiers. Use additional translated nominal aliases only within the total alias budget. This does not confirm functional compatibility from an image.
-identifiers are the exact model/family identifiers EXPLICITLY given for that object in the request/reference (e.g. "NEMA 23", "ESP32-S3", "MG996R"). These are MANDATORY image filters: a generic stepper motor alias must not allow a NEMA 17 when NEMA 23 was requested. Keep identifiers with their own target, so two requested objects don't require both codes in the same image. Never invent identifiers. Use [] when no specific model/family was given. Max 300 identifier characters total.
+identifiers are the exact model/family identifiers EXPLICITLY given for that object in the request/reference (e.g. "NEMA 23", "ESP32-S3", "MG996R"). These are MANDATORY image filters: a generic stepper motor alias must not allow a NEMA 17 when NEMA 23 was requested. Keep identifiers with their own target, so two requested objects don't require both codes in the same image. Electrical quantities, dimensions and ratings such as 5V, 5A and 1000uF belong in query, not identifiers. Never invent identifiers. Use [] when no specific model/family was given. Max 300 identifier characters total.
 label is the object name in the user's language. uncertainty is one short sentence in that language when an exact model/variant is missing, or when image pixels cannot be read (you only have attachment text/metadata). Do not imply pixel analysis or physical validation.
 If the desired object cannot be resolved from the request or selected text, return unresolved=true with empty query/targets instead of broadening to the whole project. Otherwise unresolved=false.`,
     prompt: JSON.stringify({ request: input.text, context, ...(options.projectBackground ? { projectBackground: options.projectBackground } : {}) }),
@@ -81,8 +85,19 @@ If the desired object cannot be resolved from the request or selected text, retu
   const value = intentSchema.parse(result.object);
   const query = value.query.trim(), label = value.label.trim();
   const targets = value.targets.map(target => ({ query: target.query, aliases: [...new Set(target.aliases.map(alias => alias.trim()).filter(Boolean))], identifiers: [...new Set(target.identifiers.map(identifier => identifier.trim()).filter(Boolean))] }));
-  const targetTerms = [...new Set(targets.flatMap(target => target.aliases))];
-  if (value.unresolved || !query || !label || !targetTerms.length || targetTerms.join('').length > 600) throw new Error('visualSearchUnclear');
+  const aliases = targets.flatMap(target => target.aliases);
+  if (value.unresolved || !query || !label || !aliases.length || aliases.join('').length > 600) throw new Error('visualSearchUnclear');
+  // The legacy flat field accepts eight terms, while object groups can retain
+  // bilingual aliases. Give every object a term before adding synonyms; don't
+  // reject valid reference-only searches or drop the later components.
+  const targetTerms = [...new Set(targets.map(target => target.aliases[0]))];
+  for (let index = 1; index < 8 && targetTerms.length < 8; index++) {
+    for (const target of targets) {
+      const alias = target.aliases[index];
+      if (alias && !targetTerms.includes(alias)) targetTerms.push(alias);
+      if (targetTerms.length === 8) break;
+    }
+  }
   const known = identifierKey(input.text + '\n' + context + '\n' + (options.projectBackground ?? ''));
   // Explicit codes in either the overall query or an independent query cannot
   // disappear behind a broad alias, or migrate to another component's group.

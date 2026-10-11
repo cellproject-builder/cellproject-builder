@@ -53,6 +53,33 @@ describe('reviewVisualReference', () => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('searchVisualImages', () => {
+  it('resolves a reference-only search using the selected node body before retrieval', async () => {
+    const selected = { id: 'power-node', kind: 'node' as const, label: 'Fonte, capacitor e proteção', detail: 'Recurso', fingerprint: 'power-v1' };
+    const context = JSON.stringify({ selected: [{ kind: selected.kind, label: selected.label, text: 'Fonte regulada 5 V 5 A; capacitor de 1000 µF; fusível.' }], attachments: [], project: { name: 'Robô' } });
+    const draft = { text: '', mentions: [selected], attachments: [] };
+    deps.resolve.mockReturnValue({ text: context, fingerprint: 'power-context' });
+    await expect(searchVisualImages(draft, { signal: new AbortController().signal })).resolves.toEqual([reference]);
+    expect(deps.intent).toHaveBeenCalledWith(draft, expect.stringContaining('1000 µF'), expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    const sent = JSON.parse(fetchMock.mock.calls.at(-1)![1].body);
+    expect(JSON.parse(sent.context).selected).toEqual([{ kind: selected.kind, label: selected.label, text: 'Fonte regulada 5 V 5 A; capacitor de 1000 µF; fusível.', truncated: false }]);
+    expect(sent.contextFingerprint).toBe('power-context');
+  });
+  it('resolves an attachment-only search from its extracted text without a typed request', async () => {
+    const attachment = { id: 'spec', name: 'componentes.md', mime: 'text/markdown', byteLength: 80, mediaId: 'spec-media', text: 'Fonte regulada 5 V 5 A; capacitor de 1000 µF.' };
+    const context = JSON.stringify({ selected: [], attachments: [attachment], project: { name: 'Robô' } });
+    const draft = { text: '', mentions: [], attachments: [attachment] };
+    deps.resolve.mockReturnValue({ text: context, fingerprint: 'attachment-context' });
+    await expect(searchVisualImages(draft, { signal: new AbortController().signal })).resolves.toEqual([reference]);
+    expect(deps.intent).toHaveBeenCalledWith(draft, expect.stringContaining(attachment.text), expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    const sent = JSON.parse(fetchMock.mock.calls.at(-1)![1].body);
+    expect(JSON.parse(sent.context).attachments).toEqual([{ name: attachment.name, mime: attachment.mime, text: attachment.text, truncated: false }]);
+  });
+  it('rejects an empty search before gateway or model calls when there are no references', async () => {
+    await expect(searchVisualImages({ text: '  ', mentions: [], attachments: [] }, { signal: new AbortController().signal })).rejects.toThrow('visualSearchUnclear');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(deps.intent).not.toHaveBeenCalled();
+    expect(deps.research).not.toHaveBeenCalled();
+  });
   it('without BYOK uses real gateway Commons fallback and sends only resolved chosen context', async () => {
     const result = await searchVisualImages(input, { signal: new AbortController().signal });
     expect(result).toEqual([reference]); expect(deps.research).not.toHaveBeenCalled();
