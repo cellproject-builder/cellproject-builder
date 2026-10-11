@@ -11,6 +11,7 @@ Rodada motivada por lentidão na interface inteira e no pan/zoom do canvas. Abra
 | Atualização de uma aba renderizava os outros compositores; foco repetido elevava a janela novamente | Sessões memoizadas por aba, drafts próprios e foco idempotente | Operações ocultas permanecem montadas, concluem e restauram sem reenvio |
 | O nó de cada artefato acompanhava toda a transformação da câmera e revalidava a cena inteira | Assinatura somente do limiar de zoom da barra; cache por cena/contrato imutáveis, exclusivo da renderização | Edições invalidam o resultado; ações e exportação continuam usando os validadores originais |
 | Movimentos da caneta reconciliavam todos os traços já concluídos | Traços memoizados e seleção delegada no SVG das notas | Pressão, geometria, filtros, seleção, movimento, apagar e desfazer preservados |
+| Polls idênticos do cofre decodificavam novamente o manifesto e regravavam o checkpoint criptografado | Comparação exata do conteúdo já autenticado antes do trabalho pesado; checkpoint somente quando necessário | Cada poll continua fazendo uma requisição; dados novos, conflitos e falhas locais continuam validados |
 
 Estado de interação permanece em memória. A seleção/lente mais recente acompanha o próximo snapshot de conteúdo ou a troca de projeto; um clique isolado não regrava o documento inteiro. Não há mudança do formato dos documentos, das permissões ou da criptografia.
 
@@ -72,11 +73,32 @@ Benchmark reproduzível com o componente real instrumentado em memória: React 1
 
 Nos 30 movimentos, as renderizações adicionais dos traços salvos caem de 30.000 para zero. A geometria já era memoizada no baseline; a correção elimina reconciliação React/DOM, sem mudar o traço. Reproduzir com `node scripts/ink-rendering.bench.mjs`; saída em `.codex-audit-planning-performance/ink-rendering-latest.json`. Não mede pintura SVG, FPS, GPU ou latência de caneta física. Os filtros do lápis permanecem intactos.
 
+### Polling do cofre sem alterações
+
+O polling de dois segundos ainda processava todo o manifesto cifrado e regravava o checkpoint do runtime mesmo quando nada havia mudado. A decodificação base64, a serialização e a conferência da gravação local ocupavam a thread da interface. Agora, somente um envelope exatamente igual ao já autenticado evita essa decodificação; documentos e mídia também precisam corresponder integralmente à cópia confirmada e durável. Cada poll continua consultando o servidor. Dados novos e falhas continuam no caminho de validação completo.
+
+Comparação no Chrome/Windows, mesmo notebook, Vite em desenvolvimento: baseline local `391fa18` na porta 5190 e correção no worktree na porta 5197. Um documento sintético de 1.048.635 bytes e manifesto de 1.398.356 caracteres base64; três polls sequenciais com head idêntico. `VaultTransport`, `CloudRuntime`, AES-GCM e `OfflineRepository` são reais; o fetch injetado retorna o head sintético em memória, sem latência de rede ou dados da conta. Inicialização do cofre e primeiros checkpoints ficaram fora da medição.
+
+| Indicador do ensaio local | Antes | Depois |
+| --- | ---: | ---: |
+| Tempo total dos três polls | 9.076,6 ms | 55,8 ms |
+| Duração individual | 3.062,5 / 3.076,9 / 2.937,0 ms | 21,1 / 17,4 / 17,3 ms |
+| Checkpoints redundantes do runtime | 3 | 0 |
+| Checkpoints do transporte | 0 | 0 |
+| Consultas ao fetch injetado | 3 | 3 |
+| Long Tasks observadas na janela | 7 | 0 |
+
+Uma execução por revisão, em primeiro plano. O resultado demonstra a remoção desse custo ocioso; não é uma medida de FPS, latência da rede, inicialização, edição concorrente, GPU ou desempenho geral do produto. A abertura e a adoção de conteúdo novo ainda percorrem as operações pesadas. Ao terminar, o fixture removeu e confirmou ausentes apenas os slots `runtime`/`transport` de owner e cofre aleatórios, sem tocar autorização ou dados existentes.
+
+A regressão reproduzível está em [transport.test.ts](../../src/cloud/vault/transport.test.ts): `npx vitest run src/cloud/vault/transport.test.ts --maxWorkers=1 -t "large base64"`. No pipeline real com dois polls de 1 MiB, a versão anterior fazia dois checkpoints, oito decodes grandes e dez encodes grandes; a nova faz zero nos três indicadores, conservando ambas as consultas. Outros testes conferem falha/retry de checkpoint, autenticação recusada, conteúdo diferente sob a mesma revisão, mídia completa, cópias independentes e mutações do envelope durante autenticação. A limpeza de um aviso transitório também precisa tornar-se durável antes de habilitar o atalho.
+
 ### Observação na produção anterior
 
 Na revisão `03ddb4d`, uma tentativa de zoom pelo controle real do canvas não concluiu a sequência planejada: o comando de entrada expirou. A instrumentação temporária de `requestAnimationFrame` e Long Tasks registrou 16 tarefas longas, 11.876 ms acumulados e intervalo p95 entre frames de 443,8 ms em 17,9 segundos. Isso confirma uma sessão com travamentos, mas a sequência interrompida não serve como comparação controlada de FPS antes/depois. A instrumentação foi removida, sem modificar conteúdo do usuário.
 
 ## Three.js e limites
+
+A primeira bateria foi integrada em `391fa18` e publicada no Railway. O lote referente aos polls do cofre foi comparado em localhost antes da integração. Testar código ainda em desenvolvimento na página de produção não comprova sua correção; esses ensaios usaram dados sintéticos e ambientes locais separados.
 
 O compositor atual já usa um contexto WebGL 2 compartilhado, transparência, recorte por viewport e renderização sob demanda. No Chrome do notebook desta rodada, o renderer reportou ANGLE/D3D11 com NVIDIA GeForce RTX 4060 Laptop GPU. Essa observação confirma aquele contexto, não o desempenho ou o suporte de um tablet/celular.
 
@@ -99,3 +121,7 @@ Após as mudanças finais, 78 testes focados do nó 3D/cache, desenho, persistê
 Uma reexecução final de oito arquivos do grafo, desenho, estúdio e refinamento passou 158 testes. Esses conjuntos se sobrepõem e suas contagens não devem ser somadas como testes únicos.
 
 `npm run build` concluiu com TypeScript e Vite aprovados. `npm run check:repo` verificou 34 documentos, 824 links locais e sete fronteiras transitivas de módulos. A auditoria do bundle preserva o carregamento tardio de Board, compositor 3D e extração de anexos. Continuam existindo chunks de aplicação e Three.js acima de 500 kB; esta rodada não declara encerrada a otimização de carregamento.
+
+O lote adicional do polling passou 111 testes em seis arquivos: runtime (40), transporte (45), repositório offline (16), sincronização (cinco unitários e dois de integração) e bootstrap offline (três). A revisão independente também verificou isolamento de referências, snapshots incompletos e durabilidade após falha.
+
+Na integração desse lote, outros 41 testes passaram em quatro arquivos de bootstrap, concorrência entre transportes, retomada de sessão e adapters. O build de produção também passou novamente. A verificação local ocorreu antes de qualquer atualização da produção; a aba de uso do usuário não foi utilizada para validar o código ainda não integrado.

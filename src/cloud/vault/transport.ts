@@ -20,6 +20,12 @@ const RESPONSE_COUNT_LIMIT = 128, RESPONSE_BYTE_LIMIT = 512 * 1024;
 const DURABLE_OPERATION_LIMIT = 1024, DURABLE_RECEIPT_BYTE_LIMIT = 2 * 1024 * 1024;
 const DURABLE_AUXILIARY_BYTE_LIMIT = 32 * 1024 * 1024;
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+/** Only this exact ciphertext has already passed structural validation and authentication. */
+function sameAuthenticatedCipher(value: unknown, known: CipherEnvelope): value is CipherEnvelope {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length !== 3) return false;
+  const candidate = value as Record<string, unknown>;
+  return ['v', 'iv', 'data'].every(key => Object.hasOwn(candidate, key)) && candidate.v === known.v && candidate.iv === known.iv && candidate.data === known.data;
+}
 const requestFingerprint = (method: string, path: string, body: string) => sha256(new TextEncoder().encode(JSON.stringify([method.toUpperCase(), path, body])).buffer);
 function auxiliaryRoute(method: string, path: string): boolean {
   if (method === 'POST') return ['/api/cloud/import', '/api/cloud/media'].includes(path);
@@ -83,6 +89,8 @@ export class VaultTransport {
   private auxiliary = new Map<string, AuxiliaryRequest>();
   private remote: typeof fetch;
   private persistenceChain: Promise<void> = Promise.resolve();
+  private checkpointGeneration = 0;
+  private durableCheckpointGeneration = 0;
   private recoveryRequired = false;
   private rejected = new Set<string>();
   private constructor(readonly session: VaultSession, private state: Manifest, private revision: number, remote: typeof fetch, private knownManifest: CipherEnvelope, private options: VaultTransportOptions = {}) {
@@ -92,8 +100,11 @@ export class VaultTransport {
   }
   static async open(session: VaultSession, head: VaultHead, remote: typeof fetch = fetch, options: VaultTransportOptions = {}) {
     if (!head || !Number.isSafeInteger(head.revision) || head.revision < 1 || JSON.stringify(validateHeader(head.header)) !== JSON.stringify(session.header)) throw new Error('Cofre remoto inválido.');
-    const manifest = validateCipher(head.manifest), state = validateManifest(JSON.parse(await session.openText(manifest, `manifest:${head.revision}`)));
-    const transport = new VaultTransport(session, state, head.revision, remote, manifest, options);
+    // Snapshot caller-owned fields before authentication yields: only these
+    // exact bytes and this revision may become the authenticated cache entry.
+    const revision = head.revision, manifest = { ...validateCipher(head.manifest) };
+    const state = validateManifest(JSON.parse(await session.openText(manifest, `manifest:${revision}`)));
+    const transport = new VaultTransport(session, state, revision, remote, manifest, options);
     await transport.persistCheckpoint(); return transport;
   }
   static async restore(session: VaultSession, value: unknown, remote: typeof fetch = fetch, options: VaultTransportOptions = {}) {
@@ -153,8 +164,8 @@ export class VaultTransport {
   }
   persistCheckpoint(): Promise<void> {
     if (!this.options.persistence) return Promise.resolve();
-    const value = this.checkpoint();
-    const task = this.persistenceChain.catch(() => {}).then(async () => { this.available(); await this.options.persistence!.write('transport', value); this.available(); });
+    const value = this.checkpoint(), generation = ++this.checkpointGeneration;
+    const task = this.persistenceChain.catch(() => {}).then(async () => { this.available(); await this.options.persistence!.write('transport', value); this.available(); this.durableCheckpointGeneration = generation; });
     this.persistenceChain = task; return task;
   }
   hasPendingOperations(): boolean { this.available(); return !!this.pending || !!this.requests.size || !!this.completed.size || !!this.uploads.size || !!this.auxiliary.size; }
@@ -216,19 +227,20 @@ export class VaultTransport {
     this.chain = task; return task;
   }
   private requireNetwork() { this.available(); if (this.options.networkReady?.() === false) throw new Error('Esta operação precisa de conexão e conta confirmada.'); }
-  snapshot(): CloudSnapshot { this.available(); return clone(this.state.snapshot); }
+  snapshot(): CloudSnapshot { this.available(); return structuredClone(this.state.snapshot); }
   /** Read/decrypt the canonical head, serialized with writes; never settle an ambiguous write here. */
   refreshSnapshot(): Promise<CloudSnapshot> {
     const task = this.chain.catch(() => {}).then(async () => {
       this.requireNetwork(); if (this.pending) throw new Error('Existe uma gravação privada pendente. Preserve o rascunho e tente novamente.');
       const head = await cloudJson<VaultHead>('/api/cloud/vault', {}, this.remote); this.available();
       if (!head || !Number.isSafeInteger(head.revision) || head.revision < this.revision || JSON.stringify(validateHeader(head.header)) !== JSON.stringify(this.session.header)) throw new Error('Revisão do cofre inválida.');
-      const manifest = validateCipher(head.manifest);
-      if (head.revision === this.revision) {
+      if (head.revision === this.revision && sameAuthenticatedCipher(head.manifest, this.knownManifest)) {
         // This exact ciphertext was already authenticated when opened/committed.
-        // Comparing it avoids parsing/decrypting a potentially large manifest every tick.
-        if (manifest.iv !== this.knownManifest.iv || manifest.data !== this.knownManifest.data) throw new CloudConflictError();
+        // Avoid decoding it again, but retry any previously failed durable write.
+        if (this.checkpointGeneration !== this.durableCheckpointGeneration) await this.persistCheckpoint();
       } else {
+        const manifest = { ...validateCipher(head.manifest) };
+        if (head.revision === this.revision) throw new CloudConflictError();
         const next = validateManifest(JSON.parse(await this.session.openText(manifest, `manifest:${head.revision}`))); this.available();
         for (const old of this.state.snapshot.documents) {
           const document = next.snapshot.documents.find(item => item.key === old.key);

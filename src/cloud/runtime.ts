@@ -61,6 +61,12 @@ function sameJson(a: unknown, b: unknown): boolean {
   const keys = Object.keys(a);
   return keys.length === Object.keys(b).length && keys.every(key => Object.hasOwn(b, key) && sameJson(a[key], b[key]));
 }
+/** Compare already validated flat records without parsing their serialized document bodies. */
+function sameRecord(value: unknown, confirmed: object | undefined): boolean {
+  if (!jsonRecord(value) || !confirmed) return false;
+  const keys = Object.keys(value), previous = confirmed as Record<string, unknown>;
+  return keys.length === Object.keys(previous).length && keys.every(key => Object.hasOwn(previous, key) && value[key] === previous[key]);
+}
 /** The singleton graph is redundant only when both complete editors have canonical workspace owners. */
 function managedGraphCheckpoint(base: string | null, local: string, remote: string | null, workspace: string | null): boolean {
   if (base === null || remote === null || workspace === null) return false;
@@ -111,7 +117,7 @@ export class CloudRuntime {
     }
     for (const media of snapshot.media) {
       if (!media || typeof media.id !== 'string' || !/^[A-Za-z0-9_.:-]{1,180}$/.test(media.id) || ['.', '..'].includes(media.id) || this.mediaMetadata.has(media.id) || !['application/pdf', 'text/plain', 'text/markdown', 'image/png', 'image/jpeg', 'image/webp'].includes(media.mime) || typeof media.name !== 'string' || !/^[a-f0-9]{64}$/.test(media.sha256) || !Number.isSafeInteger(media.size) || media.size < 1 || media.size > 10 * 1024 * 1024 || (media.mime.startsWith('image/') && media.size > 5 * 1024 * 1024)) throw new Error('Catálogo remoto inválido.');
-      this.mediaMetadata.set(media.id, media);
+      this.mediaMetadata.set(media.id, { ...media });
     }
     if (options.checkpoint !== undefined && options.checkpoint !== null) this.restoreCheckpoint(options.checkpoint);
     for (const document of this.documents()) this.lastLocalValues.set(document.key, document.value);
@@ -165,6 +171,17 @@ export class CloudRuntime {
   get(key: string): string | null { return this.drafts.get(key) ?? this.confirmed.get(key)?.value ?? null; }
   documents(): CloudDocument[] { return [...new Set([...this.confirmed.keys(), ...this.drafts.keys()])].map(key => ({ key, value: this.get(key)!, revision: this.confirmed.get(key)?.revision ?? 0 })); }
   private hasTransientReadIssue(): boolean { return this.status.issue?.key === 'remote-sync' && this.status.issue.kind === 'network'; }
+  private matchesConfirmed(snapshot: CloudSnapshot): boolean {
+    if (!snapshot || !Array.isArray(snapshot.documents) || !Array.isArray(snapshot.media) || snapshot.documents.length !== this.confirmed.size || snapshot.media.length !== this.mediaMetadata.size) return false;
+    const documents = new Set<string>(), media = new Set<string>();
+    return snapshot.documents.every(doc => {
+      if (!doc || documents.has(doc.key) || !sameRecord(doc, this.confirmed.get(doc.key))) return false;
+      documents.add(doc.key); return true;
+    }) && snapshot.media.every(item => {
+      if (!item || media.has(item.id) || !sameRecord(item, this.mediaMetadata.get(item.id))) return false;
+      media.add(item.id); return true;
+    }) && documents.size === this.confirmed.size && media.size === this.mediaMetadata.size;
+  }
   isIdle(): boolean { return !this.disposed && !this.queue.length && !this.active && !this.pendingMediaWrites && !this.drafts.size && (!this.status.issue || this.hasTransientReadIssue()); }
   /** Suppress persistence echoes only inside a synchronous remote domain application. */
   withRemoteApply<T>(apply: () => T): T {
@@ -204,9 +221,14 @@ export class CloudRuntime {
     const task = (async () => {
       const snapshot = this.snapshotLoader ? await this.snapshotLoader() : await cloudJson<CloudSnapshot>('/api/cloud/snapshot', {}, this.fetcher);
       if (!this.isIdle() || epoch !== this.mutationEpoch || options.isIdle?.() === false) return [];
+      const keys = new Set(options.keys ?? CLOUD_DOCUMENT_KEYS);
+      // The authenticated read still runs on every poll. Only an exact, already
+      // durable snapshot can skip validation/serialization and status updates.
+      const needsApplication = options.apply && [...this.pendingApplication].some(key => keys.has(key));
+      if ((!this.options.persistence || this.status.localSaved === true) && !this.hasTransientReadIssue() && !needsApplication && this.matchesConfirmed(snapshot)) return [];
       // Validate the entire envelope and media catalog before touching the current state.
       const checked = new CloudRuntime(snapshot), remote = checked.documents(); checked.dispose();
-      const keys = new Set(options.keys ?? CLOUD_DOCUMENT_KEYS), changes: CloudDocument[] = [];
+      const changes: CloudDocument[] = [];
       for (const old of this.confirmed.values()) {
         if (keys.has(old.key) && !remote.some(doc => doc.key === old.key)) throw new Error('Snapshot remoto incompleto.');
       }
@@ -222,11 +244,13 @@ export class CloudRuntime {
       try { if (changes.length && options.apply) this.withRemoteApply(() => options.apply!(changes)); }
       catch (reason) { this.confirmed = before; throw reason; }
       if (options.apply) for (const doc of changes) { this.lastLocalValues.set(doc.key, doc.value); this.pendingApplication.delete(doc.key); }
-      const metadata = new Map(snapshot.media.map(item => [item.id, item]));
+      const metadata = new Map(snapshot.media.map(item => [item.id, { ...item }]));
       for (const [id, old] of this.mediaMetadata) if (metadata.get(id)?.sha256 !== old.sha256) this.mediaBytes.delete(id);
       this.mediaMetadata = metadata;
-      if (this.options.persistence) await this.persistCheckpoint();
+      // Persist the recovered state too; a later unchanged poll no longer
+      // rewrites the journal and must not leave an obsolete warning in it.
       if (this.hasTransientReadIssue()) this.publish({ issue: null });
+      if (this.options.persistence) await this.persistCheckpoint();
       if (changes.length) for (const listener of this.remoteListeners) listener(changes);
       return changes;
     })().catch((reason: unknown) => {
@@ -368,7 +392,7 @@ export class CloudRuntime {
   }
   requestFetch(): typeof fetch { return this.fetcher; }
   dispose() { if (this.disposed) return; this.disposed = true; this.vaultDisposer?.(); if (this.vaultDisposer) configureVault(null); this.mediaBytes.clear(); this.mediaMetadata.clear(); this.confirmed.clear(); this.drafts.clear(); this.queue = []; this.remoteListeners.clear(); this.publish({ issue: null }); }
-  media(): CloudMedia[] { return [...this.mediaMetadata.values()]; }
+  media(): CloudMedia[] { return [...this.mediaMetadata.values()].map(item => ({ ...item })); }
   cachedMedia(id: string): ArrayBuffer | null { return this.mediaBytes.get(id)?.slice(0) ?? null; }
   async readMedia(id: string): Promise<ArrayBuffer | null> {
     const cached = this.mediaBytes.get(id); if (cached) return cached.slice(0);

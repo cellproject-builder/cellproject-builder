@@ -3,6 +3,7 @@ import { beforeAll, expect, it, vi } from 'vitest';
 import { CloudRuntime, encodeBytes, sha256 } from '../runtime';
 import { createVault, sessionFromDeviceKey } from './crypto';
 import { activateVault, prepareVaultActivation, VaultTransport } from './transport';
+import { OfflineRepository } from '../offline/repository';
 beforeAll(() => vi.stubGlobal('crypto', webcrypto));
 const snapshot = { documents: [{ key: 'dynamic_diary-chat', value: '{"version":1,"state":{"private":"private chat"}}', revision: 1 }], media: [] };
 function receiverSensitiveFetch(remote: typeof fetch): typeof fetch {
@@ -372,6 +373,69 @@ it('does not decrypt and parse an unchanged canonical manifest on every polling 
   expect(await f.transport.refreshSnapshot()).toEqual(snapshot); expect(open).not.toHaveBeenCalled();
   expect(await f.transport.refreshSnapshot()).toEqual(snapshot); expect(open).not.toHaveBeenCalled();
   expect(f.fetcher).toHaveBeenCalledTimes(2);
+});
+it('does no large base64 work or encrypted checkpoint writes when polling an unchanged durable 1 MiB snapshot', async () => {
+  const vault = await createVault(crypto.randomUUID(), 'synthetic idle polling phrase');
+  const initial = { documents: [{ ...snapshot.documents[0], value: JSON.stringify({ version: 1, state: { text: 'x'.repeat(1024 * 1024) } }) }], media: [] };
+  const head = { header: vault.header, revision: 1, manifest: await vault.session.seal(JSON.stringify({ snapshot: initial, files: {} }), 'manifest:1') };
+  const fetcher = vi.fn<typeof fetch>(async () => Response.json(head)), persistence = new OfflineRepository(vault.session);
+  const transport = await VaultTransport.open(vault.session, head, fetcher, { persistence });
+  const runtime = new CloudRuntime(transport.snapshot(), transport.fetch, undefined, () => transport.refreshSnapshot(), { persistence });
+  await runtime.persistCheckpoint();
+  const write = vi.spyOn(persistence, 'write'), decode = vi.spyOn(globalThis, 'atob'), encode = vi.spyOn(globalThis, 'btoa');
+  try {
+    expect(await runtime.refreshRemote()).toEqual([]);
+    expect(await runtime.refreshRemote()).toEqual([]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect({ checkpointWrites: write.mock.calls.length, largeDecodes: decode.mock.calls.filter(([value]) => value.length > 1024).length, largeEncodes: encode.mock.calls.filter(([value]) => value.length > 1024).length }).toEqual({ checkpointWrites: 0, largeDecodes: 0, largeEncodes: 0 });
+    const copy = transport.snapshot(); copy.documents[0].value = 'caller edit'; copy.documents.push({ key: 'dynamic_diary-theme', revision: 1, value: 'light' });
+    expect(transport.snapshot()).toEqual(initial);
+  } finally { write.mockRestore(); decode.mockRestore(); encode.mockRestore(); runtime.dispose(); transport.dispose(); vault.session.dispose(); }
+}, 15000);
+it.each(['extra key', 'version', 'IV', 'data', 'missing key', 'type'])('still rejects a changed or malformed same-revision envelope: %s', async change => {
+  const f = await fixture(), head = f.transport.head();
+  const manifest: Record<string, unknown> = { ...head.manifest };
+  if (change === 'extra key') manifest.extra = true;
+  if (change === 'version') manifest.v = 2;
+  if (change === 'IV') manifest.iv = encodeBytes(new Uint8Array(12).buffer);
+  if (change === 'data') manifest.data = encodeBytes(new Uint8Array(32).buffer);
+  if (change === 'missing key') delete manifest.data;
+  if (change === 'type') manifest.data = 123;
+  f.fetcher.mockResolvedValueOnce(Response.json({ ...head, manifest }));
+  await expect(f.transport.refreshSnapshot()).rejects.toThrow(); expect(f.transport.snapshot()).toEqual(snapshot);
+});
+it.each(['invalid', 'valid'])('does not trust a %s ciphertext mutation through the original caller head', async kind => {
+  const f = await fixture(), head = f.transport.head(), transport = await VaultTransport.open(f.vault.session, head, f.fetcher);
+  head.manifest.data = kind === 'invalid' ? 'invalid' : encodeBytes(new Uint8Array(32).buffer);
+  f.fetcher.mockResolvedValueOnce(Response.json(head));
+  await expect(transport.refreshSnapshot()).rejects.toThrow(); expect(transport.snapshot()).toEqual(snapshot);
+});
+it('captures the authenticated ciphertext and revision before an asynchronous open can yield to the caller', async () => {
+  const f = await fixture(), head = f.transport.head(), open = f.vault.session.openText.bind(f.vault.session);
+  let finish!: () => void;
+  const delayed = vi.spyOn(f.vault.session, 'openText').mockImplementationOnce(async (...args) => {
+    const text = await open(...args); await new Promise<void>(resolve => { finish = resolve; }); return text;
+  });
+  const opening = VaultTransport.open(f.vault.session, head, f.fetcher);
+  await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+  head.manifest.data = 'invalid'; head.revision = 2; finish();
+  const transport = await opening; delayed.mockRestore();
+  expect(transport.head().revision).toBe(1);
+  f.fetcher.mockResolvedValueOnce(Response.json({ ...head, revision: 1 }));
+  await expect(transport.refreshSnapshot()).rejects.toThrow(); expect(transport.snapshot()).toEqual(snapshot);
+});
+it('retries a failed checkpoint for an authenticated newer head before considering it durable and checks every remote session', async () => {
+  const persistence = checkpointStore(), f = await fixture(remote => remote, { persistence });
+  const next = { documents: [{ ...snapshot.documents[0], revision: 2, value: '{"version":1,"state":{"private":"newer"}}' }], media: [] };
+  const head = { header: f.vault.header, revision: 2, manifest: await f.vault.session.seal(JSON.stringify({ snapshot: next, files: {} }), 'manifest:2') };
+  persistence.write.mockClear(); persistence.write.mockRejectedValueOnce(new Error('checkpoint quota'));
+  f.fetcher.mockImplementation(async () => Response.json(head));
+  await expect(f.transport.refreshSnapshot()).rejects.toThrow('checkpoint quota');
+  expect(persistence.write).toHaveBeenCalledOnce();
+  expect(await f.transport.refreshSnapshot()).toEqual(next); expect(persistence.write).toHaveBeenCalledTimes(2);
+  await f.transport.refreshSnapshot(); expect(persistence.write).toHaveBeenCalledTimes(2);
+  f.fetcher.mockResolvedValueOnce(Response.json({}, { status: 401 }));
+  await expect(f.transport.refreshSnapshot()).rejects.toMatchObject({ status: 401 }); expect(f.transport.snapshot()).toEqual(next);
 });
 it('binds an operation fingerprint to method, route and body', async () => {
   const f = await fixture(), body = JSON.stringify({ value: 'dark', baseRevision: 0, operationId: 'bound-operation' });

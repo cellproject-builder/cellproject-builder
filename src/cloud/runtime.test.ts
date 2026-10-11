@@ -157,6 +157,71 @@ function checkpointStore() {
     remove: async (slot: string) => { data.delete(slot); },
   };
 }
+it('polls an identical durable snapshot without reparsing documents, rewriting the checkpoint or notifying the UI', async () => {
+  const remote = snapshot(), persistence = checkpointStore(), fetcher = vi.fn<typeof fetch>(async () => Response.json(remote));
+  const runtime = new CloudRuntime(remote, fetcher, undefined, undefined, { persistence });
+  await runtime.persistCheckpoint(); persistence.write.mockClear();
+  const changed = vi.fn(), applied = vi.fn(); runtime.subscribe(changed);
+  const parse = vi.spyOn(JSON, 'parse');
+  try {
+    expect(await runtime.refreshRemote({ apply: applied })).toEqual([]);
+    expect(await runtime.refreshRemote({ apply: applied })).toEqual([]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(parse.mock.calls.filter(([value]) => value === remote.documents[0].value)).toHaveLength(0);
+    expect(persistence.write).not.toHaveBeenCalled(); expect(changed).not.toHaveBeenCalled(); expect(applied).not.toHaveBeenCalled();
+  } finally { parse.mockRestore(); }
+});
+it('persists an initial identical snapshot and retries a failed checkpoint before taking the idle fast path', async () => {
+  const persistence = checkpointStore(), fetcher = vi.fn<typeof fetch>(async () => Response.json(snapshot()));
+  const runtime = new CloudRuntime(snapshot(), fetcher, undefined, undefined, { persistence });
+  persistence.write.mockRejectedValueOnce(new Error('checkpoint quota'));
+  await expect(runtime.refreshRemote()).rejects.toThrow('checkpoint quota');
+  expect(runtime.getSnapshot().localSaved).toBe(false);
+  await runtime.retry(); expect(runtime.getSnapshot().localSaved).toBe(true);
+  persistence.write.mockClear(); await runtime.refreshRemote();
+  expect(persistence.write).not.toHaveBeenCalled(); expect(fetcher).toHaveBeenCalledTimes(2);
+});
+it('durably clears a recovered transient read warning before subsequent unchanged polls become idle', async () => {
+  const persistence = checkpointStore(), fetcher = vi.fn<typeof fetch>().mockRejectedValueOnce(new Error('temporarily offline')).mockImplementation(async () => Response.json(snapshot()));
+  const runtime = new CloudRuntime(snapshot(), fetcher, undefined, undefined, { persistence }); await runtime.persistCheckpoint();
+  await expect(runtime.refreshRemote()).rejects.toThrow('temporarily offline');
+  await runtime.refreshRemote();
+  expect(runtime.getSnapshot().issue).toBeNull(); expect((await persistence.read<{ issue: unknown }>('runtime'))!.issue).toBeNull();
+  persistence.write.mockClear(); await runtime.refreshRemote(); expect(persistence.write).not.toHaveBeenCalled();
+});
+it('compares the entire media catalog and isolates it from mutable caller records', async () => {
+  const original = { id: 'file', mime: 'text/plain', name: 'a.txt', projectId: 'p', createdAt: 1, sha256: '0'.repeat(64), size: 1 };
+  let remote = { ...snapshot(), media: [{ ...original }] };
+  const persistence = checkpointStore(), load = vi.fn(async () => remote);
+  const runtime = new CloudRuntime(remote, fetch, undefined, load, { persistence });
+  await runtime.persistCheckpoint();
+  remote.media[0].name = 'from loader.txt'; runtime.media()[0].size = 99;
+  expect(runtime.media()[0]).toEqual(original);
+  for (const patch of [{ name: 'b.txt' }, { mime: 'text/markdown' }, { projectId: 'p2' }, { createdAt: 2 }, { sha256: '1'.repeat(64) }, { size: 2 }]) {
+    remote = { ...remote, media: [{ ...remote.media[0], ...patch }] }; persistence.write.mockClear();
+    expect(await runtime.refreshRemote()).toEqual([]);
+    expect(runtime.media()).toEqual(remote.media); expect(persistence.write).toHaveBeenCalledOnce();
+  }
+  remote = { ...remote, media: [] }; persistence.write.mockClear(); await runtime.refreshRemote();
+  expect(runtime.media()).toEqual([]); expect(persistence.write).toHaveBeenCalledOnce();
+});
+it('keeps auth and malformed snapshot checks active after an identical refresh', async () => {
+  const fetcher = vi.fn<typeof fetch>(async () => Response.json(snapshot()));
+  const runtime = new CloudRuntime(snapshot(), fetcher); await runtime.refreshRemote();
+  fetcher.mockResolvedValueOnce(Response.json({}, { status: 401 }));
+  await expect(runtime.refreshRemote()).rejects.toMatchObject({ status: 401 });
+  expect(runtime.getSnapshot().issue?.kind).toBe('session');
+  const duplicate = { ...snapshot(), documents: [snapshot().documents[0], snapshot().documents[0]] };
+  const invalid = new CloudRuntime(snapshot(), fetch, undefined, async () => duplicate);
+  await expect(invalid.refreshRemote()).rejects.toThrow('Snapshot');
+});
+it.each(['documents', 'media'] as const)('rejects sparse %s returned by a snapshot loader instead of skipping validation', async kind => {
+  const base = { ...snapshot(), media: [{ id: 'file', mime: 'text/plain', name: 'a.txt', sha256: '0'.repeat(64), size: 1 }] };
+  const sparse = { ...base, [kind]: new Array(1) };
+  const runtime = new CloudRuntime(base, fetch, undefined, async () => sparse);
+  await expect(runtime.refreshRemote()).rejects.toThrow();
+  expect(runtime.documents()).toEqual(base.documents); expect(runtime.media()).toEqual(base.media);
+});
 const durableValue = (text: string) => JSON.stringify({ version: 2, state: { projects: {}, text } });
 it('rehydrates an offline draft and sends its durable operation only after account verification', async () => {
   const persistence = checkpointStore(), fetcher = vi.fn<typeof fetch>(async () => Response.json({ revision: 5 }));
