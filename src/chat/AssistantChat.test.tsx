@@ -7,7 +7,8 @@ import { useLocaleStore } from '@/i18n';
 import { runAssistant } from '@/ai/assistant';
 import { useGraphStore } from '@/store';
 import { AssistantChat } from './AssistantChat';
-import { AssistantChatDockProvider, PlannerChatDock } from './AssistantChatDock';
+import { AssistantChatDockProvider, PlannerChatDock, FullChatDock } from './AssistantChatDock';
+import { useChatPresentation } from './presentation';
 import { flushChatPersistence, useChatStore } from './store';
 import { flushWorkspacePersistence, useWorkspaceStore } from '@/workspace/store';
 import { requestChatReferences, useChatReferenceHandoff } from '@/references/chatHandoff';
@@ -53,6 +54,7 @@ beforeEach(async () => {
   vi.mocked(runAssistant).mockReset();
   vi.mocked(addChatImageReference).mockReset();
   viewport.mobile = false;
+  useChatPresentation.setState({ expanded: false });
   Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
   await useConfigStore.persist.rehydrate();
   await useChatStore.persist.rehydrate();
@@ -69,10 +71,24 @@ beforeEach(async () => {
 
 function PlannerHarness({ planner = true }: { planner?: boolean }) {
   return <AssistantChatDockProvider>
+    <FullChatDock/>
     <div className="planner-work-area">{planner && <PlannerChatDock />}<input aria-label="Inspector draft" defaultValue="Detalhe em edição" /></div>
     <AssistantChat />
   </AssistantChatDockProvider>;
 }
+
+it.each([true, false])('hides the composer from keyboard navigation behind overlay history (%s)', (mobile) => {
+  viewport.mobile = mobile;
+  act(() => root.render(<AssistantChat />));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  act(() => Simulate.change(input, { target: { value: 'Rascunho preservado' } } as never));
+  act(() => Simulate.click(host.querySelector('[aria-label="Histórico de conversas"]')!));
+  expect(host.querySelector('.dd-chat-conversation')?.hasAttribute('hidden')).toBe(true);
+  expect(document.activeElement).toBe(host.querySelector('input[type="search"]'));
+  act(() => Simulate.click(host.querySelector('[aria-label="Histórico de conversas"]')!));
+  expect(host.querySelector('.dd-chat-conversation')?.hasAttribute('hidden')).toBe(false);
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('Rascunho preservado');
+});
 
 it.each([true, false])('docks one chat, retains drafts across destinations and restores the inspector preference (%s)', (panelOpen) => {
   useGraphStore.setState({ detailPanelOpen: panelOpen });
@@ -102,6 +118,44 @@ it.each([true, false])('docks one chat, retains drafts across destinations and r
   act(() => Simulate.click(trigger));
   expect(host.querySelector<HTMLTextAreaElement>('.dd-chat textarea')?.value).toBe('Rascunho sem enviar');
   expect(runAssistant).not.toHaveBeenCalled();
+});
+
+it('expands the same conversation and draft into the full chat dock and restores the popup', () => {
+  act(() => root.render(<PlannerHarness/>));
+  const sessionId = useChatStore.getState().sessionId;
+  act(() => Simulate.change(host.querySelector('.dd-chat textarea')!, { target: { value: 'Refinar a montagem sem perder este rascunho' } } as never));
+  act(() => Simulate.click(host.querySelector('[aria-label="Expandir chat"]')!));
+  expect(host.querySelectorAll('.dd-chat')).toHaveLength(1);
+  expect(host.querySelector('.dd-chat')?.parentElement?.classList.contains('dd-chat-full-host')).toBe(true);
+  expect(host.querySelector('.dd-chat.is-expanded')?.textContent).toContain('Expandido');
+  expect(host.querySelector<HTMLTextAreaElement>('.dd-chat textarea')?.value).toContain('sem perder');
+  expect(useChatStore.getState().sessionId).toBe(sessionId);
+  act(() => Simulate.click(host.querySelector('[aria-label="Recolher chat"]')!));
+  expect(host.querySelector('.dd-chat')?.parentElement?.classList.contains('dd-chat-dock')).toBe(true);
+  expect(host.querySelector<HTMLTextAreaElement>('.dd-chat textarea')?.value).toContain('sem perder');
+  expect(runAssistant).not.toHaveBeenCalled();
+});
+
+it('loads older messages on demand without dropping the stored transcript', () => {
+  useChatStore.setState({ messages: Array.from({ length: 125 }, (_, index) => ({ id: String(index), role: 'user' as const, text: `Mensagem ${index}`, createdAt: index })) });
+  act(() => root.render(<AssistantChat/>));
+  expect(host.querySelectorAll('.dd-chat-message')).toHaveLength(60);
+  expect(useChatStore.getState().messages).toHaveLength(125);
+  act(() => Simulate.click(host.querySelector('.dd-chat-older')!));
+  expect(host.querySelectorAll('.dd-chat-message')).toHaveLength(120);
+  act(() => Simulate.click(host.querySelector('.dd-chat-older')!));
+  expect(host.querySelectorAll('.dd-chat-message')).toHaveLength(125);
+});
+
+it('requires restoring an archived conversation before adding an image from its history', () => {
+  const projectId = imageProject();
+  useChatStore.setState({ messages: [imageSearchMessage(projectId)], archivedAt: Date.now() });
+  act(() => root.render(<AssistantChat/>));
+  expect(host.querySelector<HTMLButtonElement>('[aria-label="Escolher Arduino Uno R3"]')?.disabled).toBe(true);
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.disabled).toBe(true);
+  expect(addChatImageReference).not.toHaveBeenCalled();
+  act(() => Simulate.click(host.querySelector('.dd-chat-archived-notice button')!));
+  expect(host.querySelector<HTMLButtonElement>('[aria-label="Escolher Arduino Uno R3"]')?.disabled).toBe(false);
 });
 
 it('changes from dock to a mobile dialog without losing the draft, traps Tab and closes Escape locally', () => {
@@ -217,7 +271,8 @@ it('accepts canvas handoff into the existing draft without sending or navigating
   act(() => Simulate.change(input, { target: { value: 'Conferir esta premissa' } } as never));
   act(() => requestChatReferences(projectId, [{ id: note, kind: 'note', label: 'Teste do servo', detail: '', fingerprint: '' }]));
   expect(host.querySelector('.dd-chat-reference-chip')?.textContent).toContain('Teste do servo');
-  expect(host.querySelector('.dd-chat-context')?.textContent).toContain('Robô');
+  expect(host.querySelector('.dd-chat-context')?.textContent).toContain('Projetos');
+  expect(host.querySelector('.dd-chat-context')?.textContent).not.toContain('Robô');
   expect(input.value).toBe('Conferir esta premissa');
   expect(useChatReferenceHandoff.getState().pending).toBeNull();
   expect(useWorkspaceStore.getState().activeProjectId).toBeNull();
@@ -225,7 +280,7 @@ it('accepts canvas handoff into the existing draft without sending or navigating
   expect(runAssistant).not.toHaveBeenCalled();
 });
 
-it('rejects a handoff from another project while preserving the current draft and references', () => {
+it('accepts explicit references from two projects without retargeting the current screen or sending', () => {
   const first = useWorkspaceStore.getState().createProject('Primeiro');
   const note = useWorkspaceStore.getState().createNote({ title: 'Primeira fonte', projectId: first });
   const second = useWorkspaceStore.getState().createProject('Segundo');
@@ -235,9 +290,9 @@ it('rejects a handoff from another project while preserving the current draft an
   act(() => Simulate.change(input, { target: { value: 'Minha análise' } } as never));
   act(() => requestChatReferences(first, [{ id: note, kind: 'note', label: '', detail: '', fingerprint: '' }]));
   act(() => requestChatReferences(second, [{ id: other, kind: 'note', label: '', detail: '', fingerprint: '' }]));
-  expect(host.querySelectorAll('.dd-chat-reference-chip')).toHaveLength(1);
+  expect(host.querySelectorAll('.dd-chat-reference-chip')).toHaveLength(2);
   expect(host.querySelector('.dd-chat-reference-chip')?.textContent).toContain('Primeira fonte');
-  expect(host.querySelector('[role="alert"]')?.textContent).toContain('outro projeto');
+  expect(host.querySelector('[role="alert"]')).toBeNull();
   expect(input.value).toBe('Minha análise');
   expect(useChatReferenceHandoff.getState().pending).toBeNull();
   expect(runAssistant).not.toHaveBeenCalled();
@@ -289,17 +344,24 @@ it('shows historic image searches after a project switch without adding images t
   expect(host.textContent).toContain('projeto de origem foi removido');
 });
 
-it('rejects choosing an image while the draft references another project before changing the canvas', async () => {
+it('keeps another project reference while adding an image to its explicit source canvas', async () => {
   const origin = imageProject('Referências');
   const note = useWorkspaceStore.getState().createNote({ title: 'Fonte anterior', projectId: origin });
   const current = imageProject('Busca atual');
+  const artifact: VisualArtifact = { id: 'cross-image', label: carouselImage.title, kind: 'image', x: 0, y: 0, width: 100, height: 100, mediaId: 'media', scene: null, source: carouselImage, revisions: [], revisionIndex: 0 };
+  vi.mocked(addChatImageReference).mockImplementation(async () => {
+    const plan = useGraphStore.getState().project!;
+    useGraphStore.setState({ project: { ...plan, visuals: { version: 1, mode: 'approval', artifacts: [artifact], proposals: [], drafts: { search: { text: '', mentions: [], attachments: [] }, model: { text: '', mentions: [], attachments: [] } } } } });
+    return artifact;
+  });
   useChatStore.setState({ messages: [imageSearchMessage(current)] });
   act(() => root.render(<AssistantChat />));
   act(() => requestChatReferences(origin, [{ id: note, kind: 'note', label: '', detail: '', fingerprint: '' }]));
   await act(async () => Simulate.click(host.querySelector('[aria-label="Escolher Arduino Uno R3"]')!));
   expect(host.querySelector('.dd-chat-reference-chip')?.textContent).toContain('Fonte anterior');
-  expect(host.querySelector('.dd-chat-image-error')?.textContent).toContain('outro projeto');
-  expect(addChatImageReference).not.toHaveBeenCalled();
+  expect(host.querySelector('.dd-chat-image-error')).toBeNull();
+  expect(host.querySelectorAll('.dd-chat-reference-chip')).toHaveLength(2);
+  expect(addChatImageReference).toHaveBeenCalledWith(carouselImage, current, { useAs3D: false, linkedNodeId: 'arduino-node' });
 });
 
 it('does not put a late image choice into a new conversation', async () => {

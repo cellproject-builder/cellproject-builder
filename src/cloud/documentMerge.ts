@@ -11,10 +11,10 @@ type Result = Value | typeof conflict;
 const envelopeKeys = new Set(['cellproject-workspace', 'cellproject-graph', 'dynamic_diary-chat', 'cellproject-kb', 'cellproject-config', 'cellproject-locale']);
 const preferenceKeys = new Set(['dynamic_diary-theme', 'dynamic_diary-sidebar-collapsed', 'dynamic_diary:task-view']);
 const unsafeKeys = new Set(['__proto__', 'prototype', 'constructor']);
-const atomicKeys = new Set(['viewport', 'camera', 'selection', 'modelHistory', 'pendingHistory']);
+const atomicKeys = new Set(['viewport', 'camera', 'selection', 'modelHistory', 'pendingHistory', 'compaction', 'contextUsage', 'contextObservation']);
 const identityKeys = ['id', 'sessionId', 'version', 'kind', 'type', 'deletedAt', 'archived'];
 const selectionKeys = ['selectedNodeId', 'focusedParentId', 'lens', 'viewMode', 'detailPanelOpen', 'lastTutorNodeId'];
-const conversationKeys = ['sessionId', 'messages', 'modelHistory', 'pendingHistory'];
+const conversationKeys = ['sessionId', 'messages', 'modelHistory', 'pendingHistory', 'compaction', 'contextUsage', 'contextObservation'];
 const object = (value: Value): value is JsonObject => value !== null && typeof value === 'object' && !Array.isArray(value);
 const own = (value: JsonObject, key: string): Value => Object.hasOwn(value, key) ? value[key] : missing;
 
@@ -118,6 +118,30 @@ function validateEnvelope(key: string, value: Json): asserts value is JsonObject
     validateProject(own(value.state, 'project'));
     validateProject(own(value.state, 'archivedProject'));
   }
+}
+
+/** Add the same deterministic legacy defaults on all three sides before comparing IDs. */
+function normalizeChatState(state: JsonObject): JsonObject {
+  const time = (value: Value): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+  const normalize = (value: JsonObject): JsonObject => {
+    if (typeof value.sessionId !== 'string' || !value.sessionId) return value;
+    const messages = Object.hasOwn(value, 'messages') ? value.messages : [];
+    const modelHistory = Object.hasOwn(value, 'modelHistory') ? value.modelHistory : [];
+    if (!Array.isArray(messages) || messages.some(message => !object(message)) || !Array.isArray(modelHistory)) throw new Error('Invalid persisted conversation');
+    const times = messages.flatMap(message => object(message) && time(message.createdAt) ? [message.createdAt] : []);
+    const createdAt = time(value.createdAt) ? value.createdAt : times[0] ?? 0;
+    const updatedAt = time(value.updatedAt) ? value.updatedAt : times.at(-1) ?? createdAt;
+    if (time(value.deletedAt)) return { id: value.sessionId, sessionId: value.sessionId, createdAt, updatedAt: value.deletedAt, deletedAt: value.deletedAt, archivedAt: null,
+      messages: [], modelHistory: [], pendingHistory: null, compaction: null, contextUsage: null };
+    return { ...value, id: value.sessionId, createdAt, updatedAt, messages, modelHistory,
+      archivedAt: time(value.archivedAt) ? value.archivedAt : null, deletedAt: null,
+      pendingHistory: value.pendingHistory ?? null, compaction: value.compaction ?? null, contextUsage: value.contextUsage ?? null, contextObservation: value.contextObservation ?? null };
+  };
+  const next = normalize(state);
+  const inactive = own(state, 'archivedSessions');
+  if (inactive === missing) return next;
+  if (!Array.isArray(inactive) || inactive.some(session => !object(session))) throw new Error('Invalid persisted conversation list');
+  return { ...next, archivedSessions: inactive.map(session => normalize(session as JsonObject)) };
 }
 
 function stableItems(items: Json[]): Map<string, JsonObject> | null {
@@ -224,7 +248,9 @@ function mergeValue(base: Value, local: Value, remote: Value, path: string[], ke
   if (!planner && changed(selectionKeys, base, local) && changed(selectionKeys, base, remote) && changed(selectionKeys, local, remote)) return conflict;
   // A turn can persist visible messages before its model history. Those fields
   // form one conversation even while the history is still empty or pending.
-  if (key === 'dynamic_diary-chat' && path.length === 1 && path[0] === 'state' &&
+  const conversation = key === 'dynamic_diary-chat' && (path.length === 1 && path[0] === 'state' ||
+    path.length === 3 && path[0] === 'state' && path[1] === 'archivedSessions');
+  if (conversation &&
     changed(conversationKeys, base, local) && changed(conversationKeys, base, remote) && changed(conversationKeys, local, remote)) return conflict;
   const result: JsonObject = Object.create(null) as JsonObject;
   for (const field of new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)])) {
@@ -252,6 +278,11 @@ export function mergeCloudDocument(key: string, base: string | null, local: stri
       const value: unknown = JSON.parse(text);
       if (!validJson(value)) throw new Error('Invalid JSON document');
       validateEnvelope(key, value);
+      if (key === 'dynamic_diary-chat') {
+        const normalized = { ...value, state: normalizeChatState(value.state) };
+        if (!validJson(normalized)) throw new Error('Invalid normalized conversation');
+        return normalized;
+      }
       return value;
     };
     const l = parse(local), b = base === null ? null : parse(base), r = remote === null ? null : parse(remote);

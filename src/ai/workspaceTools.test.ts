@@ -6,10 +6,11 @@ import { useConfigStore } from '@/config/store';
 import { useSidebarStore } from '@/workspace/sidebarPreference';
 import { createAssistantTools, executeWorkspaceAction, readWorkspace } from './workspaceTools';
 import type { NoteCanvasDocument } from '@/workspace/noteCanvasModel';
+import { ChatContextBudgetError } from '@/chat/contextBudget';
 
 beforeEach(async () => {
   await store.persist.rehydrate();
-  store.setState({ projects: {}, tasks: {}, sprints: {}, notes: {}, folders: {}, comments: {}, legacyImported: true, surface: 'projects', activeProjectId: null });
+  store.setState({ projects: {}, tasks: {}, sprints: {}, notes: {}, folders: {}, comments: {}, boards: {}, activeBoardId: null, legacyImported: true, surface: 'projects', activeProjectId: null });
 });
 
 it('lets the assistant control the same persisted sidebar preference as the interface', async () => {
@@ -163,4 +164,72 @@ it('infers navigation ownership and rejects a mismatched destination before chan
   const target = requestWorkspaceUI({ surface: 'kanban', taskId });
   expect(target.projectId).toBe(a);
   expect(store.getState().activeProjectId).toBe(a);
+});
+
+it('reads board metadata and bounded textual details without pixels, geometry or drawing points', () => {
+  const id = store.getState().createBoard('Wiring notebook');
+  const board = store.getState().boards[id];
+  store.setState({ boards: { [id]: { ...board, document: { ...board.document, items: [
+    { id: 'image', kind: 'image', src: 'data:image/png;base64,PRIVATE-BOARD-PIXELS', label: 'Servo image', x: 0, y: 0, width: 200, height: 100 },
+    ...Array.from({ length: 60 }, (_, index) => ({ id: `text-${index}`, kind: 'card' as const, text: 'Public wiring context '.repeat(300), color: '#ffffff', fontSize: 16, x: 0, y: 0, width: 200, height: 100 })),
+    { id: 'drawing', kind: 'drawing', points: [{ x: 6789, y: 9876 }], color: '#ffffff', widthStroke: 2, x: 0, y: 0, width: 200, height: 100 },
+  ] } } } });
+  const listing = readWorkspace({ collection: 'boards', limit: 1 });
+  expect(listing.items[0]).toMatchObject({ id, title: 'Wiring notebook', summary: { itemCount: 62 } });
+  expect(JSON.stringify(listing)).not.toContain('Public wiring context');
+  const detail = readWorkspace({ collection: 'boards', id });
+  expect(JSON.stringify(detail)).toContain('Public wiring context');
+  expect(JSON.stringify(detail).length).toBeLessThan(7500);
+  expect(JSON.stringify(detail)).not.toMatch(/PRIVATE-BOARD-PIXELS|6789|9876|"document"|"points"/);
+  expect(detail.items[0].summary).toMatchObject({ omittedItems: expect.any(Number) });
+  expect(readWorkspace({ collection: 'boards', query: 'Wiring notebook' }).total).toBe(1);
+});
+
+it('excludes freehand note ink from the general workspace tool response', () => {
+  const id = store.getState().createNote({ title: 'Ink note' });
+  const note = store.getState().notes[id];
+  store.setState({ notes: { [id]: { ...note, ink: { version: 1, strokes: [{ id: 'drawing', points: [{ x: 7654, y: 5432 }], color: '#ffffff', width: 2 }] } } } } as never);
+  expect(readWorkspace({ collection: 'notes', id }).items[0]).not.toHaveProperty('ink');
+  expect(JSON.stringify(readWorkspace({ collection: 'notes', id }))).not.toMatch(/7654|5432/);
+});
+
+it('navigates to an explicit board through the shared tools while rejecting mixed or missing targets', async () => {
+  const projectId = store.getState().createProject('Project before board');
+  const boardId = store.getState().createBoard('Sketch'); store.getState().navigate('overview');
+  await expect(executeWorkspaceAction({ action: 'navigate', surface: 'boards', boardId: 'missing' })).rejects.toThrow();
+  expect(store.getState().surface).toBe('overview');
+  await expect(executeWorkspaceAction({ action: 'navigate', surface: 'boards', boardId, projectId })).rejects.toThrow();
+  expect(store.getState().surface).toBe('overview');
+  await executeWorkspaceAction({ action: 'navigate', surface: 'boards', boardId });
+  expect(store.getState()).toMatchObject({ surface: 'boards', activeBoardId: boardId, activeProjectId: null });
+  await executeWorkspaceAction({ action: 'navigate', surface: 'boards' });
+  expect(store.getState().activeBoardId).toBeNull();
+});
+
+it('keeps the run screen context frozen while returning current records', async () => {
+  store.getState().createProject('Previous project'); store.getState().navigate('projects');
+  const tools = createAssistantTools(new AbortController().signal, () => {}, 'Liste projetos');
+  store.getState().createProject('Created after submission');
+  const response = await tools.workspace_read.execute!({ collection: 'projects' }, { toolCallId: 'frozen', messages: [] });
+  expect(response).toMatchObject({ ok: true, result: { total: 2, currentProjectId: null, visibleProjectId: null, surface: 'projects' } });
+});
+
+it('revalidates a run before a queued mutation and preserves an earlier completed action', async () => {
+  let changed = false;
+  const events: string[] = [];
+  const tools = createAssistantTools(new AbortController().signal, event => {
+    events.push(`${event.action}:${event.status}`);
+    if (event.action === 'create_project' && event.status === 'done') changed = true;
+  }, 'Create a project and note', {
+    beforeRequest: async () => {}, onRateLimit: () => {},
+    assertActive: () => { if (changed) throw new ChatContextBudgetError('chatContextModelChanged'); },
+  });
+  const options = { toolCallId: 'scope', messages: [] };
+  const first = tools.workspace_action.execute!({ action: 'create_project', name: 'Preserved' }, options);
+  const second = Promise.resolve(tools.workspace_action.execute!({ action: 'create_note', title: 'Must not run' }, options)).then(() => null, (error: unknown) => error);
+  await first;
+  expect(await second).toMatchObject({ name: 'ChatContextBudgetError', message: 'chatContextModelChanged' });
+  expect(Object.values(store.getState().projects).map(project => project.name)).toEqual(['Preserved']);
+  expect(Object.keys(store.getState().notes)).toHaveLength(0);
+  expect(events).toEqual(['create_project:running', 'create_project:done']);
 });

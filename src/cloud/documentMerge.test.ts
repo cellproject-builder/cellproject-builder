@@ -164,6 +164,54 @@ describe('mergeCloudDocument', () => {
       envelope({ sessionId: 's1', messages: [], modelHistory: [{ role: 'user', content: 'remote question' }] }, 1))).toBeNull();
   });
 
+  it('keeps a compaction checkpoint atomic with the active conversation history', () => {
+    const base = { sessionId: 's1', messages: [], modelHistory: [], compaction: null };
+    expect(mergeCloudDocument('dynamic_diary-chat', envelope(base, 1),
+      envelope({ ...base, messages: [{ id: 'local', text: 'Local question' }] }, 1),
+      envelope({ ...base, compaction: { summary: 'Remote summary', window: 1 } }, 1))).toBeNull();
+  });
+
+  it('merges metadata changes to independent stable inactive sessions', () => {
+    const first = { id: 'one', sessionId: 'one', title: 'One', messages: [], modelHistory: [], archivedAt: null, deletedAt: null };
+    const second = { ...first, id: 'two', sessionId: 'two', title: 'Two' };
+    const base = { sessionId: 'active', messages: [], modelHistory: [], archivedSessions: [first, second] };
+    const result = mergeCloudDocument('dynamic_diary-chat', envelope(base, 1),
+      envelope({ ...base, archivedSessions: [{ ...first, title: 'Renamed' }, second] }, 1),
+      envelope({ ...base, archivedSessions: [first, { ...second, archivedAt: 20 }] }, 1));
+    expect(JSON.parse(result!).state.archivedSessions).toMatchObject([{ ...first, title: 'Renamed' }, { ...second, archivedAt: 20 }]);
+  });
+
+  it('never synthesizes an inactive conversation from one device’s messages and another’s summary', () => {
+    const one = { id: 'one', sessionId: 'one', messages: [], modelHistory: [], compaction: null };
+    const base = { sessionId: 'active', messages: [], modelHistory: [], archivedSessions: [one] };
+    expect(mergeCloudDocument('dynamic_diary-chat', envelope(base, 1),
+      envelope({ ...base, archivedSessions: [{ ...one, messages: [{ id: 'm', text: 'Local question' }] }] }, 1),
+      envelope({ ...base, archivedSessions: [{ ...one, compaction: { summary: 'Remote summary', window: 1 } }] }, 1))).toBeNull();
+  });
+
+  it('preserves deletion receipts and rejects stale edits rather than resurrecting chat content', () => {
+    const one = { id: 'one', sessionId: 'one', messages: [{ id: 'm', text: 'Private' }], modelHistory: [], deletedAt: null };
+    const base = { sessionId: 'active', messages: [], modelHistory: [], archivedSessions: [one] };
+    const deleted = { ...one, messages: [], deletedAt: 20 };
+    const local = { ...base, archivedSessions: [deleted] };
+    expect(JSON.parse(mergeCloudDocument('dynamic_diary-chat', envelope(base, 1), envelope(local, 1), envelope(base, 1))!).state.archivedSessions).toEqual([deleted]);
+    expect(mergeCloudDocument('dynamic_diary-chat', envelope(base, 1), envelope(local, 1),
+      envelope({ ...base, archivedSessions: [{ ...one, messages: [{ id: 'm', text: 'Stale edited content' }] }] }, 1))).toBeNull();
+  });
+
+  it('normalizes legacy session identities before merging independent first-upgrade metadata changes', () => {
+    const first = { sessionId: 'one', messages: [{ id: 'one-u', role: 'user', text: 'One', createdAt: 1 }], modelHistory: [] };
+    const second = { sessionId: 'two', messages: [{ id: 'two-u', role: 'user', text: 'Two', createdAt: 2 }], modelHistory: [] };
+    const normalize = (value: typeof first) => ({ ...value, id: value.sessionId, createdAt: value.messages[0].createdAt, updatedAt: value.messages[0].createdAt, archivedAt: null, deletedAt: null, pendingHistory: null, compaction: null, contextUsage: null, contextObservation: null });
+    const base = { sessionId: 'active', messages: [], modelHistory: [], archivedSessions: [first, second] };
+    const active = { ...base, id: 'active', createdAt: 0, updatedAt: 0, archivedAt: null, deletedAt: null, pendingHistory: null, compaction: null, contextUsage: null, contextObservation: null };
+    const result = mergeCloudDocument('dynamic_diary-chat', envelope(base, 1),
+      envelope({ ...active, archivedSessions: [{ ...normalize(first), title: 'Renamed one' }, normalize(second)] }, 1),
+      envelope({ ...active, archivedSessions: [normalize(first), { ...normalize(second), title: 'Renamed two' }] }, 1));
+    expect(result).not.toBeNull();
+    expect(JSON.parse(result!).state.archivedSessions.map((item: { title: string }) => item.title)).toEqual(['Renamed one', 'Renamed two']);
+  });
+
   it('keeps local per-device board viewport while merging independent drawings', () => {
     const b1 = board('b1');
     const local = { ...b1, document: { ...b1.document, items: [drawing('a')], viewport: { x: 10, y: 20, zoom: 2 } } };

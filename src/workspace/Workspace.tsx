@@ -1,10 +1,12 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
-import { GearIcon, DashboardIcon } from '@/components/ui/SoftIcons';
+import { GearIcon, DashboardIcon, ChatBubbleIcon } from '@/components/ui/SoftIcons';
 import { useT, useLocaleStore } from '@/i18n';
 import { PRODUCT_NAME } from '@/brand';
 import { useThemeStore, type Theme } from '@/theme';
 import { AssistantChat } from '@/chat/AssistantChat';
-import { AssistantChatDockProvider } from '@/chat/AssistantChatDock';
+import { AssistantChatDockProvider, FullChatDock } from '@/chat/AssistantChatDock';
+import { useChatPresentation } from '@/chat/presentation';
+import { useChatStore } from '@/chat/store';
 import { useUIRequests } from './uiRequests';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { ApiKeyGate } from '@/components/ApiKeyGate';
@@ -78,6 +80,8 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
   const projects = useWorkspaceStore((s) => s.projects);
   const activeProjectId = useWorkspaceStore((s) => s.activeProjectId);
   const surface = useWorkspaceStore((s) => s.surface);
+  const chatExpanded = useChatPresentation(s => s.expanded);
+  const collapseChat = () => useChatPresentation.getState().setExpanded(false);
   const navigate = useWorkspaceStore((s) => s.navigate);
   const [noteScope, setNoteScope] = useState<string | null>(null);
   const [noteId, setNoteId] = useState<string | null>(null);
@@ -89,7 +93,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
   const [taskEditor, setTaskEditor] = useState<{ task?: Task; status?: TaskStatus } | null>(null);
   const project = activeProjectId ? projects[activeProjectId] : undefined;
   useEffect(() => { initializeWorkspace(); return connectPlanner(); }, []);
-  useEffect(() => { setSideOpen(false); setTaskEditor(null); }, [surface, activeProjectId]);
+  useEffect(() => { setSideOpen(false); setTaskEditor(null); collapseChat(); }, [surface, activeProjectId]);
   useEffect(() => {
     if (!uiRequest) return;
     if (uiRequest.settings) setSettings(true);
@@ -101,6 +105,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
     setSideOpen(false);
   }, [uiRequest]);
   const go = (view: Surface) => {
+    collapseChat();
     attempt(() => {
       if (view === 'planner' && project) openPlanner(project.id);
       if (view === 'notes') { setNoteScope(project?.id ?? null); setNoteId(null); }
@@ -115,26 +120,27 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
     graph.setViewMode('graph'); graph.selectNode(task.sourceNodeId); graph.requestCenter(task.sourceNodeId);
     navigate('planner'); setTaskEditor(null);
   });
-  const navItem = (view: 'overview' | 'kanban' | 'scrum' | 'notes' | 'planner') => <button key={view} className={`ws-nav-item ${surface === view && (view !== 'notes' || noteScope === project?.id) ? 'selected' : ''}`} aria-label={tr[view]} title={`${project?.name} · ${tr[view]}`} onClick={() => go(view)}><Icon name={view} /><span>{tr[view]}</span></button>;
+  const navItem = (view: 'overview' | 'kanban' | 'scrum' | 'notes' | 'planner') => <button key={view} className={`ws-nav-item ${!chatExpanded && surface === view && (view !== 'notes' || noteScope === project?.id) ? 'selected' : ''}`} aria-label={tr[view]} title={`${project?.name} · ${tr[view]}`} onClick={() => go(view)}><Icon name={view} /><span>{tr[view]}</span></button>;
   const mobileMenu = <button className="ws-icon-button ws-mobile-menu" aria-label={tr.navigation} aria-expanded={sideOpen} aria-controls="workspace-sidebar" onClick={() => setSideOpen(!sideOpen)}><Icon name="menu" /></button>;
   const headerShell = {
     navigation: mobileMenu,
     breadcrumb: project && surface !== 'projects' && surface !== 'boards' ? <><button onClick={() => navigate('projects')}>{tr.projects}</button><span>/</span>{surface !== 'overview' && <><button className="ws-project-identity" title={project.name} onClick={() => go('overview')}><ProjectIcon appearance={project.appearance} size={14}/><span>{project.name}</span></button><span>/</span></>}</> : null,
     status: project?.archived && surface !== 'projects' && surface !== 'boards' ? <span className="ws-badge">{tr.archived}</span> : null,
   };
-  return <AssistantChatDockProvider><div className={`ws-app ${surface === 'notes' ? 'notes-surface' : ''} ${canvasMaximized ? 'is-canvas-maximized' : ''}`}>
+  return <AssistantChatDockProvider><div className={`ws-app ${surface === 'notes' ? 'notes-surface' : ''} ${canvasMaximized && !chatExpanded ? 'is-canvas-maximized' : ''} ${chatExpanded ? 'is-chat-expanded' : ''}`}>
     {sideOpen && <button className="ws-sidebar-scrim" aria-label={tr.close} onClick={() => setSideOpen(false)} />}
     <aside id="workspace-sidebar" className={`ws-sidebar ${sideOpen ? 'is-open' : ''} ${sideCollapsed ? 'is-collapsed' : ''}`} aria-label={tr.navigation}>
-      <div className="ws-sidebar-heading"><button className="ws-brand" onClick={() => { navigate('projects'); setSideOpen(false); }}><span>{PRODUCT_NAME}<span>{tr.scopeHint}</span></span></button><button className="ws-icon-button ws-sidebar-toggle" aria-label={sideCollapsed ? tr.expandSidebar : tr.collapseSidebar} title={sideCollapsed ? tr.expandSidebar : tr.collapseSidebar} aria-expanded={!sideCollapsed} aria-controls="workspace-sidebar" onClick={toggleSideCollapsed}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16" /><path className="ws-sidebar-toggle-arrow" d="m16 9-3 3 3 3" /></svg></button></div>
+      <div className="ws-sidebar-heading"><button className="ws-brand" onClick={() => { collapseChat(); navigate('projects'); setSideOpen(false); }}><span>{PRODUCT_NAME}<span>{tr.scopeHint}</span></span></button><button className="ws-icon-button ws-sidebar-toggle" aria-label={sideCollapsed ? tr.expandSidebar : tr.collapseSidebar} title={sideCollapsed ? tr.expandSidebar : tr.collapseSidebar} aria-expanded={!sideCollapsed} aria-controls="workspace-sidebar" onClick={toggleSideCollapsed}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16" /><path className="ws-sidebar-toggle-arrow" d="m16 9-3 3 3 3" /></svg></button></div>
       <p className="ws-nav-label">{tr.workspace}</p>
-      <nav><button className={`ws-nav-item ${surface === 'projects' ? 'selected' : ''}`} aria-label={tr.myProjects} title={tr.myProjects} onClick={() => { navigate('projects'); setSideOpen(false); }}><Icon name="projects" /><span>{tr.myProjects}</span><small>{Object.values(projects).filter((p) => !p.archived).length}</small></button>
-        <button className={`ws-nav-item ${surface === 'notes' && !noteScope ? 'selected' : ''}`} aria-label={tr.diary} aria-current={surface === 'notes' && !noteScope ? 'page' : undefined} title={tr.diary} onClick={() => { setNoteScope(null); setNoteId(null); navigate('notes'); setSideOpen(false); }}><Icon name="notes" /><span>{tr.diary}</span></button>
-        <button className={`ws-nav-item ${surface === 'boards' ? 'selected' : ''}`} aria-label="Dynamic Board" aria-current={surface === 'boards' ? 'page' : undefined} title="Dynamic Board" onClick={() => { useWorkspaceStore.setState({ activeBoardId: null }); navigate('boards'); setSideOpen(false); }}><DashboardIcon width={18} height={18} aria-hidden="true"/><span>Dynamic Board</span></button>
+      <nav><button className={`ws-nav-item ${surface === 'projects' && !chatExpanded ? 'selected' : ''}`} aria-label={tr.myProjects} title={tr.myProjects} onClick={() => { collapseChat(); navigate('projects'); setSideOpen(false); }}><Icon name="projects" /><span>{tr.myProjects}</span><small>{Object.values(projects).filter((p) => !p.archived).length}</small></button>
+        <button className={`ws-nav-item ${chatExpanded ? 'selected' : ''}`} aria-label="Chat" aria-current={chatExpanded ? 'page' : undefined} title="Chat" onClick={() => { useChatStore.getState().setOpen(true); useChatPresentation.getState().setExpanded(true); setSideOpen(false); }}><ChatBubbleIcon size={18}/><span>Chat</span></button>
+        <button className={`ws-nav-item ${surface === 'notes' && !noteScope && !chatExpanded ? 'selected' : ''}`} aria-label={tr.diary} aria-current={surface === 'notes' && !noteScope && !chatExpanded ? 'page' : undefined} title={tr.diary} onClick={() => { collapseChat(); setNoteScope(null); setNoteId(null); navigate('notes'); setSideOpen(false); }}><Icon name="notes" /><span>{tr.diary}</span></button>
+        <button className={`ws-nav-item ${surface === 'boards' && !chatExpanded ? 'selected' : ''}`} aria-label="Dynamic Board" aria-current={surface === 'boards' && !chatExpanded ? 'page' : undefined} title="Dynamic Board" onClick={() => { collapseChat(); useWorkspaceStore.setState({ activeBoardId: null }); navigate('boards'); setSideOpen(false); }}><DashboardIcon width={18} height={18} aria-hidden="true"/><span>Dynamic Board</span></button>
       </nav>
       {project && <><p className="ws-nav-label ws-project-nav-title" title={project.name}><ProjectIcon appearance={project.appearance} size={14}/><span>{project.name}</span>{project.archived && <span className="ws-badge">{tr.archived}</span>}</p><nav>{(['planner', 'overview', 'kanban', 'scrum', 'notes'] as const).map(navItem)}</nav></>}
       <div className="ws-sidebar-bottom"><button className="ws-nav-item" aria-label={tr.preferences} title={tr.preferences} aria-haspopup="dialog" aria-expanded={settings} onClick={() => setSettings(true)}><GearIcon width={18} height={18} aria-hidden="true" /><span>{tr.preferences}</span></button><div className="ws-sidebar-tools"><LanguageToggle /><span><i />{isCloudEnabled() ? 'Workspace na nuvem' : tr.localData}</span></div></div>
     </aside>
-    <div className="ws-main">{surface === 'planner' && project && <header className="ws-header">
+    <div className="ws-main"><div className="dd-chat-mobile-navigation" hidden={!chatExpanded}>{mobileMenu}</div><FullChatDock/>{surface === 'planner' && project && <header className="ws-header" hidden={chatExpanded}>
       {mobileMenu}
       <div className="ws-breadcrumb">
         <button onClick={() => navigate('projects')}>{tr.projects}</button><span>/</span><button className="ws-project-identity" title={project.name} onClick={() => go('overview')}><ProjectIcon appearance={project.appearance} size={14}/><span>{project.name}</span></button><span>/</span>
@@ -145,7 +151,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
     </header>}
       <PageHeaderContext.Provider value={headerShell}>
       <Suspense fallback={<div role="status" aria-busy="true" className="ws-page">{english ? 'Loading…' : 'Carregando…'}</div>}>
-      <main className={`ws-content ${surface === 'boards' ? 'is-boards' : ''} ${surface === 'notes' ? 'is-notes' : ''} ${surface === 'planner' && project ? 'is-planner' : ''}`} key={`${surface}-${surface === 'notes' ? noteScope : surface === 'boards' ? 'boards' : activeProjectId}`}>
+      <main hidden={chatExpanded} className={`ws-content ${surface === 'boards' ? 'is-boards' : ''} ${surface === 'notes' ? 'is-notes' : ''} ${surface === 'planner' && project ? 'is-planner' : ''}`} key={`${surface}-${surface === 'notes' ? noteScope : surface === 'boards' ? 'boards' : activeProjectId}`}>
         {surface === 'boards' ? <DynamicBoards english={english} onMaximizedChange={setBoardMaximized}/> : surface === 'projects' ? <Projects /> : surface === 'notes' ? <Notes key={`${noteScope}-${noteId}`} projectId={noteScope} initialNoteId={noteId} onMaximizedChange={setNoteMaximized} /> : !project ? <Projects /> : surface === 'overview' ? <Overview project={project} onAdd={() => setTaskEditor({})} onPlan={() => go('planner')} onNotes={openNotes} onEditProject={() => setEditingProject(true)} /> : surface === 'kanban' ? <Board projectId={project.id} onEdit={(task) => setTaskEditor({ task })} onAdd={(status) => setTaskEditor({ status })} /> : surface === 'scrum' ? <Scrum projectId={project.id} onEdit={(task) => setTaskEditor({ task })} onAdd={() => setTaskEditor({})} /> : planner}
       </main>
       </Suspense>
@@ -164,7 +170,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
         <div className="border-t border-border-base/70 pt-4"><h3 className="text-control font-semibold text-text-primary">{tr.settings}</h3></div>
       </div>
     } />}
-    <AssistantChat suspended={canvasMaximized || boardMaximized || noteMaximized || surface === 'boards'} />
+    <AssistantChat suspended={canvasMaximized || boardMaximized || noteMaximized} />
     {editingProject && project && <ProjectForm project={project} onClose={() => setEditingProject(false)} />}
     {taskEditor && project && <TaskEditor key={taskEditor.task?.id ?? 'new'} projectId={project.id} task={taskEditor.task} initialStatus={taskEditor.status} onClose={() => setTaskEditor(null)} onSource={source} />}
   </div></AssistantChatDockProvider>;

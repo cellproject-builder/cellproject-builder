@@ -1,6 +1,6 @@
 # Chat integrado e direção Dairo
 
-Visão canônica do módulo, conferida no código em 10/10/2026. O **chat integrado está implementado**. O **Dairo permanece uma direção de produto**, registrada em [dairo-direction.md](../dairo-direction.md), sem runtime específico identificado em `src`/`server` nesta revisão. Não se deve renomear o `workspaceAgent` existente como prova de entrega do Dairo.
+Visão canônica do módulo, conferida no código em 11/10/2026. O **chat integrado está implementado**. O **Dairo permanece uma direção de produto**, registrada em [dairo-direction.md](../dairo-direction.md), sem runtime específico identificado em `src`/`server` nesta revisão. Não se deve renomear o `workspaceAgent` existente como prova de entrega do Dairo.
 
 ## Finalidade e estado
 
@@ -8,7 +8,7 @@ O chat permite conversar sobre o workspace e executar ações disponíveis por f
 
 | Estado | Capacidade |
 | --- | --- |
-| Implementado | Chat com streaming, cancelamento, histórico de conversas persistido, troca/arquivo de sessões, erros de carga/salvamento e cooldown do provedor. |
+| Implementado | Chat com streaming, cancelamento, popup/dock e modo expandido com a mesma conversa, histórico pesquisável por título, renomear/arquivar/restaurar/excluir, erros de carga/salvamento e cooldown do provedor. |
 | Implementado | Referências `@` selecionadas pela pessoa, anexos, auditoria de ações, acesso ao workspace/planner e busca visual pelo agente integrado. |
 | Implementado | Instância `dynamic-diary-workspace` de `ToolLoopAgent` por execução, ferramentas com fila e cancelamento compartilhados. |
 | Experimental no sentido de uso | Classificação TypeSafe de intenção e avaliações documentais de referências orientam o fluxo. Confiança do modelo não valida fatos, compatibilidade física ou autorização. |
@@ -26,7 +26,9 @@ Histórico do chat pode ser reutilizado em novos turnos. Isso não é equivalent
 5. Cancelar quando necessário. Ações já concluídas continuam aplicadas; cancelar não é desfazer. Um lote estrutural pode oferecer seu undo específico.
 6. Reabrir/trocar conversa ou recarregar. Turnos interrompidos preservam pedido e auditoria, sem retomar automaticamente a mutação.
 
-No desktop o chat pode ocupar um dock; em tela estreita usa diálogo com gestão de foco. O shell suspende o chat na superfície de Dynamic Board e durante maximização relevante. A IA do quadro usa seu [compositor próprio](./dynamic-board.md), não o chat geral.
+No desktop o chat pode ocupar um dock; em tela estreita o popup usa diálogo com gestão de foco. O ícone Chat da barra lateral e o botão Expandir abrem a mesma instância numa área dedicada, conservando sessão, rascunho, referências e tela de origem. Recolher retorna ao editor, que permanece montado. O contexto explicita essa origem no modo expandido. O chat também está disponível no Dynamic Board; seu [compositor próprio](./dynamic-board.md) continua responsável pela geração específica de objetos. Maximizações relevantes ocultam o popup, sem interromper o processo.
+
+O histórico separa recentes de arquivadas, permite renomear e exige confirmação para excluir. Arquivo é reversível; uma conversa arquivada precisa ser restaurada antes de enviar ou executar ações de seus resultados. A exclusão retira o conteúdo e mantém um recibo mínimo para impedir reaparecimento na conciliação. A interface carrega inicialmente as 60 mensagens mais recentes e oferece as anteriores sob demanda; o transcript persistido continua integral.
 
 O compositor reserva toda a largura para o pedido, mostra fontes selecionadas acima do texto e alinha anexar/`@` à esquerda e enviar/parar à direita. No celular, essas ações têm alvos de 44 px. O foco do texto é indicado pela borda arredondada do conjunto, sem um segundo retângulo interno; botões mantêm indicação de foco para navegação por teclado. A orientação sobre anexos e referências continua disponível aos leitores de tela.
 
@@ -36,6 +38,8 @@ O compositor reserva toda a largura para o pedido, mostra fontes selecionadas ac
 | --- | --- |
 | Interface e composição | [AssistantChat.tsx](../../src/chat/AssistantChat.tsx), [ChatComposer.tsx](../../src/chat/ChatComposer.tsx), [AssistantChatDock.tsx](../../src/chat/AssistantChatDock.tsx), [ChatPlanChanges.tsx](../../src/chat/ChatPlanChanges.tsx) e [ChatImageCarousel.tsx](../../src/chat/ChatImageCarousel.tsx). |
 | Sessão e persistência | [chat/store.ts](../../src/chat/store.ts) guarda mensagens, histórico do modelo, sessões, cooldown e estado de interrupção; coordena o envio. |
+| Contexto e histórico | [turnContext.ts](../../src/chat/turnContext.ts) captura o foco real; [sessionHistory.ts](../../src/chat/sessionHistory.ts) normaliza metadados e exclusões; [ChatHistory.tsx](../../src/chat/ChatHistory.tsx) oferece navegação. |
+| Continuidade | [contextBudget.ts](../../src/chat/contextBudget.ts) prepara o orçamento e a compactação; [chatCompaction.ts](../../src/ai/chatCompaction.ts) produz o resumo sem ferramentas. Ver [estratégia e fontes do Codex](../design/chat-context-strategy.md). |
 | Fontes explícitas | [chat/references.ts](../../src/chat/references.ts) lista metadados, valida escopo/fingerprint e congela trechos; anexos usam [attachments/files.ts](../../src/attachments/files.ts). |
 | Classificação auxiliar | [ai/planIntake.ts](../../src/ai/planIntake.ts) classifica o pedido contextualizado para roteamento, sem autorizar alterações. |
 | Adaptador de streaming | [ai/assistant.ts](../../src/ai/assistant.ts) adapta o SDK ao texto acumulado/eventos e devolve mensagens estruturadas para o histórico. |
@@ -55,19 +59,19 @@ Cada turno cria uma instância de `ToolLoopAgent` com ID `dynamic-diary-workspac
 
 | Ferramenta/superfície | Escopo atual |
 | --- | --- |
-| `workspace_read` | Projetos, tarefas, sprints, notas, pastas e comentários, com paginação/filtros e resumos. Não expõe credenciais nem snapshots inteiros do planner. |
+| `workspace_read` | Projetos, tarefas, sprints, notas, pastas, comentários e boards, com paginação/filtros e resumos. Não expõe credenciais, pontos de desenho, pixels, geometrias ou snapshots inteiros do planner. |
 | `workspace_action` | CRUD suportado, vínculos, importação de tarefas, sprints, comentários, navegação e preferências. Schemas estritos recusam campos/ações desconhecidos. |
 | Ferramentas do planner | Leitura, rascunhos, geração, revisão/decomposição e estrutura preservando identidade/regras do plano; não inventam critério humano ou evidência. |
 | `visual_action` | Busca e preparação de artefatos no contexto de projeto. Buscar não insere automaticamente; propostas de geração respeitam o fluxo de aprovação. |
-| Ausências relevantes | `boards` não aparece nos schemas de leitura/ação/navegação gerais; ferramentas de nota não oferecem edição arbitrária de `canvas`; não há ferramenta de memória Dairo ou execução de programas anexados. |
+| Ausências relevantes | Leitura/navegação de boards não equivale a edição arbitrária dos seus objetos. Ferramentas de nota não oferecem edição arbitrária de `canvas`; não há ferramenta de memória Dairo ou execução de programas anexados. |
 
 Instruções do agente pedem ler antes de alterar e tratar notas, comentários, fontes e resultados como dados não confiáveis. Essa política orienta o modelo; não equivale a um verificador formal que prova a autorização de toda mutação. A validação de argumentos e as regras do domínio são barreiras técnicas separadas.
 
 ## Contexto, referências e anexos
 
-O contexto inicial inclui o projeto explícito do chat, superfície, data e metadados de até 30 projetos. Ele não inclui automaticamente o corpo de todas as notas. O projeto do chat pode diferir do editor visível; `readPlanner` permite consultar outro snapshot sem trocá-lo.
+Cada envio congela tela, modo popup/expandido, projeto visível, plano, nó selecionado, nota, board, lente, data e um trecho público de até 1.200 caracteres. Diário pessoal, lista de projetos e boards não herdam o projeto da tela anterior. A nota selecionada respeita a visão efetivamente aberta, incluindo celular. Não são enviados automaticamente todos os projetos ou corpos de notas; ferramentas descobrem os registros relevantes. `readPlanner` permite consultar outro snapshot sem trocar o editor.
 
-Referências `@` podem ser notas pessoais, notas do projeto, nós, imagens do plano e anexos do projeto. A lista mostra metadados; o envio congela até 20 fontes, com até 8.000 caracteres por fonte e 48.000 no total. Fonte removida, alterada, duplicada ou de projeto incompatível é recusada antes de iniciar o turno. Os snapshots são históricos; atualizar exige ler o registro atual.
+Referências `@` podem ser projetos, boards, notas, nós, imagens, diagramas, modelos 3D e anexos, inclusive de outros projetos. A lista mostra metadados e origem; o envio congela até 20 fontes, com até 8.000 caracteres por fonte e 48.000 no total. Fonte removida, alterada ou duplicada é recusada antes de iniciar o turno. Cada origem usa IDs e fingerprint próprios; escolher outra origem não muda silenciosamente o projeto alvo. Os snapshots são históricos; atualizar exige ler o registro atual. Artefatos contribuem com descrições e resumos textuais, sem carregar suas geometrias ou pixels.
 
 Os campos dos nós usam allowlist e ocultam o critério da IA antes da regra de revelação. Uma referência de imagem leva proveniência textual, não pixels. Uma referência de nota leva título/blocos. Já `workspace_read` pode devolver resumo limitado do caderno por [noteCanvasSummary.ts](../../src/workspace/noteCanvasSummary.ts); são leituras diferentes.
 
@@ -77,11 +81,13 @@ Os fluxos visuais têm suas próprias regras de seleção/pixels; a ausência de
 
 ## Sessões e persistência
 
-`ChatMessage` contém ID, papel, texto, data, eventos de ação, indicação de interrupção, referências, arquivos e classificação opcional. `ChatSession` contém `sessionId`, `messages` e `modelHistory: ModelMessage[]`.
+`ChatMessage` contém ID, papel, texto, data, contexto congelado, eventos de ação, indicação de interrupção, referências, arquivos e classificação opcional. `ChatSession` mantém identidade estável, título, datas, estado de arquivo/exclusão, mensagens, histórico ativo do modelo e checkpoint de compactação.
 
 O store persiste na chave `dynamic_diary-chat`, versão 1: sessão atual, histórico estruturado, histórico pendente, sessões arquivadas e cooldowns. Abertura do painel, execução e erros transitórios não são retomados como requisição viva. O [repositório selecionado](../../src/data/workspaceRepository.ts) e o runtime configurado compartilham a infraestrutura de persistência, mas o chat mantém fila/controle de erros próprios.
 
-O histórico enviado ao modelo retém até os últimos 20 inícios de turnos de pessoa; isso não significa que toda a conversa arquivada seja enviada. `pendingHistory` permite reconhecer uma interrupção por recarga e acrescentar auditoria ao contexto recuperado. A recuperação recomenda reler registros antes de repetir alterações; não é rollback automático ou transação distribuída.
+O transcript visual e o contexto ativo do modelo são separados. Aos 60% do orçamento, o contexto antigo é resumido incrementalmente, preservando os dois turnos recentes completos e pares de ferramentas. A troca só ocorre com um resumo válido e menor; falha ou cancelamento conserva a entrada anterior. O uso é estimado, com observação do último input do provedor quando disponível, sem somar todas as requisições. Sem janela verificada no catálogo, a aplicação usa um orçamento conservador identificado de 32.768 tokens, não uma suposta janela real. Instruções, schemas, fontes e reservas entram na conta. Ver [contrato detalhado](../design/chat-context-strategy.md).
+
+`pendingHistory` reconhece interrupção por recarga e acrescenta auditoria ao contexto recuperado, preservando o checkpoint. A recuperação recomenda reler registros antes de repetir alterações; não é rollback automático ou transação distribuída. A chave e o envelope v1 foram mantidos; a coleção histórica `archivedSessions` guarda sessões inativas, que só são arquivadas quando têm `archivedAt`. O merge criptografado permanece conservador para alterações concorrentes na mesma conversa.
 
 Falha de leitura impede sobrescrever uma conversa ilegível; falha de salvamento é mostrada e pode ser tentada novamente. A permanência de dados em memória não deve ser confundida com gravação confirmada.
 
@@ -102,14 +108,18 @@ Uma implementação futura precisaria definir unidade da memória, vínculo com 
 | [store.test.ts](../../src/chat/store.test.ts) | Persistência, sessões, interrupção, auditoria, cooldown, falha de salvar/carregar, arquivos e snapshots. |
 | [references.test.ts](../../src/chat/references.test.ts) | Fontes pessoais/projeto, anexos, critério oculto, seleção desatualizada e proveniência sem pixels. |
 | [AssistantChat.test.tsx](../../src/chat/AssistantChat.test.tsx), [ChatImageCarousel.test.tsx](../../src/chat/ChatImageCarousel.test.tsx) | Responsividade, foco/teclado, IME, rascunhos, handoff, escolhas explícitas e bloqueio de resultados históricos de outro plano. |
+| [contextBudget.test.ts](../../src/chat/contextBudget.test.ts), [chatCompaction.test.ts](../../src/ai/chatCompaction.test.ts) | Limiar, continuidade incremental, tool pairs, fontes grandes, modelo, cancelamento e resumo sem bytes multimodais. |
+| [turnContext.test.ts](../../src/chat/turnContext.test.ts), [ChatHistory.test.tsx](../../src/chat/ChatHistory.test.tsx), [sessionHistory.test.ts](../../src/chat/sessionHistory.test.ts) | Foco por tela, histórico recente/arquivado, confirmação de exclusão e identidade/migração de sessões. |
 
 Esta revisão não executou chamadas externas ou estudo com pessoas. Cobertura de contratos não demonstra obediência perfeita do modelo, sucesso remoto de todos os fluxos, qualidade de resposta ou eficácia do futuro Dairo.
 
+A persistência ativa mantém o documento completo, incluindo checkpoint, metadados e referências. O exportador opcional legado `chatToDatabaseRows`, em [workspaceTransfer.ts](../../src/data/workspaceTransfer.ts), conserva seu formato tabular anterior e não representa um backup completo desses campos. Ele não é o caminho ativo de gravação da conversa.
+
 ## Lacunas e diagnóstico de modularização
 
-A separação `interface → store → adaptador → agente → ferramentas → domínio` já está explícita. O maior ponto de coordenação é `chat/store.ts`: seleção de fontes, persistência de arquivos, classificação, streaming, auditoria e recuperação aparecem em `sendChatMessage`. Uma extração pequena candidata é a preparação imutável de um turno, com snapshots/fontes/classificação claramente separados da aplicação/streaming. Devem permanecer no store as transições de sessão e persistência, com os testes atuais como proteção. Nenhuma extração foi implementada aqui.
+A separação `interface → store → adaptador → agente → ferramentas → domínio` já está explícita. O store coordena envio, persistência, streaming e recuperação. Nesta rodada, o contexto de tela passou a `turnContext.ts`, a preparação/compactação a `contextBudget.ts` e `chatCompaction.ts`, os metadados de sessão a `sessionHistory.ts` e a navegação histórica a `ChatHistory.tsx`. As transições de sessão continuam no store, protegidas por testes. O streaming agrupa atualizações de texto em 80 ms e faz flush no encerramento, erro ou cancelamento; auditoria de ações permanece imediata.
 
-Há também uma inconsistência documental em runtime: o prompt de `workspaceAgent.ts` afirma que cloud synchronization não está conectado, enquanto os stores possuem caminhos condicionais de cloud runtime. O texto não é um diagnóstico vivo de conectividade. Uma revisão futura do contexto de capacidades poderia usar o estado real e conservar os limites de permissão; esta revisão apenas registra a divergência.
+O prompt não declara a sincronização desligada: descreve persistência pelo repositório configurado e exige observar erros antes de afirmar que algo foi salvo. Isso não equivale a diagnosticar a conectividade da conta ou assegurar entrega remota.
 
 ## Perguntas e evidências possíveis para artigos
 

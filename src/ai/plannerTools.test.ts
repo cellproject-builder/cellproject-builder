@@ -8,6 +8,8 @@ import { IndexedDbWorkspaceRepository } from '@/data/workspaceRepository';
 import * as plannerAI from './service';
 import { useKBStore } from '@/kb/store';
 import type { ConceptNodeData } from '@/types';
+import { planRevision } from './planStructure';
+import { readAssistantPlan } from './planContext';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -30,10 +32,72 @@ it('reads another scoped plan without changing the visible editor or exposing hi
   const original = useGraphStore.getState().project;
   const hidden = Object.values(workspace.getState().projects[b].planner!.project!.nodes).find((n) => !n.confirmado && !n.takenAsKnown && !n.comoConfirmarUsuarioAt && n.comoConfirmar);
   expect(hidden).toBeDefined();
-  const read = executePlannerAction({ action: 'read_plan', projectId: b }, '') as ReturnType<typeof capturePlanner>;
+  const read = executePlannerAction({ action: 'read_plan', projectId: b }, '') as ReturnType<typeof readAssistantPlan>;
   expect(useGraphStore.getState().project).toBe(original);
   expect(workspace.getState().activeProjectId).toBe(a);
   expect(read.project!.nodes[hidden!.id].comoConfirmar).toBe('');
+});
+
+it('projects plan context without visual payloads, archived snapshots or attachment bodies', () => {
+  const id = withPlan('Public plan');
+  const project = useGraphStore.getState().project!;
+  useGraphStore.setState({ project: { ...project, visuals: { artifacts: [{ id: 'image', kind: 'image', imageUrl: 'data:image/png;base64,PRIVATE-VISUAL', scene: { objects: [{ geometry: 'PRIVATE-GEOMETRY' }] } }] } } as never,
+    archivedProject: { ...project, name: 'PRIVATE-ARCHIVED' }, drafts: { private: 'PRIVATE-DRAFT' } as never });
+  workspace.getState().updateProject(id, { attachments: [{ id: 'file', name: 'Manual.pdf', kind: 'pdf', text: 'PRIVATE-FILE-BODY', fingerprint: 'version', truncated: false }] } as never);
+  const result = executePlannerAction({ action: 'read_plan', projectId: id }, '') as { revision: string; project: { id: string; rootId: string; nodes: Record<string, { id: string; parentId: string | null }> }; nodePage: { total: number; nextOffset: number | null } };
+  const text = JSON.stringify(result);
+  expect(text).not.toMatch(/PRIVATE-VISUAL|PRIVATE-GEOMETRY|PRIVATE-ARCHIVED|PRIVATE-DRAFT|PRIVATE-FILE-BODY|"imageUrl"|"visuals"/);
+  expect(text.length).toBeLessThan(16_000);
+  expect(result.revision).toBe(planRevision(useGraphStore.getState().project!));
+  expect(result.project).toMatchObject({ id: project.id, rootId: project.rootId });
+  expect(result.nodePage).toMatchObject({ total: Object.keys(project.nodes).length, nextOffset: 10 });
+  const readIds = Object.keys(result.project.nodes);
+  let nextOffset = result.nodePage.nextOffset;
+  while (nextOffset !== null) {
+    const next = executePlannerAction({ action: 'read_plan', projectId: id, offset: nextOffset }, '') as typeof result;
+    expect(readIds.some(key => key in next.project.nodes)).toBe(false);
+    readIds.push(...Object.keys(next.project.nodes));
+    nextOffset = next.nodePage.nextOffset;
+  }
+  expect(readIds).toEqual(Object.keys(project.nodes));
+});
+
+it('marks incomplete node text and retrieves later chunks without revealing hidden criteria', () => {
+  const id = withPlan('Long text');
+  const project = useGraphStore.getState().project!;
+  const nodeId = project.rootId, longText = 'First section '.repeat(800) + ' END-OF-LONG-NODE';
+  useGraphStore.setState({ project: { ...project, nodes: { ...project.nodes, [nodeId]: { ...project.nodes[nodeId], oQue: longText,
+    confirmado: false, takenAsKnown: false, comoConfirmarUsuarioAt: undefined, comoConfirmar: 'PRIVATE-AI-CRITERION' } } } });
+  const detail = executePlannerAction({ action: 'read_plan', projectId: id, nodeId }, '') as { project: { nodes: Record<string, { oQue: string; comoConfirmar: string; truncatedFields: string[] }> } };
+  expect(detail.project.nodes[nodeId].oQue.length).toBeLessThan(longText.length);
+  expect(detail.project.nodes[nodeId].truncatedFields).toContain('oQue');
+  expect(detail.project.nodes[nodeId].comoConfirmar).toBe('');
+  const page = executePlannerAction({ action: 'read_plan', projectId: id, nodeId, textField: 'oQue', textOffset: 8000 }, '') as { text: { content: string; offset: number; totalCharacters: number; nextOffset: number | null } };
+  expect(page.text).toMatchObject({ offset: 8000, totalCharacters: longText.length, nextOffset: null });
+  expect(page.text.content).toBe(longText.slice(8000, 12_000));
+  const hidden = executePlannerAction({ action: 'read_plan', projectId: id, nodeId, textField: 'comoConfirmar' }, '');
+  expect(JSON.stringify(hidden)).not.toContain('PRIVATE-AI-CRITERION');
+  expect(() => executePlannerAction({ action: 'read_plan', projectId: id, nodeId: 'missing' }, '')).toThrow('nodeMissing');
+});
+
+it('lists bounded pending and parked proposal IDs so a single decomposition can be accepted or rejected', () => {
+  const id = withPlan('Proposal review');
+  const project = useGraphStore.getState().project!, parent = project.nodes[project.rootId];
+  const nodes = Array.from({ length: 25 }, (_, index) => ({ tempId: `proposal-${index}`, data: { ...parent, tempId: `proposal-${index}`,
+    name: `Candidate ${index}`, oQue: 'Large proposed text '.repeat(1000), comoConfirmar: 'PRIVATE-STAGING-CRITERION' } }));
+  useGraphStore.setState({ pendingSuggestions: { parentId: parent.id, nodes, edges: [] }, parkedSuggestions: { parked: { parentId: parent.id, nodes: nodes.slice(20), edges: [] } } });
+  const first = executePlannerAction({ action: 'read_plan', projectId: id }, '') as { pendingSuggestions: { parentId: string; nodes: { tempId: string }[] }; suggestionPage: { nextOffset: number | null }; parkedSuggestions: { tempId: string }[] };
+  expect(first.pendingSuggestions).toMatchObject({ parentId: parent.id, nodes: [expect.objectContaining({ tempId: 'proposal-0' }), ...Array.from({ length: 9 }, () => expect.any(Object))] });
+  expect(first.pendingSuggestions.nodes).toHaveLength(10);
+  expect(first.suggestionPage.nextOffset).toBe(10);
+  expect(first.parkedSuggestions.map(node => node.tempId)).toEqual(['proposal-20', 'proposal-21', 'proposal-22', 'proposal-23', 'proposal-24']);
+  expect(JSON.stringify(first).length).toBeLessThan(20_000);
+  expect(JSON.stringify(first)).not.toContain('PRIVATE-STAGING-CRITERION');
+  const next = executePlannerAction({ action: 'read_plan', projectId: id, suggestionOffset: 20 }, '') as typeof first;
+  expect(next.pendingSuggestions.nodes.map(node => node.tempId)).toEqual(['proposal-20', 'proposal-21', 'proposal-22', 'proposal-23', 'proposal-24']);
+  executePlannerAction({ action: 'reject_suggestion', projectId: id, tempId: first.pendingSuggestions.nodes[0].tempId }, 'Reject the first candidate');
+  expect(useGraphStore.getState().pendingSuggestions!.nodes.some(node => node.tempId === 'proposal-0')).toBe(false);
+  expect(useGraphStore.getState().pendingSuggestions!.nodes).toHaveLength(24);
 });
 it('reports blocked confirmation honestly and rejects draft edits on an existing plan', () => {
   const id = withPlan('A'), nodeId = useGraphStore.getState().project!.rootId;

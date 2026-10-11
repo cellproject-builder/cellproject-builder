@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { memo, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocaleStore } from '@/i18n';
 import { getActiveConfig, useConfigStore } from '@/config/store';
@@ -7,11 +7,14 @@ import { useGraphStore } from '@/store';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { requestWorkspaceUI } from '@/workspace/uiRequests';
 import { Icon } from '@/workspace/ui';
-import { ChatBubbleIcon } from '@/components/ui/SoftIcons';
+import { ChatBubbleIcon, EnterFullScreenIcon, ExitFullScreenIcon, HistoryIcon } from '@/components/ui/SoftIcons';
 import { ExplanationContent } from '@/components/Markdown';
 import { actionLabel, chatEn, chatPt } from './messages';
 import { chatCooldownUntil, retryChatPersistence, sendChatMessage, stopChat, useChatStore } from './store';
-import { useChatDockTarget } from './AssistantChatDock';
+import { useChatDockTarget, useFullChatDockTarget } from './AssistantChatDock';
+import { useChatPresentation } from './presentation';
+import { ChatHistory } from './ChatHistory';
+import { captureChatTurnContext, useChatFocusStore } from './turnContext';
 import './chat.css';
 import { useVisualPopupStore } from '@/visuals/ui/uiStore';
 import { ChatComposer } from './ChatComposer';
@@ -39,50 +42,58 @@ function imageSearchResult(value: unknown) {
 }
 
 function ChatIcon() { return <ChatBubbleIcon size={20} />; }
+const ChatMarkdown = memo(ExplanationContent);
 export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   const english = useLocaleStore((s) => s.locale) === 'en', tr = english ? chatEn : chatPt;
   const state = useChatStore();
+  const expanded = useChatPresentation(s => s.expanded);
+  const setExpanded = useChatPresentation(s => s.setExpanded);
+  const fullTarget = useFullChatDockTarget();
   const dockTarget = useChatDockTarget();
   const mobile = useIsMobile();
-  const docked = !!dockTarget && !mobile;
+  const docked = !!dockTarget && !mobile && !expanded;
   const ready = useConfigStore(() => Boolean(getActiveConfig()?.config.apiKey.trim()));
   const model = useConfigStore(() => getActiveConfig()?.config.mainModel ?? null);
   const projectId = useWorkspaceStore((s) => s.activeProjectId), projects = useWorkspaceStore((s) => s.projects);
   useWorkspaceStore(s => s.notes); useWorkspaceStore(s => s.tasks); // Re-evaluate documentary context when project records change.
+  useWorkspaceStore(s => s.surface); useWorkspaceStore(s => s.activeBoardId); useWorkspaceStore(s => s.boards);
+  useChatFocusStore();
+  useGraphStore(s => s.selectedNodeId); useGraphStore(s => s.viewMode); useGraphStore(s => s.lens);
+  const turnContext = captureChatTurnContext();
   const planId = useGraphStore(state => state.project?.id);
   const [input, setInput] = useState('');
   const [references, setReferences] = useState<ChatReferenceTarget[]>([]);
   const [files, setFiles] = useState<PlanFile[]>([]), [filesBusy, setFilesBusy] = useState(false);
-  const [referenceProjectId, setReferenceProjectId] = useState<string | null | undefined>(undefined);
   const [referenceError, setReferenceError] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [visibleMessages, setVisibleMessages] = useState(60);
   const [choosingImage, setChoosingImage] = useState(false), imageChoiceRunning = useRef(false);
   const handoff = useChatReferenceHandoff(state => state.pending);
-  const contextProjectId = (references.length || files.length) && referenceProjectId !== undefined ? referenceProjectId : projectId;
+  const contextProjectId = turnContext.projectId;
   const referenceDraft = useRef({ references, files, contextProjectId, sessionId: state.sessionId });
   referenceDraft.current = { references, files, contextProjectId, sessionId: state.sessionId };
   const mounted = useRef(true);
+  useEffect(() => { if (!state.open && expanded) setExpanded(false); }, [state.open, expanded, setExpanded]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
     if (!handoff) return;
     try {
       const available = listChatReferences('', handoff.projectId);
       const added = handoff.references.map(reference => {
-        const target = available.find(target => target.id === reference.id && target.kind === reference.kind);
+        const target = available.find(target => target.id === reference.id && target.kind === reference.kind && target.projectId === handoff.projectId);
         if (!target) throw new Error('chatReferenceMissing'); return target;
       });
-      if (references.some(reference => reference.projectId !== null && reference.projectId !== handoff.projectId)) throw new Error('chatReferenceHandoffConflict');
-      if (files.length && contextProjectId !== handoff.projectId) throw new Error('chatReferenceHandoffConflict');
       const merged = [...references, ...added.filter(target => !references.some(reference => reference.id === target.id && reference.kind === target.kind && reference.projectId === target.projectId))];
       if (merged.length > 20) throw new Error('chatReferenceLimit');
       setReferences(merged);
-      setReferenceProjectId(handoff.projectId); setReferenceError('');
+      setReferenceError('');
     } catch (reason) { setReferenceError(chatReferenceError(reason, english)); }
     consumeChatReferenceHandoff(handoff.id);
   }, [handoff, english, references, files, contextProjectId]);
   const previousSession = useRef(state.sessionId);
   useEffect(() => {
     if (previousSession.current === state.sessionId) return;
-    previousSession.current = state.sessionId; setInput(''); setReferences([]); setFiles([]); setFilesBusy(false); setReferenceProjectId(undefined); setReferenceError('');
+    previousSession.current = state.sessionId; setInput(''); setReferences([]); setFiles([]); setFilesBusy(false); setReferenceError(''); setVisibleMessages(60);
   }, [state.sessionId]);
   const [now, setNow] = useState(Date.now);
   const cooldownUntil = chatCooldownUntil();
@@ -101,33 +112,34 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   const panelRef = useRef<HTMLElement>(null);
   const wasOpen = useRef(false);
   useEffect(() => {
-    if (suspended) return;
+    if (suspended && !expanded) return;
     const otherModal = [...document.querySelectorAll('[aria-modal="true"]')].some((el) => el !== panelRef.current);
     if (!otherModal) {
       if (state.open) (inputRef.current?.disabled ? panelRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])') : inputRef.current)?.focus();
       else if (wasOpen.current) triggerRef.current?.focus();
     }
     wasOpen.current = state.open;
-  }, [state.open, dockTarget, mobile, titleId, suspended]);
-  useEffect(() => { if (state.open && !suspended) bottomRef.current?.scrollIntoView({ block: 'nearest' }); }, [state.messages, state.open, dockTarget, mobile, suspended]);
-  if (suspended) return null;
-  const close = () => { state.setOpen(false); };
+  }, [state.open, dockTarget, fullTarget, expanded, mobile, titleId, suspended]);
+  useEffect(() => { if (state.open && (!suspended || expanded)) bottomRef.current?.scrollIntoView({ block: 'nearest' }); }, [state.messages, state.open, dockTarget, fullTarget, expanded, mobile, suspended]);
+  if (suspended && !expanded) return null;
+  const close = () => { setExpanded(false); state.setOpen(false); };
   const send = () => {
-    if ((!input.trim() && !files.length) || filesBusy || state.running || imageChoiceRunning.current || !ready || !state.hydrated || cooldownUntil > Date.now()) return;
+    if ((!input.trim() && !files.length) || historyOpen && (mobile || !expanded) || filesBusy || state.running || state.archivedAt || imageChoiceRunning.current || !ready || !state.hydrated || cooldownUntil > Date.now()) return;
     try { resolveChatReferences(references, contextProjectId); }
     catch (reason) { setReferenceError(chatReferenceError(reason, english)); return; }
-    const value = input; void sendChatMessage(value, { references, files, projectId: contextProjectId });
-    setInput(''); setReferences([]); setFiles([]); setReferenceProjectId(undefined); setReferenceError('');
+    const value = input; void sendChatMessage(value, { references, files, turnContext: captureChatTurnContext() });
+    setInput(''); setReferences([]); setFiles([]); setReferenceError('');
   };
   const chooseImage = async (image: ImageReference, sourceProjectId: string, options: { useAs3D: boolean }, linkedNodeId?: string, expectedPlanId?: string, searchContext?: { expectedContextRevision: string; searchInput: VisualPromptInput }) => {
     if (imageChoiceRunning.current) throw new Error('chatImageBusy');
     const sessionId = useChatStore.getState().sessionId;
     function validateDraft() {
+      const chat = useChatStore.getState();
+      if (!chat.hydrated || chat.loadFailed || chat.archivedAt || chat.deletedAt) throw new Error('chatReadOnly');
       if (useWorkspaceStore.getState().activeProjectId !== sourceProjectId) throw new Error('visualProjectChanged');
       if (expectedPlanId && useGraphStore.getState().project?.id !== expectedPlanId) throw new Error('visualPlanChanged');
       const draft = referenceDraft.current;
       if (draft.files.length && draft.contextProjectId !== sourceProjectId) throw new Error('chatReferenceHandoffConflict');
-      if (draft.references.some(reference => reference.projectId !== null && reference.projectId !== sourceProjectId)) throw new Error('chatReferenceHandoffConflict');
       if (draft.references.length >= CHAT_REFERENCE_LIMIT) throw new Error('chatReferenceLimit');
     }
     validateDraft();
@@ -141,32 +153,41 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
       if (!target) throw new Error('chatReferenceMissing');
       const current = referenceDraft.current.references;
       setReferences(current.some(reference => reference.kind === 'image' && reference.id === target.id && reference.projectId === sourceProjectId) ? current : [...current, target]);
-      setReferenceProjectId(sourceProjectId); setReferenceError('');
+      setReferenceError('');
       if (options.useAs3D) useChatStore.getState().setOpen(false); else inputRef.current?.focus();
     } finally { imageChoiceRunning.current = false; if (mounted.current) setChoosingImage(false); }
   };
-  const panel = state.open && <section ref={panelRef} id={`${titleId}-panel`} className={`dd-chat ${docked ? 'is-docked' : ''} ${mobile ? 'is-modal' : ''}`} role={docked ? 'complementary' : 'dialog'} aria-modal={mobile || undefined} aria-labelledby={titleId} onKeyDown={(e) => {
+  const screenLabels = english ? { projects: 'Projects', overview: 'Overview', kanban: 'Tasks', scrum: 'Sprints', notes: 'Notes', planner: 'Plan builder', boards: 'Dynamic Board' } : { projects: 'Projetos', overview: 'Visão geral', kanban: 'Tarefas', scrum: 'Sprints', notes: 'Notas', planner: 'Construtor de planos', boards: 'Dynamic Board' };
+  const focusLabel = turnContext.nodeName || turnContext.noteTitle || turnContext.boardTitle;
+  const contextLabel = [screenLabels[turnContext.surface], turnContext.projectName, focusLabel].filter(Boolean).join(' · ');
+  const actionsDisabled = state.running || !state.hydrated || state.loadFailed || !!state.archivedAt || !!state.deletedAt;
+  const budgetHint = state.contextUsage && [english ? 'Estimated context usage. Automatic compaction at 60%; full messages remain in history.' : 'Uso estimado do contexto. Compactação automática aos 60%; as mensagens completas continuam no histórico.', state.contextUsage.contextWindowSource === 'fallback' ? (english ? `Conservative application budget: ${state.contextUsage.contextWindowTokens.toLocaleString('en')} tokens; actual model window is unknown.` : `Orçamento conservador da aplicação: ${state.contextUsage.contextWindowTokens.toLocaleString('pt-BR')} tokens; a janela real do modelo é desconhecida.`) : ''].filter(Boolean).join(' ');
+  const panel = state.open && <section ref={panelRef} id={`${titleId}-panel`} className={`dd-chat ${docked ? 'is-docked' : ''} ${mobile && !expanded ? 'is-modal' : ''} ${expanded ? 'is-expanded' : ''}`} role={docked || expanded ? 'complementary' : 'dialog'} aria-modal={mobile && !expanded || undefined} aria-labelledby={titleId} onKeyDown={(e) => {
     if (e.defaultPrevented || e.nativeEvent.isComposing) return;
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
-    if (mobile && e.key === 'Tab') {
-      const items = [...e.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], select:not([disabled]), textarea:not([disabled])')];
+    if (mobile && !expanded && e.key === 'Tab') {
+      const items = [...e.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])')].filter(item => !item.closest('[hidden]'));
       const first = items[0], last = items[items.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
     }
   }}>
-      <header className="dd-chat-header"><div className="dd-chat-symbol"><ChatIcon /></div><div><h2 id={titleId}>{tr.title}</h2><p>{state.running ? tr.working : ready ? tr.ready : tr.noKey}</p></div><button className="ws-icon-button" disabled={state.running} aria-label={tr.newChat} title={tr.newChat} onClick={state.newConversation}><Icon name="plus" /></button><button className="ws-icon-button" aria-label={tr.close} onClick={close}><Icon name="close" /></button></header>
-      <div className="dd-chat-context"><span>{tr.context}: {contextProjectId ? projects[contextProjectId]?.name ?? (english ? 'Removed project' : 'Projeto removido') : tr.personal}</span><button onClick={() => requestWorkspaceUI({ settings: true })}>{ready ? model : tr.settings}</button></div>
+      <header className="dd-chat-header"><div className="dd-chat-symbol"><ChatIcon /></div><div><h2 id={titleId}>{tr.title}{expanded && <> <small>{english ? 'Expanded' : 'Expandido'}</small></>}</h2><p>{state.compacting ? (english ? 'Organizing context…' : 'Organizando contexto…') : state.running ? tr.working : ready ? tr.ready : tr.noKey}</p></div><button className="ws-icon-button" aria-label={english ? 'Conversation history' : 'Histórico de conversas'} title={tr.conversations} aria-expanded={historyOpen} onClick={() => setHistoryOpen(!historyOpen)}><HistoryIcon size={18}/></button><button className="ws-icon-button" disabled={state.running || !state.hydrated || state.loadFailed} aria-label={tr.newChat} title={tr.newChat} onClick={state.newConversation}><Icon name="plus" /></button><button className="ws-icon-button" aria-label={expanded ? (english ? 'Collapse chat' : 'Recolher chat') : (english ? 'Expand chat' : 'Expandir chat')} title={expanded ? (english ? 'Return to popup' : 'Voltar ao pop-up') : (english ? 'Expand chat' : 'Expandir chat')} onClick={() => setExpanded(!expanded)}>{expanded ? <ExitFullScreenIcon size={18}/> : <EnterFullScreenIcon size={18}/>}</button><button className="ws-icon-button" aria-label={tr.close} onClick={close}><Icon name="close" /></button></header>
+      <div className="dd-chat-context"><span title={`${english && expanded ? 'Source screen' : expanded ? 'Tela de origem' : tr.context}: ${contextLabel}`}>{expanded ? (english ? 'In focus' : 'Em foco') : tr.context}: {contextLabel}</span>{state.contextUsage && <small className="dd-chat-budget" title={budgetHint || undefined}>~{Math.round(state.contextUsage.percent)}%{state.compaction ? ' ↻' : ''}</small>}<button onClick={() => requestWorkspaceUI({ settings: true })}>{ready ? model : tr.settings}</button></div>
       {(state.loadFailed || state.saveFailed) && <div className="dd-chat-storage-error" role="alert"><span>{state.loadFailed ? tr.loadError : tr.saveError}</span><button onClick={() => void retryChatPersistence()}>{tr.retry}</button></div>}
-      {state.archivedSessions.length > 0 && <select className="dd-chat-history" aria-label={tr.conversations} value={state.sessionId} disabled={state.running} onChange={(e) => state.selectConversation(e.target.value)}><option value={state.sessionId}>{tr.current}</option>{state.archivedSessions.map((s) => <option key={s.sessionId} value={s.sessionId}>{s.messages.find((m) => m.role === 'user')?.text.slice(0, 55) || tr.newChat}</option>)}</select>}
+      <div className={`dd-chat-layout ${historyOpen ? 'has-history' : ''}`}>
+      {historyOpen && <ChatHistory english={english} onSelect={() => { if (mobile || !expanded) setHistoryOpen(false); }}/>}<div className="dd-chat-conversation" hidden={historyOpen && (mobile || !expanded)}>
+      {!!state.archivedAt && <div className="dd-chat-archived-notice"><span>{english ? 'Archived conversation' : 'Conversa arquivada'}</span><button disabled={state.running} onClick={() => state.restoreConversation(state.sessionId)}>{english ? 'Restore' : 'Restaurar'}</button></div>}
       <div className="dd-chat-messages" aria-busy={state.running}>
-        {!state.hydrated ? <p className="dd-chat-empty">{tr.loading}</p> : !state.messages.length ? <div className="dd-chat-welcome"><div className="dd-chat-welcome-icon"><ChatIcon /></div><h3>{tr.greeting}</h3><p>{tr.hint}</p><div>{[tr.exampleProject, tr.exampleNote, tr.exampleReview].map((example) => <button key={example} onClick={() => { setInput(example); inputRef.current?.focus(); }}>{example}<Icon name="arrow" size={14} /></button>)}</div></div> : state.messages.map((message) => <article className={`dd-chat-message ${message.role}`} key={message.id}>
+        {state.messages.length > visibleMessages && <button className="dd-chat-older" onClick={() => setVisibleMessages(visibleMessages + 60)}>{english ? 'Load earlier messages' : 'Carregar mensagens anteriores'}</button>}
+        {!state.hydrated ? <p className="dd-chat-empty">{tr.loading}</p> : !state.messages.length ? <div className="dd-chat-welcome"><div className="dd-chat-welcome-icon"><ChatIcon /></div><h3>{tr.greeting}</h3><p>{tr.hint}</p><div>{[tr.exampleProject, tr.exampleNote, tr.exampleReview].map((example) => <button key={example} onClick={() => { setInput(example); inputRef.current?.focus(); }}>{example}<Icon name="arrow" size={14} /></button>)}</div></div> : state.messages.slice(-visibleMessages).map((message) => <article className={`dd-chat-message ${message.role}`} key={message.id}>
           {message.actions && message.actions.length > 0 && <details className="dd-chat-actions" open={state.running || message.actions.some((a) => a.status === 'error' || a.status === 'awaiting_approval')}><summary>{tr.actions}<span>{message.actions.filter((a) => a.status === 'done').length}/{message.actions.length}</span></summary><ul>{message.actions.map((action) => <li key={action.id} className={action.status}><span>{action.status === 'running' ? <i /> : <Icon name={action.status === 'error' ? 'close' : 'check'} size={13} />}</span><span>{actionLabel(action.action, english)}</span><small>{action.status === 'running' ? tr.working : action.status === 'done' ? tr.actionDone : action.status === 'awaiting_approval' ? (english ? 'Awaiting approval' : 'Aguardando aprovação') : tr.actionError}</small></li>)}</ul></details>}
-          {message.text ? <ExplanationContent text={message.text} /> : state.running && <span className="dd-chat-thinking" role="status">{tr.working}<i /><i /><i /></span>}
+          {message.text ? <ChatMarkdown text={message.text} /> : state.running && <span className="dd-chat-thinking" role="status">{tr.working}<i /><i /><i /></span>}
+          {message.role === 'user' && message.turnContext && <small className="dd-chat-message-context">{[screenLabels[message.turnContext.surface], message.turnContext.projectName, message.turnContext.nodeName || message.turnContext.noteTitle || message.turnContext.boardTitle].filter(Boolean).join(' · ')}</small>}
           {!!message.references?.length && <div className="dd-chat-message-references" aria-label={english ? 'References sent' : 'Referências enviadas'}>{message.references.map(reference => <span key={`${reference.kind}:${reference.projectId}:${reference.id}`} title={english ? 'Snapshot at the time of sending' : 'Versão no momento do envio'}>@ {reference.label}</span>)}</div>}
           {!!message.files?.length && <div className="dd-chat-message-references" aria-label={english ? 'Files sent' : 'Anexos enviados'}>{message.files.map(file => <details key={file.id}><summary>{file.name}{file.truncated ? (english ? ' · excerpt' : ' · trecho') : ''}</summary><pre className="plan-attachment-preview">{file.text.slice(0, 8000)}</pre></details>)}</div>}
           {message.intake && <small className="dd-chat-intake" title={message.intake.status === 'classified' ? (english ? `Model confidence: ${Math.round(message.intake.classification.confidence * 100)}%. Advisory only.` : `Confiança do modelo: ${Math.round(message.intake.classification.confidence * 100)}%. Classificação orientativa.`) : (english ? 'The assistant continues without a TypeSafe classification.' : 'O assistente continua sem classificação do TypeSafe.')}>{intakeLabel(message.intake, english)}</small>}
-          {message.actions?.filter(action => action.name === 'planner_structure' && (action.status === 'done' || action.status === 'error')).map(action => <ChatPlanChanges key={action.id} result={action.result} english={english} disabled={state.running} />)}
+          {message.actions?.filter(action => action.name === 'planner_structure' && (action.status === 'done' || action.status === 'error')).map(action => <ChatPlanChanges key={action.id} result={action.result} english={english} disabled={actionsDisabled} />)}
           {message.interrupted && <small className="dd-chat-interrupted">{tr.interrupted}</small>}
           {message.actions?.filter(action => action.name === 'visual_action' && action.action === 'search_images' && action.status === 'done').map(action => {
             const result = imageSearchResult(action.result);
@@ -177,7 +198,7 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
               try { contextChanged = chatImageSearchRevision(result.projectId, result.input) !== result.contextRevision; } catch { contextChanged = true; }
             }
             const linkedNodeId = Array.isArray(result.input?.mentions) ? result.input.mentions.find(mention => mention?.kind === 'node' && typeof mention.id === 'string')?.id : undefined;
-            return <ChatImageCarousel key={action.id} results={result.images} projectId={result.projectId} english={english} disabled={state.running || choosingImage || !state.hydrated}
+            return <ChatImageCarousel key={action.id} results={result.images} projectId={result.projectId} english={english} disabled={actionsDisabled || choosingImage}
               groups={result.groups} fits={result.fits} searchUncertainty={result.searchUncertainty} contextPartial={result.contextPartial}
               unavailable={!exists ? 'projectRemoved' : projectId !== result.projectId ? 'projectChanged' : result.planId && result.planId !== planId ? 'planChanged' : contextChanged ? 'contextChanged' : undefined}
               onChoose={(image, options) => chooseImage(image, result.projectId, options, linkedNodeId, result.planId, result.contextRevision && result.input ? { expectedContextRevision: result.contextRevision, searchInput: result.input } : undefined)}
@@ -195,11 +216,12 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
       {!ready && <button className="dd-chat-configure ws-button primary" onClick={() => requestWorkspaceUI({ settings: true })}>{tr.settings}<Icon name="arrow" size={16} /></button>}
       {cooldownSeconds > 0 && <p className="dd-chat-cooldown" role="status">{tr.cooldown(cooldownSeconds)}</p>}
       {referenceError && <p className="dd-chat-reference-error" role="alert">{referenceError}</p>}
-      <ChatComposer text={input} onText={setInput} references={references} onReferences={next => { setReferences(next); setReferenceError(''); if (!next.length && !files.length) setReferenceProjectId(undefined); else if (!references.length && !files.length) setReferenceProjectId(contextProjectId); }} files={files} onFiles={next => { if (next.length && !files.length && !references.length) setReferenceProjectId(contextProjectId); else if (!next.length && !references.length) setReferenceProjectId(undefined); setFiles(next); }} onFilesBusy={setFilesBusy} scopeKey={`${state.sessionId}:${contextProjectId}`} projectId={contextProjectId} inputRef={inputRef} english={english} placeholder={tr.placeholder} sendLabel={tr.send} stopLabel={tr.stop} disabled={!state.hydrated} canSend={(!!input.trim() || !!files.length) && !filesBusy && ready && state.hydrated && !choosingImage && cooldownSeconds <= 0} running={state.running} onSubmit={send} onStop={stopChat} />
+      <ChatComposer text={input} onText={setInput} references={references} onReferences={next => { setReferences(next); setReferenceError(''); }} files={files} onFiles={setFiles} onFilesBusy={setFilesBusy} scopeKey={`${state.sessionId}:${contextProjectId}`} projectId={contextProjectId} inputRef={inputRef} english={english} placeholder={tr.placeholder} sendLabel={tr.send} stopLabel={tr.stop} disabled={!state.hydrated || !!state.archivedAt} canSend={(!!input.trim() || !!files.length) && !filesBusy && ready && state.hydrated && !state.archivedAt && !choosingImage && cooldownSeconds <= 0} running={state.running} onSubmit={send} onStop={stopChat} />
+      </div></div>
     </section>;
   return <>
-    <button ref={triggerRef} className={`dd-chat-trigger ${state.running ? 'is-working' : ''} ${state.open && (docked || mobile) ? 'is-hidden' : ''}`} onClick={() => state.setOpen(!state.open)} aria-expanded={state.open} aria-controls={state.open ? `${titleId}-panel` : undefined} aria-label={tr.open} title={tr.open}><ChatIcon />{state.running && <i />}</button>
-    {state.open && mobile && <div className="dd-chat-scrim" aria-hidden="true" onClick={close} />}
-    {docked && dockTarget ? createPortal(panel, dockTarget) : panel}
+    <button ref={triggerRef} className={`dd-chat-trigger ${state.running ? 'is-working' : ''} ${state.open && (docked || mobile || expanded) ? 'is-hidden' : ''}`} onClick={() => state.setOpen(!state.open)} aria-expanded={state.open} aria-controls={state.open ? `${titleId}-panel` : undefined} aria-label={tr.open} title={tr.open}><ChatIcon />{state.running && <i />}</button>
+    {state.open && mobile && !expanded && <div className="dd-chat-scrim" aria-hidden="true" onClick={close} />}
+    {expanded && fullTarget ? createPortal(panel, fullTarget) : docked && dockTarget ? createPortal(panel, dockTarget) : panel}
   </>;
 }

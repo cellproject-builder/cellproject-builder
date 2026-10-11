@@ -38,6 +38,9 @@ it('runs a real SDK tool loop, mutates the store, streams the reply and keeps to
   expect(chunks.at(-1)).toBe('Projeto criado.');
   expect(events).toEqual(['running', 'done']);
   expect(response.messages.some((m) => m.role === 'tool')).toBe(true);
+  // Context occupancy uses the final request's input, not the sum across tool-loop requests.
+  expect(response.usage?.inputTokens).toBe(10);
+  expect(response.usage?.outputTokens).toBe(10);
 });
 
 it('revises the referenced plan and searches its images in one SDK turn while keeping image URLs out of model history', async () => {
@@ -85,7 +88,7 @@ it('revises the referenced plan and searches its images in one SDK turn while ke
   } });
   const events: AssistantActionEvent[] = [];
   const response = await runAssistant({ messages: [{ role: 'user', content: text }], userText: text, contextProjectId: requested.projectId,
-    model, signal: new AbortController().signal, onText: () => {}, onAction: event => events.push(event) });
+    model, contextBudget: { contextWindowTokens: 32_768 }, signal: new AbortController().signal, onText: () => {}, onAction: event => events.push(event) });
   const changed = readPlanner(requested.projectId).project!;
   expect(changed.id).toBe(original.project!.id);
   expect(Object.keys(changed.nodes)).toEqual(Object.keys(original.project!.nodes));
@@ -115,6 +118,43 @@ it('does not write or invoke the model for an already cancelled request', async 
   await expect(runAssistant({ messages: [{ role: 'user', content: 'Crie um projeto.' }], userText: 'Crie um projeto.', model, signal: controller.signal, onText: () => {}, onAction: () => {} })).rejects.toThrow();
   expect(model.doStreamCalls).toHaveLength(0);
   expect(Object.keys(store.getState().projects)).toHaveLength(0);
+});
+
+it('rejects an oversized first request before invoking the model', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  const model = new MockLanguageModelV3({ doStream: async () => ({ stream: convertArrayToReadableStream<LanguageModelV3StreamPart>([
+    { type: 'stream-start', warnings: [] },
+    { type: 'finish', finishReason: { unified: 'stop', raw: undefined }, usage },
+  ]) }) });
+  await expect(runAssistant({ messages: [{ role: 'user', content: 'Resuma.' }], userText: 'Resuma.', model,
+    contextBudget: { contextWindowTokens: 2048 }, signal: new AbortController().signal, onText: () => {}, onAction: () => {},
+  })).rejects.toThrow('chatContextBudgetExceeded');
+  expect(model.doStreamCalls).toHaveLength(0);
+});
+
+it.each([
+  { label: 'plain text', body: 'source '.repeat(20_000) },
+  { label: 'nested data URL', body: 'data:image/png;base64,' + 'A'.repeat(140_000) },
+])('stops before another request when a complete tool result exceeds the model window ($label)', async ({ body }) => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  const projectId = store.getState().createProject('Long reference', body);
+  const originalObjective = store.getState().projects[projectId].objective;
+  let calls = 0;
+  const model = new MockLanguageModelV3({ doStream: async () => ({ stream: convertArrayToReadableStream<LanguageModelV3StreamPart>(calls++ === 0 ? [
+    { type: 'stream-start', warnings: [] },
+    { type: 'tool-call', toolCallId: 'large-project', toolName: 'workspace_read', input: JSON.stringify({ collection: 'projects', id: projectId }) },
+    { type: 'finish', finishReason: { unified: 'tool-calls', raw: undefined }, usage },
+  ] : [
+    { type: 'stream-start', warnings: [] },
+    { type: 'finish', finishReason: { unified: 'stop', raw: undefined }, usage },
+  ]) }) });
+  const events: AssistantActionEvent[] = [];
+  await expect(runAssistant({ messages: [{ role: 'user', content: 'Leia essa referência.' }], userText: 'Leia essa referência.', model,
+    contextBudget: { contextWindowTokens: 32_768 }, signal: new AbortController().signal, onText: () => {}, onAction: event => events.push(event),
+  })).rejects.toThrow('chatContextBudgetExceeded');
+  expect(model.doStreamCalls).toHaveLength(1);
+  expect(events).toEqual(expect.arrayContaining([expect.objectContaining({ action: 'workspace_read', status: 'done' })]));
+  expect(store.getState().projects[projectId].objective === originalObjective).toBe(true);
 });
 
 it('stops after a planner rate limit without another model call or queued mutation', async () => {
@@ -322,8 +362,9 @@ it('cancels in-flight planner work without applying its late result or a queued 
       if (event.action === 'generate_plans' && event.status === 'error') finished();
     } }).then(() => null, (error: unknown) => error);
   await plannerStarted;
-  expect(planner.mock.calls[0][5]).toMatchObject({ signal: controller.signal, maxRetries: 0 });
+  expect(planner.mock.calls[0][5]).toMatchObject({ signal: expect.any(AbortSignal), maxRetries: 0 });
   controller.abort();
+  expect(planner.mock.calls[0][5]?.signal?.aborted).toBe(true);
   release([{ id: 'stale-plan', title: 'Late result', pitch: 'Late', approach: '', strategy: 'reaproveitar', archetype: 'construir', rank: 1, rankReason: '', outline: { categorias: [] } }]);
   await plannerFinished;
   expect(await failure).toMatchObject({ name: 'AbortError' });

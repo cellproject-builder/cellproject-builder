@@ -6,6 +6,7 @@ import { useLocaleStore } from '@/i18n';
 import { useWorkspaceStore as store, flushWorkspacePersistence } from './store';
 import { Notes } from './Notes';
 import { createSelectiveJSONStorage, isDeferredJSONStorage } from '@/data/selectiveJSONStorage';
+import { captureChatTurnContext } from '@/chat/turnContext';
 
 let root: Root;
 let host: HTMLDivElement;
@@ -20,6 +21,29 @@ beforeEach(async () => {
 afterEach(() => { act(() => root.unmount()); host.remove(); vi.restoreAllMocks(); });
 
 describe('note editing', () => {
+  it('publishes the note currently shown rather than the last project for chat context', async () => {
+    store.getState().createProject('Previous project');
+    const first = store.getState().createNote({ title: 'Diário pessoal' });
+    const second = store.getState().createNote({ title: 'Outra nota' });
+    store.getState().navigate('notes');
+    await act(async () => { root.render(<Notes initialNoteId={first} />); });
+    expect(captureChatTurnContext()).toMatchObject({ projectId: null, noteId: first, noteTitle: 'Diário pessoal' });
+    const target = [...host.querySelectorAll<HTMLButtonElement>('.ws-note-preview')].find(button => button.textContent?.includes('Outra nota'))!;
+    act(() => Simulate.click(target));
+    expect(captureChatTurnContext().noteId).toBe(second);
+  });
+
+  it('does not claim a hidden mobile note editor is the current screen focus', async () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation(query => ({ matches: query === '(max-width: 700px)', media: query, onchange: null, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false }));
+    const noteId = store.getState().createNote({ title: 'Touch note' }); store.getState().navigate('notes');
+    await act(async () => { root.render(<Notes />); });
+    expect(captureChatTurnContext().noteId).toBeNull();
+    act(() => Simulate.click(host.querySelector('.ws-note-preview')!));
+    expect(captureChatTurnContext().noteId).toBe(noteId);
+    act(() => Simulate.click(host.querySelector('.ws-notes-back')!));
+    expect(captureChatTurnContext().noteId).toBeNull();
+  });
+
   it('does not scan full note bodies when no search is requested', async () => {
     const noteId = store.getState().createNote({ title: 'Pesquisa' });
     store.getState().updateNote(noteId, { blocks: [{ id: 'body', type: 'text', text: 'CORPO_UNICO_LARGO preservado' }] });

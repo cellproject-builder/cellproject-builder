@@ -1,5 +1,7 @@
 import { AudioTextarea, AudioTextInput } from '@/audio/AudioField';
 import { useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentPropsWithoutRef } from 'react';
+import { publishChatNoteFocus } from '@/chat/turnContext';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { nanoid } from 'nanoid';
 import { EnterFullScreenIcon, ExitFullScreenIcon, Pencil1Icon, ImageIcon, MagicWandIcon } from '@/components/ui/SoftIcons';
 import { useLocaleStore, useT } from '@/i18n';
@@ -152,6 +154,7 @@ export function Notes({ projectId = null, initialNoteId = null, onMaximizedChang
   const [folderOpen, setFolderOpen] = useState(false);
   const [folderName, setFolderName] = useState('');
   const [mobileEditor, setMobileEditor] = useState(!!initialNoteId);
+  const mobileLayout = useMediaQuery('(max-width: 700px)');
   const [maximized, setMaximized] = useState(false);
   useEffect(() => { onMaximizedChange?.(maximized); return () => onMaximizedChange?.(false); }, [maximized, onMaximizedChange]);
   useEffect(() => {
@@ -168,6 +171,8 @@ export function Notes({ projectId = null, initialNoteId = null, onMaximizedChang
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visible = (normalizedQuery ? candidates.filter((n) => `${n.title} ${n.blocks.map((b) => b.text).join(' ')}`.toLocaleLowerCase().includes(normalizedQuery)) : candidates).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt);
   const selected = candidates.find((n) => n.id === selectedId) ?? visible[0];
+  const visibleNoteId = !mobileLayout || mobileEditor ? selected?.id ?? null : null;
+  useEffect(() => publishChatNoteFocus(visibleNoteId, projectId), [visibleNoteId, projectId]);
   useEffect(() => { if (!selected) setMaximized(false); }, [selected]);
   const changeFilter = (value: NoteFilter) => { setFilter(value); setSelectedId(null); setMobileEditor(false); };
   const create = (folderId: string | null = null, targetProjectId = projectId) => {

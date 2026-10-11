@@ -12,6 +12,9 @@ import { useSidebarStore } from '@/workspace/sidebarPreference';
 import { loadWorkspaceDemo } from '@/workspace/demoData';
 import { summarizeNoteCanvas } from '@/workspace/noteCanvasSummary';
 import { projectAppearanceSchema } from '@/workspace/project-appearance/projectAppearance';
+import { summarizeBoard } from '@/boards/summary';
+import type { BoardDocument } from '@/boards/model';
+import { captureChatTurnContext, type ChatTurnContext } from '@/chat/turnContext';
 
 const id = z.string().min(1).max(100);
 const text = z.string().max(100_000);
@@ -23,7 +26,7 @@ const note = z.object({ title: z.string().max(500).optional(), text: text.option
 export const workspaceActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('create_project'), name: z.string().min(1).max(240), objective: text.optional(), appearance: projectAppearanceSchema.optional() }).strict(),
   z.object({ action: z.literal('update_project'), id, patch: z.object({ name: z.string().min(1).max(240).optional(), objective: text.optional(), archived: z.boolean().optional(), appearance: projectAppearanceSchema.optional() }).strict() }).strict(),
-  z.object({ action: z.literal('navigate'), surface: z.enum(['projects', 'overview', 'kanban', 'scrum', 'notes', 'planner']), projectId: nullableId, noteId: id.optional(), taskId: id.optional() }).strict(),
+  z.object({ action: z.literal('navigate'), surface: z.enum(['projects', 'overview', 'kanban', 'scrum', 'notes', 'planner', 'boards']), projectId: nullableId, noteId: id.optional(), taskId: id.optional(), boardId: id.optional() }).strict(),
   z.object({ action: z.literal('open_settings') }).strict(),
   z.object({ action: z.literal('set_appearance'), theme: z.enum(['oled', 'dark', 'light']) }).strict(),
   z.object({ action: z.literal('set_language'), locale: z.enum(['en', 'pt-BR']) }).strict(),
@@ -48,15 +51,16 @@ export const workspaceActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('delete_comment'), id }).strict(),
 ]);
 
-export const workspaceReadSchema = z.object({ collection: z.enum(['projects', 'tasks', 'sprints', 'notes', 'folders', 'comments']), id: id.optional(), projectId: id.optional(), query: z.string().optional(), offset: z.number().int().min(0).optional(), limit: z.number().int().min(1).max(100).optional() }).strict();
+export const workspaceReadSchema = z.object({ collection: z.enum(['projects', 'tasks', 'sprints', 'notes', 'folders', 'comments', 'boards']), id: id.optional(), projectId: id.optional(), query: z.string().optional(), offset: z.number().int().min(0).optional(), limit: z.number().int().min(1).max(100).optional() }).strict();
 
 export function readWorkspace(raw: unknown) {
   const input = workspaceReadSchema.parse(raw), state = useWorkspaceStore.getState();
   const records = Object.values(state[input.collection]) as unknown as Record<string, unknown>[];
-  const matching = records.filter((r) => (!input.id || r.id === input.id) && (!input.projectId || (input.collection === 'projects' ? r.id : r.projectId) === input.projectId) && (!input.query || JSON.stringify(input.collection === 'notes' ? { title: r.title, blocks: r.blocks, canvasSummary: summarizeNoteCanvas(r.canvas, true) } : r).toLocaleLowerCase().includes(input.query.toLocaleLowerCase())));
+  const matching = records.filter((r) => (!input.id || r.id === input.id) && (!input.projectId || (input.collection === 'projects' ? r.id : r.projectId) === input.projectId) && (!input.query || JSON.stringify(input.collection === 'notes' ? { title: r.title, blocks: r.blocks, canvasSummary: summarizeNoteCanvas(r.canvas, true) } : input.collection === 'boards' ? { title: r.title } : r).toLocaleLowerCase().includes(input.query.toLocaleLowerCase())));
   const offset = input.offset ?? 0, limit = input.limit ?? 30;
   const items = matching.slice(offset, offset + limit).map((r) => {
-    const { planner: _planner, attachments: _attachments, canvas: _canvas, ...rest } = r;
+    if (input.collection === 'boards') return { id: r.id, title: r.title, archived: r.archived, createdAt: r.createdAt, updatedAt: r.updatedAt, summary: summarizeBoard(r.document as BoardDocument, !!input.id) };
+    const { planner: _planner, attachments: _attachments, canvas: _canvas, ink: _ink, ...rest } = r;
     if (input.collection === 'projects') return { ...rest, attachments: (_attachments as { id: string; name: string; kind: string; truncated: boolean }[] | undefined)?.map(({ id, name, kind, truncated }) => ({ id, name, kind, truncated })) };
     if (input.collection === 'notes') {
       const canvasSummary = summarizeNoteCanvas(_canvas, !!input.id);
@@ -64,7 +68,8 @@ export function readWorkspace(raw: unknown) {
     }
     return rest;
   });
-  return { items, total: matching.length, offset, nextOffset: offset + items.length < matching.length ? offset + items.length : null, currentProjectId: state.activeProjectId, surface: state.surface };
+  const context = captureChatTurnContext();
+  return { items, total: matching.length, offset, nextOffset: offset + items.length < matching.length ? offset + items.length : null, currentProjectId: context.projectId, visibleProjectId: context.visibleProjectId, surface: context.surface };
 }
 
 function notePatch(input: z.infer<typeof note>) {
@@ -121,13 +126,16 @@ export async function executeWorkspaceAction(raw: unknown, signal?: AbortSignal)
 }
 
 export interface AssistantActionEvent { id: string; name: string; action: string; status: 'running' | 'done' | 'error' | 'awaiting_approval'; detail?: string; result?: unknown }
-export function createAssistantTools(signal: AbortSignal, onAction: (event: AssistantActionEvent) => void, userText: string, control?: { beforeRequest: () => Promise<void>; onRateLimit: (error: unknown) => void; contextProjectId?: string | null }) {
+export function createAssistantTools(signal: AbortSignal, onAction: (event: AssistantActionEvent) => void, userText: string, control?: { beforeRequest: () => Promise<void>; onRateLimit: (error: unknown) => void; assertActive?: () => void; contextProjectId?: string | null; turnContext?: ChatTurnContext }) {
+  const turnContext = control?.turnContext ?? captureChatTurnContext();
+  const contextProjectId = control?.contextProjectId !== undefined ? control.contextProjectId : turnContext.projectId;
   let pending: Promise<unknown> = Promise.resolve();
   let halted: unknown;
   const execute = (name: string, fn: (input: unknown) => unknown | Promise<unknown>) => (input: unknown) => {
     const next = pending.then(async () => {
     if (halted) throw halted;
     signal.throwIfAborted();
+    control?.assertActive?.();
     const event: AssistantActionEvent = { id: nanoid(10), name, action: (input as { action?: string }).action ?? name, status: 'running' };
     onAction(event);
     try {
@@ -152,11 +160,11 @@ export function createAssistantTools(signal: AbortSignal, onAction: (event: Assi
     return next;
   };
   return {
-    workspace_read: tool({ description: 'Read actual project/task/issue/sprint/note/folder/comment records. Paginated; use IDs from results, never guess them. Projects exclude planner snapshots. A note id returns its full blocks and a bounded text summary of visual items; image pixels and diagram internals are not included or analyzed. currentProjectId is the explicit chat context; visibleProjectId, when present, is only the project currently shown in the editor.', inputSchema: workspaceReadSchema, execute: execute('workspace_read', input => {
+    workspace_read: tool({ description: 'Read actual project/task/issue/sprint/note/folder/comment/board records. Paginated; use IDs from results, never guess them. Projects exclude planner snapshots. A note id returns its full blocks and a bounded text summary of visual items; image pixels, drawing points and diagram internals are not included or analyzed. Boards are independent of projects; query matches their titles and an id returns a bounded textual summary with omittedItems, never full geometry, pixels or ink. currentProjectId is the frozen explicit chat context; visibleProjectId is the project on its origin screen.', inputSchema: workspaceReadSchema, execute: execute('workspace_read', input => {
       const result = readWorkspace(input);
-      return control?.contextProjectId !== undefined ? { ...result, visibleProjectId: result.currentProjectId, currentProjectId: control.contextProjectId } : result;
+      return { ...result, visibleProjectId: turnContext.visibleProjectId, currentProjectId: contextProjectId, surface: turnContext.surface, noteId: turnContext.noteId, boardId: turnContext.boardId };
     }) }),
-    workspace_action: tool({ description: 'Perform an application action through its validated store. create_note/update_note text replaces the body; append_note_block appends. Comments are attached to tasks/issues. Navigation can open a noteId or taskId. Do only actions requested by the user.', inputSchema: workspaceActionSchema, execute: execute('workspace_action', (input) => executeWorkspaceAction(input, signal)) }),
+    workspace_action: tool({ description: 'Perform an application action through its validated store. create_note/update_note text replaces the body; append_note_block appends. Comments are attached to tasks/issues. Navigation can open a noteId, taskId, or boardId with surface=boards; boards cannot be combined with projectId/noteId/taskId. Board objects cannot be edited by these tools. Do only actions requested by the user.', inputSchema: workspaceActionSchema, execute: execute('workspace_action', (input) => executeWorkspaceAction(input, signal)) }),
     ...createPlannerTools(signal, execute, userText, control?.beforeRequest),
     ...createVisualTools(signal, execute, control?.beforeRequest, userText),
   };

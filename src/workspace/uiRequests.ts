@@ -3,10 +3,19 @@ import { useWorkspaceStore } from './store';
 import { openPlanner } from './planner';
 import type { Surface } from './types';
 
-export interface UIRequest { surface?: Surface; projectId?: string | null; noteId?: string; taskId?: string; settings?: boolean }
+export interface UIRequest { surface?: Surface; projectId?: string | null; noteId?: string; taskId?: string; boardId?: string; settings?: boolean }
 export const useUIRequests = create<{ request: UIRequest | null }>(() => ({ request: null }));
 export function requestWorkspaceUI(request: UIRequest) {
   const state = useWorkspaceStore.getState();
+  if (request.surface === 'boards' || request.boardId) {
+    if (request.surface && request.surface !== 'boards' || request.projectId || request.noteId || request.taskId) throw new Error('Boards are independent; choose a single board destination.');
+    const board = request.boardId ? state.boards[request.boardId] : null;
+    if (request.boardId && (!board || board.archived)) throw new Error('Requested board does not exist or is archived.');
+    const target: UIRequest = { ...request, surface: 'boards', projectId: null };
+    useWorkspaceStore.setState({ activeBoardId: board?.id ?? null, activeProjectId: null, surface: 'boards' });
+    useUIRequests.setState({ request: target });
+    return target;
+  }
   const task = request.taskId ? state.tasks[request.taskId] : undefined;
   const note = request.noteId ? state.notes[request.noteId] : undefined;
   if ((request.taskId && !task) || (request.noteId && !note)) throw new Error('Requested record does not exist.');
