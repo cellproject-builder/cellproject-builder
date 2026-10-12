@@ -1,6 +1,7 @@
 import { authorizeVaultSharing, configureVault } from './vault/privacy';
 import type { CheckpointStore } from './offline/checkpoints';
 import { mergeCloudDocument } from './documentMerge';
+import { preserveConflictCopies } from './conflictCopies';
 import { isPublicDemo, PUBLIC_DEMO_NETWORK_MESSAGE } from '@/demo/session';
 export type { CheckpointStore } from './offline/checkpoints';
 export const CLOUD_DOCUMENT_KEYS = ['cellproject-workspace', 'cellproject-graph', 'dynamic_diary-chat', 'cellproject-kb', 'cellproject-config', 'cellproject-locale', 'dynamic_diary-theme', 'dynamic_diary-sidebar-collapsed', 'dynamic_diary:task-view'] as const;
@@ -111,6 +112,8 @@ export class CloudRuntime {
   private lastLocalValues = new Map<string, string>();
   private pendingApplication = new Set<string>();
   private retiredOperations = new Set<string>();
+  private resolvingConflict = false;
+  private conflictPreparation = false;
   constructor(snapshot: CloudSnapshot, private fetcher: typeof fetch = fetch, private vaultDisposer?: () => void, private snapshotLoader?: () => Promise<CloudSnapshot>, private options: CloudRuntimeOptions = {}) {
     if (!snapshot || !Array.isArray(snapshot.documents) || !Array.isArray(snapshot.media)) throw new Error('Snapshot remoto inválido.');
     for (const doc of snapshot.documents) {
@@ -153,12 +156,17 @@ export class CloudRuntime {
   }
   checkpoint(): RuntimeCheckpoint { return { version: 1, confirmed: { documents: [...this.confirmed.values()].map(doc => ({ ...doc })), media: this.media() }, drafts: [...this.drafts], queue: this.queue.map(op => ({ ...op })), issue: this.status.issue ? { ...this.status.issue } : null }; }
   persistCheckpoint(): Promise<void> {
+    return this.persistCheckpointValue(this.checkpoint());
+  }
+  private persistCheckpointValue(value: RuntimeCheckpoint, assertCurrent?: () => void): Promise<void> {
     if (!this.options.persistence) return Promise.resolve();
-    const value = this.checkpoint(), generation = ++this.localGeneration;
+    const generation = ++this.localGeneration;
     this.publish({ localSaving: true, localSaved: false });
     const task = this.localChain.catch(() => {}).then(async () => {
       if (this.disposed) throw new Error('Sessão encerrada.');
+      assertCurrent?.();
       await this.options.persistence!.write('runtime', value);
+      assertCurrent?.();
       if (!this.disposed && generation === this.localGeneration) this.publish({ localSaving: false, localSaved: true, localError: undefined });
     }).catch((reason: unknown) => {
       if (!this.disposed && generation === this.localGeneration) this.publish({ localSaving: false, localSaved: false, localError: reason instanceof Error ? reason.message : 'Não foi possível salvar neste aparelho.' });
@@ -339,12 +347,13 @@ export class CloudRuntime {
     for (const id of this.retiredOperations) { await this.options.rejectOperation?.(id); this.retiredOperations.delete(id); }
   }
   private drain(): Promise<void> {
+    if (this.conflictPreparation) return Promise.resolve();
     if (this.active) return this.active;
     if (this.disposed || !this.networkReady() || this.status.localError || this.status.issue || !this.queue.length) return Promise.resolve();
     this.active = (async () => {
       this.publish({ saving: true });
       let rebases = 0;
-      while (this.queue.length && !this.disposed && !this.status.issue && !this.status.localError && this.networkReady()) {
+      while (this.queue.length && !this.disposed && !this.conflictPreparation && !this.status.issue && !this.status.localError && this.networkReady()) {
         const op = this.queue[0];
         try {
           if (op.rejected) {
@@ -382,7 +391,70 @@ export class CloudRuntime {
     return this.active;
   }
   async flush() { await this.localChain.catch(() => {}); if (this.status.localError) throw new Error(this.status.localError); do { await this.drain(); } while (this.queue.length && !this.status.issue && !this.status.localError && this.networkReady() && !this.disposed); if (this.status.localError) throw new Error(this.status.localError); if (this.status.issue?.kind === 'conflict') throw new CloudConflictError(); if (this.status.issue || this.queue.length) throw new Error('Existem alterações sem confirmação remota.'); }
-  async retry() { if (this.status.issue?.kind === 'session' || this.status.issue?.kind === 'conflict' && (!this.snapshotLoader || !this.queue.length)) return; this.publish({ issue: null, offline: !this.networkReady() }); if (this.options.persistence) { try { await this.persistCheckpoint(); } catch { return; } } await this.drain(); }
+  async retry() { if (this.resolvingConflict || this.status.issue?.kind === 'session' || this.status.issue?.kind === 'conflict' && (!this.snapshotLoader || !this.queue.length)) return; this.publish({ issue: null, offline: !this.networkReady() }); if (this.options.persistence) { try { await this.persistCheckpoint(); } catch { return; } } await this.drain(); }
+  /** Explicitly keep incompatible content as separate copies, never a blind replacement. */
+  async resolveConflictCopies(options: Pick<RemoteRefreshOptions, 'isIdle'> = {}): Promise<number> {
+    if (this.resolvingConflict) throw new Error('A conciliação já está em andamento.');
+    const available = () => {
+      if (this.disposed) throw new Error('Sessão encerrada.');
+      if (!this.networkReady()) throw new Error('Confirme a conexão e a mesma conta antes de conciliar. Seus rascunhos continuam preservados.');
+      if (this.pendingMediaWrites || options.isIdle?.() === false) throw new Error('Aguarde as alterações e operações em andamento antes de conciliar.');
+      if (this.status.localError) throw new Error(this.status.localError);
+    };
+    available();
+    if (!this.snapshotLoader || this.status.issue?.kind !== 'conflict' || !this.queue[0]?.rejected) throw new Error('Esta gravação ainda precisa ter sua rejeição confirmada. Tente salvar novamente; nenhuma versão foi substituída.');
+    this.resolvingConflict = true;
+    this.conflictPreparation = true;
+    try {
+      if (this.active) await this.active;
+      await this.localChain;
+      available();
+      if (this.status.issue?.kind !== 'conflict' || !this.queue[0]?.rejected) throw new Error('A gravação mudou durante a conciliação. Tente salvar novamente; seus rascunhos continuam preservados.');
+      const epoch = this.mutationEpoch;
+      const assertCurrent = () => { available(); if (epoch !== this.mutationEpoch) throw new Error('Os dados mudaram durante a conciliação. Tente novamente; seus rascunhos foram preservados.'); };
+      const snapshot = await this.snapshotLoader();
+      assertCurrent();
+      const checked = new CloudRuntime(snapshot), documents = checked.documents(), media = checked.media(); checked.dispose();
+      const remote = new Map(documents.map(doc => [doc.key, doc]));
+      for (const old of this.confirmed.values()) {
+        const next = remote.get(old.key);
+        if (!next || next.revision < old.revision || next.revision === old.revision && next.value !== old.value) throw new CloudConflictError();
+      }
+      const first = new Map<string, Operation>();
+      for (const op of this.queue) if (!first.has(op.key)) first.set(op.key, op);
+      const keys = new Set([...first.keys(), 'cellproject-workspace', 'cellproject-graph']);
+      const inputs = [...keys].flatMap(key => {
+        const op = first.get(key), value = remote.get(key)?.value ?? null;
+        if (op) return [{ key, base: op.baseValue !== undefined ? op.baseValue : this.confirmed.get(key)?.value ?? null, local: this.drafts.get(key)!, remote: value }];
+        return value === null ? [] : [{ key, base: value, local: value, remote: value }];
+      });
+      const resolved = preserveConflictCopies(inputs);
+      if (!resolved) throw new Error('Não foi possível preservar automaticamente essas versões. Seus rascunhos continuam intactos; baixe uma cópia completa antes de continuar.');
+      const drafts = new Map<string, string>(), replacements: Operation[] = [];
+      for (const document of resolved.documents) {
+        const value = sanitizeCloudDocument(document.key, document.value);
+        if (value === remote.get(document.key)?.value) continue;
+        if (drafts.has(document.key)) throw new Error('Conciliação inválida. Nenhuma versão foi substituída.');
+        drafts.set(document.key, value);
+        replacements.push({ key: document.key, value, baseValue: remote.get(document.key)?.value ?? null, operationId: crypto.randomUUID() });
+      }
+      const candidate: RuntimeCheckpoint = { version: 1, confirmed: { documents, media }, drafts: [...drafts], queue: replacements, issue: null };
+      // Journal the complete preserved result before retiring any rejected identity.
+      // A failed write leaves the original in-memory draft and queue untouched.
+      await this.persistCheckpointValue(candidate, assertCurrent);
+      assertCurrent();
+      for (const op of this.queue) this.retiredOperations.add(op.operationId);
+      for (const key of new Set([...remote.keys(), ...drafts.keys()])) if (this.get(key) !== (drafts.get(key) ?? remote.get(key)?.value ?? null)) this.pendingApplication.add(key);
+      this.confirmed = remote; this.drafts = drafts; this.queue = replacements;
+      this.replaceMediaMetadata(new Map(media.map(item => [item.id, item])));
+      await this.retireRejectedOperations();
+      assertCurrent();
+      this.conflictPreparation = false;
+      this.publish({ issue: null });
+      await this.flush();
+      return resolved.copies;
+    } finally { this.conflictPreparation = false; this.resolvingConflict = false; }
+  }
   async resumeAfterAuthentication(expectedUserId: string) {
     if (this.disposed) throw new Error('Sessão encerrada.');
     if (this.status.issue?.kind !== 'session') return;

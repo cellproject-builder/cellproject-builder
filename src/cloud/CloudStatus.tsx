@@ -2,7 +2,7 @@ import { getVaultSession, vaultIsProtected } from './vault/privacy';
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { CloseIcon, ExclamationTriangleIcon } from '@/components/ui/SoftIcons';
 import { captureLegacyBackup, downloadBackup } from './migration';
-import { CloudRuntime, cloudJson, getCloudRuntime, mutationHeaders } from './runtime';
+import { CloudConflictError, CloudRuntime, cloudJson, getCloudRuntime, mutationHeaders } from './runtime';
 import { CloudMigration } from './CloudMigration';
 import { downloadSessionRescue } from './rescue';
 import { assertDataTransitionIdle } from './activity';
@@ -15,6 +15,13 @@ function assertPersistenceOwner(owner: CloudRuntime | null) {
   if (getCloudRuntime() !== owner) throw new Error('A sessão de persistência mudou. Preserve o rascunho antes de continuar.');
 }
 const runtimeDataSignature = (runtime: CloudRuntime) => JSON.stringify({ documents: runtime.documents(), media: runtime.media() });
+const conflictDocumentLabel = (key: string) => ({
+  'cellproject-workspace': 'Projetos, tarefas e notas', 'cellproject-graph': 'Plano aberto',
+  'dynamic_diary-chat': 'Conversas do assistente', 'cellproject-kb': 'Base de documentos',
+  'cellproject-config': 'Preferências da IA', 'cellproject-locale': 'Idioma',
+  'dynamic_diary-theme': 'Aparência', 'dynamic_diary-sidebar-collapsed': 'Navegação lateral',
+  'dynamic_diary:task-view': 'Visualização das tarefas',
+} as Record<string, string>)[key] ?? 'Sincronização do cofre';
 function assertCapturedRuntimeData(runtime: CloudRuntime, signature: string) {
   assertPersistenceOwner(runtime);
   if (runtimeDataSignature(runtime) !== signature) throw new Error('Os dados mudaram durante a operação. Seus rascunhos continuam nesta aba; baixe uma nova cópia antes de sair.');
@@ -74,8 +81,9 @@ export async function saveCurrentBackup(cloud: CloudRuntime | null = getCloudRun
   if (cloud) assertCapturedRuntimeData(cloud, runtimeData!);
   if (!isDeferredPersistenceCaptureCurrent(captured)) throw new Error('Os dados mudaram durante a preparação da cópia. Exporte novamente.');
 }
-export function CloudStatus({ runtime, userId, email, onLogout, onResume, passwordProvider, fetcher = fetch }: { runtime: CloudRuntime; userId: string; email: string; onLogout: () => void; onResume?: () => Promise<void>; passwordProvider?: PasswordProvider; fetcher?: typeof fetch }) {
+export function CloudStatus({ runtime, userId, email, onLogout, onResume, onVerifyConnection, passwordProvider, fetcher = fetch }: { runtime: CloudRuntime; userId: string; email: string; onLogout: () => void; onResume?: () => Promise<void>; onVerifyConnection?: () => Promise<void>; passwordProvider?: PasswordProvider; fetcher?: typeof fetch }) {
   const status = useSyncExternalStore(runtime.subscribe, runtime.getSnapshot), [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [saved, setSaved] = useState(false), [error, setError] = useState('');
+  const [resolution, setResolution] = useState('');
   const deferred = useSyncExternalStore(subscribeDeferredPersistence, getDeferredPersistenceSnapshot);
   const durable = status.localSaved === true && !status.localSaving && !status.localError;
   const needsAttention = !!deferred.error || !!status.localError || !!status.issue && (status.issue.kind !== 'network' || !durable);
@@ -96,13 +104,54 @@ export function CloudStatus({ runtime, userId, email, onLogout, onResume, passwo
   const [passwordLinkSent, setPasswordLinkSent] = useState(false), [sendingPasswordLink, setSendingPasswordLink] = useState(false);
   const pendingGraph = useRef<() => boolean>(() => false);
   useEffect(() => { if (!attentionKey) setDismissed(null); }, [attentionKey]);
+  useEffect(() => { if (status.issue || status.pending || deferred.pending) setResolution(''); }, [status.issue, status.pending, deferred.pending]);
   useEffect(() => { setSaved(false); setRescued(false); rescueCapture.current = undefined; rescueRuntimeData.current = undefined; }, [status, deferred.revision]);
   useEffect(() => { let live = true; void import('@/store').then(graph => { if (live) pendingGraph.current = graph.hasPendingGraphPersistence; }); const unload = (event: BeforeUnloadEvent) => { const current = runtime.getSnapshot(); if (pendingGraph.current() || hasDeferredPersistence() || current.pending > 0 && (current.localSaved !== true || current.localSaving || current.localError)) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', unload); return () => { live = false; window.removeEventListener('beforeunload', unload); }; }, [runtime]);
   async function backup() { setBusy(true); setError(''); try { await saveCurrentBackup(runtime); setSaved(true); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha no backup.'); } finally { setBusy(false); } }
   async function retry() {
-    if (busy) return; setBusy(true); setError('');
+    if (busy) return; setBusy(true); setError(''); setResolution('');
     try { if (onResume && !runtime.getSnapshot().localError) await onResume(); else await runtime.retry(); await flushDeferredPersistences(); const localError = runtime.getSnapshot().localError; if (localError) throw new Error(localError); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível retomar o salvamento.'); }
+    finally { setBusy(false); }
+  }
+  async function preserveConflictVersions() {
+    if (busy) return; setBusy(true); setError(''); setResolution('');
+    try {
+      assertPersistenceOwner(runtime);
+      // Flush the current editor into its retained draft. An unresolved remote
+      // conflict is expected here; a local failure must still stop resolution.
+      try { await prepareCurrentData(true); } catch (reason) { if (!(reason instanceof CloudConflictError)) throw reason; }
+      assertPersistenceOwner(runtime);
+      await requireDataIdle(); assertPersistenceOwner(runtime);
+      if (runtime.getSnapshot().localError) throw new Error(runtime.getSnapshot().localError);
+      await onVerifyConnection?.();
+      assertPersistenceOwner(runtime);
+      await requireDataIdle(); assertPersistenceOwner(runtime);
+      const [graph, chat, planner] = await Promise.all([import('@/store'), import('@/chat/store'), import('@/workspace/planner')]);
+      assertPersistenceOwner(runtime);
+      await requireDataIdle(); assertPersistenceOwner(runtime);
+      const idle = () => {
+        try {
+          assertPersistenceOwner(runtime);
+          assertDataTransitionIdle(chat.useChatStore.getState().running, planner.plannerBusy());
+          return !graph.hasPendingGraphPersistence() && !hasDeferredPersistence();
+        } catch { return false; }
+      };
+      if (!idle()) throw new Error('Há alterações recentes em andamento. Aguarde o salvamento antes de manter as duas versões.');
+      const verified = runtime.getSnapshot();
+      const copies = !verified.issue && verified.pending === 0 ? 0 : await runtime.resolveConflictCopies({ isIdle: idle });
+      assertPersistenceOwner(runtime);
+      await runtime.flush(); assertPersistenceOwner(runtime);
+      const signature = runtimeDataSignature(runtime);
+      const captured = captureDeferredPersistence(runtime, key => runtime.get(key));
+      if (!captured) throw new Error('As versões foram preservadas, mas há alterações recentes em andamento. Salve antes de reabrir.');
+      await requireDataIdle();
+      assertCapturedRuntimeData(runtime, signature);
+      if (!idle() || !isDeferredPersistenceCaptureCurrent(captured)) throw new Error('Os dados mudaram após a conciliação. Seus rascunhos continuam nesta aba; salve antes de reabrir.');
+      setResolution(copies ? `As duas versões foram preservadas e salvas na nuvem. ${copies} cópia(s) recuperada(s) disponível(is) para revisão.` : 'As alterações foram conciliadas e salvas na nuvem.');
+      setOpen(true);
+      window.location.reload();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível preservar as duas versões. Seus rascunhos continuam neste aparelho.'); }
     finally { setBusy(false); }
   }
   async function leave() {
@@ -187,6 +236,7 @@ export function CloudStatus({ runtime, userId, email, onLogout, onResume, passwo
       {status.localError && <p role="alert">{status.localError} Mantenha esta aba aberta até salvar no aparelho ou baixar um resgate.</p>}
       {!!deferred.error && !status.localError && <p role="alert">Não foi possível salvar as alterações recentes. Tente novamente antes de sair.</p>}
       {status.issue && status.issue.kind !== 'session' && !waitingForConnection && <p role="alert">{status.issue.message} {durable ? 'Seu rascunho continua na cópia cifrada deste aparelho.' : 'Seu trabalho atual continua nesta sessão.'}</p>}
+      {status.issue?.kind === 'conflict' && <><p>Documento em conflito: <strong>{conflictDocumentLabel(status.issue.key)}</strong>. Dois aparelhos podem ter alterado o mesmo conteúdo. Se a conciliação automática não resolver, mantenha a versão da nuvem e uma cópia da versão deste aparelho para revisar as duas.</p><button disabled={busy || !!status.localError} onClick={() => void preserveConflictVersions()}>Manter as duas versões</button></>}
       {waitingForConnection && <p role="status">Salvo na cópia cifrada deste aparelho. A sincronização com a nuvem aguarda conexão e confirmação da conta.</p>}
       {(!!deferred.error || status.localError || status.issue?.kind === 'network' || status.issue?.kind === 'conflict') && <button disabled={busy} onClick={() => void retry()}>{status.issue?.kind === 'conflict' && !status.localError ? 'Conciliar alterações' : 'Tentar salvar novamente'}</button>}
       <details className="cloud-status-advanced"><summary>Mais opções</summary><div>
@@ -198,10 +248,11 @@ export function CloudStatus({ runtime, userId, email, onLogout, onResume, passwo
       }}>{sendingPasswordLink ? 'Enviando link de senha…' : 'Criar ou alterar senha'}</button>
       {passwordLinkSent && <p role="status">Abra o link enviado para seu e-mail neste navegador para criar ou alterar a senha. Depois, entre diretamente com ela.</p>}
       <button disabled={busy} onClick={() => void backup()}>{busy && !sendingPasswordLink ? 'Preparando backup…' : 'Baixar cópia completa desta sessão'}</button>
-      {(status.issue || status.localError || !!deferred.error) && <><button disabled={busy} onClick={() => void rescueDrafts()}>Baixar rascunhos de resgate ({vaultIsProtected() ? '.ddvault' : '.json'})</button><p>O resgate preserva os documentos e arquivos já lidos nesta aba. Os demais arquivos ficam identificados pelos IDs; este pacote é parcial e requer recuperação manual.</p>{missing !== null && <p role="status">Resgate baixado: {missing} arquivo(s) original(is) ainda precisam ser recuperados da nuvem.</p>}<button disabled={(!saved && !rescued) || busy} onClick={() => void requireDataIdle().then(() => window.location.reload()).catch(reason => setError(reason.message))}>{saved ? 'Reabrir dados remotos após baixar cópia' : 'Reabrir após baixar resgate parcial'}</button></>}
+      {(status.issue || status.localError || !!deferred.error) && <><button disabled={busy} onClick={() => void rescueDrafts()}>Baixar rascunhos de resgate ({vaultIsProtected() ? '.ddvault' : '.json'})</button><p>O resgate preserva os documentos e arquivos já lidos nesta aba. Os demais arquivos ficam identificados pelos IDs; este pacote é parcial e requer recuperação manual.</p>{missing !== null && <p role="status">Resgate baixado: {missing} arquivo(s) original(is) ainda precisam ser recuperados da nuvem.</p>}<button disabled={(!saved && !rescued) || busy} onClick={() => void requireDataIdle().then(() => window.location.reload()).catch(reason => setError(reason.message))}>Reabrir preservando rascunhos</button></>}
       <button disabled={busy || !!status.pending && !canLeaveWithRescue && !canLeaveWithLocalCopy} onClick={() => void leave()}>{vaultIsProtected() ? canLeaveWithRescue ? 'Sair após baixar resgate' : 'Sair e bloquear' : 'Sair da conta'}</button>
       </div></details>
       {error && <p role="alert">{error}</p>}
+      {resolution && <p role="status">{resolution}</p>}
     </div>}
   </aside>;
 }

@@ -361,6 +361,93 @@ it('lets the user retry a conflict against the retained draft without reloading 
   } finally { await act(async () => root.unmount()); host.remove(); cloud.dispose(); }
 });
 
+function sameNoteConflict() {
+  const note = (text: string) => ({ id: 'shared-note', title: 'Nota compartilhada', blocks: [{ id: 'paragraph', type: 'text', text }], projectId: null, taskId: null, folderId: null, pinned: false, deletedAt: null, createdAt: 1, updatedAt: 2 });
+  const envelope = (text: string) => JSON.stringify({ version: 2, state: { projects: {}, tasks: {}, comments: {}, sprints: {}, notes: { 'shared-note': note(text) }, folders: {}, boards: {}, activeProjectId: null, activeBoardId: null, surface: 'notes', legacyImported: true } });
+  let remote = { documents: [{ key: 'cellproject-workspace', value: envelope('Texto do PC'), revision: 2 }], media: [] };
+  let verified = false;
+  const fetcher = vi.fn<typeof fetch>(async (_path, init) => {
+    const body = JSON.parse(String(init?.body));
+    if (body.baseRevision !== remote.documents[0].revision) return Response.json({ error: 'revision_conflict' }, { status: 409 });
+    if (!verified) throw new Error('A conta deve ser verificada antes de resolver');
+    remote = { documents: [{ key: 'cellproject-workspace', value: body.value, revision: 3 }], media: [] };
+    return Response.json({ revision: 3 });
+  });
+  const cloud = new CloudRuntime({ documents: [{ key: 'cellproject-workspace', value: envelope('Texto inicial'), revision: 1 }], media: [] }, fetcher, undefined, async () => remote);
+  const local = envelope('Texto do tablet');
+  return { cloud, local, remote: () => remote, fetcher, verify: async () => { verified = true; }, convergeRemote: () => { remote = { documents: [{ key: 'cellproject-workspace', value: local, revision: 3 }], media: [] }; } };
+}
+
+it('preserves both incompatible note versions through the explicit action after account verification', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  activity.chatRunning = false;
+  const fixture = sameNoteConflict(); configureCloud(fixture.cloud);
+  await fixture.cloud.write('cellproject-workspace', fixture.local);
+  expect(fixture.cloud.getSnapshot().issue?.kind).toBe('conflict');
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  const browserWindow = window, reload = vi.fn();
+  try {
+    vi.stubGlobal('window', new Proxy(browserWindow, { get: (target, key) => key === 'location' ? { reload } : Reflect.get(target, key, target) }));
+    await act(async () => root.render(<CloudStatus runtime={fixture.cloud} userId="owner" email="synthetic@example.test" onLogout={() => {}} onVerifyConnection={fixture.verify}/>));
+    const preserve = [...host.querySelectorAll('button')].find(button => button.textContent === 'Manter as duas versões');
+    expect(preserve).toBeDefined();
+    expect(host.textContent).toContain('Projetos, tarefas e notas');
+    await act(async () => preserve!.click());
+    await settle(() => expect(fixture.cloud.getSnapshot()).toMatchObject({ pending: 0, issue: null }));
+    const state = JSON.parse(fixture.remote().documents[0].value).state;
+    expect(state.notes['shared-note'].blocks[0].text).toBe('Texto do PC');
+    const copy = Object.values(state.notes).find((item: any) => item.id !== 'shared-note') as any;
+    expect(copy.blocks[0].text).toBe('Texto do tablet');
+    expect(copy.title).toMatch(/cópia|recuperad/i);
+    expect(host.textContent).toContain('As duas versões foram preservadas');
+    expect(reload).toHaveBeenCalledOnce();
+    expect(host.textContent).not.toContain('Reabrir dados remotos');
+  } finally { vi.unstubAllGlobals(); await act(async () => root.unmount()); host.remove(); configureCloud(null); vi.restoreAllMocks(); }
+});
+
+it('reopens the confirmed data when verification already reconciled the conflict', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  activity.chatRunning = false;
+  const fixture = sameNoteConflict(); configureCloud(fixture.cloud);
+  await fixture.cloud.write('cellproject-workspace', fixture.local);
+  const verify = vi.fn(async () => { await fixture.verify(); fixture.convergeRemote(); await fixture.cloud.retry(); });
+  const preserve = vi.spyOn(fixture.cloud, 'resolveConflictCopies');
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  const browserWindow = window, reload = vi.fn();
+  try {
+    vi.stubGlobal('window', new Proxy(browserWindow, { get: (target, key) => key === 'location' ? { reload } : Reflect.get(target, key, target) }));
+    await act(async () => root.render(<CloudStatus runtime={fixture.cloud} userId="owner" email="synthetic@example.test" onLogout={() => {}} onVerifyConnection={verify}/>));
+    const button = [...host.querySelectorAll('button')].find(item => item.textContent === 'Manter as duas versões');
+    expect(button).toBeDefined();
+    await act(async () => button!.click());
+    await settle(() => expect(reload).toHaveBeenCalledOnce());
+    expect(fixture.cloud.getSnapshot()).toMatchObject({ pending: 0, issue: null });
+    expect(fixture.cloud.get('cellproject-workspace')).toBe(fixture.local);
+    expect(host.textContent).toContain('As alterações foram conciliadas e salvas na nuvem.');
+    expect(preserve).not.toHaveBeenCalled();
+  } finally { vi.unstubAllGlobals(); await act(async () => root.unmount()); host.remove(); configureCloud(null); vi.restoreAllMocks(); }
+});
+
+it('refuses conflict resolution before changing data while a paid chat run is active', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  activity.chatRunning = true;
+  const fixture = sameNoteConflict(); configureCloud(fixture.cloud);
+  await fixture.cloud.write('cellproject-workspace', fixture.local);
+  const before = fixture.cloud.checkpoint(), remoteBefore = structuredClone(fixture.remote());
+  const verify = vi.fn(fixture.verify);
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={fixture.cloud} userId="owner" email="synthetic@example.test" onLogout={() => {}} onVerifyConnection={verify}/>));
+    const preserve = [...host.querySelectorAll('button')].find(button => button.textContent === 'Manter as duas versões');
+    expect(preserve).toBeDefined();
+    await act(async () => preserve!.click());
+    await settle(() => expect(host.textContent).toContain('Aguarde o chat'));
+    expect(fixture.cloud.checkpoint()).toEqual(before);
+    expect(fixture.remote()).toEqual(remoteBefore);
+    expect(verify).not.toHaveBeenCalled();
+  } finally { activity.chatRunning = false; await act(async () => root.unmount()); host.remove(); configureCloud(null); vi.restoreAllMocks(); }
+});
+
 it('blocks complete backup, rescue and logout while chat or a file ingestion is running', async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   activity.chatRunning = true;

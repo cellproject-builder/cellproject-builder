@@ -1,5 +1,6 @@
 import { validatePersistedBoards } from '@/boards/model';
 import { validatePersistedNoteCanvases } from '@/workspace/noteCanvasPersistence';
+import { createNoteInk } from '@/workspace/noteInkModel';
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 type JsonObject = { [key: string]: Json };
@@ -223,6 +224,13 @@ function mergeValue(base: Value, local: Value, remote: Value, path: string[], ke
   if (equal(local, remote)) return local;
   if (equal(local, base)) return remote;
   if (equal(remote, base)) return local;
+  const noteInk = key === 'cellproject-workspace' && path.length === 4 && path[0] === 'state' && path[1] === 'notes' && path[3] === 'ink';
+  // Existing notes lazily create this deterministic empty layer on the first
+  // stroke. Distinct first strokes share that baseline, unlike new note records.
+  if (noteInk && base === missing && object(local) && object(remote)) {
+    const empty = createNoteInk();
+    if (local.version === empty.version && remote.version === empty.version && local.width === empty.width && remote.width === empty.width) base = { ...empty, strokes: [] };
+  }
   // A missing baseline is a concurrent creation, never an invitation to combine
   // unrelated records. Missing on one side after a baseline is delete-versus-edit.
   if (base === missing || local === missing || remote === missing) return conflict;
@@ -233,6 +241,9 @@ function mergeValue(base: Value, local: Value, remote: Value, path: string[], ke
   if (Array.isArray(base) && Array.isArray(local) && Array.isArray(remote)) return mergeArray(base, local, remote, path, key);
   if (!object(base) || !object(local) || !object(remote)) return conflict;
   if (identityKeys.some(field => !equal(own(base, field), own(local, field)) || !equal(own(base, field), own(remote, field)))) return conflict;
+  // Note ink uses a fixed horizontal coordinate system. A width change cannot
+  // safely share points with another device's edits in the previous system.
+  if (noteInk && (!equal(own(base, 'width'), own(local, 'width')) || !equal(own(base, 'width'), own(remote, 'width')))) return conflict;
   const graphProject = key === 'cellproject-graph' && path.length === 2 && path[0] === 'state' && field === 'project' ||
     key === 'cellproject-workspace' && path.length === 5 && path[0] === 'state' && path[1] === 'projects' && path[3] === 'planner' && field === 'project';
   // Attribute edits are independent only while both copies retain the common
@@ -254,7 +265,10 @@ function mergeValue(base: Value, local: Value, remote: Value, path: string[], ke
     changed(conversationKeys, base, local) && changed(conversationKeys, base, remote) && changed(conversationKeys, local, remote)) return conflict;
   const result: JsonObject = Object.create(null) as JsonObject;
   for (const field of new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)])) {
-    const item = planner && selectionKeys.includes(field) ? own(local, field) :
+    // The overlay grows to the measured text height on each device. Keep every
+    // stroke in bounds by taking the larger extent, without merging page shrinks.
+    const grownInkHeight = noteInk && field === 'height' && typeof base.height === 'number' && typeof local.height === 'number' && typeof remote.height === 'number' && local.height >= base.height && remote.height >= base.height ? Math.max(local.height, remote.height) : undefined;
+    const item = grownInkHeight !== undefined ? grownInkHeight : planner && selectionKeys.includes(field) ? own(local, field) :
       mergeValue(own(base, field), own(local, field), own(remote, field), [...path, field], key);
     if (item === conflict) return conflict;
     if (item !== missing) result[field] = item;

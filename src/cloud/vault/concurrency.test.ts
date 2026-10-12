@@ -126,6 +126,60 @@ it('keeps the local draft when two devices change the same note text incompatibl
   expect((await f.open()).snapshot().documents[0].value).toContain('PC version');
 });
 
+it('preserves both incompatible note versions through encrypted conflict resolution and retires durable operations', async () => {
+  const value = { notes: { n: { id: 'n', title: 'Original' } }, boards: {} };
+  const start = { documents: [{ key: 'cellproject-workspace', value: envelope(value), revision: 1 }], media: [] };
+  const f = await clients(start);
+  const left = new CloudRuntime(start, f.left.fetch, undefined, () => f.left.refreshSnapshot());
+  const right = new CloudRuntime(start, f.right.fetch, undefined, () => f.right.refreshSnapshot(), {
+    persistence: f.rightStore,
+    rejectOperation: id => f.right.discardRejectedOperation(id),
+    acknowledgeOperation: id => f.right.acknowledgeOperation(id),
+  });
+  await left.write('cellproject-workspace', envelope({ ...value, notes: { n: { id: 'n', title: 'PC version' } } }));
+  await right.write('cellproject-workspace', envelope({ ...value, notes: { n: { id: 'n', title: 'Tablet version' } } }));
+  const rejectedId = right.checkpoint().queue[0].operationId;
+  expect(right.getSnapshot()).toMatchObject({ pending: 1, issue: { kind: 'conflict' }, localSaved: true });
+  expect(f.right.checkpoint().rejected).toContain(rejectedId);
+
+  expect(await right.resolveConflictCopies()).toBe(1);
+  const fresh = await f.open(), notes = JSON.parse(fresh.snapshot().documents[0].value).state.notes;
+  expect(notes.n).toEqual({ id: 'n', title: 'PC version' });
+  const copy = Object.values(notes).find((note: any) => note.id !== 'n');
+  expect(copy).toEqual({ id: expect.any(String), title: 'Tablet version (cópia deste aparelho)' });
+  expect(right.getSnapshot()).toMatchObject({ pending: 0, issue: null, localSaved: true });
+  expect(right.checkpoint().queue).toEqual([]);
+  expect(f.rightStore.data.get('runtime')).toMatchObject({ queue: [], drafts: [], issue: null });
+  expect(f.right.checkpoint()).toMatchObject({ pending: null, requests: [], completed: [] });
+  expect(f.right.checkpoint().rejected ?? []).toEqual([]);
+  expect(f.requests.join('')).not.toContain('PC version');
+  expect(f.requests.join('')).not.toContain('Tablet version');
+
+  const restored = await VaultTransport.restore(sessionFromDeviceKey('synthetic-owner', f.vault.header, f.key), f.right.checkpoint(), f.fetcher, { persistence: f.rightStore });
+  await restored.reconcileOperations([]);
+  expect(restored.hasPendingOperations()).toBe(false);
+  expect(JSON.parse(restored.snapshot().documents[0].value).state.notes).toEqual(notes);
+  left.dispose(); right.dispose(); fresh.dispose(); restored.dispose(); f.left.dispose(); f.right.dispose();
+});
+
+it.each([false, true])('synchronizes independent note strokes across different measured device heights (previous ink: %s)', async existing => {
+  const empty = { version: 1, width: 1200, height: 900, strokes: [] };
+  const value = { notes: { n: { id: 'n', title: 'Shared note', ...(existing ? { ink: empty } : {}) } }, boards: {} };
+  const start = { documents: [{ key: 'cellproject-workspace', value: envelope(value), revision: 1 }], media: [] };
+  const f = await clients(start);
+  const left = new CloudRuntime(start, f.left.fetch, undefined, () => f.left.refreshSnapshot());
+  const right = new CloudRuntime(start, f.right.fetch, undefined, () => f.right.refreshSnapshot());
+  const stroke = (id: string, y: number) => ({ id, color: '#000000', width: 3, points: [{ x: 10, y }] });
+  await left.write('cellproject-workspace', envelope({ ...value, notes: { n: { ...value.notes.n, ink: { ...empty, height: 1200, strokes: [stroke('pc', 1100)] } } } }));
+  await right.write('cellproject-workspace', envelope({ ...value, notes: { n: { ...value.notes.n, ink: { ...empty, height: 1700, strokes: [stroke('tablet', 1600)] } } } }));
+  expect(right.getSnapshot()).toMatchObject({ pending: 0, issue: null });
+  const fresh = await f.open(), note = JSON.parse(fresh.snapshot().documents[0].value).state.notes.n;
+  expect(note.title).toBe('Shared note');
+  expect(note.ink).toEqual({ version: 1, width: 1200, height: 1700, strokes: [stroke('pc', 1100), stroke('tablet', 1600)] });
+  expect(f.requests.join('')).not.toContain('Shared note');
+  left.dispose(); right.dispose(); fresh.dispose(); f.left.dispose(); f.right.dispose();
+});
+
 it('never sends a rebased ciphertext before its new durable checkpoint succeeds', async () => {
   const f = await clients();
   await f.put(f.left, 'cellproject-workspace', envelope({ notes: { n: { id: 'n' } }, boards: {} }), 1, 'left-note');

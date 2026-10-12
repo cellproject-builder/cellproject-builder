@@ -47,6 +47,75 @@ describe('mergeCloudDocument', () => {
     )).toEqual({ notes: { n1: { ink: ink([stroke('s1', 30), stroke('s2', 40)]) } } });
   });
 
+  it('combines first independent strokes on an existing note without stored ink', () => {
+    const note = { id: 'n1', title: 'Shared note' };
+    const local = { ...note, ink: ink([stroke('pc')]) };
+    const remote = { ...note, ink: ink([stroke('tablet')]) };
+    expect(merge({ notes: { n1: note } }, { notes: { n1: local } }, { notes: { n1: remote } }))
+      .toEqual({ notes: { n1: { ...note, ink: { version: 1, width: 1200, height: 900, strokes: [stroke('pc'), stroke('tablet')] } } } });
+  });
+
+  it.each([false, true])('keeps both strokes and the taller measured note page (previous ink: %s)', (existing) => {
+    const note = { id: 'n1', title: 'Shared note' };
+    const base = { ...note, ...(existing ? { ink: ink([]) } : {}) };
+    const local = { ...note, ink: { ...ink([stroke('pc')]), height: 1200 } };
+    const remote = { ...note, ink: { ...ink([stroke('tablet', 30)]), height: 1700 } };
+    const expected = { notes: { n1: { ...note, ink: { version: 1, width: 1200, height: 1700, strokes: [stroke('pc'), stroke('tablet', 30)] } } } };
+    expect(merge({ notes: { n1: base } }, { notes: { n1: local } }, { notes: { n1: remote } })).toEqual(expected);
+    expect(merge({ notes: { n1: base } }, { notes: { n1: remote } }, { notes: { n1: local } })).toEqual(expected);
+  });
+
+  it('keeps a first-stroke ID collision conflicted instead of synthesizing its geometry or style', () => {
+    const note = { id: 'n1', title: 'Shared note' };
+    expect(merge({ notes: { n1: note } },
+      { notes: { n1: { ...note, ink: ink([stroke('same', 30)]) } } },
+      { notes: { n1: { ...note, ink: ink([{ ...stroke('same'), color: '#ffffff' }]) } } })).toBeNull();
+  });
+
+  it('does not combine independently created notes merely because their first strokes have distinct IDs', () => {
+    const note = { id: 'n1', title: 'Shared note' };
+    expect(merge({ notes: {} },
+      { notes: { n1: { ...note, ink: ink([stroke('pc')]) } } },
+      { notes: { n1: { ...note, ink: ink([stroke('tablet')]) } } })).toBeNull();
+  });
+
+  it.each(['delete ink', 'delete stroke', 'edit style', 'change width', 'shrink page', 'malformed ink'] as const)('keeps unsafe note ink changes conflicted while page heights diverge: %s', (change) => {
+    const note = { id: 'n1', title: 'Shared note', ink: ink([stroke('shared')]) };
+    const local: Record<string, unknown> = { ...note, ink: { ...ink([stroke('shared', 40)]), height: 1200 } };
+    const remote: Record<string, unknown> = { ...note, ink: { ...ink([stroke('shared', 70)]), height: 1700 } };
+    if (change === 'delete ink') delete local.ink;
+    if (change === 'delete stroke') local.ink = { ...ink([]), height: 1200 };
+    if (change === 'edit style') {
+      local.ink = { ...ink([{ ...stroke('shared'), color: '#ffffff' }]), height: 1200 };
+      remote.ink = { ...ink([{ ...stroke('shared'), color: '#ff0000' }]), height: 1700 };
+    }
+    if (change === 'change width') {
+      local.ink = { ...ink([stroke('shared'), stroke('pc')]), width: 1400, height: 1200 };
+      remote.ink = { ...ink([stroke('shared'), stroke('tablet')]), height: 1700 };
+    }
+    if (change === 'shrink page') {
+      local.ink = { ...ink([stroke('shared'), stroke('pc')]), height: 600 };
+      remote.ink = { ...ink([stroke('shared'), stroke('tablet')]), height: 1700 };
+    }
+    if (change === 'malformed ink') remote.ink = { ...ink([stroke('tablet')]), height: 10001 };
+    expect(merge({ notes: { n1: note } }, { notes: { n1: local } }, { notes: { n1: remote } })).toBeNull();
+  });
+
+  it('keeps unrelated height fields atomic instead of applying the note ink extent rule globally', () => {
+    expect(merge({ ink: ink([]) }, { ink: { ...ink([stroke('pc')]), height: 1200 } },
+      { ink: { ...ink([stroke('tablet')]), height: 1700 } })).toBeNull();
+    expect(merge({ notes: { n1: { ink: ink([]) } } },
+      { notes: { n1: { ink: ink([stroke('pc')]), canvas: { version: 1, width: 1200, height: 1200, paper: 'plain', strokes: [], items: [] } } } },
+      { notes: { n1: { ink: ink([stroke('tablet')]), canvas: { version: 1, width: 1200, height: 1700, paper: 'plain', strokes: [], items: [] } } } })).toBeNull();
+  });
+
+  it('validates the combined first-stroke budget instead of accepting individually valid layers', () => {
+    const note = { id: 'n1', title: 'Shared note' };
+    const local = { ...note, ink: ink(Array.from({ length: 1001 }, (_, index) => stroke(`pc-${index}`))) };
+    const remote = { ...note, ink: ink(Array.from({ length: 1001 }, (_, index) => stroke(`tablet-${index}`))) };
+    expect(merge({ notes: { n1: note } }, { notes: { n1: local } }, { notes: { n1: remote } })).toBeNull();
+  });
+
   it('preserves a removed stroke while accepting a new independent stroke', () => {
     expect(merge(
       { notes: { n1: { ink: ink([stroke('s1')]) } } },
