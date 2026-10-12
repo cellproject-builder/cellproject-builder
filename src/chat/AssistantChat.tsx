@@ -7,7 +7,7 @@ import { useGraphStore } from '@/store';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { requestWorkspaceUI } from '@/workspace/uiRequests';
 import { Icon } from '@/workspace/ui';
-import { ChatBubbleIcon, EnterFullScreenIcon, ExitFullScreenIcon, HistoryIcon } from '@/components/ui/SoftIcons';
+import { ArrowLeftIcon, ArrowRightIcon, ChatBubbleIcon, EnterFullScreenIcon, ExitFullScreenIcon, HistoryIcon } from '@/components/ui/SoftIcons';
 import { ExplanationContent } from '@/components/Markdown';
 import { actionLabel, chatEn, chatPt } from './messages';
 import { chatCooldownUntil, retryChatPersistence, sendChatMessage, stopChat, useChatStore } from './store';
@@ -34,6 +34,8 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   const state = useChatStore();
   const expanded = useChatPresentation(s => s.expanded);
   const setExpanded = useChatPresentation(s => s.setExpanded);
+  const canvasPanel = useChatPresentation(s => s.canvasPanel);
+  const setCanvasPanel = useChatPresentation(s => s.setCanvasPanel);
   const fullTarget = useFullChatDockTarget();
   const dockTarget = useChatDockTarget();
   const canvasTarget = useCanvasChatDockTarget();
@@ -113,7 +115,10 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
     const shortcut = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing || event.altKey || !(event.ctrlKey || event.metaKey) || !event.shiftKey || event.code !== 'Space' && event.key !== ' ') return;
       if (document.querySelector('[aria-modal="true"]')) return;
-      event.preventDefault(); useChatStore.getState().setOpen(!useChatStore.getState().open);
+      event.preventDefault();
+      const chat = useChatStore.getState(), presentation = useChatPresentation.getState();
+      if (!chat.open && presentation.canvasLauncher) presentation.setCanvasPanel('right');
+      chat.setOpen(!chat.open);
     };
     window.addEventListener('keydown', shortcut);
     return () => window.removeEventListener('keydown', shortcut);
@@ -175,7 +180,7 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   const examples = noteContext ? (english ? ['Research references for this note', 'Create a diagram to explain this note', 'Revise the text of this note'] : ['Pesquise referências para esta nota', 'Crie um diagrama para explicar esta nota', 'Revise o texto desta nota']) : [tr.exampleProject, tr.exampleNote, tr.exampleReview];
   const actionsDisabled = state.running || !state.hydrated || state.loadFailed || !!state.archivedAt || !!state.deletedAt;
   const budgetHint = state.contextUsage && [english ? 'Estimated context usage. Automatic compaction at 60%; full messages remain in history.' : 'Uso estimado do contexto. Compactação automática aos 60%; as mensagens completas continuam no histórico.', state.contextUsage.contextWindowSource === 'fallback' ? (english ? `Conservative application budget: ${state.contextUsage.contextWindowTokens.toLocaleString('en')} tokens; actual model window is unknown.` : `Orçamento conservador da aplicação: ${state.contextUsage.contextWindowTokens.toLocaleString('pt-BR')} tokens; a janela real do modelo é desconhecida.`) : ''].filter(Boolean).join(' ');
-  const panel = state.open && <section ref={panelRef} id={`${titleId}-panel`} className={`dd-chat ${canvas ? 'is-canvas' : ''} ${!state.messages.length && !historyOpen ? 'is-empty' : ''} ${historyOpen ? 'has-history' : ''} ${docked ? 'is-docked' : ''} ${modal ? 'is-modal' : ''} ${expanded ? 'is-expanded' : ''}`} role={docked || canvas || expanded ? 'complementary' : 'dialog'} aria-modal={modal || undefined} aria-labelledby={titleId} onKeyDown={(e) => {
+  const panel = state.open && <section ref={panelRef} id={`${titleId}-panel`} className={`dd-chat ${canvas ? 'is-canvas' : ''} ${canvas && canvasPanel === 'right' ? 'is-canvas-side' : ''} ${!state.messages.length && !historyOpen ? 'is-empty' : ''} ${historyOpen ? 'has-history' : ''} ${docked ? 'is-docked' : ''} ${modal ? 'is-modal' : ''} ${expanded ? 'is-expanded' : ''}`} role={docked || canvas || expanded ? 'complementary' : 'dialog'} aria-modal={modal || undefined} aria-labelledby={titleId} onKeyDown={(e) => {
     if (e.defaultPrevented || e.nativeEvent.isComposing) return;
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
     if (modal && e.key === 'Tab') {
@@ -185,7 +190,17 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
     }
   }}>
-      <header className="dd-chat-header"><div className="dd-chat-symbol"><ChatIcon /></div><div><h2 id={titleId}>{tr.title}{expanded && <> <small>{english ? 'Expanded' : 'Expandido'}</small></>}</h2><p>{state.compacting ? (english ? 'Organizing context…' : 'Organizando contexto…') : state.running ? tr.working : ready ? tr.ready : tr.noKey}</p></div><button className="ws-icon-button" aria-label={english ? 'Conversation history' : 'Histórico de conversas'} title={tr.conversations} aria-expanded={historyOpen} onClick={() => setHistoryOpen(!historyOpen)}><HistoryIcon size={18}/></button><button className="ws-icon-button" disabled={state.running || !state.hydrated || state.loadFailed} aria-label={tr.newChat} title={tr.newChat} onClick={state.newConversation}><Icon name="plus" /></button><button className="ws-icon-button" aria-label={expanded ? (english ? 'Collapse chat' : 'Recolher chat') : (english ? 'Expand chat' : 'Expandir chat')} title={expanded ? (english ? 'Return to popup' : 'Voltar ao pop-up') : (english ? 'Expand chat' : 'Expandir chat')} onClick={() => setExpanded(!expanded)}>{expanded ? <ExitFullScreenIcon size={18}/> : <EnterFullScreenIcon size={18}/>}</button><button className="ws-icon-button" aria-label={tr.close} onClick={close}><Icon name="close" /></button></header>
+      <header className="dd-chat-header">
+        <div className="dd-chat-symbol"><ChatIcon /></div>
+        <div><h2 id={titleId}>{tr.title}{expanded && <> <small>{english ? 'Expanded' : 'Expandido'}</small></>}</h2><p>{state.compacting ? (english ? 'Organizing context…' : 'Organizando contexto…') : state.running ? tr.working : ready ? tr.ready : tr.noKey}</p></div>
+        <div className="dd-chat-header-actions" role="group" aria-label={english ? 'Conversation actions' : 'Ações da conversa'}>
+          <button className="ws-icon-button" aria-label={english ? 'Conversation history' : 'Histórico de conversas'} title={tr.conversations} aria-expanded={historyOpen} onClick={() => setHistoryOpen(!historyOpen)}><HistoryIcon size={15}/></button>
+          <button className="ws-icon-button" disabled={state.running || !state.hydrated || state.loadFailed} aria-label={tr.newChat} title={tr.newChat} onClick={state.newConversation}><Icon name="plus" size={16}/></button>
+          {canvas && <button className="ws-icon-button dd-chat-placement" aria-label={canvasPanel === 'right' ? (english ? 'Center chat' : 'Centralizar chat') : (english ? 'Move chat to the right' : 'Mover chat para a direita')} title={canvasPanel === 'right' ? (english ? 'Center chat' : 'Centralizar chat') : (english ? 'Move chat to the right' : 'Mover chat para a direita')} aria-pressed={canvasPanel === 'right'} onClick={() => setCanvasPanel(canvasPanel === 'right' ? 'center' : 'right')}>{canvasPanel === 'right' ? <ArrowLeftIcon size={15}/> : <ArrowRightIcon size={15}/>}</button>}
+          <button className="ws-icon-button" aria-label={expanded ? (english ? 'Collapse chat' : 'Recolher chat') : (english ? 'Expand chat' : 'Expandir chat')} title={expanded ? (english ? 'Return to popup' : 'Voltar ao pop-up') : (english ? 'Expand chat' : 'Expandir chat')} onClick={() => setExpanded(!expanded)}>{expanded ? <ExitFullScreenIcon size={15}/> : <EnterFullScreenIcon size={15}/>}</button>
+          <button className="ws-icon-button" aria-label={tr.close} title={tr.close} onClick={close}><Icon name="close" size={15}/></button>
+        </div>
+      </header>
       <div className="dd-chat-context"><span title={`${english && expanded ? 'Source screen' : expanded ? 'Tela de origem' : tr.context}: ${contextLabel}`}>{expanded ? (english ? 'In focus' : 'Em foco') : tr.context}: {contextLabel}</span>{state.contextUsage && <small className="dd-chat-budget" title={budgetHint || undefined}>~{Math.round(state.contextUsage.percent)}%{state.compaction ? ' ↻' : ''}</small>}<button onClick={() => requestWorkspaceUI({ settings: true })}>{ready ? model : tr.settings}</button></div>
       {(state.loadFailed || state.saveFailed) && <div className="dd-chat-storage-error" role="alert"><span>{state.loadFailed ? tr.loadError : tr.saveError}</span><button onClick={() => void retryChatPersistence()}>{tr.retry}</button></div>}
       <div className={`dd-chat-layout ${historyOpen ? 'has-history' : ''}`}>

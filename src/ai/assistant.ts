@@ -1,12 +1,13 @@
 import type { LanguageModel, ModelMessage } from 'ai';
 import type { AssistantActionEvent } from './workspaceTools';
-import { createWorkspaceAgent, type WorkspaceContextBudget } from './agents/workspaceAgent';
+import { createWorkspaceAgent, type WorkspaceContextBudget, type WorkspaceContextEvent } from './agents/workspaceAgent';
 import type { ChatTurnContext } from '@/chat/turnContext';
 import { currentModelIds } from './client';
 import { useConfigStore } from '@/config/store';
 import { ChatContextBudgetError } from '@/chat/contextBudget';
 import type { NoteEditBaseline } from './noteEditBaseline';
 import type { PlannerEditBaseline } from './plannerEditBaseline';
+import type { ChatCompactionCheckpoint, ChatSummarizer } from '@/chat/contextBudget';
 
 export interface AssistantRun {
   messages: ModelMessage[];
@@ -16,6 +17,9 @@ export interface AssistantRun {
   noteEditBaseline?: NoteEditBaseline | null;
   plannerEditBaseline?: PlannerEditBaseline | null;
   contextBudget?: WorkspaceContextBudget;
+  compaction?: ChatCompactionCheckpoint | null;
+  summarize?: ChatSummarizer;
+  onContext?: (event: WorkspaceContextEvent) => void;
   signal: AbortSignal;
   model?: LanguageModel;
   onText: (text: string) => void;
@@ -24,7 +28,7 @@ export interface AssistantRun {
 
 // UI adapter. The SDK agent owns the model/tool loop; chat keeps its existing
 // accumulated-text callbacks and persisted ModelMessage conversation format.
-export async function runAssistant(options: AssistantRun): Promise<{ text: string; messages: ModelMessage[]; usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number } }> {
+export async function runAssistant(options: AssistantRun): Promise<{ text: string; messages: ModelMessage[]; contextMessages?: ModelMessage[]; usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number } }> {
   options.signal.throwIfAborted();
   const controller = new AbortController();
   const stop = () => controller.abort(options.signal.reason);
@@ -39,7 +43,7 @@ export async function runAssistant(options: AssistantRun): Promise<{ text: strin
     }
   });
   try {
-    const { agent, assertActive } = createWorkspaceAgent({ ...options, signal: controller.signal });
+    const { agent, assertActive, contextMessages } = createWorkspaceAgent({ ...options, signal: controller.signal });
     const result = await agent.stream({ messages: options.messages, abortSignal: controller.signal });
     let text = '';
     // Consume fullStream: textStream alone filters errors and can return partial
@@ -55,7 +59,8 @@ export async function runAssistant(options: AssistantRun): Promise<{ text: strin
     const usage = await result.usage;
     const response = await result.response;
     assertActive();
-    return { text, messages: response.messages, usage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, totalTokens: usage.totalTokens } };
+    return { text, messages: response.messages, contextMessages: contextMessages(response.messages) ?? undefined,
+      usage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, totalTokens: usage.totalTokens } };
   } finally {
     unsubscribe();
     options.signal.removeEventListener('abort', stop);

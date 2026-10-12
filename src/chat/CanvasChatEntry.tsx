@@ -9,6 +9,7 @@ export const CanvasChatEntry = forwardRef<HTMLButtonElement, {
 }>(function CanvasChatEntry({ host, maximized, hidden, working, label, text, title, open, controls, onActivate, children }, ref) {
   const position = useChatPresentation(s => s.canvasLauncher);
   const setPosition = useChatPresentation(s => s.setCanvasLauncher);
+  const setPanel = useChatPresentation(s => s.setCanvasPanel);
   const drag = useRef<{ id: number; x: number; y: number; moved: boolean; button: HTMLButtonElement } | null>(null);
   const suppressClick = useRef(false);
   const [preview, setPreview] = useState<{ x: number; y: number; edge: boolean } | null>(null);
@@ -73,6 +74,7 @@ export const CanvasChatEntry = forwardRef<HTMLButtonElement, {
     onClick={event => {
       event.stopPropagation();
       if (suppressClick.current && event.detail !== 0) { event.preventDefault(); suppressClick.current = false; return; }
+      if (position) setPanel('right');
       onActivate();
     }}
   >{children}<span>{text}</span>{working && <i />}</button>;

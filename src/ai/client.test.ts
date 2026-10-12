@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { useConfigStore, PROVIDER_DEFAULTS } from '@/config/store';
-import { effortProviderOptions, callOpts } from './client';
+import { effortProviderOptions, callOpts, openrouterSettings } from './client';
 
 // O effort por chamada (esboços/expansão em 'low') vai em providerOptions —
 // só para modelos/provedores que aceitam o parâmetro.
@@ -22,6 +22,12 @@ describe('effortProviderOptions', () => {
   it('OpenRouter + gpt-6.x-sol → reasoning.effort no corpo', () => {
     activate('openrouter', 'openai/gpt-6.1-sol');
     expect(effortProviderOptions('low')).toEqual({ openrouter: { reasoning: { effort: 'low' } } });
+  });
+
+  it('defaults GPT-6.1 Sol to low and preserves a per-call effort override', () => {
+    expect(openrouterSettings('openai/gpt-6.1-sol')).toEqual({ reasoning: { effort: 'low' } });
+    expect(openrouterSettings('openai/gpt-6.1-sol', 'high')).toEqual({ reasoning: { effort: 'high' } });
+    expect(openrouterSettings('google/gemini-2.5-flash-lite')).toEqual({});
   });
 
   it('OpenRouter + modelo sem reasoning → nada', () => {

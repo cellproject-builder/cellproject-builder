@@ -18,7 +18,11 @@ interface FlowProps {
   edges: Edge[];
   children?: ReactNode;
   onNodeDragStart: (event?: React.MouseEvent, node?: Node) => void;
+  onNodeClick: (event: React.MouseEvent, node: Node) => void;
+  onNodeDoubleClick: (event: React.MouseEvent, node: Node) => void;
+  zoomOnDoubleClick: boolean;
   onNodeMouseEnter: (event: React.MouseEvent, node: Node) => void;
+  onNodeMouseLeave: () => void;
   onNodesChange: (changes: NodeChange[]) => void;
 }
 type BridgeProps = { selectedArtifactId: string | null; onSelectArtifact(id: string | null): void };
@@ -197,6 +201,209 @@ afterEach(() => {
 });
 
 describe('GraphCanvas automatic layout integration', () => {
+  it.each([false, true])('opens a compact reader on double click without zooming or moving saved nodes (expanded: %s)', maximized => {
+    useLocaleStore.setState({ locale: 'en' });
+    act(() => useGraphStore.setState(state => ({ project: { ...state.project!, nodes: { ...state.project!.nodes,
+      first: { ...state.project!.nodes.first, oQue: 'Inspect this part in full.', porQue: 'Understand its dependency.' },
+    } } })));
+    act(() => root.render(<GraphCanvas maximized={maximized} />));
+    advance();
+    const original = savedPositions();
+    flow.setViewport.mockClear();
+    const preventDefault = vi.fn(), stopPropagation = vi.fn();
+    const event = { preventDefault, stopPropagation, target: canvas() } as unknown as React.MouseEvent;
+    act(() => flow.props!.onNodeDoubleClick(event, flow.props!.nodes.find(node => node.id === 'first')!));
+    expect(flow.props!.zoomOnDoubleClick).toBe(false);
+    const dialog = document.body.querySelector<HTMLElement>('[role=dialog]')!;
+    expect(dialog.textContent).toContain('Inspect this part in full.');
+    expect(dialog.textContent).toContain('Understand its dependency.');
+    expect(dialog.classList.contains('is-compact-reading')).toBe(true);
+    expect(host.contains(dialog)).toBe(false);
+    expect(preventDefault).toHaveBeenCalled();
+    expect(stopPropagation).toHaveBeenCalled();
+    expect(useGraphStore.getState().selectedNodeId).toBe('first');
+    expect(savedPositions()).toEqual(original);
+    expect(flow.setViewport).not.toHaveBeenCalled();
+    act(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })));
+    expect(document.body.querySelector('[role=dialog]')).toBeNull();
+    expect(canvas().dataset.canvasMaximized).toBe(String(maximized));
+  });
+
+  it('keeps a single click for selection and ignores double clicks on other graph objects or node controls', () => {
+    const first = flow.props!.nodes.find(node => node.id === 'first')!;
+    const event = { preventDefault: vi.fn(), stopPropagation: vi.fn(), target: canvas() } as unknown as React.MouseEvent;
+    act(() => flow.props!.onNodeClick(event, first));
+    expect(useGraphStore.getState().selectedNodeId).toBe('first');
+    expect(document.body.querySelector('[role=dialog]')).toBeNull();
+    for (const node of [
+      { ...first, type: 'visual' },
+      { ...first, id: 'suggestion-first' },
+      { ...first, id: 'header-first', type: 'columnHeader' },
+    ]) act(() => flow.props!.onNodeDoubleClick(event, node));
+    const control = document.createElement('button');
+    act(() => flow.props!.onNodeDoubleClick({ ...event, target: control } as unknown as React.MouseEvent, first));
+    expect(document.body.querySelector('[role=dialog]')).toBeNull();
+  });
+
+  it('opens node details with Enter when the graph node itself has keyboard focus', () => {
+    const graphNode = document.createElement('div'); graphNode.className = 'react-flow__node'; graphNode.dataset.id = 'first'; graphNode.tabIndex = 0;
+    canvas().append(graphNode);
+    act(() => { graphNode.focus(); graphNode.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); });
+    expect(document.body.querySelector('[role=dialog]')?.textContent).toContain('first');
+    act(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })));
+    expect(document.activeElement).toBe(graphNode);
+  });
+
+  it.each(['double click', 'Enter'] as const)('preserves the mobile camera while reading a node with %s and after restoring focus', gesture => {
+    flow.mobile = true;
+    resize(480, 850);
+    choose('manual');
+    const original = savedPositions();
+    const graphNode = document.createElement('div');
+    graphNode.className = 'react-flow__node'; graphNode.dataset.id = 'first'; graphNode.tabIndex = 0;
+    canvas().append(graphNode);
+    act(() => graphNode.focus());
+    flow.setViewport.mockClear();
+    if (gesture === 'double click') {
+      const event = { preventDefault: vi.fn(), stopPropagation: vi.fn(), target: graphNode, currentTarget: graphNode } as unknown as React.MouseEvent;
+      act(() => flow.props!.onNodeDoubleClick(event, flow.props!.nodes.find(node => node.id === 'first')!));
+    } else {
+      act(() => graphNode.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })));
+    }
+    expect(document.body.querySelector('[role=dialog]')).not.toBeNull();
+    expect(useGraphStore.getState().selectedNodeId).toBe('first');
+    act(() => vi.advanceTimersByTime(1000));
+    expect(flow.setViewport).not.toHaveBeenCalled();
+    act(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })));
+    act(() => vi.advanceTimersByTime(1000));
+    expect(document.activeElement).toBe(graphNode);
+    expect(flow.setViewport).not.toHaveBeenCalled();
+    expect(savedPositions()).toEqual(original);
+  });
+
+  it('selects mobile taps immediately but lets a second tap open the reader before recentering', () => {
+    flow.mobile = true;
+    resize(480, 850);
+    choose('manual');
+    flow.setViewport.mockClear();
+    const first = flow.props!.nodes.find(node => node.id === 'first')!;
+    const event = { preventDefault: vi.fn(), stopPropagation: vi.fn(), target: canvas() } as unknown as React.MouseEvent;
+    act(() => flow.props!.onNodeClick(event, first));
+    expect(useGraphStore.getState().selectedNodeId).toBe('first');
+    act(() => vi.advanceTimersByTime(200));
+    expect(flow.setViewport).not.toHaveBeenCalled();
+    act(() => { flow.props!.onNodeClick(event, first); flow.props!.onNodeDoubleClick(event, first); });
+    act(() => vi.advanceTimersByTime(1000));
+    expect(document.body.querySelector('[role=dialog]')).not.toBeNull();
+    expect(flow.setViewport).not.toHaveBeenCalled();
+  });
+
+  it('still recenters a single mobile tap and keeps external selection responsive', () => {
+    flow.mobile = true;
+    resize(480, 850);
+    choose('manual');
+    flow.setViewport.mockClear();
+    act(() => flow.props!.onNodeClick({} as React.MouseEvent, flow.props!.nodes.find(node => node.id === 'first')!));
+    expect(useGraphStore.getState().selectedNodeId).toBe('first');
+    act(() => vi.advanceTimersByTime(500));
+    expect(flow.setViewport).toHaveBeenLastCalledWith(expect.any(Object), { duration: 300 });
+    flow.setViewport.mockClear();
+    act(() => useGraphStore.getState().selectNode('second'));
+    act(() => vi.advanceTimersByTime(40));
+    expect(flow.setViewport).toHaveBeenLastCalledWith(expect.any(Object), { duration: 300 });
+  });
+
+  it.each(['double click', 'Enter'] as const)('cancels a previous deferred camera request when the reader opens with %s', gesture => {
+    choose('manual');
+    flow.initialized = false;
+    act(() => useGraphStore.getState().requestCenter('second'));
+    flow.setViewport.mockClear();
+    const graphNode = document.createElement('div'); graphNode.className = 'react-flow__node'; graphNode.dataset.id = 'first'; graphNode.tabIndex = 0;
+    canvas().append(graphNode);
+    if (gesture === 'double click') {
+      const event = { preventDefault: vi.fn(), stopPropagation: vi.fn(), target: graphNode, currentTarget: graphNode } as unknown as React.MouseEvent;
+      act(() => flow.props!.onNodeDoubleClick(event, flow.props!.nodes.find(node => node.id === 'first')!));
+    } else {
+      act(() => { graphNode.focus(); graphNode.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); });
+    }
+    measureDisplayedNodes();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(document.body.querySelector('[role=dialog]')).not.toBeNull();
+    expect(flow.setViewport).not.toHaveBeenCalled();
+    act(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })));
+    advance();
+    expect(flow.setViewport).not.toHaveBeenCalled();
+  });
+
+  it('consumes late automatic layout measurements while reading without reframing on dismissal', () => {
+    flow.mobile = true;
+    resize(480, 850);
+    flow.initialized = false;
+    act(() => useGraphStore.getState().setLens('risk'));
+    const original = savedPositions();
+    flow.setViewport.mockClear();
+    const event = { preventDefault: vi.fn(), stopPropagation: vi.fn(), target: canvas() } as unknown as React.MouseEvent;
+    act(() => flow.props!.onNodeDoubleClick(event, flow.props!.nodes.find(node => node.id === 'first')!));
+    measureDisplayedNodes();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(document.body.querySelector('[role=dialog]')).not.toBeNull();
+    expect(flow.setViewport).not.toHaveBeenCalled();
+    act(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })));
+    act(() => vi.advanceTimersByTime(1000));
+    expect(flow.setViewport).not.toHaveBeenCalled();
+    expect(savedPositions()).toEqual(original);
+  });
+
+  it.each(['structure', 'flow', 'risk', 'state', 'connections'] as const)('keeps dotted dependencies visible in %s, highlighting them only on focus', lens => {
+    act(() => useGraphStore.setState(state => ({ lens, project: { ...state.project!, edges: { ...state.project!.edges,
+      reference: { id: 'reference', source: 'first', target: 'second', kind: 'optional' },
+    } } })));
+    const reference = () => flow.props!.edges.find(edge => edge.id === 'reference');
+    expect(reference()).toBeDefined();
+    const idleOpacity = Number(reference()!.style?.opacity);
+    expect(idleOpacity).toBeGreaterThan(0);
+    expect(idleOpacity).toBeLessThan(1);
+    expect(reference()!.style?.strokeDasharray).toBe('2 3');
+    expect(reference()!.animated).toBe(false);
+    act(() => flow.props!.onNodeMouseEnter({} as React.MouseEvent, flow.props!.nodes.find(node => node.id === 'first')!));
+    expect(reference()!.style?.opacity).toBe(1);
+    act(() => flow.props!.onNodeMouseLeave());
+    expect(reference()!.style?.opacity).toBe(idleOpacity);
+    act(() => useGraphStore.getState().selectNode('first'));
+    expect(reference()!.style?.opacity).toBe(1);
+    act(() => useGraphStore.getState().selectNode('root'));
+    expect(Number(reference()!.style?.opacity)).toBeGreaterThan(0);
+  });
+
+  it.each(['structure', 'flow', 'risk', 'state', 'connections'] as const)('does not render missing dependency endpoints in %s', lens => {
+    act(() => useGraphStore.setState(state => ({ lens, project: { ...state.project!, edges: { ...state.project!.edges,
+      absentSource: { id: 'absent-source', source: 'missing', target: 'first', kind: 'optional' },
+      absentTarget: { id: 'absent-target', source: 'first', target: 'missing', kind: 'optional' },
+    } } })));
+    expect(flow.props!.edges.some(edge => edge.id === 'absent-source' || edge.id === 'absent-target')).toBe(false);
+  });
+
+  it.each(['flow', 'risk', 'state'] as const)('keeps dependencies to a hidden category excluded in %s', lens => {
+    act(() => useGraphStore.setState(state => ({ lens, project: { ...state.project!, nodes: { ...state.project!.nodes,
+      first: { ...state.project!.nodes.first, kind: 'categoria' },
+      child: { ...state.project!.nodes.second, id: 'child', parentId: 'first', name: 'child' },
+    }, edges: { ...state.project!.edges,
+      hiddenCategory: { id: 'hidden-category', source: 'first', target: 'second', kind: 'optional' },
+    } } })));
+    expect(flow.props!.nodes.some(node => node.id === 'first')).toBe(false);
+    expect(flow.props!.edges.some(edge => edge.id === 'hidden-category')).toBe(false);
+  });
+
+  it('keeps risk dependencies to resolved leaves excluded', () => {
+    act(() => useGraphStore.setState(state => ({ lens: 'risk', project: { ...state.project!, nodes: { ...state.project!.nodes,
+      first: { ...state.project!.nodes.first, confirmado: true, state: 'done' },
+    }, edges: { ...state.project!.edges,
+      resolved: { id: 'resolved', source: 'first', target: 'second', kind: 'optional' },
+    } } })));
+    expect(flow.props!.nodes.some(node => node.id === 'first')).toBe(false);
+    expect(flow.props!.edges.some(edge => edge.id === 'resolved')).toBe(false);
+  });
+
   it.each(['horizontal', 'vertical'] as const)('keeps the chosen %s orientation when organizing the tree', mode => {
     resize(mode === 'horizontal' ? 480 : 1100, mode === 'horizontal' ? 850 : 650);
     choose(mode);

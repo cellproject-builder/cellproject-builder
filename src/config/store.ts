@@ -17,8 +17,8 @@ export interface ProviderConfig {
   apiKey: string;
   mainModel: string;
   kbModel: string;
-  // Modelo da pesquisa web (digest = extração, não raciocínio). Ausente →
-  // usa o kbModel, mais barato e rápido. Ver researchModelId().
+  // Modelo específico da pesquisa web. Ausente → usa o mesmo modelo dos PDFs.
+  // Ver researchModelId().
   researchModel?: string;
 }
 
@@ -55,7 +55,7 @@ export interface KnownModel {
 
 export const KNOWN_MODELS: Record<Provider, KnownModel[]> = {
   openrouter: [
-    { id: 'openai/gpt-6.1-sol', label: 'GPT-6.1 Sol', effort: 'medium', role: 'main' },
+    { id: 'openai/gpt-6.1-sol', label: 'GPT-6.1 Sol', effort: 'low', role: 'both' },
     { id: 'x-ai/grok-4.3', label: 'Grok 4.3', effort: 'high', role: 'main' },
     { id: 'google/gemini-3.5-flash', label: 'Gemini 3.5 Flash', role: 'both' },
     { id: 'google/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', role: 'kb' },
@@ -77,9 +77,9 @@ export function researchModelId(cfg: ProviderConfig): string {
 export const PROVIDER_DEFAULTS: Record<Provider, { mainModel: string; kbModel: string }> = {
   openai: { mainModel: 'gpt-4o', kbModel: 'gpt-4o-mini' },
   anthropic: { mainModel: 'claude-sonnet-4-5', kbModel: 'claude-haiku-4-5' },
-  // GPT-6.1 Sol com reasoning effort "medium" — o effort é parâmetro de
+  // GPT-6.1 Sol com reasoning effort "low" — o effort é parâmetro de
   // request (ver ai/client.ts), não faz parte do id do modelo.
-  openrouter: { mainModel: 'openai/gpt-6.1-sol', kbModel: 'google/gemini-2.5-flash-lite' },
+  openrouter: { mainModel: 'openai/gpt-6.1-sol', kbModel: 'openai/gpt-6.1-sol' },
 };
 
 // kbModel default antigo que saiu do ar no OpenRouter — migrado no persist.
@@ -88,6 +88,7 @@ const DEAD_OPENROUTER_KB_MODEL = 'google/gemini-2.0-flash-001';
 const OLD_OPENROUTER_MAIN_MODEL = 'google/gemini-3.5-flash';
 // defaults anteriores que migram pro gpt-6.1-sol no v4.
 const PRE_V4_OPENROUTER_MAIN_MODELS = ['x-ai/grok-4.3', OLD_OPENROUTER_MAIN_MODEL];
+const PRE_V5_OPENROUTER_KB_MODELS = [DEAD_OPENROUTER_KB_MODEL, 'google/gemini-2.5-flash-lite'];
 
 interface ConfigState {
   activeProvider: Provider | null;
@@ -144,7 +145,7 @@ export const useConfigStore = create<ConfigState>()(
     }),
     {
       name: 'cellproject-config',
-      version: 4, // v4: mainModel do OpenRouter → gpt-6.1-sol (medium)
+      version: 5, // v5: GPT-6.1 Sol nos padrões principal e PDFs/pesquisa (low)
       storage: createJSONStorage(() => idbStorage),
       migrate: (persisted, version) => {
         const state = persisted as Partial<ConfigState>;
@@ -164,6 +165,15 @@ export const useConfigStore = create<ConfigState>()(
           const or = state.providers?.openrouter;
           if (or && PRE_V4_OPENROUTER_MAIN_MODELS.includes(or.mainModel)) {
             or.mainModel = PROVIDER_DEFAULTS.openrouter.mainModel;
+          }
+        }
+        if (version < 5) {
+          const or = state.providers?.openrouter;
+          if (or) {
+            if (!or.mainModel) or.mainModel = PROVIDER_DEFAULTS.openrouter.mainModel;
+            if (!or.kbModel || PRE_V5_OPENROUTER_KB_MODELS.includes(or.kbModel)) {
+              or.kbModel = PROVIDER_DEFAULTS.openrouter.kbModel;
+            }
           }
         }
         return state as ConfigState;

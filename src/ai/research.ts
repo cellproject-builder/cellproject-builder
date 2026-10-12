@@ -44,9 +44,8 @@ interface ResearchCall {
   tools?: ToolSet;
 }
 
-// Qual modelo pesquisa: 'research' = researchModel/kbModel (digest é extração,
-// não raciocínio — mais barato e rápido); 'main' = fallback quando o modelo
-// barato não suporta busca, com reasoning effort "low".
+// 'research' usa researchModel/kbModel; 'main' é o fallback quando o modelo
+// escolhido não suporta busca. GPT-6.x usa o esforço padrão low em ambos.
 type ResearchTier = 'research' | 'main';
 
 // Monta modelo+tools com web search para o provider ativo. Lança se não há
@@ -92,7 +91,7 @@ function buildResearchCall(tier: ResearchTier): ResearchCall {
   return {
     model: client.chat(modelId, {
       plugins: [{ id: 'web', max_results: 5, engine: 'exa' }],
-      ...(tier === 'main' ? openrouterSettings(modelId, 'low') : {}),
+      ...openrouterSettings(modelId, tier === 'main' ? 'low' : undefined),
     }),
     modelId,
   };

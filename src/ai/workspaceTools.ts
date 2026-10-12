@@ -18,6 +18,8 @@ import type { BoardDocument } from '@/boards/model';
 import { captureChatTurnContext, type ChatTurnContext } from '@/chat/turnContext';
 import { captureNoteEditBaseline, noteTextSnapshot, type NoteEditBaseline } from './noteEditBaseline';
 import { capturePlannerEditBaseline, type PlannerEditBaseline } from './plannerEditBaseline';
+import { projectWorkspaceRecord } from './workspaceContext';
+import { createWorkspaceReadCoverage } from './workspaceReadCoverage';
 
 const id = z.string().min(1).max(100);
 const text = z.string().max(100_000);
@@ -54,13 +56,16 @@ export const workspaceActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('delete_comment'), id }).strict(),
 ]);
 
-export const workspaceReadSchema = z.object({ collection: z.enum(['projects', 'tasks', 'sprints', 'notes', 'folders', 'comments', 'boards']), id: id.optional(), projectId: id.optional(), query: z.string().optional(), offset: z.number().int().min(0).optional(), limit: z.number().int().min(1).max(100).optional() }).strict();
+export const workspaceReadSchema = z.object({ collection: z.enum(['projects', 'tasks', 'sprints', 'notes', 'folders', 'comments', 'boards']), id: id.optional(), projectId: id.optional(), query: z.string().optional(), offset: z.number().int().min(0).optional(), limit: z.number().int().min(1).max(100).optional(),
+  textField: z.enum(['objective', 'description', 'goal', 'body', 'blocks']).optional(), textOffset: z.number().int().min(0).optional() }).strict();
 
 export function readWorkspace(raw: unknown) {
   const input = workspaceReadSchema.parse(raw), state = useWorkspaceStore.getState();
   const records = Object.values(state[input.collection]) as unknown as Record<string, unknown>[];
   const matching = records.filter((r) => (!input.id || r.id === input.id) && (!input.projectId || (input.collection === 'projects' ? r.id : r.projectId) === input.projectId) && (!input.query || JSON.stringify(input.collection === 'notes' ? { title: r.title, blocks: r.blocks, canvasSummary: summarizeNoteCanvas(r.canvas, true) } : input.collection === 'boards' ? { title: r.title } : r).toLocaleLowerCase().includes(input.query.toLocaleLowerCase())));
-  const offset = input.offset ?? 0, limit = input.limit ?? 30;
+  const offset = input.offset ?? 0, limit = Math.min(input.limit ?? 10, 20);
+  if (input.textField && !input.id) throw new Error('Choose a record id before reading a textField.');
+  const budget = { remaining: input.id ? 6000 : 8000 };
   const items = matching.slice(offset, offset + limit).map((r) => {
     if (input.collection === 'boards') return { id: r.id, title: r.title, archived: r.archived, createdAt: r.createdAt, updatedAt: r.updatedAt, summary: summarizeBoard(r.document as BoardDocument, !!input.id) };
     const { planner: _planner, attachments: _attachments, canvas: _canvas, ink: _ink, ...rest } = r;
@@ -72,7 +77,14 @@ export function readWorkspace(raw: unknown) {
     return rest;
   });
   const context = captureChatTurnContext();
-  return { items, total: matching.length, offset, nextOffset: offset + items.length < matching.length ? offset + items.length : null, currentProjectId: context.projectId, visibleProjectId: context.visibleProjectId, surface: context.surface };
+  const source = matching[0], value = input.textField && source?.[input.textField];
+  const fullText = input.textField ? typeof value === 'string' ? value : value === undefined ? '' : JSON.stringify(value) : undefined;
+  const textOffset = input.textOffset ?? 0, content = fullText?.slice(textOffset, textOffset + 4000);
+  const publicItems: Record<string, unknown>[] = input.textField ? items.map(item => ({ id: item.id, title: 'title' in item ? item.title : undefined, name: 'name' in item ? item.name : undefined })) : items.map(item => projectWorkspaceRecord(item, budget));
+  return { items: publicItems,
+    total: matching.length, offset, effectiveLimit: limit, nextOffset: offset + items.length < matching.length ? offset + items.length : null,
+    ...(fullText !== undefined ? { text: { field: input.textField, content, offset: textOffset, totalCharacters: fullText.length, nextOffset: textOffset + content!.length < fullText.length ? textOffset + content!.length : null } } : {}),
+    currentProjectId: context.projectId, visibleProjectId: context.visibleProjectId, surface: context.surface };
 }
 
 function notePatch(input: z.infer<typeof note>) {
@@ -135,6 +147,7 @@ export function createAssistantTools(signal: AbortSignal, onAction: (event: Assi
   const focusedNoteId = turnContext.surface === 'notes' ? turnContext.noteId : null;
   let noteEditBaseline = control?.noteEditBaseline !== undefined ? control.noteEditBaseline : captureNoteEditBaseline(turnContext);
   const plannerEditBaseline = control?.plannerEditBaseline !== undefined ? control.plannerEditBaseline : capturePlannerEditBaseline(turnContext, contextProjectId);
+  const readCoverage = createWorkspaceReadCoverage();
   const executeContextAction = async (raw: unknown) => {
     const input = workspaceActionSchema.parse(raw);
     const focusedWrite = focusedNoteId && (input.action === 'update_note' || input.action === 'append_note_block') && input.id === focusedNoteId;
@@ -149,11 +162,14 @@ export function createAssistantTools(signal: AbortSignal, onAction: (event: Assi
       }
       advanceNoteBaseline = noteTextSnapshot(current) === noteEditBaseline.textSnapshot;
     }
+    readCoverage.assertReplacement(input, userText);
     // These note mutations happen synchronously before executeWorkspaceAction awaits saving.
     // Capture that own write now; a local edit during persistence must remain a conflict.
     const action = executeWorkspaceAction(input, signal);
     const appliedBaseline = focusedWrite ? captureNoteEditBaseline(turnContext) : null;
+    const recordOwnReplacement = readCoverage.captureOwnReplacement(input);
     const result = await action;
+    recordOwnReplacement();
     // A safe append must not absorb an external edit and unlock a stale replacement later.
     if (focusedWrite && advanceNoteBaseline) noteEditBaseline = appliedBaseline;
     return result;
@@ -175,7 +191,7 @@ export function createAssistantTools(signal: AbortSignal, onAction: (event: Assi
       const saveFailed = !!result && typeof result === 'object' && 'saved' in result && result.saved === false;
       const unchanged = !!result && typeof result === 'object' && 'changed' in result && result.changed === false;
       const requiresApproval = !!result && typeof result === 'object' && 'requiresApproval' in result && result.requiresApproval === true;
-      onAction({ ...event, status: saveFailed || unchanged ? 'error' : requiresApproval ? 'awaiting_approval' : 'done', ...(name !== 'workspace_read' && event.action !== 'read_plan' ? { result } : {}), ...(saveFailed ? { detail: 'Not saved' } : unchanged ? { detail: 'No change applied' } : {}) });
+      onAction({ ...event, status: saveFailed || unchanged ? 'error' : requiresApproval ? 'awaiting_approval' : 'done', ...(name !== 'workspace_read' && name !== 'planner_read' && event.action !== 'read_plan' ? { result } : {}), ...(saveFailed ? { detail: 'Not saved' } : unchanged ? { detail: 'No change applied' } : {}) });
       return { ok: !saveFailed && !unchanged, result };
     } catch (error) {
       if (readRateLimit(error)) { halted = error; control?.onRateLimit(error); }
@@ -189,8 +205,9 @@ export function createAssistantTools(signal: AbortSignal, onAction: (event: Assi
     return next;
   };
   return {
-    workspace_read: tool({ description: 'Read actual project/task/issue/sprint/note/folder/comment/board records. Paginated; use IDs from results, never guess them. Projects exclude planner snapshots. A note id returns its full blocks and a bounded text summary of visual items; image pixels, drawing points and diagram internals are not included or analyzed. Boards are independent of projects; query matches their titles and an id returns a bounded textual summary with omittedItems, never full geometry, pixels or ink. currentProjectId is the frozen explicit chat context; visibleProjectId is the project on its origin screen.', inputSchema: workspaceReadSchema, execute: execute('workspace_read', input => {
+    workspace_read: tool({ description: 'Read public project/task/sprint/note/folder/comment/board summaries with actual IDs. Pages default10,max20 records; follow nextOffset. Text/arrays are bounded and truncatedFields signals incomplete content. Read an id + textField/textOffset in 4000-character chunks before replacing a partial field (blocks is serialized note text blocks). No planner snapshots, drawing points, image pixels or geometry. Board id returns bounded textual summary; queries match its title. Frozen currentProjectId is the action context, visibleProjectId the origin screen.', inputSchema: workspaceReadSchema, execute: execute('workspace_read', input => {
       const result = readWorkspace(input);
+      readCoverage.observe(workspaceReadSchema.parse(input), result);
       return { ...result, visibleProjectId: turnContext.visibleProjectId, currentProjectId: contextProjectId, surface: turnContext.surface, noteId: turnContext.noteId, boardId: turnContext.boardId };
     }) }),
     workspace_action: tool({ description: 'Perform an application action through its validated store. create_note/update_note text replaces the body; append_note_block appends. Updating the focused note from Notes rejects changed text or identity since submission; report the conflict and preserve the human edits. Append preserves current blocks. Comments are attached to tasks/issues. Navigation can open a noteId, taskId, or boardId with surface=boards; boards cannot be combined with projectId/noteId/taskId. Board objects cannot be edited by these tools. Do only actions requested by the user.', inputSchema: workspaceActionSchema, execute: execute('workspace_action', executeContextAction) }),

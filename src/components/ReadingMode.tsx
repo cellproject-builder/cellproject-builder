@@ -25,6 +25,8 @@ interface ReadingModeProps {
   node: ConceptNodeData;
   breadcrumb: string[];
   onClose: () => void;
+  // Keep the canvas visible around an inspection opened directly from a node.
+  compact?: boolean;
   // Gera a explicação longa quando a célula ainda não tem uma.
   onGenerate?: () => void;
   generating?: boolean;
@@ -51,6 +53,7 @@ export function ReadingMode({
   node,
   breadcrumb,
   onClose,
+  compact = false,
   onGenerate,
   generating,
   streamingText,
@@ -157,7 +160,9 @@ export function ReadingMode({
     // pro drawer invisível atrás.
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-[60] bg-bg-secondary flex flex-col pointer-events-auto animate-scrim-in"
+      className={compact
+        ? 'is-compact-reading relative w-full max-w-[680px] max-h-[min(720px,calc(100dvh-24px))] min-h-0 overflow-hidden rounded-card border border-border-base bg-bg-secondary shadow-mac-lg flex flex-col pointer-events-auto animate-scrim-in'
+        : 'fixed inset-0 z-[60] bg-bg-secondary flex flex-col pointer-events-auto animate-scrim-in'}
       role="dialog"
       aria-modal="true"
       aria-label={`${tr.reading.kicker}: ${node.name}`}
@@ -190,7 +195,7 @@ export function ReadingMode({
       </header>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain scroll-stable">
-        <article className="max-w-[720px] mx-auto px-5 sm:px-10 pt-8 sm:pt-14 pb-24">
+        <article className={compact ? 'max-w-[720px] mx-auto px-5 sm:px-8 py-6' : 'max-w-[720px] mx-auto px-5 sm:px-10 pt-8 sm:pt-14 pb-24'}>
           <div className="reading mx-auto">
             <div className="label mb-2">
               {tr.reading.kicker} · {tr.conceptNode[node.kind]}
@@ -203,9 +208,10 @@ export function ReadingMode({
               <div className="text-footnote text-text-muted mt-2 truncate">{trail.join(' › ')}</div>
             )}
 
-            <section className="mt-8 space-y-6">
+            <section className={compact ? 'mt-5 space-y-4' : 'mt-8 space-y-6'}>
               <ReadingField label={tr.detail.whatIs} value={node.oQue} />
               <ReadingField label={tr.detail.whyNeeded} value={node.porQue} />
+              {compact && <ReadingField label={tr.detail.notes} value={node.notes} />}
               {node.kind !== 'root' && node.kind !== 'categoria' && (
                 <div>
                   <h2 className="label mb-1.5">{tr.reading.howToConfirm}</h2>
@@ -237,7 +243,7 @@ export function ReadingMode({
               )}
             </section>
 
-            <hr className="divider my-10" />
+            <hr className={`divider ${compact ? 'my-6' : 'my-10'}`} />
 
             <section>
               <h2 className="text-title3 font-semibold text-text-primary mb-4 flex items-center gap-2">
@@ -373,7 +379,7 @@ export function ReadingMode({
     </div>
   );
 
-  return createPortal(overlay, document.body);
+  return createPortal(compact ? <div className="fixed inset-0 z-[60] grid place-items-center bg-black/30 p-3 pointer-events-auto" onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>{overlay}</div> : overlay, document.body);
 }
 
 function ReadingField({ label, value }: { label: string; value: string }) {

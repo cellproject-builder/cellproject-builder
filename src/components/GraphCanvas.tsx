@@ -32,6 +32,7 @@ import { useReviewingParents } from '@/hooks/useReviewingParents';
 import { useT, useLocaleStore } from '@/i18n';
 import { ExpandedChrome } from '@/components/ui/ExpandedChrome';
 import { PlannerCanvasControls } from './PlannerCanvasControls';
+import { NodeDetailReader, type NodeDetailRequest } from './NodeDetailReader';
 import type { Messages } from '@/i18n';
 import { ConceptNode, SIDE_HANDLE } from './ConceptNode';
 import { discardSuggestionsWithUndo, acceptSuggestionsWithUndo } from './suggestionActions';
@@ -106,6 +107,7 @@ const DECOMPOSITION_EDGE_STYLE = {
 // em foco (hover/seleção), só as dele em cor cheia e o resto quase some.
 const EDGE_IDLE_OPACITY = 0.6;
 const EDGE_DIMMED_OPACITY = 0.3;
+const DEPENDENCY_IDLE_OPACITY = 0.3;
 
 // Zoom mínimo do enquadramento automático: abaixo disso o texto dos cards
 // fica ilegível. "Ver o grafo inteiro" (⤢) usa o encaixe real, com piso de
@@ -124,6 +126,9 @@ const CHROME_TOP = 44;
 // controles de zoom ocupam o canto de baixo à esquerda.
 const CHROME_TOP_MOBILE = 64;
 const MOBILE_CONTROLS_W = 60;
+// Leave the camera still through the second tap that opens a node reader.
+// Selection feedback stays immediate; only canvas taps on mobile wait.
+const MOBILE_TAP_CAMERA_DELAY = 400;
 const STAGING_BANNER_H = 56;
 // Minimapa só quando o grafo é grande o bastante para precisar dele.
 const MINIMAP_MIN_NODES = 40;
@@ -435,6 +440,8 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   const project = useGraphStore((s) => s.project);
   const lens = useGraphStore((s) => s.lens);
   const selectedId = useGraphStore((s) => s.selectedNodeId);
+  const [detailRequest, setDetailRequest] = useState<NodeDetailRequest | null>(null);
+  const readerOpen = !!detailRequest && detailRequest.planId === project?.id && !!project.nodes[detailRequest.nodeId];
   const selectionVersion = useGraphStore((s) => s.selectionVersion);
   // Plan context and the canvas selection are different: selecting a photo
   // retains its plan context without leaving that concept selected for drag.
@@ -691,7 +698,14 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   // cancelar um enquadramento já pedido. Só a desmontagem limpa.
   const camTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingCameraFrame = useRef<{ lens: Lens; action: () => void; source?: 'tidy' } | null>(null);
+  const pendingCameraFrame = useRef<{ lens: Lens; action: () => void; source?: 'tidy'; notBefore?: number } | null>(null);
+  const cancelCameraRequests = useCallback(() => {
+    pendingCameraFrame.current = null;
+    if (camTimer.current) clearTimeout(camTimer.current);
+    if (stageTimer.current) clearTimeout(stageTimer.current);
+    camTimer.current = null;
+    stageTimer.current = null;
+  }, []);
   const schedule = useCallback(
     (slot: { current: ReturnType<typeof setTimeout> | null }, fn: () => void, ms: number) => {
       if (slot.current) clearTimeout(slot.current);
@@ -753,6 +767,12 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
     [canvasSize.width, canvasSize.height, orientation, layoutMode, lens, topology, dimensions]);
   const lastReframeInputs = useRef<typeof reframeInputs | null>(null);
   useEffect(() => {
+    if (readerOpen) {
+      // Late measurements belong to the cancelled frame, not a new request
+      // to move the canvas when the reader is dismissed.
+      lastReframeInputs.current = reframeInputs;
+      return;
+    }
     if (layoutMode === 'manual') {
       if (camTimer.current) clearTimeout(camTimer.current);
       camTimer.current = null;
@@ -767,7 +787,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       if (useGraphStore.getState().pendingSuggestions) frameStaging();
       else frameOverview(200, lens === 'structure', false);
     }, 180);
-  }, [canvasSize.width, canvasSize.height, layoutMode, reframeInputs, nodesInitialized, frameOverview, frameStaging, schedule]);
+  }, [readerOpen, canvasSize.width, canvasSize.height, layoutMode, reframeInputs, nodesInitialized, frameOverview, frameStaging, schedule]);
 
   // Um efeito só para os pedidos de câmera — breadcrumb (focusNode) chama
   // selectNode junto, e o enquadramento da subárvore tem precedência.
@@ -782,6 +802,16 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
     const centerVersion = centerRequest?.version ?? 0;
     prevCam.current = { lens, focusVersion, centerVersion, selectionVersion };
     let action: (() => void) | null = null;
+    let notBefore: number | undefined;
+
+    if (readerOpen) {
+      // External-store selection may render before the local reader state.
+      // Cancel any camera request queued during that intermediate render too.
+      cancelCameraRequests();
+      clickedInCanvasRef.current = false;
+      selectedByDragRef.current = false;
+      return;
+    }
 
     if (lens !== p.lens) {
       // The new lens first replaces and measures its nodes. A fixed delay can
@@ -809,7 +839,10 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       if (isOnCanvas(id)) action = () => centerOn(id);
     } else if (selectionVersion !== p.selectionVersion && selectedId) {
       const fromCanvas = clickedInCanvasRef.current;
-      if (!selectedByDragRef.current && (!fromCanvas || isMobile) && isOnCanvas(selectedId)) action = () => centerOn(selectedId);
+      if (!selectedByDragRef.current && (!fromCanvas || isMobile) && isOnCanvas(selectedId)) {
+        action = () => centerOn(selectedId);
+        if (fromCanvas && isMobile) notBefore = Date.now() + MOBILE_TAP_CAMERA_DELAY;
+      }
     }
     clickedInCanvasRef.current = false;
     selectedByDragRef.current = false;
@@ -818,7 +851,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       // wait for usable bounds instead of being lost during measurement.
       if (camTimer.current) clearTimeout(camTimer.current);
       camTimer.current = null;
-      pendingCameraFrame.current = { lens, action };
+      pendingCameraFrame.current = { lens, action, notBefore };
     }
   }, [
     lens,
@@ -835,6 +868,8 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
     isOnCanvas,
     schedule,
     layoutMode,
+    readerOpen,
+    cancelCameraRequests,
   ]);
 
   // Sugestões novas (decompor): enquadra pai + sugestões. Fora da Estrutura
@@ -844,7 +879,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   useEffect(() => {
     const prev = prevStagingKey.current;
     prevStagingKey.current = stagingKey;
-    if (!stagingKey || stagingKey === prev) return;
+    if (readerOpen || !stagingKey || stagingKey === prev) return;
     if (useGraphStore.getState().lens !== 'structure') {
       setLens('structure');
       // A troca de lente reenquadra tudo; o enquadramento das sugestões
@@ -853,7 +888,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       return;
     }
     schedule(stageTimer, frameStaging, 80);
-  }, [stagingKey, setLens, frameStaging, schedule]);
+  }, [readerOpen, stagingKey, setLens, frameStaging, schedule]);
 
   const zoomButtons = [
     { label: tr.graph.zoomIn, glyph: '+', onClick: () => void zoomIn({ duration: 200 }) },
@@ -1068,7 +1103,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
 
   useEffect(() => {
     const request = pendingCameraFrame.current;
-    if (!request || request.lens !== lens || !nodesInitialized) return;
+    if (readerOpen || !request || request.lens !== lens || !nodesInitialized) return;
     // useNodesInitialized may still describe the previous render. Wait until
     // our controlled node list has adopted this lens as well as being measured.
     const displayed = new Map(nodes.map(node => [node.id, node]));
@@ -1077,8 +1112,8 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       if (pendingCameraFrame.current !== request || useGraphStore.getState().lens !== lens) return;
       pendingCameraFrame.current = null;
       request.action();
-    }, 30);
-  }, [lens, nodes, computedNodes, adoptedNodes, nodesInitialized, focusVersion, selectionVersion, centerRequest, canvasSize.width, canvasSize.height, frameOverview, schedule]);
+    }, Math.max(30, (request.notBefore ?? 0) - Date.now()));
+  }, [readerOpen, lens, nodes, computedNodes, adoptedNodes, nodesInitialized, focusVersion, selectionVersion, centerRequest, canvasSize.width, canvasSize.height, frameOverview, schedule]);
 
   // -------------------------------------------------------------------------
   // Arestas
@@ -1086,7 +1121,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
 
   const rfEdges: Edge[] = useMemo(() => {
     if (!project || !layout) return [];
-    const shown = (id: string) => layout.visible === null || layout.visible.has(id);
+    const shown = (id: string) => !!project.nodes[id] && (layout.visible === null || layout.visible.has(id));
     const focusIds = new Set([selectedId, hoveredId].filter(Boolean) as string[]);
     const dimmable = lens === 'connections' || lens === 'flow';
     const pos = (id: string) => layout.positions[id] ?? project.nodes[id]?.position;
@@ -1139,22 +1174,15 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       if (!shown(e.source) || !shown(e.target)) continue;
       const hierarchy = isHierarchyEdge(project, e);
       const touchesFocus = focusIds.has(e.source) || focusIds.has(e.target);
-      if (lens === 'structure') {
-        // Estrutura: o esqueleto de decomposição sempre; dependências só no
-        // hover ou com o nó selecionado — senão viram um novelo.
-        if (!hierarchy && !touchesFocus) continue;
-      } else if (lens === 'flow') {
-        if (hierarchy) continue;
-      } else if (lens === 'state' || lens === 'risk') {
-        if (hierarchy || !touchesFocus) continue;
-      }
+      if ((lens === 'flow' || lens === 'state' || lens === 'risk') && hierarchy) continue;
       const baseStyle = hierarchy ? DECOMPOSITION_EDGE_STYLE : edgeStyleByKind[e.kind];
       base.push({
         id: e.id,
         source: e.source,
         target: e.target,
         ...routeOf(e.source, e.target, hierarchy),
-        style: dimmable ? { ...baseStyle, opacity: dimOpacity(touchesFocus) } : baseStyle,
+        style: dimmable ? { ...baseStyle, opacity: dimOpacity(touchesFocus) }
+          : hierarchy ? baseStyle : { ...baseStyle, opacity: touchesFocus ? 1 : DEPENDENCY_IDLE_OPACITY },
         animated: !isMobile && !hierarchy && touchesFocus,
         // Sempre sob os nós: a aresta destacada não risca títulos de cards.
         zIndex: 0,
@@ -1286,6 +1314,24 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
     [selectNode],
   );
 
+  const openNodeDetails = useCallback((nodeId: string) => {
+    if (!project?.nodes[nodeId]) return;
+    // A previous selection/lens can still be waiting for node measurements.
+    // Reading must neither run that frame nor replay it after dismissal.
+    cancelCameraRequests();
+    clickedInCanvasRef.current = true;
+    selectNode(nodeId);
+    setDetailRequest({ planId: project.id, nodeId });
+  }, [project, selectNode, cancelCameraRequests]);
+  const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
+    if (node.type !== 'concept' || node.id.startsWith(SUGGESTION_PREFIX) || node.id.startsWith(HEADER_PREFIX)) return;
+    // A quick action inside a card keeps its own gesture.
+    if (event.target instanceof Element && event.target.closest('button,a,input,textarea,select,[contenteditable="true"]')) return;
+    event.preventDefault(); event.stopPropagation();
+    if (event.currentTarget instanceof HTMLElement) event.currentTarget.focus({ preventScroll: true });
+    openNodeDetails(node.id);
+  }, [openNodeDetails]);
+
   const onNodeMouseEnter = useCallback((_: React.MouseEvent, node: Node) => {
     if (node.type === 'concept' && !node.id.startsWith(SUGGESTION_PREFIX)) setHoveredId(node.id);
   }, []);
@@ -1300,7 +1346,12 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
     !Object.values(project.edges).some((e) => !isHierarchyEdge(project, e));
 
   return (
-    <div ref={containerRef} data-layout-mode={layoutMode} data-orientation={orientation} data-canvas-maximized={maximized} className="flex-1 min-w-0 min-h-0 relative bg-bg-primary">
+    <div ref={containerRef} data-layout-mode={layoutMode} data-orientation={orientation} data-canvas-maximized={maximized} className="flex-1 min-w-0 min-h-0 relative bg-bg-primary"
+      onKeyDownCapture={event => {
+        const target = event.target;
+        if (event.key !== 'Enter' || event.defaultPrevented || event.nativeEvent.isComposing || !(target instanceof HTMLElement) || !target.classList.contains('react-flow__node') || !target.dataset.id || !project?.nodes[target.dataset.id]) return;
+        event.preventDefault(); event.stopPropagation(); openNodeDetails(target.dataset.id);
+      }}>
       <ReactFlow
         nodes={nodes}
         edges={rfEdges}
@@ -1309,6 +1360,8 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
         onNodesChange={onNodesChange}
         onNodeDragStart={onNodeDragStart}
         onNodeClick={onNodeClick}
+        onNodeDoubleClick={onNodeDoubleClick}
+        zoomOnDoubleClick={false}
         onNodeMouseEnter={onNodeMouseEnter}
         onNodeMouseLeave={onNodeMouseLeave}
         nodeDragThreshold={4}
@@ -1447,6 +1500,7 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
       {project && <VisualWorkspaceBridge project={project} containerRef={containerRef} selectedArtifactId={selectedVisualId?.slice(7) ?? null} onSelectArtifact={selectVisualArtifact} />}
       {project && <PlannerInkLayer key={project.id} project={project} containerRef={containerRef} />}
       <CanvasChatDock maximized={maximized} />
+      <NodeDetailReader request={detailRequest} onClose={() => setDetailRequest(null)} />
     </div>
   );
 }

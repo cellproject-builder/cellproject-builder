@@ -4,6 +4,7 @@ import type { LanguageModelV3CallOptions, LanguageModelV3StreamPart } from '@ai-
 import * as client from '@/ai/client';
 import * as service from '@/ai/service';
 import * as intake from '@/ai/planIntake';
+import * as contextBudget from './contextBudget';
 import { useConfigStore } from '@/config/store';
 import { EMPTY_OBJECTIVE_DRAFT, flushGraphPersistence, useGraphStore as graph } from '@/store';
 import { flushWorkspacePersistence, useWorkspaceStore as workspace } from '@/workspace/store';
@@ -357,7 +358,8 @@ describe('conversational planner with the real SDK and stores', () => {
   it('keeps the submission baseline when the person edits during asynchronous context preparation', async () => {
     const { projectId } = plan();
     const context = captureChatTurnContext(), begun = deferred<void>(), release = deferred<void>();
-    vi.spyOn(intake, 'classifyPlanRequest').mockImplementationOnce(async () => { begun.resolve(); await release.promise; return { status: 'not-configured' }; });
+    const prepareContext = contextBudget.prepareChatContext;
+    vi.spyOn(contextBudget, 'prepareChatContext').mockImplementationOnce(async (...args) => { begun.resolve(); await release.promise; return prepareContext(...args); });
     const model = modelFor(step => step === 0 ? [call('preparation-race', 'planner_action', { action: 'update_node', projectId, nodeId: 'target', patch: { oQue: 'Substituição atrasada' } }), finish(true)] : reply('Sua edição foi preservada.'));
     const pending = sendChatMessage('Atualize esse nó.', { turnContext: context });
     await begun.promise; graph.getState().updateNode('target', { oQue: 'Texto escrito durante preparação' }, { commit: true });

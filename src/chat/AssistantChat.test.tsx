@@ -61,7 +61,7 @@ beforeEach(async () => {
   vi.mocked(runAssistant).mockReset();
   vi.mocked(addChatImageReference).mockReset();
   viewport.mobile = false;
-  useChatPresentation.setState({ expanded: false, canvasLauncher: null });
+  useChatPresentation.setState({ expanded: false, canvasLauncher: null, canvasPanel: 'center' });
   Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
   await useConfigStore.persist.rehydrate();
   await useChatStore.persist.rehydrate();
@@ -103,6 +103,92 @@ function dragCanvasEntry(pointerType: string, destination: { x: number; y: numbe
   act(() => (cancel ? Simulate.pointerCancel : Simulate.pointerUp)(entry, { ...start, clientX: destination.x, clientY: destination.y }));
   return entry;
 }
+
+it('moves the open conversation between center and right without remounting its draft or interrupting work', () => {
+  useChatStore.setState({ running: true, messages: [{ id: 'active', role: 'assistant', text: 'Current conversation', createdAt: 1 }] });
+  act(() => root.render(<CanvasHarness />));
+  const sessionId = useChatStore.getState().sessionId;
+  const panel = host.querySelector<HTMLElement>('.dd-chat')!;
+  const input = panel.querySelector<HTMLTextAreaElement>('textarea')!;
+  act(() => Simulate.change(input, { target: { value: 'Draft stays in this conversation' } } as never));
+  input.focus();
+  act(() => Simulate.click(panel.querySelector('[aria-label="Mover chat para a direita"]')!));
+  expect(host.querySelector('.dd-chat')).toBe(panel);
+  expect(panel.classList.contains('is-canvas-side')).toBe(true);
+  expect(panel.querySelector('textarea')).toBe(input);
+  expect(input.value).toBe('Draft stays in this conversation');
+  expect(document.activeElement).toBe(input);
+  expect(useChatStore.getState()).toMatchObject({ sessionId, running: true });
+  expect(panel.textContent).toContain('Current conversation');
+  act(() => Simulate.click(panel.querySelector('[aria-label="Histórico de conversas"]')!));
+  const history = panel.querySelector('.dd-chat-history-panel');
+  act(() => Simulate.click(panel.querySelector('[aria-label="Centralizar chat"]')!));
+  expect(panel.classList.contains('is-canvas-side')).toBe(false);
+  expect(panel.querySelector('.dd-chat-history-panel')).toBe(history);
+  expect(panel.querySelector('textarea')).toBe(input);
+  expect(useChatStore.getState()).toMatchObject({ sessionId, running: true });
+  expect(runAssistant).not.toHaveBeenCalled();
+});
+
+it('opens a previously docked launcher directly at the right even when its panel preference predates docking', () => {
+  useChatStore.setState({ open: false });
+  useChatPresentation.setState({ canvasLauncher: { y: .5 }, canvasPanel: 'center' });
+  act(() => root.render(<CanvasHarness />));
+  act(() => Simulate.click(host.querySelector('.dd-chat-trigger')!));
+  expect(host.querySelector('.dd-chat.is-canvas-side')).not.toBeNull();
+});
+
+it('opens at the right after dragging to the edge and returns to the center after dragging away', () => {
+  useChatStore.setState({ open: false });
+  act(() => root.render(<CanvasHarness />));
+  let entry = dragCanvasEntry('touch', { x: 990, y: 350 });
+  act(() => Simulate.click(entry, { detail: 1 }));
+  expect(host.querySelector('.dd-chat')).toBeNull();
+  act(() => Simulate.click(entry, { detail: 0 }));
+  expect(host.querySelector('.dd-chat.is-canvas-side')).not.toBeNull();
+  act(() => Simulate.click(host.querySelector('[aria-label="Fechar chat"]')!));
+  entry = dragCanvasEntry('pen', { x: 500, y: 640 });
+  act(() => Simulate.click(entry, { detail: 0 }));
+  expect(host.querySelector('.dd-chat.is-canvas')?.classList.contains('is-canvas-side')).toBe(false);
+});
+
+it('keeps the mobile side conversation nonmodal with the same composer through placement and fullscreen changes', () => {
+  viewport.mobile = true;
+  act(() => root.render(<CanvasHarness maximized />));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  expect(host.querySelector('.dd-chat')?.classList.contains('is-canvas-side')).toBe(false);
+  act(() => Simulate.change(input, { target: { value: 'Mobile unsent text' } } as never));
+  act(() => Simulate.click(host.querySelector('[aria-label="Mover chat para a direita"]')!));
+  expect(host.querySelector('.dd-chat.is-canvas-side')).not.toBeNull();
+  expect(host.querySelector('.dd-chat-scrim')).toBeNull();
+  expect(host.querySelector('.dd-chat')?.getAttribute('aria-modal')).not.toBe('true');
+  act(() => root.render(<CanvasHarness />));
+  expect(host.querySelector('textarea')).toBe(input);
+  expect(input.value).toBe('Mobile unsent text');
+  act(() => Simulate.keyDown(input, { key: 'Escape' }));
+  expect(host.querySelector('.dd-chat')).toBeNull();
+  expect(document.activeElement).toBe(host.querySelector('.dd-chat-trigger'));
+});
+
+it('retains the side preference and draft across full conversation and back', () => {
+  act(() => root.render(<CanvasHarness />));
+  act(() => Simulate.change(host.querySelector<HTMLTextAreaElement>('textarea')!, { target: { value: 'Keep side draft' } } as never));
+  act(() => Simulate.click(host.querySelector('[aria-label="Mover chat para a direita"]')!));
+  act(() => Simulate.click(host.querySelector('[aria-label="Expandir chat"]')!));
+  expect(host.querySelector('.dd-chat-full-host .dd-chat')).not.toBeNull();
+  act(() => Simulate.click(host.querySelector('[aria-label="Recolher chat"]')!));
+  expect(host.querySelector('.dd-chat.is-canvas-side textarea')?.textContent).toBe('Keep side draft');
+});
+
+it('groups the canvas actions with small symbols and descriptive keyboard labels', () => {
+  act(() => root.render(<CanvasHarness />));
+  const actions = host.querySelectorAll<HTMLButtonElement>('.dd-chat-header-actions button');
+  expect(actions).toHaveLength(5);
+  for (const button of actions) {
+    expect(button.getAttribute('aria-label')).toBeTruthy();
+    expect(Number(button.querySelector('svg')?.getAttribute('width'))).toBeLessThanOrEqual(16);
+  }
+});
 
 it.each(['mouse', 'touch', 'pen'])('docks the canvas entry with %s without opening the conversation on release', pointerType => {
   useChatStore.setState({ open: false });

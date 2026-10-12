@@ -283,6 +283,32 @@ it('does not discard more than twenty old turns while still below the token budg
   expect(vi.mocked(runAssistant).mock.calls[0][0].messages).toEqual([...history, { role: 'user', content: 'Continue' }]);
 });
 
+it('updates usage during tool steps and persists the compact active context separately from the transcript', async () => {
+  const checkpoint = { version: 1 as const, summary: 'Read completed; no mutation repeated', modelKey: 'test', createdAt: 4, window: 32768, summarizedMessages: 4 };
+  const active = [{ role: 'user' as const, content: 'App memory: Read completed' }, { role: 'user' as const, content: 'Revise o plano' }];
+  const usage = { modelKey: 'test', estimatedInputTokens: 22000, contextWindowTokens: 32768, contextWindowSource: 'fallback' as const, thresholdTokens: 19660, remainingTokens: 10768, percent: 67.1, compacted: false, summaryTokens: 0, fixedTokens: 8000, historyTokens: 14000, outputReserveTokens: 7000, safetyTokens: 2048, phase: 'step' as const, activeTools: ['planner_read', 'planner_action'] };
+  vi.mocked(runAssistant).mockImplementation(async options => {
+    options.onContext?.({ history: options.messages, checkpoint: null, usage });
+    expect(store.getState().contextUsage).toMatchObject({ percent: 67.1, phase: 'step', activeTools: ['planner_read', 'planner_action'] });
+    options.onContext?.({ history: active, checkpoint, usage: { ...usage, estimatedInputTokens: 10000, remainingTokens: 22768, percent: 30.5, compacted: true } });
+    return { text: 'Revisão concluída', messages: [{ role: 'assistant', content: 'Full SDK response' }], contextMessages: [...active, { role: 'assistant', content: 'Revisão concluída' }] };
+  });
+  await sendChatMessage('Revise o plano', { projectId: null });
+  expect(store.getState().contextUsage).toMatchObject({ percent: 30.5, compacted: true });
+  expect(store.getState().modelHistory).toEqual([...active, { role: 'assistant', content: 'Revisão concluída' }]);
+  expect(store.getState().messages.map(message => message.text)).toEqual(['Revise o plano', 'Revisão concluída']);
+  await flushChatPersistence(); await store.persist.rehydrate();
+  expect(store.getState().compaction).toEqual(checkpoint);
+});
+
+it('does not classify an ordinary project conversation before the main assistant', async () => {
+  const projectId = useWorkspaceStore.getState().createProject('Engineering');
+  vi.mocked(runAssistant).mockResolvedValue({ text: 'Olá', messages: [] });
+  await sendChatMessage('Olá', { projectId });
+  expect(runAssistant).toHaveBeenCalledOnce();
+  expect(classifyPlanRequest).not.toHaveBeenCalled();
+});
+
 it('does not call the main assistant or overwrite its previous checkpoint when compaction fails', async () => {
   const checkpoint = { version: 1 as const, summary: 'Previous', modelKey: 'test', createdAt: 4, window: 100, summarizedMessages: 2 };
   store.setState({ compaction: checkpoint });
@@ -375,7 +401,8 @@ it('refuses a model switch after classification before preparing or sending the 
   const projectId = useWorkspaceStore.getState().createProject('Project');
   vi.mocked(classifyPlanRequest).mockImplementationOnce(async () => { main = 'second'; return { status: 'not-configured' }; });
   const prepare = vi.spyOn(chatContext, 'prepareChatContext');
-  await sendChatMessage('Continue', { projectId });
+  const file = await extractPlanFile(new File(['source'], 'source.md'));
+  await sendChatMessage('Continue', { projectId, files: [file] });
   expect(prepare).not.toHaveBeenCalled(); expect(runAssistant).not.toHaveBeenCalled();
   expect(store.getState().messages[0].text).toBe('Continue');
   expect(store.getState().error).toMatch(/modelo|model/i);

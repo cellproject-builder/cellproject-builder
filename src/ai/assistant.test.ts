@@ -156,14 +156,14 @@ it('rejects an oversized first request before invoking the model', async () => {
   ]) }) });
   await expect(runAssistant({ messages: [{ role: 'user', content: 'Resuma.' }], userText: 'Resuma.', model,
     contextBudget: { contextWindowTokens: 2048 }, signal: new AbortController().signal, onText: () => {}, onAction: () => {},
-  })).rejects.toThrow('chatContextBudgetExceeded');
+  })).rejects.toThrow('chatContextToolsTooLarge');
   expect(model.doStreamCalls).toHaveLength(0);
 });
 
 it.each([
   { label: 'plain text', body: 'source '.repeat(20_000) },
   { label: 'nested data URL', body: 'data:image/png;base64,' + 'A'.repeat(140_000) },
-])('stops before another request when a complete tool result exceeds the model window ($label)', async ({ body }) => {
+])('reads a large source as an explicit partial projection without overflowing a new conversation ($label)', async ({ body }) => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   const projectId = store.getState().createProject('Long reference', body);
   const originalObjective = store.getState().projects[projectId].objective;
@@ -177,10 +177,12 @@ it.each([
     { type: 'finish', finishReason: { unified: 'stop', raw: undefined }, usage },
   ]) }) });
   const events: AssistantActionEvent[] = [];
-  await expect(runAssistant({ messages: [{ role: 'user', content: 'Leia essa referência.' }], userText: 'Leia essa referência.', model,
+  const response = await runAssistant({ messages: [{ role: 'user', content: 'Leia essa referência.' }], userText: 'Leia essa referência.', model,
     contextBudget: { contextWindowTokens: 32_768 }, signal: new AbortController().signal, onText: () => {}, onAction: event => events.push(event),
-  })).rejects.toThrow('chatContextBudgetExceeded');
-  expect(model.doStreamCalls).toHaveLength(1);
+  });
+  expect(model.doStreamCalls).toHaveLength(2);
+  expect(JSON.stringify(response.messages)).toContain('truncatedFields');
+  expect(JSON.stringify(response.messages).length).toBeLessThan(8000);
   expect(events).toEqual(expect.arrayContaining([expect.objectContaining({ action: 'workspace_read', status: 'done' })]));
   expect(store.getState().projects[projectId].objective === originalObjective).toBe(true);
 });

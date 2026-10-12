@@ -68,14 +68,14 @@ function buildModels(provider: Provider, cfg: ProviderConfig): ResolvedModels {
 
 // O reasoning effort vai no corpo da request do OpenRouter, não no id do
 // modelo. Só mandamos pra famílias que aceitam o parâmetro: GPT-6.x Sol
-// (padrão, effort "medium") e Grok (effort "high"). Outros modelos podem
+// (padrão, effort "low") e Grok (effort "high"). Outros modelos podem
 // rejeitar o campo.
 export type Effort = 'low' | 'medium' | 'high';
 export function openrouterSettings(
   modelId: string,
   override?: Effort,
 ): { reasoning?: { effort: Effort } } {
-  if (/(^|\/)gpt-6(\.\d+)?-sol/i.test(modelId)) return { reasoning: { effort: override ?? 'medium' } };
+  if (/(^|\/)gpt-6(\.\d+)?-sol/i.test(modelId)) return { reasoning: { effort: override ?? 'low' } };
   if (/(^|\/)grok-/i.test(modelId)) return { reasoning: { effort: override ?? 'high' } };
   return {};
 }

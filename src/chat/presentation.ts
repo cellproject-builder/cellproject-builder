@@ -6,4 +6,13 @@ export const useChatPresentation = create<{
   setExpanded: (expanded: boolean) => void;
   canvasLauncher: { y: number } | null;
   setCanvasLauncher: (position: { y: number } | null) => void;
-}>((set) => ({ expanded: false, setExpanded: (expanded) => set({ expanded }), canvasLauncher: null, setCanvasLauncher: (canvasLauncher) => set({ canvasLauncher }) }));
+  canvasPanel: 'center' | 'right';
+  setCanvasPanel: (placement: 'center' | 'right') => void;
+}>((set) => ({
+  expanded: false,
+  setExpanded: (expanded) => set({ expanded }),
+  canvasLauncher: null,
+  setCanvasLauncher: (canvasLauncher) => set({ canvasLauncher, canvasPanel: canvasLauncher ? 'right' : 'center' }),
+  canvasPanel: 'center',
+  setCanvasPanel: (canvasPanel) => set({ canvasPanel }),
+}));

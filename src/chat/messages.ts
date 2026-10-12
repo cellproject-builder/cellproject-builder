@@ -11,7 +11,7 @@ export const chatEn: typeof chatPt = {
 const labels: Record<string, [string, string]> = {
   note_research: ['Pesquisar sobre a nota', 'Research this note'], note_diagram: ['Gerar diagrama na nota', 'Generate a note diagram'],
   list_references: ['Consultar referências do canvas', 'Read canvas references'], search_images: ['Buscar imagens', 'Find images'], generate_model: ['Gerar modelo 3D', 'Generate 3D model'],
-  workspace_read: ['Consultando seu espaço', 'Reading your workspace'], read_plan: ['Consultando o plano', 'Reading the plan'],
+  workspace_read: ['Consultando seu espaço', 'Reading your workspace'], read_plan: ['Consultando o plano', 'Reading the plan'], planner_read: ['Consultando o plano', 'Reading the plan'],
   create_project: ['Criar projeto', 'Create project'], update_project: ['Atualizar projeto', 'Update project'], navigate: ['Abrir tela', 'Open screen'], open_settings: ['Abrir configurações', 'Open settings'], set_appearance: ['Alterar aparência', 'Change appearance'], set_language: ['Alterar idioma', 'Change language'], set_sidebar_collapsed: ['Recolher ou expandir menu', 'Collapse or expand sidebar'], load_demo_data: ['Carregar demonstração', 'Load demo data'],
   create_task: ['Criar tarefa', 'Create task'], update_task: ['Atualizar tarefa', 'Update task'], delete_task: ['Excluir tarefa', 'Delete task'], import_plan_tasks: ['Criar tarefas do plano', 'Import plan tasks'],
   create_sprint: ['Criar sprint', 'Create sprint'], start_sprint: ['Iniciar sprint', 'Start sprint'], complete_sprint: ['Encerrar sprint', 'Complete sprint'],

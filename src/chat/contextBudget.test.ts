@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import type { ModelMessage } from 'ai';
-import { ChatContextBudgetError, estimateChatTokens, prepareChatContext, type ChatCompactionCheckpoint, type ChatSummarizer } from './contextBudget';
+import { ChatContextBudgetError, estimateChatTokens, estimateChatTextTokens, memoryMessage, prepareChatContext, type ChatCompactionCheckpoint, type ChatSummarizer } from './contextBudget';
 
 const signal = () => new AbortController().signal;
 const turns = (count: number, size = 300): ModelMessage[] => Array.from({ length: count }, (_, n) => [
@@ -163,6 +163,19 @@ it('summarizes a legacy long transcript in bounded complete-turn batches before 
     expect(estimateChatTokens(request.messages)).toBeLessThan(4096 - 256 - 128 - request.maxSummaryTokens - 1024);
   }
   expect(result.checkpoint!.window).toBe(1);
+  expect(history).toEqual(original);
+});
+
+it('reserves a large previous checkpoint when the next summary limit is smaller', async () => {
+  const checkpoint: ChatCompactionCheckpoint = { version: 1, summary: 'm'.repeat(3600), modelKey: 'fixture', createdAt: 1, window: 1, summarizedMessages: 2 };
+  const history = [memoryMessage(checkpoint.summary), ...turns(12)], original = structuredClone(history);
+  const summarize = vi.fn(summary);
+  await prepareChatContext(history, { signal: signal(), checkpoint, summarize, ...budget });
+  expect(summarize.mock.calls[0][0].maxSummaryTokens).toBeLessThan(estimateChatTextTokens(checkpoint.summary));
+  for (const [request] of summarize.mock.calls) {
+    const requestTokens = estimateChatTokens(request.messages) + estimateChatTextTokens(request.previousSummary ?? '') + 1024 + budget.outputReserveTokens + budget.safetyTokens;
+    expect(requestTokens).toBeLessThanOrEqual(budget.contextWindowTokens);
+  }
   expect(history).toEqual(original);
 });
 
