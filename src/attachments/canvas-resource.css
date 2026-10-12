@@ -40,6 +40,5 @@
 .canvas-reader-source { padding:18px; overflow-wrap:anywhere; }
 .canvas-reader-source a { color:rgb(var(--ai-accent)); }
 .canvas-reader-source small,.canvas-reader-source p { color:rgb(var(--text-muted)); }
-.canvas-reader-minimized { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); max-width:80vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; z-index:100; padding:12px 18px; border:1px solid rgb(var(--border-base)); border-radius:14px; background:rgb(var(--bg-elevated)); color:rgb(var(--text-primary)); }
 @media(pointer:coarse) { .canvas-resource-remove { opacity:1; width:44px; height:44px; } .canvas-resource-resize { width:36px; height:36px; } .canvas-reader-controls button { min-width:44px; min-height:44px; } }
 @media(max-width:600px) { .canvas-attachment-tools { top:112px; right:8px; } }

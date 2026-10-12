@@ -12,13 +12,23 @@ import '@/visuals/ui/visuals.css';
 export function CanvasAttachmentReader({ resources, english = false, onClose, onDiscuss }: {
   resources: CanvasResource[]; english?: boolean; onClose(): void; onDiscuss?(resource: CanvasResource): void;
 }) {
-  const [index, setIndex] = useState(0), [page, setPage] = useState(1), [pages, setPages] = useState(1), [maximized, setMaximized] = useState(false), [minimized, setMinimized] = useState(false), [error, setError] = useState('');
+  const [index, setIndex] = useState(0), [page, setPage] = useState(1), [pages, setPages] = useState(1), [maximized, setMaximized] = useState(false), [error, setError] = useState('');
   const [frame, setFrame] = useState<PopupFrame>(() => ({ x: Math.max(8, (window.innerWidth - 700) / 2), y: 70, width: 700, height: Math.min(740, window.innerHeight - 100) }));
   const trigger = useRef(document.activeElement instanceof HTMLElement ? document.activeElement : null), alive = useRef(true);
+  const libraryTrigger = useRef<HTMLButtonElement | null>(null);
   const safeIndex = Math.min(index, Math.max(0, resources.length - 1));
   const resource = resources[safeIndex];
   const t = (pt: string, en: string) => english ? en : pt;
-  useEffect(() => { alive.current = true; return () => { alive.current = false; trigger.current?.isConnected && trigger.current.focus({ preventScroll: true }); }; }, []);
+  useEffect(() => {
+    alive.current = true;
+    const library = trigger.current?.closest('.canvas-attachment-panel');
+    if (library?.id) libraryTrigger.current = [...document.querySelectorAll<HTMLButtonElement>('.canvas-attachment-trigger')].find(button => button.getAttribute('aria-controls') === library.id) ?? null;
+    return () => {
+      alive.current = false;
+      const target = trigger.current?.isConnected ? trigger.current : libraryTrigger.current;
+      if (target?.isConnected) target.focus({ preventScroll: true });
+    };
+  }, []);
   useEffect(() => { setPage(1); setPages(1); setError(''); }, [resource?.id]);
   useEffect(() => { if (index !== safeIndex) setIndex(safeIndex); }, [index, safeIndex]);
   if (!resource) return null;
@@ -44,6 +54,6 @@ export function CanvasAttachmentReader({ resources, english = false, onClose, on
     {error && <p role="alert">{error}</p>}
   </>;
   return createPortal(<div className="canvas-attachment-reader">
-    {minimized ? <button className="canvas-reader-minimized" onClick={() => setMinimized(false)}>{resource.name} ↗</button> : <FloatingPopup kind="search" title={resource.name} subtitle={t('Anexos', 'Attachments')} onClose={onClose} onMinimize={() => setMinimized(true)} frame={maximized ? { x: 8, y: 8, width: window.innerWidth - 16, height: window.innerHeight - 16 } : frame} onFrameChange={value => { if (!maximized) setFrame(value); }} actionLabels={{ minimize: t('Minimizar leitor', 'Minimize reader'), close: t('Fechar leitor', 'Close reader') }}>{content}</FloatingPopup>}
+    <FloatingPopup kind="search" title={resource.name} subtitle={t('Anexos', 'Attachments')} onClose={onClose} onMinimize={onClose} frame={maximized ? { x: 8, y: 8, width: window.innerWidth - 16, height: window.innerHeight - 16 } : frame} onFrameChange={value => { if (!maximized) setFrame(value); }} actionLabels={{ minimize: t('Minimizar leitor', 'Minimize reader'), close: t('Fechar leitor', 'Close reader') }}>{content}</FloatingPopup>
   </div>, document.body);
 }

@@ -1,8 +1,9 @@
-import { act } from 'react';
+import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CanvasAttachmentReader } from './CanvasAttachmentReader';
+import { CanvasAttachmentLibrary } from './CanvasAttachmentLibrary';
 import type { CanvasResource } from './canvasModel';
 
 const mocks = vi.hoisted(() => ({ read: vi.fn() }));
@@ -22,6 +23,41 @@ beforeEach(() => {
 afterEach(() => { act(() => root.unmount()); host.remove(); trigger.remove(); });
 
 describe('attachment reader', () => {
+  it.each(['library', 'card'] as const)('minimizes back to its %s origin without a floating control and reopens there', async origin => {
+    const discuss = vi.fn();
+    function Surface() {
+      const [reading, setReading] = useState<CanvasResource | null>(null);
+      return <>
+        {origin === 'library' ? <CanvasAttachmentLibrary resources={[a]} onOpen={setReading} onImport={() => {}} onAddLink={() => {}} onPlace={() => {}} onRemove={() => {}} />
+          : <button data-canvas-resource-card="source-card" aria-label={`Abrir ${a.name}`} onClick={() => setReading(a)}>{a.name}</button>}
+        <button aria-label="Conversar" onClick={discuss}>Conversar</button>
+        {reading && <CanvasAttachmentReader resources={[reading]} onClose={() => setReading(null)} />}
+      </>;
+    }
+    await act(async () => { root.render(<Surface />); });
+    const open = async () => {
+      if (origin === 'library') act(() => button('Anexos').click());
+      await act(async () => { button(`Abrir ${a.name}`).focus(); button(`Abrir ${a.name}`).click(); });
+    };
+    await open();
+    expect(document.querySelector('.canvas-attachment-reader [role="dialog"]')).not.toBeNull();
+    const minimize = button('Minimizar leitor');
+    act(() => {
+      minimize.focus();
+      // The library closes when the reader is used outside its own popup.
+      minimize.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+      minimize.click();
+    });
+    expect(document.querySelector('.canvas-attachment-reader')).toBeNull();
+    expect(document.querySelector('.canvas-reader-minimized')).toBeNull();
+    expect(document.activeElement).toBe(button(origin === 'library' ? 'Anexos' : `Abrir ${a.name}`));
+    act(() => button('Conversar').click()); expect(discuss).toHaveBeenCalledOnce();
+
+    await open();
+    expect(document.querySelector('.canvas-attachment-reader [role="dialog"]')).not.toBeNull();
+    expect(document.querySelector('[data-reader-preview="first"]')).not.toBeNull();
+  });
+
   it('keeps a visible, closable reader if the selected deck entry is deleted', async () => {
     await render([a, b]);
     act(() => Simulate.change(document.querySelector('[aria-label="Arquivo do deck"]')!, { target: { value: '1' } } as never));
