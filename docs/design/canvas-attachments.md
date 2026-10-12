@@ -4,6 +4,8 @@ O clipe abre a mesma biblioteca compacta no Dynamic Board e no Construtor de Pla
 
 O leitor abre sobre o canvas, com página atual de PDF renderizada sob demanda, imagens e texto. Downloads e leitura são explícitos. Links abrem uma ficha com endereço seguro; páginas que não permitem incorporação continuam acessíveis por abertura externa. Nenhum HTML remoto é executado no canvas. Anexos antigos sem original continuam acessíveis como texto, com essa limitação indicada.
 
+Minimizar recolhe o leitor à origem, sem criar um botão fixo sobre o canvas ou o chat. O anexo e o cartão continuam disponíveis; ambos reabrem o leitor pela biblioteca ou pelo próprio cartão. O foco retorna ao botão de origem ou ao clipe correspondente quando a biblioteca já foi recolhida. Assim como fechar, minimizar desmonta o leitor e libera seu trabalho de leitura; reabrir começa na primeira página e na posição/tamanho iniciais, sem conservar a seleção anterior do deck.
+
 As referências existentes do projeto e imagens do canvas entram na biblioteca. Usar no chat seleciona a fonte e abre o compositor, sem enviar automaticamente. A biblioteca segue a cifra e o transporte de mídia existentes, os limites de tamanho e a validação de revisões; importações são canceladas quando o usuário troca de canvas ou sessão. Coletores de mídia e exportação precisam reconhecer a nova coleção.
 
 ## Limites desta entrega

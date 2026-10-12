@@ -7,7 +7,7 @@ O [relatório datado](../../reports/pdf-performance-2026-10-11.md) interpreta os
 - `browser-initial-reproduction.json`: reprodução inicial, anterior aos controles de reset; preservada fora da comparação principal.
 - `browser-excluded-concurrent-suite.json`: tentativa candidata com Vitest concorrendo por CPU, excluída da comparação.
 - `browser-100-cards.json`: uma execução de capacidade densa/liberação por superfície, com 100 cartões.
-- `browser-reader.json`: minimizar/restaurar na página 2/fechar o leitor.
+- `browser-reader.json`: evidência histórica de minimizar/restaurar na página 2/fechar o leitor, anterior à correção que passou a recolhê-lo à origem. O [contrato atual](../canvas-attachments.md) reabre na primeira página, sem botão flutuante no rodapé.
 - `qa/`: capturas reais da fixture compilada, com originais sintéticos.
 
 Todas as amostras principais começam com inventário limpo e terminam sem erro; a carga densa tem a quantidade esperada de canvases. Esses critérios devem ser conferidos ao repetir a bateria: ausência de trabalho pendente sozinha não prova renderização bem-sucedida. A origem de teste precisa ser dedicada, pois o armazenamento local real tem GC próprio. Não usar a origem da aplicação do usuário.
