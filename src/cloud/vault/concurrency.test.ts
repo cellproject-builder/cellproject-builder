@@ -96,6 +96,79 @@ it('merges independent workspace edits in two runtimes and preserves the followi
   expect(state.notes.n.title).toBe('PC note'); expect(state.boards.b.title).toBe('Tablet edit 2');
 });
 
+it('orders explicit task status commands by encrypted CAS while preserving prose and retiring both durable queues despite clock skew', async () => {
+  const value = {
+    projects: { project: { id: 'project', name: 'Synthetic workflow', objective: '', archived: false, createdAt: 1, updatedAt: 1 } },
+    tasks: { task: { id: 'task', projectId: 'project', title: 'Shared synthetic task', description: 'Original prose', status: 'todo', priority: 'medium', dueDate: '', sprintId: null, createdAt: 1, updatedAt: 1 } },
+    comments: {}, sprints: {}, notes: {} as Record<string, unknown>, folders: {}, boards: {}, legacyImported: true,
+  };
+  const start = { documents: [{ key: 'cellproject-workspace', value: envelope(value), revision: 1 }], media: [] };
+  const f = await clients(start), leftStore = journal(), leftVault = await f.open(leftStore);
+  const left = new CloudRuntime(start, leftVault.fetch, undefined, () => leftVault.refreshSnapshot(), {
+    persistence: leftStore,
+    rejectOperation: id => leftVault.discardRejectedOperation(id),
+    acknowledgeOperation: id => leftVault.acknowledgeOperation(id),
+  });
+  const right = new CloudRuntime(start, f.right.fetch, undefined, () => f.right.refreshSnapshot(), {
+    persistence: f.rightStore,
+    rejectOperation: id => f.right.discardRejectedOperation(id),
+    acknowledgeOperation: id => f.right.acknowledgeOperation(id),
+  });
+  const pc = structuredClone(value), tablet = structuredClone(value);
+  let pcClock = 4_000_000_000, tabletClock = 10;
+  const remoteProse = 'Remote description written on the PC must remain intact.';
+  const canonical = async () => {
+    const fresh = await f.open();
+    try { return JSON.parse(fresh.snapshot().documents[0].value).state; }
+    finally { fresh.dispose(); }
+  };
+  try {
+    pc.tasks.task = { ...pc.tasks.task, status: 'doing', description: remoteProse, updatedAt: pcClock++ };
+    await left.write('cellproject-workspace', envelope(pc)); await left.flush();
+    tablet.notes.note = { id: 'note', title: 'Independent tablet note' };
+    await right.write('cellproject-workspace', envelope(tablet)); await right.flush();
+    expect(tablet.tasks.task).toMatchObject({ status: 'todo', description: 'Original prose' });
+    expect(JSON.parse(right.get('cellproject-workspace')!).state.tasks.task).toMatchObject({ status: 'doing', description: remoteProse });
+
+    tablet.tasks.task = { ...tablet.tasks.task, status: 'review', updatedAt: tabletClock++ };
+    await right.write('cellproject-workspace', envelope(tablet)); await right.flush();
+    expect((await canonical()).tasks.task).toMatchObject({ status: 'review', description: remoteProse });
+    // A stale whole-document save without a new status command cannot replay `doing`.
+    pc.tasks.task = { ...pc.tasks.task, priority: 'high', updatedAt: pcClock++ };
+    await left.write('cellproject-workspace', envelope(pc)); await left.flush();
+    expect((await canonical()).tasks.task).toMatchObject({ status: 'review', priority: 'high', description: remoteProse });
+
+    for (const [pcStatus, tabletStatus] of [['done', 'todo'], ['doing', 'review']]) {
+      pc.tasks.task = { ...pc.tasks.task, status: pcStatus, updatedAt: pcClock++ };
+      await left.write('cellproject-workspace', envelope(pc)); await left.flush();
+      expect((await canonical()).tasks.task).toMatchObject({ status: pcStatus, priority: 'high', description: remoteProse });
+      tablet.tasks.task = { ...tablet.tasks.task, status: tabletStatus, updatedAt: tabletClock++ };
+      await right.write('cellproject-workspace', envelope(tablet)); await right.flush();
+      const saved = await canonical();
+      expect(saved.tasks.task).toMatchObject({ status: tabletStatus, priority: 'high', description: remoteProse });
+      expect(saved.tasks.task.updatedAt).toBeGreaterThan(tablet.tasks.task.updatedAt);
+      expect(saved.notes.note.title).toBe('Independent tablet note');
+    }
+    for (const [runtime, transport, store] of [[left, leftVault, leftStore], [right, f.right, f.rightStore]] as const) {
+      expect(runtime.getSnapshot()).toMatchObject({ pending: 0, issue: null, localSaved: true });
+      expect(store.data.get('runtime')).toMatchObject({ queue: [], drafts: [], issue: null });
+      expect(transport.checkpoint()).toMatchObject({ pending: null, requests: [], completed: [] });
+      expect(transport.checkpoint().rejected ?? []).toEqual([]);
+    }
+    expect(f.requests.join('')).not.toContain(remoteProse);
+    expect(f.requests.join('')).not.toContain('Shared synthetic task');
+    expect(f.requests.join('')).not.toContain('Independent tablet note');
+    const restored = await VaultTransport.restore(sessionFromDeviceKey('synthetic-owner', f.vault.header, f.key), f.right.checkpoint(), f.fetcher, { persistence: f.rightStore });
+    try {
+      await restored.reconcileOperations([]);
+      expect(restored.hasPendingOperations()).toBe(false);
+      expect(JSON.parse(restored.snapshot().documents[0].value).state.tasks.task).toMatchObject({ status: 'review', description: remoteProse });
+    } finally { restored.dispose(); }
+  } finally {
+    left.dispose(); right.dispose(); leftVault.dispose(); f.left.dispose(); f.right.dispose();
+  }
+});
+
 it('keeps both simultaneous strokes on the same board and each device viewport', async () => {
   const value = { notes: {}, boards: { b: board('Shared board') } };
   const start = { documents: [{ key: 'cellproject-workspace', value: envelope(value), revision: 1 }], media: [] };

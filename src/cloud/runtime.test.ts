@@ -467,7 +467,9 @@ it('allows different managed plan checkpoints only after both complete planner s
   expect(runtime.getSnapshot()).toMatchObject({ pending: 0, issue: null });
   expect(JSON.parse(runtime.get('cellproject-graph')!).state).toEqual(localTwo);
   const projects = JSON.parse(runtime.get('cellproject-workspace')!).state.projects;
-  expect(projects['managed-0'].planner).toEqual(remoteOne); expect(projects['managed-1'].planner).toEqual(localTwo);
+  // The merged workspace materializes the shared legacy planner default.
+  expect(projects['managed-0'].planner).toEqual({ ...remoteOne, archivedSession: null });
+  expect(projects['managed-1'].planner).toEqual({ ...localTwo, archivedSession: null });
 });
 
 it('reconciles explicitly owned editor checkpoints for independent imported copies with the same inner plan id', async () => {

@@ -299,7 +299,7 @@ describe('mergeCloudDocument', () => {
       envelope({ project, selectedNodeId: 'a', focusedParentId: null }, 6),
       envelope({ project, selectedNodeId: 'b', focusedParentId: null }, 6),
       envelope({ project, selectedNodeId: 'c', focusedParentId: 'parent' }, 6));
-    expect(result === null ? null : JSON.parse(result).state).toEqual({ project, selectedNodeId: 'b', focusedParentId: null });
+    expect(result === null ? null : JSON.parse(result).state).toEqual({ project, selectedNodeId: 'b', focusedParentId: null, archivedSession: null });
   });
 
   it('keeps a managed project planner’s local selection with independent plan edits', () => {
@@ -309,7 +309,7 @@ describe('mergeCloudDocument', () => {
     expect(merge({ projects: { p1: { id: 'p1', planner } } },
       { projects: { p1: { id: 'p1', planner: localPlanner } } },
       { projects: { p1: { id: 'p1', planner: remotePlanner } } }))
-      .toEqual({ projects: { p1: { id: 'p1', planner: { project: { id: 'plan1', nodes: { a: { id: 'a', name: 'local' }, b: { id: 'b', name: 'remote' } } }, selectedNodeId: 'b' } } } });
+      .toEqual({ projects: { p1: { id: 'p1', planner: { project: { id: 'plan1', nodes: { a: { id: 'a', name: 'local' }, b: { id: 'b', name: 'remote' } } }, selectedNodeId: 'b', archivedSession: null } } } });
   });
 
   it('rejects a graph project switch concurrent with edits bound to the previous plan', () => {
@@ -350,7 +350,7 @@ describe('mergeCloudDocument', () => {
     const local = { ...project, nodes: { a: { ...project.nodes.a, name: 'local' } } };
     const remote = { ...project, edges: { e: { ...project.edges.e, note: 'remote' } } };
     const result = mergeCloudDocument('cellproject-graph', envelope({ project }, 6), envelope({ project: local }, 6), envelope({ project: remote }, 6));
-    expect(result === null ? null : JSON.parse(result).state).toEqual({ project: { ...local, edges: remote.edges } });
+    expect(result === null ? null : JSON.parse(result).state).toEqual({ project: { ...local, edges: remote.edges }, archivedSession: null });
   });
 
   it.each([

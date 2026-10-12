@@ -1,6 +1,8 @@
 import { validatePersistedBoards } from '@/boards/model';
 import { validatePersistedNoteCanvases } from '@/workspace/noteCanvasPersistence';
 import { createNoteInk } from '@/workspace/noteInkModel';
+import { TASK_STATUSES } from '@/workspace/types';
+import { normalizePlannerDocument } from './documentNormalization';
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 type JsonObject = { [key: string]: Json };
@@ -241,6 +243,15 @@ function mergeValue(base: Value, local: Value, remote: Value, path: string[], ke
   if (Array.isArray(base) && Array.isArray(local) && Array.isArray(remote)) return mergeArray(base, local, remote, path, key);
   if (!object(base) || !object(local) || !object(remote)) return conflict;
   if (identityKeys.some(field => !equal(own(base, field), own(local, field)) || !equal(own(base, field), own(remote, field)))) return conflict;
+  // Status is a workflow command, not prose. Reapply a changed pending command
+  // over the canonical task; unchanged stale statuses still follow the ordinary
+  // three-way rule. CAS orders accepted commands, never a device's wall clock.
+  // A moved/deleted/recreated task cannot borrow this policy from its old owner.
+  const taskRecord = key === 'cellproject-workspace' && path.length === 3 && path[0] === 'state' && path[1] === 'tasks';
+  if (taskRecord && [local, remote].some(value => !equal(own(base, 'projectId'), own(value, 'projectId')))) return conflict;
+  const taskWorkflow = taskRecord &&
+    [base, local, remote].every(value => value.id === path[2] && typeof value.projectId === 'string' &&
+      value.projectId === base.projectId && TASK_STATUSES.some(status => status === value.status));
   // Note ink uses a fixed horizontal coordinate system. A width change cannot
   // safely share points with another device's edits in the previous system.
   if (noteInk && (!equal(own(base, 'width'), own(local, 'width')) || !equal(own(base, 'width'), own(remote, 'width')))) return conflict;
@@ -270,7 +281,8 @@ function mergeValue(base: Value, local: Value, remote: Value, path: string[], ke
     // The overlay grows to the measured text height on each device. Keep every
     // stroke in bounds by taking the larger extent, without merging page shrinks.
     const grownInkHeight = noteInk && field === 'height' && typeof base.height === 'number' && typeof local.height === 'number' && typeof remote.height === 'number' && local.height >= base.height && remote.height >= base.height ? Math.max(local.height, remote.height) : undefined;
-    const item = grownInkHeight !== undefined ? grownInkHeight : planner && selectionKeys.includes(field) ? own(local, field) :
+    const workflowStatus = taskWorkflow && field === 'status' && !equal(own(local, field), own(base, field));
+    const item = grownInkHeight !== undefined ? grownInkHeight : workflowStatus || planner && selectionKeys.includes(field) ? own(local, field) :
       mergeValue(own(base, field), own(local, field), own(remote, field), [...path, field], key);
     if (item === conflict) return conflict;
     if (item !== missing) result[field] = item;
@@ -299,7 +311,7 @@ export function mergeCloudDocument(key: string, base: string | null, local: stri
         if (!validJson(normalized)) throw new Error('Invalid normalized conversation');
         return normalized;
       }
-      return value;
+      return normalizePlannerDocument(key, value);
     };
     const l = parse(local), b = base === null ? null : parse(base), r = remote === null ? null : parse(remote);
     if (b && b.version !== l.version || r && r.version !== l.version) return null;
