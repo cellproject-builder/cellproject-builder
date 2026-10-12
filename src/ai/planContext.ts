@@ -3,6 +3,7 @@ import { readPlanner } from '@/workspace/planner';
 import type { ConceptNodeData } from '@/types';
 import { projectFiles } from '@/attachments/projectFiles';
 import { planRevision } from './planStructure';
+import { useWorkspaceStore } from '@/workspace/store';
 
 export const PLAN_TEXT_FIELDS = ['name', 'objective', 'rules', 'referenceTarget', 'fx', 'problem', 'confidenceReason', 'oQue', 'porQue', 'notes',
   'explicacao', 'comoConfirmar', 'comoConfirmarUsuario', 'comoConfirmarAtendido', 'failureContext', 'pros', 'cons', 'decisionOptions', 'groundTruthRefs', 'webResearch', 'history'] as const;
@@ -98,9 +99,13 @@ export function readAssistantPlan(input: AssistantPlanRead) {
     truncatedFields: metadataText.truncatedFields,
   } : null;
   return {
+    workspaceProjectId: input.projectId,
+    workspaceProjectName: useWorkspaceStore.getState().projects[input.projectId]?.name.slice(0, 240) ?? '',
+    planId: project?.id ?? null,
+    readMode: textField ? 'text' as const : selected ? 'node' as const : 'overview' as const,
     project: publicProject, revision: project ? planRevision(project) : null,
     selectedNodeId: snapshot.selectedNodeId, focusedParentId: snapshot.focusedParentId, lens: snapshot.lens, viewMode: snapshot.viewMode,
-    nodePage: selected || textField ? { total: selected ? 1 : 0, offset: 0, returned: nodes.length, nextOffset: null, scope: selected ? 'selected-node' : 'text-only' } : page(allNodes.length, offset, nodes.length),
+    nodePage: selected || textField ? { total: selected ? 1 : 0, offset: 0, returned: nodes.length, nextOffset: null, scope: textField ? 'text-only' : 'selected-node' } : page(allNodes.length, offset, nodes.length),
     edgePage: selected || textField ? { total: allEdges.length, offset: 0, returned: 0, nextOffset: null, omitted: true } : page(allEdges.length, edgeOffset, edges.length),
     attachments, attachmentPage: page(files.length, attachmentOffset, attachments.length),
     pendingSuggestions: pending ? { parentId: pending.parentId, originalCount: pending.originalCount,
