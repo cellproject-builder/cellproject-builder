@@ -283,6 +283,51 @@ it('retains the same encrypted blob and opaque UUID when the upload response is 
   expect(uploads).toHaveLength(2); expect(uploads[0][1]!.body).toBe(uploads[1][1]!.body);
   expect(await runtime.readMedia('file')).toEqual(bytes);
 });
+it('reuses received ciphertext after an HTTP 502 and publishes one media item only after readback', async () => {
+  let failUpload = true, releaseReadback!: () => void, enteredReadback!: () => void;
+  const readbackGate = new Promise<void>(resolve => { releaseReadback = resolve; });
+  const readbackEntered = new Promise<void>(resolve => { enteredReadback = resolve; });
+  const events: string[] = [];
+  const f = await fixture(remote => (async (input, init) => {
+    const path = String(input);
+    if (path === '/api/cloud/vault/blobs' && init?.method === 'POST') {
+      events.push('upload');
+      const reply = await remote(input, init);
+      // The remote has accepted the immutable bytes before registration returns 502.
+      if (failUpload) { failUpload = false; return Response.json({ error: { code: 'upstream_unavailable' } }, { status: 502 }); }
+      return reply;
+    }
+    if (path.startsWith('/api/cloud/vault/blobs/')) {
+      events.push('readback'); enteredReadback(); await readbackGate;
+    }
+    if (path === '/api/cloud/vault' && init?.method === 'PUT') events.push('commit');
+    return remote(input, init);
+  }) as typeof fetch);
+  const runtime = new CloudRuntime(snapshot, f.transport.fetch), bytes = new TextEncoder().encode('private received original').buffer;
+  const record = { id: 'received-file', mime: 'text/plain', name: 'original.txt', bytes };
+  let retry: Promise<void> | undefined;
+  try {
+    await expect(runtime.writeMedia(record)).rejects.toMatchObject({ status: 502, code: 'upstream_unavailable' });
+    expect(runtime.media()).toHaveLength(0); expect(f.transport.snapshot().media).toHaveLength(0);
+    expect(events).toEqual(['upload']); expect(f.bodies).toHaveLength(0);
+
+    retry = runtime.writeMedia(record);
+    await readbackEntered;
+    const uploads = f.fetcher.mock.calls.filter(call => String(call[0]) === '/api/cloud/vault/blobs');
+    expect(uploads).toHaveLength(2); expect(uploads[1][1]!.body).toBe(uploads[0][1]!.body);
+    expect(events).toEqual(['upload', 'upload', 'readback']);
+    expect(runtime.media()).toHaveLength(0); expect(f.transport.snapshot().media).toHaveLength(0);
+    expect(f.bodies).toHaveLength(0);
+
+    releaseReadback(); await retry;
+    expect(events).toEqual(['upload', 'upload', 'readback', 'commit']);
+    expect(runtime.media().map(item => item.id)).toEqual(['received-file']);
+    expect(f.transport.snapshot().media.map(item => item.id)).toEqual(['received-file']);
+    expect(f.bodies).toHaveLength(1);
+    const readback = await f.transport.fetch('/api/cloud/media/received-file');
+    expect(await readback.arrayBuffer()).toEqual(bytes);
+  } finally { releaseReadback(); await retry?.catch(() => {}); runtime.dispose(); f.transport.dispose(); }
+});
 it('keeps activation operation ID and ciphertext unchanged after an ambiguous activation', async () => {
   const vault = await createVault('owner', 'synthetic activation-only phrase'); const bodies: string[] = []; let head: unknown;
   const fetcher = vi.fn<typeof fetch>(async (_path, init) => {
