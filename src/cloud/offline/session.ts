@@ -153,7 +153,9 @@ async function construct(authorization: OfflineAuthorization, session: VaultSess
       start() {
         if (started || disposed) return; started = true;
         window.addEventListener('online', connected); window.addEventListener('offline', disconnect);
-        timer = window.setInterval(() => { if ((!ready || pendingRecovery) && navigator.onLine !== false && runtime!.getSnapshot().issue?.kind !== 'conflict') void reconnect(); }, 5000);
+        // Canonical adoption can wait for an idle runtime. Rechecking an already
+        // verified session mid-drain would close its gate and interrupt flush().
+        timer = window.setInterval(() => { if ((!ready || (pendingRecovery && runtime!.isIdle())) && navigator.onLine !== false && runtime!.getSnapshot().issue?.kind !== 'conflict') void reconnect(); }, 5000);
         if (networkReady()) void runtime!.retry(); else if (navigator.onLine !== false) void reconnect();
       },
     };

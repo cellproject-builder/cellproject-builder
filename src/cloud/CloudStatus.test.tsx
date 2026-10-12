@@ -428,6 +428,57 @@ it('reopens the confirmed data when verification already reconciled the conflict
   } finally { vi.unstubAllGlobals(); await act(async () => root.unmount()); host.remove(); configureCloud(null); vi.restoreAllMocks(); }
 });
 
+it('clears a delayed cloud confirmation error only after the cloud and deferred edits finish', async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  activity.chatRunning = false;
+  const message = 'Existem alterações sem confirmação remota.';
+  const fixture = sameNoteConflict(); configureCloud(fixture.cloud);
+  await fixture.cloud.write('cellproject-workspace', fixture.local);
+  vi.spyOn(fixture.cloud, 'flush').mockRejectedValueOnce(new Error(message));
+  const storage = createSelectiveJSONStorage(() => ({ getItem: () => null, setItem: async () => {}, removeItem: () => {} }), { deferMs: 60_000 })!;
+  if (!isDeferredJSONStorage(storage)) throw new Error('deferred adapter missing');
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={fixture.cloud} userId="owner" email="synthetic@example.test" onLogout={() => {}} onVerifyConnection={fixture.verify}/>));
+    await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Manter as duas versões')!.click());
+    await act(async () => host.querySelector<HTMLButtonElement>('.cloud-status-indicator')!.click());
+    expect(host.textContent).toContain(message);
+    expect(fixture.cloud.getSnapshot().pending).toBeGreaterThan(0);
+    await act(async () => { storage.setItem('delayed-confirmation-test', { state: { text: 'Recent edit' }, version: 1 }); await fixture.cloud.retry(); });
+    expect(fixture.cloud.getSnapshot()).toMatchObject({ pending: 0, issue: null });
+    expect(host.textContent).toContain(message);
+    await act(async () => { await storage.flush(); });
+    expect(host.textContent).not.toContain(message);
+    expect(host.querySelector('.cloud-status-indicator')?.getAttribute('aria-label')).toBe('Salvo na nuvem');
+    const notes = Object.values(JSON.parse(fixture.remote().documents[0].value).state.notes) as { blocks: { text: string }[] }[];
+    expect(notes.map(note => note.blocks[0].text)).toEqual(expect.arrayContaining(['Texto do PC', 'Texto do tablet']));
+  } finally { await storage.flush(); await act(async () => root.unmount()); host.remove(); configureCloud(null); vi.restoreAllMocks(); }
+});
+
+it.each([
+  ['backup', 'Existem alterações sem confirmação remota.'],
+  ['backup', 'Quota excedida.'],
+  ['logout', 'Existem alterações sem confirmação remota.'],
+] as const)('retains the %s operation error %s after cloud confirmation', async (action, message) => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  activity.chatRunning = false;
+  const cloud = new CloudRuntime({ documents: [], media: [] }); configureCloud(cloud);
+  vi.spyOn(migration, 'downloadBackup').mockRejectedValue(new Error(message));
+  vi.spyOn(offlineAuthorization, 'revokeOfflineAuthorization').mockResolvedValue();
+  const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error(message));
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CloudStatus runtime={cloud} userId="owner" email="synthetic@example.test" onLogout={() => {}} fetcher={fetcher}/>));
+    await act(async () => host.querySelector<HTMLButtonElement>('.cloud-status-indicator')!.click());
+    const label = action === 'backup' ? 'Baixar cópia completa desta sessão' : 'Sair da conta';
+    await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === label)!.click());
+    await settle(() => expect(host.textContent).toContain(message));
+    await act(async () => cloud.notifyNetworkState());
+    expect(cloud.getSnapshot()).toMatchObject({ pending: 0, issue: null });
+    expect(host.textContent).toContain(message);
+  } finally { await act(async () => root.unmount()); host.remove(); configureCloud(null); vi.restoreAllMocks(); }
+});
+
 it('refuses conflict resolution before changing data while a paid chat run is active', async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   activity.chatRunning = true;

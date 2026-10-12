@@ -40,7 +40,7 @@ function remoteServer(config: CloudConfig, first: Awaited<ReturnType<typeof fixt
     if (path === '/api/cloud/vault' && init?.method === 'PUT') {
       const body = JSON.parse(String(init.body)); puts.push(String(init.body));
       if (!replies.has(body.operationId)) {
-        if (body.baseRevision !== head.revision) return Response.json({}, { status: 409 });
+        if (body.baseRevision !== head.revision) return Response.json({ error: { code: 'vault_revision_conflict' } }, { status: 409 });
         head = { ...head, revision: head.revision + 1, manifest: body.manifest }; replies.set(body.operationId, head.revision);
       }
       if (lose) { lose = false; throw new TypeError('response lost'); }
@@ -48,8 +48,62 @@ function remoteServer(config: CloudConfig, first: Awaited<ReturnType<typeof fixt
     }
     throw new Error('unexpected request');
   });
-  return { fetcher, puts, loseNext: () => { lose = true; } };
+  return { fetcher, puts, loseNext: () => { lose = true; }, setHead: (next: typeof head) => { head = next; } };
 }
+
+it('keeps the verified network gate open while slow conflict copies drain across a recovery timer', async () => {
+  const { keys, head, config } = await fixture();
+  const workspace = (title: string) => JSON.stringify({ version: 2, state: { notes: { n: { id: 'n', title } }, boards: {} } });
+  const snapshot = (title: string, revision: number) => ({ documents: [
+    { key: 'cellproject-workspace', value: workspace(title), revision },
+    { key: 'dynamic_diary-theme', value: 'dark', revision: 1 },
+  ], media: [] });
+  const first = { ...head, manifest: await keys.session.seal(JSON.stringify({ snapshot: snapshot('Before', 1), files: {} }), 'manifest:1') };
+  const server = remoteServer(config, first);
+  let pausePut = false, pauseVerification = false;
+  let putStarted!: () => void, releasePut!: () => void, releaseVerification!: () => void;
+  const started = new Promise<void>(resolve => { putStarted = resolve; });
+  const slowPut = new Promise<void>(resolve => { releasePut = resolve; });
+  const slowVerification = new Promise<void>(resolve => { releaseVerification = resolve; });
+  const fetcher = vi.fn<typeof fetch>(async (path, init) => {
+    if (pausePut && path === '/api/cloud/vault' && init?.method === 'PUT') { pausePut = false; putStarted(); await slowPut; }
+    if (pauseVerification && path === '/api/cloud/config') await slowVerification;
+    return server.fetcher(path, init);
+  });
+  const prepared = await prepareOfflineWorkspace(config, await VaultTransport.open(keys.session, first, fetcher), fetcher);
+  vi.useFakeTimers(); prepared.start();
+  try {
+    await prepared.runtime.flush();
+    prepared.disconnect();
+    await prepared.runtime.write('cellproject-workspace', workspace('Tablet version'));
+    await prepared.runtime.write('dynamic_diary-theme', 'light');
+    server.setHead({ ...head, revision: 2, manifest: await keys.session.seal(JSON.stringify({ snapshot: snapshot('PC version', 2), files: {} }), 'manifest:2') });
+    await prepared.reconnect();
+    expect(prepared.runtime.getSnapshot()).toMatchObject({ pending: 2, issue: { kind: 'conflict' }, offline: false });
+
+    pausePut = true;
+    const resolution = prepared.runtime.resolveConflictCopies().then(copies => ({ copies }), error => ({ error: (error as Error).message }));
+    await started;
+    expect(prepared.runtime.getSnapshot()).toMatchObject({ pending: 2, issue: null, saving: true, offline: false });
+    const accountReads = fetcher.mock.calls.filter(([path]) => path === '/api/cloud/config').length;
+    pauseVerification = true;
+    await vi.advanceTimersByTimeAsync(5000);
+    releasePut();
+    expect(await resolution).toEqual({ copies: 1 });
+    expect(fetcher.mock.calls.filter(([path]) => path === '/api/cloud/config')).toHaveLength(accountReads);
+    expect(prepared.runtime.getSnapshot()).toMatchObject({ pending: 0, issue: null, saving: false, offline: false, localSaved: true });
+    const notes = JSON.parse(prepared.vault.snapshot().documents.find(document => document.key === 'cellproject-workspace')!.value).state.notes;
+    expect(notes.n.title).toBe('PC version');
+    expect(Object.values(notes)).toEqual(expect.arrayContaining([expect.objectContaining({ title: 'Tablet version (cópia deste aparelho)' })]));
+    expect(prepared.vault.snapshot().documents.find(document => document.key === 'dynamic_diary-theme')!.value).toBe('light');
+    expect(prepared.vault.checkpoint()).toMatchObject({ pending: null, requests: [], completed: [] });
+  } finally {
+    releasePut(); releaseVerification();
+    await prepared.reconnect();
+    prepared.runtime.dispose();
+  }
+});
+
 it('does not read device keys or request account data without a prior offline authorization', async () => {
   const fetcher = vi.fn<typeof fetch>();
   expect(await openOfflineWorkspace(fetcher)).toBeNull(); expect(fetcher).not.toHaveBeenCalled();

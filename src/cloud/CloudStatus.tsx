@@ -15,6 +15,7 @@ function assertPersistenceOwner(owner: CloudRuntime | null) {
   if (getCloudRuntime() !== owner) throw new Error('A sessão de persistência mudou. Preserve o rascunho antes de continuar.');
 }
 const runtimeDataSignature = (runtime: CloudRuntime) => JSON.stringify({ documents: runtime.documents(), media: runtime.media() });
+const CLOUD_PENDING_MESSAGE = 'Existem alterações sem confirmação remota.';
 const conflictDocumentLabel = (key: string) => ({
   'cellproject-workspace': 'Projetos, tarefas e notas', 'cellproject-graph': 'Plano aberto',
   'dynamic_diary-chat': 'Conversas do assistente', 'cellproject-kb': 'Base de documentos',
@@ -82,7 +83,9 @@ export async function saveCurrentBackup(cloud: CloudRuntime | null = getCloudRun
   if (!isDeferredPersistenceCaptureCurrent(captured)) throw new Error('Os dados mudaram durante a preparação da cópia. Exporte novamente.');
 }
 export function CloudStatus({ runtime, userId, email, onLogout, onResume, onVerifyConnection, passwordProvider, fetcher = fetch }: { runtime: CloudRuntime; userId: string; email: string; onLogout: () => void; onResume?: () => Promise<void>; onVerifyConnection?: () => Promise<void>; passwordProvider?: PasswordProvider; fetcher?: typeof fetch }) {
-  const status = useSyncExternalStore(runtime.subscribe, runtime.getSnapshot), [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [saved, setSaved] = useState(false), [error, setError] = useState('');
+  const status = useSyncExternalStore(runtime.subscribe, runtime.getSnapshot), [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [saved, setSaved] = useState(false), [errorState, setErrorState] = useState({ message: '', pendingCloud: false });
+  const error = errorState.message;
+  const setError = (message: string, fromSync = false) => setErrorState({ message, pendingCloud: fromSync && message === CLOUD_PENDING_MESSAGE });
   const [resolution, setResolution] = useState('');
   const deferred = useSyncExternalStore(subscribeDeferredPersistence, getDeferredPersistenceSnapshot);
   const durable = status.localSaved === true && !status.localSaving && !status.localError;
@@ -104,6 +107,9 @@ export function CloudStatus({ runtime, userId, email, onLogout, onResume, onVeri
   const [passwordLinkSent, setPasswordLinkSent] = useState(false), [sendingPasswordLink, setSendingPasswordLink] = useState(false);
   const pendingGraph = useRef<() => boolean>(() => false);
   useEffect(() => { if (!attentionKey) setDismissed(null); }, [attentionKey]);
+  useEffect(() => {
+    if (errorState.pendingCloud && !status.issue && !status.pending && !status.localError && !status.localSaving && !status.saving && !deferred.pending && !deferred.error) setErrorState({ message: '', pendingCloud: false });
+  }, [errorState.pendingCloud, status.issue, status.pending, status.localError, status.localSaving, status.saving, deferred.pending, deferred.error]);
   useEffect(() => { if (status.issue || status.pending || deferred.pending) setResolution(''); }, [status.issue, status.pending, deferred.pending]);
   useEffect(() => { setSaved(false); setRescued(false); rescueCapture.current = undefined; rescueRuntimeData.current = undefined; }, [status, deferred.revision]);
   useEffect(() => { let live = true; void import('@/store').then(graph => { if (live) pendingGraph.current = graph.hasPendingGraphPersistence; }); const unload = (event: BeforeUnloadEvent) => { const current = runtime.getSnapshot(); if (pendingGraph.current() || hasDeferredPersistence() || current.pending > 0 && (current.localSaved !== true || current.localSaving || current.localError)) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', unload); return () => { live = false; window.removeEventListener('beforeunload', unload); }; }, [runtime]);
@@ -111,7 +117,7 @@ export function CloudStatus({ runtime, userId, email, onLogout, onResume, onVeri
   async function retry() {
     if (busy) return; setBusy(true); setError(''); setResolution('');
     try { if (onResume && !runtime.getSnapshot().localError) await onResume(); else await runtime.retry(); await flushDeferredPersistences(); const localError = runtime.getSnapshot().localError; if (localError) throw new Error(localError); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível retomar o salvamento.'); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível retomar o salvamento.', true); }
     finally { setBusy(false); }
   }
   async function preserveConflictVersions() {
@@ -151,7 +157,7 @@ export function CloudStatus({ runtime, userId, email, onLogout, onResume, onVeri
       setResolution(copies ? `As duas versões foram preservadas e salvas na nuvem. ${copies} cópia(s) recuperada(s) disponível(is) para revisão.` : 'As alterações foram conciliadas e salvas na nuvem.');
       setOpen(true);
       window.location.reload();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível preservar as duas versões. Seus rascunhos continuam neste aparelho.'); }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível preservar as duas versões. Seus rascunhos continuam neste aparelho.', true); }
     finally { setBusy(false); }
   }
   async function leave() {
