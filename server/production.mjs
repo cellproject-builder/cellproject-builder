@@ -48,7 +48,8 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
   const staticFile = async (req, res, route) => {
     if (!['GET', 'HEAD'].includes(req.method)) throw notFound();
     canonicalDist ??= await realpath(dist);
-    let filename = route === '/' ? path.join(dist, 'index.html') : path.join(dist, route.slice(1));
+    const demo = route === '/demo' || route === '/demo/';
+    let filename = route === '/' || demo ? path.join(dist, 'index.html') : path.join(dist, route.slice(1));
     let ext = path.extname(filename).toLowerCase();
     if (!ext && req.headers.accept?.includes('text/html')) { filename = path.join(dist, 'index.html'); ext = '.html'; }
     if (!PUBLIC_TYPES[ext]) throw notFound();
@@ -58,7 +59,14 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
     if (relative.startsWith('..') || path.isAbsolute(relative) || !info.isFile()) throw notFound();
     res.setHeader('cache-control', ext === '.html' || route === '/service-worker.js' || route === '/sw.js' || ext === '.webmanifest' ? 'no-cache' : route.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'public, max-age=3600');
     res.setHeader('content-type', PUBLIC_TYPES[ext]); res.setHeader('content-length', info.size);
-    if (ext === '.html') res.setHeader('content-security-policy', `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self'; connect-src 'self'${passwordProvider ? ` ${passwordProvider.url}` : ''}; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`);
+    if (ext === '.html') {
+      // A demo tab may share this host with an authenticated application tab.
+      // Keep the browser's network boundary independent of all client guards.
+      res.setHeader('content-security-policy', demo
+        ? `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'none'; worker-src 'self' blob:; frame-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`
+        : `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self'; connect-src 'self'${passwordProvider ? ` ${passwordProvider.url}` : ''}; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`);
+      if (demo) res.setHeader('x-robots-tag', 'noindex, nofollow');
+    }
     if (req.method === 'HEAD') { res.end(); return; }
     await pipeline(createReadStream(resolved), res);
   };

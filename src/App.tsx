@@ -1,4 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
+import { isPublicDemo } from '@/demo/session';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useGraphStore } from '@/store';
 import { setAIUnavailableHandler } from '@/ai/availability';
@@ -127,7 +128,7 @@ export default function App() {
         toast.show({
           message: err.message,
           tone: 'warn',
-          action: {
+          action: isPublicDemo() ? undefined : {
             label: err.reason === 'demo' ? tr.topBar.demoExit : tr.common.configureKey,
             onClick: () => {
               if (err.reason === 'demo') useGraphStore.getState().resetProject();

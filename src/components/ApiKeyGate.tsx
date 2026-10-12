@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
+import { isPublicDemo } from '@/demo/session';
 import {
   KNOWN_MODELS,
   PROVIDER_DEFAULTS,
@@ -48,6 +49,10 @@ interface Props {
 
 export function ApiKeyGate({ onClose, initialAdvanced = false, title, preferences }: Props) {
   const tr = useT();
+  if (isPublicDemo()) {
+    const content = <>{preferences}<p className="text-control text-text-secondary">Esta é uma demonstração com dados fictícios. As alterações duram só nesta aba; a IA e os serviços online não fazem chamadas reais.</p></>;
+    return onClose ? <Modal open onClose={onClose} title={title ?? tr.apiKey.modalTitle} className="max-w-xl">{content}</Modal> : <div className="p-6">{content}</div>;
+  }
   if (isCloudEnabled()) {
     const content = <>{preferences}<p className="text-control text-text-secondary">As credenciais de IA ficam protegidas no servidor.</p><CloudModelSettings onClose={onClose}/></>;
     return onClose ? <Modal open onClose={onClose} title={title ?? tr.apiKey.modalTitle} className="max-w-xl">{content}</Modal> : <div className="p-6">{content}</div>;

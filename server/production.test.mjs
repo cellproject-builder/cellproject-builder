@@ -61,6 +61,28 @@ test('production revalidates the registered service worker instead of caching a 
   });
 });
 
+test('public demo loads without a session and blocks connections independently of the application account', async () => {
+  await setup(async ({ origin, auth }) => {
+    let accountReads = 0;
+    auth.authorize = async () => { accountReads++; throw new Error('The demo must not read an account'); };
+    for (const route of ['/demo', '/demo/']) {
+      assert.equal((await fetch(`${origin}${route}`)).status, 200);
+      const response = await fetch(`${origin}${route}`, { headers: { accept: 'text/html', cookie: 'test=valid' } });
+      assert.equal(response.status, 200);
+      assert.match(await response.text(), /APP SHELL/);
+      const policy = response.headers.get('content-security-policy');
+      assert.match(policy, /connect-src 'none'/);
+      assert.match(policy, /form-action 'none'/);
+      assert.match(policy, /script-src 'self'/);
+      assert.equal(response.headers.get('x-robots-tag'), 'noindex, nofollow');
+    }
+    assert.equal(accountReads, 0);
+    const normal = await fetch(`${origin}/`, { headers: { accept: 'text/html' } });
+    assert.match(normal.headers.get('content-security-policy'), /connect-src 'self'/);
+    assert.equal(normal.headers.get('x-robots-tag'), null);
+  });
+});
+
 test('production serves shell/assets and health, never source/private paths or an SPA response for API failures', async () => {
   await setup(async ({ origin, raw }) => {
     const health = await fetch(`${origin}/healthz`); assert.equal(health.status, 200); assert.deepEqual(await health.json(), { status: 'ok' });

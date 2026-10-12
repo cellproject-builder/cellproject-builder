@@ -1,6 +1,7 @@
 import { authorizeVaultSharing, configureVault } from './vault/privacy';
 import type { CheckpointStore } from './offline/checkpoints';
 import { mergeCloudDocument } from './documentMerge';
+import { isPublicDemo, PUBLIC_DEMO_NETWORK_MESSAGE } from '@/demo/session';
 export type { CheckpointStore } from './offline/checkpoints';
 export const CLOUD_DOCUMENT_KEYS = ['cellproject-workspace', 'cellproject-graph', 'dynamic_diary-chat', 'cellproject-kb', 'cellproject-config', 'cellproject-locale', 'dynamic_diary-theme', 'dynamic_diary-sidebar-collapsed', 'dynamic_diary:task-view'] as const;
 export type CloudProvider = 'openrouter' | 'openai' | 'anthropic';
@@ -476,12 +477,17 @@ export class CloudRuntime {
 
 let runtime: CloudRuntime | null = null;
 let providers: Partial<Record<CloudProvider, boolean>> = {};
-export function configureCloud(next: CloudRuntime | null, capabilities: Partial<Record<CloudProvider, boolean>> = {}) { runtime?.dispose(); runtime = next; providers = capabilities; }
+export function configureCloud(next: CloudRuntime | null, capabilities: Partial<Record<CloudProvider, boolean>> = {}) {
+  // Public demo documents never acquire an authenticated persistence owner.
+  if (isPublicDemo()) return;
+  runtime?.dispose(); runtime = next; providers = capabilities;
+}
 export const isCloudEnabled = () => runtime !== null;
 export const cloudProviderAvailable = (provider: CloudProvider) => isCloudEnabled() && runtime?.getSnapshot().offline !== true && providers[provider] === true;
 export const getCloudRuntime = () => runtime;
 /** Report authentication failures without retrying paid requests or changing the selected backend. */
 export async function sessionAwareFetch(input: RequestInfo | URL, init?: RequestInit, fetcher: typeof fetch = fetch): Promise<Response> {
+  if (isPublicDemo()) throw new Error(PUBLIC_DEMO_NETWORK_MESSAGE);
   if (runtime?.getSnapshot().offline === true) {
     const url = new URL(input instanceof Request ? input.url : String(input), typeof window === 'undefined' ? 'http://localhost' : window.location.href);
     const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();

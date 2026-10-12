@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import { selectedStorage } from '@/cloud/storage';
 import { isCloudEnabled, cloudProviderAvailable } from '@/cloud/runtime';
+import { isPublicDemo, PUBLIC_DEMO_AI_MESSAGE } from '@/demo/session';
 const idbGet = selectedStorage.getItem, idbSet = selectedStorage.setItem, idbDel = selectedStorage.removeItem;
 import { t } from '@/i18n';
 
@@ -185,7 +186,7 @@ export const useConfigStore = create<ConfigState>()(
 // Dev-only: sem provider configurado, semeia o OpenRouter com a chave do
 // .env (ver vite.config). Em produção __DEV_OPENROUTER_KEY__ é '' e isto é no-op.
 export function seedDevKey() {
-  if (isCloudEnabled()) return;
+  if (isPublicDemo() || isCloudEnabled()) return;
   const key = typeof __DEV_OPENROUTER_KEY__ === 'string' ? __DEV_OPENROUTER_KEY__ : '';
   if (!key) return;
   const run = () => {
@@ -199,6 +200,7 @@ export function seedDevKey() {
 }
 
 export function getActiveConfig(): { provider: Provider; config: ProviderConfig } | null {
+  if (isPublicDemo()) return null;
   const s = useConfigStore.getState();
   if (isCloudEnabled()) {
     const provider = s.activeProvider && cloudProviderAvailable(s.activeProvider) ? s.activeProvider : (['openrouter', 'openai', 'anthropic'] as const).find(cloudProviderAvailable);
@@ -219,5 +221,6 @@ export class AIMissingKeyError extends Error {
 }
 
 export function assertAIReady() {
+  if (isPublicDemo()) throw new Error(PUBLIC_DEMO_AI_MESSAGE);
   if (!getActiveConfig()) throw new AIMissingKeyError();
 }

@@ -10,6 +10,7 @@ import { useChatStore } from '@/chat/store';
 import { useUIRequests } from './uiRequests';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { ApiKeyGate } from '@/components/ApiKeyGate';
+import { isPublicDemo } from '@/demo/session';
 import { InstallApp } from '@/pwa/InstallApp';
 import { CloudDataControls } from '@/cloud/CloudStatus';
 import { isCloudEnabled } from '@/cloud/runtime';
@@ -141,7 +142,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
         <button className={`ws-nav-item ${surface === 'boards' && !chatExpanded ? 'selected' : ''}`} aria-label="Dynamic Board" aria-current={surface === 'boards' && !chatExpanded ? 'page' : undefined} title="Dynamic Board" onClick={() => { collapseChat(); useWorkspaceStore.setState({ activeBoardId: null }); navigate('boards'); setSideOpen(false); }}><DashboardIcon width={18} height={18} aria-hidden="true"/><span>Dynamic Board</span></button>
       </nav>
       {project && <><p className="ws-nav-label ws-project-nav-title" title={project.name}><ProjectIcon appearance={project.appearance} size={14}/><span>{project.name}</span>{project.archived && <span className="ws-badge">{tr.archived}</span>}</p><nav>{(['planner', 'overview', 'kanban', 'scrum', 'notes'] as const).map(navItem)}</nav></>}
-      <div className="ws-sidebar-bottom"><button className="ws-nav-item" aria-label={tr.preferences} title={tr.preferences} aria-haspopup="dialog" aria-expanded={settings} onClick={() => setSettings(true)}><GearIcon width={18} height={18} aria-hidden="true" /><span>{tr.preferences}</span></button><div className="ws-sidebar-tools"><LanguageToggle /><span><i />{isCloudEnabled() ? 'Workspace na nuvem' : tr.localData}</span></div></div>
+      <div className="ws-sidebar-bottom"><button className="ws-nav-item" aria-label={tr.preferences} title={tr.preferences} aria-haspopup="dialog" aria-expanded={settings} onClick={() => setSettings(true)}><GearIcon width={18} height={18} aria-hidden="true" /><span>{tr.preferences}</span></button><div className="ws-sidebar-tools"><LanguageToggle /><span><i />{isPublicDemo() ? (english ? 'Not saved' : 'Sem salvamento') : isCloudEnabled() ? 'Workspace na nuvem' : tr.localData}</span></div></div>
     </aside>
     <div className="ws-main"><div className="dd-chat-mobile-navigation" hidden={!chatExpanded}>{mobileMenu}</div><FullChatDock/>
       {surface === 'planner' && project && !hasPlan && <header className="ws-header" hidden={chatExpanded}>
@@ -164,8 +165,7 @@ export function Workspace({ planner, canvasMaximized = false }: { planner: React
             <option value="oled">{tr.themeOled}</option><option value="dark">{tr.themeDark}</option><option value="light">{tr.themeLight}</option>
           </select>
         </label>
-        <InstallApp />
-        <CloudDataControls />
+        {!isPublicDemo() && <><InstallApp /><CloudDataControls /></>}
         <div className="border-t border-border-base/70 pt-4"><h3 className="text-control font-semibold text-text-primary">{tr.settings}</h3></div>
       </div>
     } />}

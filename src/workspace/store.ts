@@ -3,6 +3,7 @@ import { persist, type StateStorage } from 'zustand/middleware';
 import { createWorkspaceStorage, IndexedDbWorkspaceRepository, workspaceRepository } from '@/data/workspaceRepository';
 import { createSelectiveJSONStorage, isDeferredJSONStorage } from '@/data/selectiveJSONStorage';
 import { getCloudRuntime } from '@/cloud/runtime';
+import { isPublicDemo } from '@/demo/session';
 import { nanoid } from 'nanoid';
 import { noteCanvasSchema } from './noteCanvasModel';
 import { noteInkSchema } from './noteInkModel';
@@ -84,6 +85,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushLocal(); });
   window.addEventListener('pagehide', flushLocal);
   window.addEventListener('beforeunload', event => {
+    if (isPublicDemo()) return;
     if (getCloudRuntime()) return;
     const adapter = useWorkspaceStore.persist.getOptions().storage;
     if (isDeferredJSONStorage(adapter) && adapter.hasPending()) {

@@ -1,6 +1,7 @@
 import { useGraphStore, isDemoProject } from '@/store';
 import { getActiveConfig } from '@/config/store';
 import { t } from '@/i18n';
+import { isPublicDemo, PUBLIC_DEMO_AI_MESSAGE } from '@/demo/session';
 
 export type AIBlockReason = 'demo' | 'no-key' | null;
 
@@ -9,6 +10,7 @@ export type AIBlockReason = 'demo' | 'no-key' | null;
 // and prevents the AI from generating children with real ids alongside the
 // hardcoded `demo-*` ids in the sample project.
 export function aiBlockReason(): AIBlockReason {
+  if (isPublicDemo()) return 'demo';
   if (isDemoProject(useGraphStore.getState().project)) return 'demo';
   if (!getActiveConfig()) return 'no-key';
   return null;
@@ -20,7 +22,7 @@ export class AIUnavailableError extends Error {
   readonly reason: Exclude<AIBlockReason, null>;
   constructor(opts: { reason: Exclude<AIBlockReason, null> }) {
     const n = t().notify;
-    super((opts.reason === 'demo' ? n.aiBlockedDemo : n.aiMissingKey).replace(/\.{2,}$/, '.'));
+    super((opts.reason === 'demo' ? (isPublicDemo() ? PUBLIC_DEMO_AI_MESSAGE : n.aiBlockedDemo) : n.aiMissingKey).replace(/\.{2,}$/, '.'));
     this.name = 'AIUnavailableError';
     this.reason = opts.reason;
   }

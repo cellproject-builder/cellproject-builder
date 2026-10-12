@@ -1,5 +1,6 @@
 import { createStore, del, entries, get, set } from 'idb-keyval';
 import { getCloudRuntime, sessionAwareFetch } from '@/cloud/runtime';
+import { isPublicDemo } from '@/demo/session';
 import { registerDataIngestion } from '@/cloud/activity';
 import { nanoid } from 'nanoid';
 import { currentVisualScope, getDefaultVisualNodeId, getVisualWorkspace, mutateVisualWorkspace, watchVisualScope } from './domain';
@@ -16,8 +17,28 @@ export const MAX_VISUAL_STORAGE_BYTES = 50 * 1024 * 1024;
 const MAX_GLOBAL_MEDIA_BYTES = 500 * 1024 * 1024;
 const ORPHAN_GRACE_MS = 15 * 60 * 1000;
 export const MAX_VISUAL_EXPORT_BYTES = 40 * 1024 * 1024;
-const db = createStore('cellproject-visual-media', 'media');
+let db: ReturnType<typeof createStore> | undefined;
 interface MediaRecord { id: string; mime: string; name: string; bytes: ArrayBuffer; createdAt?: number; projectId?: string }
+const demoMedia = new Map<string, MediaRecord>();
+const mediaRuntime = () => isPublicDemo() ? null : getCloudRuntime();
+const mediaStore = () => db ??= createStore('cellproject-visual-media', 'media');
+const copyMedia = (record: MediaRecord): MediaRecord => ({ ...record, bytes: record.bytes.slice(0) });
+async function storedMediaEntries(): Promise<[string, MediaRecord][]> {
+  return isPublicDemo() ? Array.from(demoMedia, ([id, record]) => [id, copyMedia(record)]) : entries<string, MediaRecord>(mediaStore());
+}
+async function readStoredMedia(id: string): Promise<MediaRecord | undefined> {
+  if (!isPublicDemo()) return get<MediaRecord>(id, mediaStore());
+  const record = demoMedia.get(id);
+  return record ? copyMedia(record) : undefined;
+}
+async function writeStoredMedia(id: string, record: MediaRecord): Promise<void> {
+  if (isPublicDemo()) { demoMedia.set(id, copyMedia(record)); return; }
+  await set(id, record, mediaStore());
+}
+async function removeStoredMedia(id: string): Promise<void> {
+  if (isPublicDemo()) { demoMedia.delete(id); return; }
+  await del(id, mediaStore());
+}
 interface ImageSize { width: number; height: number }
 export interface PortableVisualMedia { id: string; mime: string; name: string; base64: string }
 const supported = new Set(['application/pdf', 'text/plain', 'text/markdown', 'image/png', 'image/jpeg', 'image/webp']);
@@ -102,12 +123,12 @@ useWorkspaceStore.subscribe(releaseReferencedPending);
 async function pruneStoredMedia(now: number) {
   // Remote garbage collection requires server-side reference validation.
   // Never delete remote bytes from a partial client snapshot or touch legacy.
-  if (getCloudRuntime()) return;
+  if (mediaRuntime()) return;
   const referenced = referencedIds();
-  for (const [id, record] of await entries<string, MediaRecord>(db)) {
+  for (const [id, record] of await storedMediaEntries()) {
     const pending = pendingMedia.get(id);
     if (pending && now - pending.createdAt < ORPHAN_GRACE_MS) continue;
-    if (!referenced.has(id) && now - (record.createdAt ?? 0) >= ORPHAN_GRACE_MS) { await del(id, db); pendingMedia.delete(id); }
+    if (!referenced.has(id) && now - (record.createdAt ?? 0) >= ORPHAN_GRACE_MS) { await removeStoredMedia(id); pendingMedia.delete(id); }
   }
 }
 export async function collectUnreferencedVisualMedia(now = Date.now()): Promise<void> {
@@ -115,9 +136,9 @@ export async function collectUnreferencedVisualMedia(now = Date.now()): Promise<
   mediaWrites = operation.catch(() => {}); await operation;
 }
 async function persistMedia(records: MediaRecord[], projectId: string) {
-  const owner = getCloudRuntime();
+  const owner = mediaRuntime();
   const operation = mediaWrites.then(async () => {
-    if (getCloudRuntime() !== owner) throw new Error('visualProjectChanged');
+    if (mediaRuntime() !== owner) throw new Error('visualProjectChanged');
     releaseReferencedPending();
     const cloud = owner;
     if (cloud) {
@@ -129,14 +150,14 @@ async function persistMedia(records: MediaRecord[], projectId: string) {
       const total = stored.reduce((sum, record) => sum + record.size, 0) + records.filter(record => !stored.some(existing => existing.id === record.id)).reduce((sum, record) => sum + record.bytes.byteLength, 0);
       if (total > MAX_GLOBAL_MEDIA_BYTES) throw new Error('visualStorageFull');
       for (const record of records) {
-        if (getCloudRuntime() !== owner) throw new Error('visualProjectChanged');
+        if (mediaRuntime() !== owner) throw new Error('visualProjectChanged');
         await cloud.writeMedia({ ...record, projectId, createdAt: record.createdAt ?? Date.now() });
       }
-      if (getCloudRuntime() !== owner) throw new Error('visualProjectChanged');
+      if (mediaRuntime() !== owner) throw new Error('visualProjectChanged');
       return;
     }
     await pruneStoredMedia(Date.now());
-    const stored = await entries<string, MediaRecord>(db);
+    const stored = await storedMediaEntries();
     const recordsById = new Map(stored);
     const projectRefs = referencedIds(storedProjects().filter(p => p.id === projectId || `planner:${p.id}` === projectId), projectId);
     for (const [id, pending] of pendingMedia) if (pending.projectId === projectId && Date.now() - pending.createdAt < ORPHAN_GRACE_MS) projectRefs.add(id);
@@ -152,8 +173,8 @@ async function persistMedia(records: MediaRecord[], projectId: string) {
     }
     if (total > MAX_GLOBAL_MEDIA_BYTES) throw new Error('visualStorageFull');
     for (const record of records) {
-      if (getCloudRuntime() !== owner) throw new Error('visualProjectChanged');
-      await set(record.id, { ...record, createdAt: record.createdAt ?? Date.now(), projectId }, db);
+      if (mediaRuntime() !== owner) throw new Error('visualProjectChanged');
+      await writeStoredMedia(record.id, { ...record, createdAt: record.createdAt ?? Date.now(), projectId });
       pendingMedia.set(record.id, { projectId, createdAt: Date.now() });
     }
   });
@@ -168,13 +189,13 @@ function inferredMime(file: File) {
 async function writeMedia(file: Blob, name: string, signal?: AbortSignal, scopeId?: string): Promise<MediaRecord & { imageSize: ImageSize | null }> {
   signal?.throwIfAborted();
   const projectId = scopeId ?? currentVisualScope().projectId;
-  const owner = getCloudRuntime();
+  const owner = mediaRuntime();
   if (file.size > MAX_VISUAL_FILE_BYTES) throw new Error('visualFileTooLarge');
   const bytes = await fileBytes(file); signal?.throwIfAborted(); validateBytes(bytes, file.type);
   const imageSize = await validateImage(bytes, file.type, signal);
   const record = { id: nanoid(), mime: file.type, name, bytes, createdAt: Date.now(), projectId };
   signal?.throwIfAborted();
-  if (getCloudRuntime() !== owner) throw new Error('visualProjectChanged');
+  if (mediaRuntime() !== owner) throw new Error('visualProjectChanged');
   await persistMedia([record], projectId); signal?.throwIfAborted();
   return { ...record, imageSize };
 }
@@ -189,10 +210,10 @@ export async function storeCanvasFile(file: File, scopeId: string, signal?: Abor
   } finally { finish(); }
 }
 export async function readVisualMedia(mediaId: string): Promise<Blob | null> {
-  const cloud = getCloudRuntime();
-  if (cloud) { const metadata = cloud.media().find(record => record.id === mediaId); if (!metadata) return null; const bytes = await cloud.readMedia(mediaId); if (getCloudRuntime() !== cloud) throw new Error('visualProjectChanged'); return bytes ? new Blob([bytes], { type: metadata.mime }) : null; }
-  const record = await get<MediaRecord>(mediaId, db);
-  if (getCloudRuntime() !== cloud) throw new Error('visualProjectChanged');
+  const cloud = mediaRuntime();
+  if (cloud) { const metadata = cloud.media().find(record => record.id === mediaId); if (!metadata) return null; const bytes = await cloud.readMedia(mediaId); if (mediaRuntime() !== cloud) throw new Error('visualProjectChanged'); return bytes ? new Blob([bytes], { type: metadata.mime }) : null; }
+  const record = await readStoredMedia(mediaId);
+  if (mediaRuntime() !== cloud) throw new Error('visualProjectChanged');
   return record ? new Blob([record.bytes], { type: record.mime }) : null;
 }
 /** Original local bytes only; no provider URL downloads or hidden image selection. */
@@ -278,9 +299,9 @@ export async function addReferenceImage(reference: ImageReference, point: { x: n
 export async function exportVisualMedia(ids: string[]): Promise<PortableVisualMedia[]> {
   const result: PortableVisualMedia[] = []; let total = 0;
   for (const id of new Set(ids)) {
-    const cloud = getCloudRuntime(), metadata = cloud?.media().find(record => record.id === id);
+    const cloud = mediaRuntime(), metadata = cloud?.media().find(record => record.id === id);
     const bytes = cloud ? await cloud.readMedia(id) : null;
-    const record = cloud ? metadata && bytes ? { ...metadata, bytes } : null : await get<MediaRecord>(id, db); if (!record) throw new Error('visualMediaMissing');
+    const record = cloud ? metadata && bytes ? { ...metadata, bytes } : null : await readStoredMedia(id); if (!record) throw new Error('visualMediaMissing');
     total += record.bytes.byteLength; if (total > MAX_VISUAL_EXPORT_BYTES) throw new Error('visualExportTooLarge');
     let binary = ''; const data = new Uint8Array(record.bytes);
     for (let i = 0; i < data.length; i += 8192) binary += String.fromCharCode(...data.subarray(i, i + 8192));

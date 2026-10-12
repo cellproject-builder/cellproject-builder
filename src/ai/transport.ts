@@ -1,10 +1,12 @@
 import { isCloudEnabled, sessionAwareFetch } from '@/cloud/runtime';
+import { isPublicDemo, PUBLIC_DEMO_AI_MESSAGE } from '@/demo/session';
 
 type ProviderName = 'openai' | 'anthropic' | 'openrouter';
 interface ProviderTransport { apiKey: string; baseURL?: string; fetch?: typeof fetch }
 
 /** Cloud SDKs serialize requests normally, but only our authenticated server owns keys. */
 export function providerTransport(provider: ProviderName, localKey: string): ProviderTransport {
+  if (isPublicDemo()) throw new Error(PUBLIC_DEMO_AI_MESSAGE);
   if (!isCloudEnabled()) return { apiKey: localKey };
   const baseURL = `/api/ai/${provider}`;
   return {
