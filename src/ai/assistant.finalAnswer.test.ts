@@ -99,6 +99,64 @@ it('finishes a review after three identical unchanged reads instead of spending 
   expect(model.doStreamCalls).toHaveLength(4);
 });
 
+it.each(['overview', 'node'] as const)('ends repeated %s reads when only inactive selectors or null/omission differ', async mode => {
+  const projectId = useWorkspaceStore.getState().createProject('Same effective read');
+  initializeWorkspace(); openPlanner(projectId); useGraphStore.getState().loadDemoProject();
+  const nodeId = useGraphStore.getState().project!.rootId;
+  useWorkspaceStore.getState().savePlanner(projectId, capturePlanner());
+  await flushWorkspacePersistence(); vi.useFakeTimers();
+  const done: (() => void)[] = [], reads = Array.from({ length: 3 }, (_, index) => new Promise<void>(resolve => { done[index] = resolve; }));
+  let completed = 0, calls = 0;
+  const fields = ['oQue', 'porQue', 'notes'];
+  const model = new MockLanguageModelV3({ doStream: async options => {
+    const index = calls++, variant = index % 3;
+    return { stream: convertArrayToReadableStream<LanguageModelV3StreamPart>([
+      { type: 'stream-start', warnings: [] },
+      ...(options.toolChoice?.type === 'none' ? [...reply('As leituras não mudaram; segue a conclusão disponível.'), finish('stop')]
+        : [{ type: 'tool-call' as const, toolCallId: `inactive-${index}`, toolName: 'planner_read', input: JSON.stringify({ projectId, mode,
+          nodeId: mode === 'node' ? nodeId : `ignored-node-${variant}`, textField: fields[variant], textOffset: variant * 100,
+          ...(variant === 1 ? { offset: null, limit: null, edgeOffset: null, suggestionOffset: null, parkedOffset: null } : {}),
+        }) }, finish('tool-calls')]),
+    ]) };
+  } });
+  const run = runAssistant({ messages: [{ role: 'user', content: 'revise o plano' }], userText: 'revise o plano', contextProjectId: projectId, model,
+    contextBudget: { contextWindowTokens: 128_000 }, signal: new AbortController().signal, onText() {},
+    onAction: event => { if (event.status === 'done') done[completed++]?.(); },
+  });
+  for (const read of reads) { await read; await vi.advanceTimersByTimeAsync(1500); }
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect((await run).text).toContain('conclusão disponível');
+  expect(completed).toBe(3);
+  expect(model.doStreamCalls).toHaveLength(4);
+});
+
+it('keeps distinct overview pages active while inactive node and text selectors vary', async () => {
+  const projectId = useWorkspaceStore.getState().createProject('Advancing pages');
+  initializeWorkspace(); openPlanner(projectId); useGraphStore.getState().loadDemoProject();
+  useWorkspaceStore.getState().savePlanner(projectId, capturePlanner());
+  await flushWorkspacePersistence(); vi.useFakeTimers();
+  const done: (() => void)[] = [], reads = Array.from({ length: 3 }, (_, index) => new Promise<void>(resolve => { done[index] = resolve; }));
+  let completed = 0, calls = 0;
+  const model = new MockLanguageModelV3({ doStream: async () => {
+    const index = calls++;
+    return { stream: convertArrayToReadableStream<LanguageModelV3StreamPart>(index < 3 ? [
+      { type: 'stream-start', warnings: [] },
+      { type: 'tool-call', toolCallId: `page-${index}`, toolName: 'planner_read', input: JSON.stringify({ projectId, mode: 'overview', offset: index * 10,
+        nodeId: `ignored-${index}`, textField: 'oQue', textOffset: index * 100 }) }, finish('tool-calls'),
+    ] : [{ type: 'stream-start', warnings: [] }, ...reply('As três páginas distintas foram consultadas.'), finish('stop')]) };
+  } });
+  const run = runAssistant({ messages: [{ role: 'user', content: 'revise o plano' }], userText: 'revise o plano', contextProjectId: projectId, model,
+    contextBudget: { contextWindowTokens: 128_000 }, signal: new AbortController().signal, onText() {},
+    onAction: event => { if (event.status === 'done') done[completed++]?.(); },
+  });
+  for (const read of reads) { await read; await vi.advanceTimersByTimeAsync(1500); }
+  expect((await run).text).toContain('três páginas distintas');
+  expect(completed).toBe(3);
+  expect(model.doStreamCalls).toHaveLength(4);
+  expect(model.doStreamCalls[3].toolChoice?.type).not.toBe('none');
+  expect(JSON.stringify(model.doStreamCalls[3].prompt)).toContain('page-2');
+});
+
 it('returns the written conclusion as the answer while preserving progress narration in model history', async () => {
   await flushWorkspacePersistence(); vi.useFakeTimers();
   let completed!: () => void, calls = 0;
