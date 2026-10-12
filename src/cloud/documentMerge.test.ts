@@ -319,6 +319,15 @@ describe('mergeCloudDocument', () => {
       envelope({ project: { id: 'p1' }, objectiveDraft: { text: 'old plan draft' } }, 6))).toBeNull();
   });
 
+  it('rejects a managed owner switch concurrent with edits to an identical imported plan copy', () => {
+    const project = { id: 'shared-import', rootId: 'root', nodes: { root: { id: 'root', parentId: null, name: 'Root', notes: '' } }, edges: {} };
+    const remote = { ...project, nodes: { root: { ...project.nodes.root, notes: 'Only for A' } } };
+    expect(mergeCloudDocument('cellproject-graph',
+      envelope({ plannerOwnerId: 'A', project }, 6),
+      envelope({ plannerOwnerId: 'B', project }, 6),
+      envelope({ plannerOwnerId: 'A', project: remote }, 6))).toBeNull();
+  });
+
   it('does not combine independent parent changes into a graph cycle', () => {
     const project = { id: 'p1', rootId: 'root', edges: {}, nodes: {
       root: { id: 'root', parentId: null, name: 'root' },

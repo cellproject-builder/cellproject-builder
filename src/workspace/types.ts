@@ -7,7 +7,7 @@ export type Priority = 'low' | 'medium' | 'high';
 export type PlannerSnapshot = Pick<GraphState,
   'project' | 'selectedNodeId' | 'focusedParentId' | 'lens' | 'viewMode' |
   'detailPanelOpen' | 'lastTutorNodeId' | 'drafts' | 'objectiveDraft' |
-  'pendingSuggestions' | 'parkedSuggestions' | 'archivedProject' | 'archivedPending'>;
+  'pendingSuggestions' | 'parkedSuggestions' | 'archivedProject' | 'archivedPending' | 'archivedSession'>;
 
 export interface ManagedProject {
   appearance?: import('./project-appearance/projectAppearance').ProjectAppearance;

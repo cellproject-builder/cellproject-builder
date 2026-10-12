@@ -3,7 +3,7 @@ import { persist, type StateStorage } from 'zustand/middleware';
 import { selectedStorage } from '@/cloud/storage';
 import { getCloudRuntime } from '@/cloud/runtime';
 import { createSelectiveJSONStorage } from '@/data/selectiveJSONStorage';
-import { plannerContentValues, type PlannerContentSnapshot } from '@/data/plannerPersistence';
+import { editorContentValues, type PlannerContentSnapshot } from '@/data/plannerPersistence';
 const idbGet = selectedStorage.getItem, idbSet = selectedStorage.setItem, idbDel = selectedStorage.removeItem;
 import { nanoid } from 'nanoid';
 import type {
@@ -29,6 +29,7 @@ import { buildDemoProject, DEMO_PROJECT_ID } from '@/data/demoProject';
 import { clearMissingVisualNodeLinks, normalizeVisualWorkspace } from '@/visuals/normalize';
 import { normalizeStoredProjectVisuals } from '@/visuals/projectBoundary';
 import { childrenByParent } from '@/graph/treeIndex';
+import { hasOpenFailure, isSelfResolved, nodeResolution } from '@/graph/nodeResolution';
 import { computeTreeLayout, LAYOUT_X_GAP, LAYOUT_Y_GAP } from '@/graph/treeLayout';
 // Compatibility exports for callers using the original graph-store surface.
 export { childrenByParent } from '@/graph/treeIndex';
@@ -108,8 +109,16 @@ export interface AIJob {
 
 export type ImportResult = { ok: true } | { ok: false; error: string };
 
+export interface ArchivedSession {
+  projectId: string;
+  parkedSuggestions: GraphState['parkedSuggestions'];
+  drafts: GraphState['drafts'];
+  objectiveDraft: ObjectiveDraft;
+}
+
 export interface GraphState {
   project: Project | null;
+  plannerOwnerId: string | null;
   selectedNodeId: string | null;
   // Bumped on every selectNode call (even for the same id) so surfaces like
   // the mobile detail sheet can re-open when the user taps the node again.
@@ -158,10 +167,11 @@ export interface GraphState {
   // Sugestões em staging do projeto arquivado (custaram uma chamada de IA):
   // voltam junto no desfazer. Persistido, como o próprio staging.
   archivedPending: GraphState['pendingSuggestions'];
+  archivedSession: ArchivedSession | null;
   // Arquivado que o último reset/import/demo substituiu (só há um slot de
   // arquivo). Não persistido: só serve para o desfazer devolvê-lo ao arquivo
   // em vez de perdê-lo de vez.
-  replacedArchive: { project: Project; pending: GraphState['pendingSuggestions'] } | null;
+  replacedArchive: { project: Project; pending: GraphState['pendingSuggestions']; session: ArchivedSession | null } | null;
 
   // `alternatives` podem ser esboços (os não escolhidos ficam no projeto).
   createProjectFromPlan: (
@@ -438,15 +448,21 @@ const archivePendingCandidate = (
     ? state.pendingSuggestions
     : state.archivedPending;
 
+const currentDomainSession = (state: Pick<GraphState, 'project' | 'parkedSuggestions' | 'drafts' | 'objectiveDraft'>): ArchivedSession | null =>
+  state.project ? { projectId: state.project.id, parkedSuggestions: state.parkedSuggestions, drafts: state.drafts, objectiveDraft: state.objectiveDraft } : null;
+
+const archiveSessionCandidate = (state: Pick<GraphState, 'project' | 'parkedSuggestions' | 'drafts' | 'objectiveDraft' | 'archivedSession'>): ArchivedSession | null =>
+  state.project && state.project.id !== DEMO_PROJECT_ID ? currentDomainSession(state) : state.archivedSession;
+
 // O arquivado atual que será sobrescrito por arquivar `state.project`.
 const replacedArchiveCandidate = (
-  state: Pick<GraphState, 'project' | 'archivedProject' | 'archivedPending' | 'replacedArchive'>,
+  state: Pick<GraphState, 'project' | 'archivedProject' | 'archivedPending' | 'archivedSession' | 'replacedArchive'>,
 ): GraphState['replacedArchive'] =>
   state.project &&
   state.project.id !== DEMO_PROJECT_ID &&
   state.archivedProject &&
   state.archivedProject.id !== state.project.id
-    ? { project: state.archivedProject, pending: state.archivedPending }
+    ? { project: state.archivedProject, pending: state.archivedPending, session: state.archivedSession }
     : state.replacedArchive;
 
 // Troca o lote ativo pelo estacionado de `parentId` (o ativo vai pro estacionamento).
@@ -486,6 +502,27 @@ const validBatch = (
     ? batch
     : null;
 
+const validArchivedSession = (session: ArchivedSession | null | undefined, project: Project | null): ArchivedSession | null => {
+  if (!session || !project || session.projectId !== project.id) return null;
+  return {
+    projectId: project.id,
+    parkedSuggestions: Object.fromEntries(Object.entries(session.parkedSuggestions ?? {}).filter(([id, batch]) => batch.parentId === id && validBatch(batch, project))),
+    drafts: Object.fromEntries(Object.entries(session.drafts ?? {}).filter(([id]) => project.nodes[id])),
+    objectiveDraft: { ...EMPTY_OBJECTIVE_DRAFT, ...session.objectiveDraft },
+  };
+};
+
+const pruneDeletedBatch = (batch: GraphState['pendingSuggestions'], removed: ReadonlySet<string>): GraphState['pendingSuggestions'] => {
+  if (!batch || removed.has(batch.parentId)) return null;
+  const deletedTemps = new Set(Object.entries(batch.acceptedMap ?? {}).filter(([, id]) => removed.has(id)).map(([temp]) => temp));
+  if (!deletedTemps.size) return batch;
+  return {
+    ...batch,
+    acceptedMap: Object.fromEntries(Object.entries(batch.acceptedMap ?? {}).filter(([, id]) => !removed.has(id))),
+    edges: batch.edges.filter(edge => !deletedTemps.has(edge.sourceTempId) && !deletedTemps.has(edge.targetTempId)),
+  };
+};
+
 // Estado efêmero que pertence ao projeto aberto — zerado ao trocar de projeto.
 const freshProjectSession = () => ({
   pendingSuggestions: null,
@@ -496,6 +533,12 @@ const freshProjectSession = () => ({
   lastTutorNodeId: null,
   centerRequest: null,
 });
+
+const generationContextKey = (context: ({ objective: string; rules: string[]; attachmentsFingerprint?: string } & PlanningIntent) | null): string => {
+  if (!context) return '';
+  const intent = normalizePlanningIntent(context);
+  return JSON.stringify([context.objective.trim(), context.rules, intent.planApproach, intent.referenceTarget, context.attachmentsFingerprint ?? '']);
+};
 
 // Baselines de edição em curso (não persistidas): permitem registrar o valor
 // ANTERIOR à edição inteira, não o da última tecla.
@@ -571,6 +614,31 @@ function withTreeLayout(project: Project): Project {
 // Valida o mínimo de um JSON exportado (rootId, nodes, edges) e normaliza os
 // campos obrigatórios de cada nó — um export antigo ou editado à mão não pode
 // derrubar a UI com `undefined.map`.
+export function importedProjectTreeError(json: unknown): string | null {
+  let raw = json;
+  if (typeof raw === 'string') { try { raw = JSON.parse(raw) as unknown; } catch { return null; } }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const project = raw as Partial<Project>;
+  if (!project.nodes || typeof project.nodes !== 'object' || typeof project.rootId !== 'string') return null;
+  const finished = new Set<string>([project.rootId]);
+  for (const start of Object.keys(project.nodes)) {
+    const node = project.nodes[start];
+    if (start !== project.rootId && node && typeof node === 'object' && (typeof node.parentId !== 'string' || !project.nodes[node.parentId])) {
+      return 'Árvore de decomposição inválida: componente desconectado da raiz.';
+    }
+    const active = new Set<string>();
+    let id: string | null = start;
+    while (id && !finished.has(id) && project.nodes[id]) {
+      if (active.has(id)) return 'Árvore de decomposição inválida: ciclo de parentesco detectado.';
+      active.add(id);
+      const parent: unknown = project.nodes[id].parentId;
+      id = typeof parent === 'string' ? parent : null;
+    }
+    for (const seen of active) finished.add(seen);
+  }
+  return null;
+}
+
 export function parseImportedProject(json: unknown): Project | null {
   let raw: unknown = json;
   if (typeof raw === 'string') {
@@ -586,6 +654,7 @@ export function parseImportedProject(json: unknown): Project | null {
   if (!p.nodes || typeof p.nodes !== 'object') return null;
   if (!p.edges || typeof p.edges !== 'object') return null;
   if (!p.nodes[p.rootId]) return null;
+  if (importedProjectTreeError(p)) return null;
   // Import is strict; malformed scenes cannot reach a renderer or write media.
   let visuals: Project['visuals'];
   if (p.visuals !== undefined) {
@@ -648,10 +717,6 @@ export function parseImportedProject(json: unknown): Project | null {
           ? n.position
           : { x: 0, y: 0 },
     };
-  }
-  // Nó cujo pai não existe vira órfão invisível — pendura na raiz.
-  for (const n of Object.values(nodes)) {
-    if (n.id !== p.rootId && (!n.parentId || !nodes[n.parentId])) n.parentId = p.rootId;
   }
   if (visuals) visuals = clearMissingVisualNodeLinks(visuals, nodes);
   const edges: Record<string, ConceptEdgeData> = {};
@@ -741,6 +806,7 @@ export const useGraphStore = create<GraphState>()(
   persist(
     (set, get) => ({
       project: null,
+      plannerOwnerId: null,
       selectedNodeId: null,
       selectionVersion: 0,
       focusedParentId: null,
@@ -759,6 +825,7 @@ export const useGraphStore = create<GraphState>()(
       aiJobs: {},
       archivedProject: null,
       archivedPending: null,
+      archivedSession: null,
       replacedArchive: null,
 
       createProjectFromPlan: (objective, name, plan, rules, alternatives) => {
@@ -911,6 +978,7 @@ export const useGraphStore = create<GraphState>()(
           ...freshProjectSession(),
           archivedProject: archiveCandidate(state.project, state.archivedProject),
           archivedPending: archivePendingCandidate(state),
+          archivedSession: archiveSessionCandidate(state),
           replacedArchive: replacedArchiveCandidate(state),
           project,
           selectedNodeId: project.rootId,
@@ -1116,13 +1184,13 @@ export const useGraphStore = create<GraphState>()(
         set((state) => {
           if (!state.project || id === state.project.rootId) return state;
           const toRemove = new Set<string>();
-          const collect = (nid: string) => {
+          const children = childrenByParent(state.project), stack = [id];
+          while (stack.length) {
+            const nid = stack.pop()!;
+            if (nid === state.project.rootId || toRemove.has(nid)) continue;
             toRemove.add(nid);
-            Object.values(state.project!.nodes)
-              .filter((n) => n.parentId === nid)
-              .forEach((c) => collect(c.id));
-          };
-          collect(id);
+            for (const child of children.get(nid) ?? []) stack.push(child.id);
+          }
           const nodes = Object.fromEntries(
             Object.entries(state.project.nodes).filter(([k]) => !toRemove.has(k)),
           );
@@ -1135,7 +1203,10 @@ export const useGraphStore = create<GraphState>()(
           for (const rid of toRemove) drafts = withoutDraft(drafts, rid);
           // Sugestões de um pai apagado não têm onde entrar.
           const parkedSuggestions = Object.fromEntries(
-            Object.entries(state.parkedSuggestions).filter(([pid]) => !toRemove.has(pid)),
+            Object.entries(state.parkedSuggestions).flatMap(([pid, batch]) => {
+              const pruned = pruneDeletedBatch(batch, toRemove);
+              return pruned ? [[pid, pruned]] : [];
+            }),
           );
           const visuals = state.project.visuals && {
             ...state.project.visuals,
@@ -1149,10 +1220,7 @@ export const useGraphStore = create<GraphState>()(
             project: { ...state.project, updatedAt: now(), nodes, edges, ...(visuals ? { visuals } : {}) },
             drafts,
             parkedSuggestions,
-            pendingSuggestions:
-              state.pendingSuggestions && toRemove.has(state.pendingSuggestions.parentId)
-                ? null
-                : state.pendingSuggestions,
+            pendingSuggestions: pruneDeletedBatch(state.pendingSuggestions, toRemove),
             lastAction:
               state.lastAction && toRemove.has(state.lastAction.nodeId) ? null : state.lastAction,
             selectedNodeId:
@@ -1572,6 +1640,7 @@ export const useGraphStore = create<GraphState>()(
             // A real failure invalidates any prior confirmation — including
             // the attestation that the criterion was met (reality refuted it).
             confirmado: false,
+            takenAsKnown: false,
             confirmedWithoutSignal: false,
             comoConfirmarAtendido: undefined,
           };
@@ -1646,7 +1715,7 @@ export const useGraphStore = create<GraphState>()(
       acceptSuggestion: (tempId) => {
         const pending = get().pendingSuggestions;
         const project = get().project;
-        if (!pending || !project) return;
+        if (!pending || !project || !project.nodes[pending.parentId]) return;
         const target = pending.nodes.find((n) => n.tempId === tempId);
         if (!target) return;
 
@@ -1690,7 +1759,7 @@ export const useGraphStore = create<GraphState>()(
           }
           const sourceReal = acceptedMap[e.sourceTempId];
           const targetReal = acceptedMap[e.targetTempId];
-          if (sourceReal && targetReal) {
+          if (sourceReal && targetReal && (sourceReal === id || project.nodes[sourceReal]) && (targetReal === id || project.nodes[targetReal])) {
             const eid = nanoid(10);
             newEdges[eid] = {
               id: eid,
@@ -1729,9 +1798,9 @@ export const useGraphStore = create<GraphState>()(
       acceptAllSuggestions: () => {
         const pending = get().pendingSuggestions;
         const project = get().project;
-        if (!pending || !project) return;
+        if (!pending || !project || !project.nodes[pending.parentId]) return;
 
-        const tempIdToRealId: Record<string, string> = {};
+        const tempIdToRealId: Record<string, string> = { ...(pending.acceptedMap ?? {}) };
         const newNodes: Record<string, ConceptNodeData> = {};
         pending.nodes.forEach((n) => {
           const id = nanoid(10);
@@ -1760,7 +1829,7 @@ export const useGraphStore = create<GraphState>()(
         pending.edges.forEach((e) => {
           const source = tempIdToRealId[e.sourceTempId];
           const target = tempIdToRealId[e.targetTempId];
-          if (!source || !target) return;
+          if (!source || !target || !(newNodes[source] || project.nodes[source]) || !(newNodes[target] || project.nodes[target])) return;
           const id = nanoid(10);
           newEdges[id] = { id, source, target, kind: e.kind };
         });
@@ -1902,9 +1971,18 @@ export const useGraphStore = create<GraphState>()(
         set((state) => ({ drafts: withoutDraft(state.drafts, nodeId, field) })),
 
       setObjectiveDraft: (partial) =>
-        set((state) => ({
-          objectiveDraft: { ...state.objectiveDraft, ...partial, updatedAt: now() },
-        })),
+        set((state) => {
+          const previous = state.objectiveDraft, next = { ...previous, ...partial };
+          const changed = generationContextKey(previous) !== generationContextKey(next);
+          return {
+            objectiveDraft: {
+              ...previous,
+              ...(changed ? { plans: null, outlines: null, expanded: {}, expansion: null, outlineResearch: null, plansFor: null, selectedId: null } : {}),
+              ...partial,
+              updatedAt: now(),
+            },
+          };
+        }),
 
       clearObjectiveDraft: () => set({ objectiveDraft: EMPTY_OBJECTIVE_DRAFT }),
 
@@ -1912,16 +1990,17 @@ export const useGraphStore = create<GraphState>()(
         set((state) => {
           const d = state.objectiveDraft;
           const ids = new Set((outlines ?? []).map((o) => o.id));
-          const expanded = Object.fromEntries(Object.entries(d.expanded).filter(([id]) => ids.has(id)));
+          const sameContext = plansFor === undefined || generationContextKey(plansFor) === generationContextKey(d.plansFor);
+          const expanded = sameContext ? Object.fromEntries(Object.entries(d.expanded).filter(([id]) => ids.has(id))) : {};
           return {
             objectiveDraft: {
               ...d,
               outlines,
               expanded,
-              expansion: d.expansion && ids.has(d.expansion.outlineId) ? d.expansion : null,
+              expansion: sameContext && d.expansion && ids.has(d.expansion.outlineId) ? d.expansion : null,
               plansFor: plansFor === undefined ? d.plansFor : plansFor,
-              outlineResearch: research === undefined ? d.outlineResearch : research,
-              selectedId: d.selectedId && ids.has(d.selectedId) ? d.selectedId : null,
+              outlineResearch: research ?? null,
+              selectedId: sameContext && d.selectedId && ids.has(d.selectedId) ? d.selectedId : null,
               updatedAt: now(),
             },
           };
@@ -1959,10 +2038,22 @@ export const useGraphStore = create<GraphState>()(
           set({ lastAction: null });
           return false;
         }
-        // O desfazer não "esquece" que o critério da IA já foi visto.
-        const snapshot: ConceptNodeData = current.aiCriterionSeenAt
-          ? { ...lastAction.prevSnapshot, aiCriterionSeenAt: current.aiCriterionSeenAt }
-          : lastAction.prevSnapshot;
+        // Undo only fields owned by this action. Notes, cached explanations and
+        // other edits without history entries may have been saved afterwards.
+        // The current criterion-seen timestamp also survives the undo.
+        const previous = lastAction.prevSnapshot;
+        const snapshot: ConceptNodeData = {
+          ...current,
+          history: previous.history,
+          ...(lastAction.kind === 'known'
+            ? { takenAsKnown: previous.takenAsKnown }
+            : {
+                confirmado: previous.confirmado,
+                state: previous.state,
+                confirmedWithoutSignal: previous.confirmedWithoutSignal,
+                ...(lastAction.kind === 'pick' ? { decisionPickedId: previous.decisionPickedId } : {}),
+              }),
+        };
         const restored = addHistory(
           snapshot,
           'manual',
@@ -2012,6 +2103,7 @@ export const useGraphStore = create<GraphState>()(
           ...freshProjectSession(),
           archivedProject: archiveCandidate(state.project, state.archivedProject),
           archivedPending: archivePendingCandidate(state),
+          archivedSession: archiveSessionCandidate(state),
           replacedArchive: replacedArchiveCandidate(state),
           project: null,
           selectedNodeId: null,
@@ -2021,7 +2113,9 @@ export const useGraphStore = create<GraphState>()(
         })),
 
       undoReset: () => {
-        const { archivedProject, archivedPending, project, pendingSuggestions, replacedArchive } = get();
+        const state = get();
+        const { archivedProject, archivedPending, project, pendingSuggestions, replacedArchive } = state;
+        const archivedSession = validArchivedSession(state.archivedSession, archivedProject);
         if (!archivedProject) return false;
         const keepCurrent = project && project.id !== DEMO_PROJECT_ID;
         // Sem projeto aberto, o arquivo volta a ter o que o reset substituiu.
@@ -2035,10 +2129,14 @@ export const useGraphStore = create<GraphState>()(
           // vai pro arquivo.
           archivedProject: keepCurrent ? project : (restored?.project ?? null),
           archivedPending: keepCurrent ? pendingSuggestions : (restored?.pending ?? null),
+          archivedSession: keepCurrent ? currentDomainSession(state) : (restored?.session ?? null),
           replacedArchive: null,
           pendingSuggestions:
             archivedPending && archivedProject.nodes[archivedPending.parentId] ? archivedPending : null,
           project: archivedProject,
+          parkedSuggestions: archivedSession?.parkedSuggestions ?? {},
+          drafts: archivedSession?.drafts ?? {},
+          objectiveDraft: archivedSession?.objectiveDraft ?? EMPTY_OBJECTIVE_DRAFT,
           selectedNodeId: archivedProject.rootId,
           focusedParentId: archivedProject.rootId,
           viewMode: 'tutor',
@@ -2048,11 +2146,12 @@ export const useGraphStore = create<GraphState>()(
 
       importProject: (json) => {
         const parsed = parseImportedProject(json);
-        if (!parsed) return { ok: false, error: t().store.importInvalid };
+        if (!parsed) return { ok: false, error: importedProjectTreeError(json) ?? t().store.importInvalid };
         set((state) => ({
           ...freshProjectSession(),
           archivedProject: archiveCandidate(state.project, state.archivedProject),
           archivedPending: archivePendingCandidate(state),
+          archivedSession: archiveSessionCandidate(state),
           replacedArchive: replacedArchiveCandidate(state),
           project: parsed,
           selectedNodeId: parsed.rootId,
@@ -2066,7 +2165,7 @@ export const useGraphStore = create<GraphState>()(
     {
       name: 'cellproject-graph',
       version: 6, // v4: drafts, objectiveDraft, archivedProject, lastTutorNodeId; v5: gate da âncora da IA; v6: esboços + cache de expansão no objectiveDraft
-      storage: createSelectiveJSONStorage<PlannerContentSnapshot>(() => idbStorage, { select: plannerContentValues, scope: getCloudRuntime }),
+      storage: createSelectiveJSONStorage<PlannerContentSnapshot & Pick<GraphState, 'plannerOwnerId'>>(() => idbStorage, { select: editorContentValues, scope: getCloudRuntime }),
       // Pass-through migrate: NEVER drop a user's project on a version bump.
       // zustand discards persisted state on version mismatch when no migrate is
       // provided; all newer fields are optional, so old snapshots rehydrate fine
@@ -2096,6 +2195,7 @@ export const useGraphStore = create<GraphState>()(
         return {
           ...current,
           ...p,
+          plannerOwnerId: typeof p.plannerOwnerId === 'string' ? p.plannerOwnerId : null,
           drafts: p.drafts ?? current.drafts,
           objectiveDraft: {
             ...EMPTY_OBJECTIVE_DRAFT,
@@ -2113,10 +2213,12 @@ export const useGraphStore = create<GraphState>()(
             ),
           ),
           archivedPending: validBatch(p.archivedPending, p.archivedProject ?? null),
+          archivedSession: validArchivedSession(p.archivedSession, p.archivedProject ?? null),
         };
       },
       partialize: (state) => ({
         project: state.project,
+        plannerOwnerId: state.plannerOwnerId,
         selectedNodeId: state.selectedNodeId,
         focusedParentId: state.focusedParentId,
         lens: state.lens,
@@ -2129,6 +2231,7 @@ export const useGraphStore = create<GraphState>()(
         pendingSuggestions: state.pendingSuggestions,
         parkedSuggestions: state.parkedSuggestions,
         archivedPending: state.archivedPending,
+        archivedSession: state.archivedSession,
       }),
     },
   ),
@@ -2299,7 +2402,8 @@ export const effectiveLeavesUnder = (
     });
   };
   const start = project.nodes[startId];
-  if (start && reviewing?.has(startId) && (map.get(startId) ?? []).length > 0) {
+  if (start && hasOpenFailure(start)) out.push(start);
+  if (start && !hasOpenFailure(start) && reviewing?.has(startId) && (map.get(startId) ?? []).length > 0) {
     pushReviewing(start);
   }
   const active = new Set([startId]);
@@ -2309,17 +2413,18 @@ export const effectiveLeavesUnder = (
     const children = map.get(frame.id) ?? [];
     if (frame.index < children.length) {
       const child = children[frame.index++];
-      if (child.takenAsKnown) {
+      if (child.takenAsKnown && !hasOpenFailure(child)) {
         if (ACTIONABLE_KINDS.has(child.kind)) out.push(child);
         continue;
       }
       const kids = map.get(child.id);
       if ((kids && kids.length > 0) || hasPendingAt(pending, child.id)) {
-        if (kids && kids.length > 0 && reviewing?.has(child.id)) pushReviewing(child);
+        if (hasOpenFailure(child)) out.push(child);
+        if (!hasOpenFailure(child) && kids && kids.length > 0 && reviewing?.has(child.id)) pushReviewing(child);
         if (active.has(child.id)) throw new Error('Árvore de decomposição inválida: ciclo detectado.');
         active.add(child.id);
         stack.push({ id: child.id, index: 0 });
-      } else if (ACTIONABLE_KINDS.has(child.kind)) {
+      } else if (ACTIONABLE_KINDS.has(child.kind) || hasOpenFailure(child)) {
         out.push(child);
       }
       continue;
@@ -2369,41 +2474,7 @@ export const isNodeResolved = (
   nodeId: string,
   byParent?: Map<string, ConceptNodeData[]>,
 ): boolean => {
-  const node = project.nodes[nodeId];
-  if (!node) return false;
-  if (node.takenAsKnown) return true;
-  const map = byParent ?? childrenByParent(project);
-  const active = new Set<string>();
-  const resolved = new Set<string>();
-  const stack = [{ id: nodeId, exiting: false }];
-  while (stack.length > 0) {
-    const { id, exiting } = stack.pop()!;
-    if (resolved.has(id)) continue;
-    if (exiting) {
-      active.delete(id);
-      resolved.add(id);
-      continue;
-    }
-    const current = project.nodes[id];
-    if (!current) return false;
-    if (current.takenAsKnown) {
-      resolved.add(id);
-      continue;
-    }
-    if (active.has(id)) return false;
-    const kids = map.get(id) ?? [];
-    if (kids.length === 0) {
-      if (!current.confirmado) return false;
-      resolved.add(id);
-      continue;
-    }
-    active.add(id);
-    stack.push({ id, exiting: true });
-    for (let i = kids.length - 1; i >= 0; i--) {
-      stack.push({ id: kids[i].id, exiting: false });
-    }
-  }
-  return true;
+  return nodeResolution(project, byParent, [nodeId]).get(nodeId) === true;
 };
 
 const createdAtOf = (n: ConceptNodeData): number => n.history[0]?.timestamp ?? 0;
@@ -2496,7 +2567,7 @@ export const canConcludeNode = (
     missingKeys.push('blocked');
   }
   // Falha real em aberto: a realidade disse "não funciona" — nada conclui.
-  if (node.failureContext) {
+  if (hasOpenFailure(node)) {
     missing.push(tr.missingOpenFailure);
     missingKeys.push('openFailure');
   }
@@ -2538,7 +2609,7 @@ export const projectProgress = (
   // tutor declare "done" with work pending).
   const leaves = effectiveLeavesUnder(project, project.rootId, undefined, undefined, reviewing);
   const total = leaves.length;
-  const resolved = leaves.filter((n) => n.confirmado || n.takenAsKnown);
+  const resolved = leaves.filter(isSelfResolved);
   const done = resolved.length;
   const doneWithoutSignal = resolved.filter((n) => resolvedWithoutSignal(n, understand)).length;
   const doneWithSignal = done - doneWithoutSignal;
@@ -2555,7 +2626,7 @@ export const projectEvidenceProgress = (project: Project | null, reviewing?: Rea
       (node.confirmado || node.takenAsKnown) && !node.failureContext &&
       (Boolean(node.comoConfirmarAtendido) || (node.groundTruthRefs ?? []).some(refCountsAsSignal)),
     ).length,
-    assumedKnown: leaves.filter((node) => node.takenAsKnown).length,
+    assumedKnown: leaves.filter((node) => node.takenAsKnown && !hasOpenFailure(node)).length,
   };
 };
 
@@ -2565,7 +2636,7 @@ export const nodesWithoutSignal = (project: Project | null): string[] => {
   if (!project) return [];
   const understand = project.archetype === 'entender';
   return effectiveLeaves(project)
-    .filter((n) => (n.confirmado || n.takenAsKnown) && resolvedWithoutSignal(n, understand))
+    .filter((n) => isSelfResolved(n) && resolvedWithoutSignal(n, understand))
     .map((n) => n.id);
 };
 
@@ -2582,6 +2653,7 @@ export const nextPendingForTutor = (
   reviewing?: ReadonlySet<string>,
 ): ConceptNodeData | null => {
   if (!project) return null;
+  if (project.nodes[project.rootId] && hasOpenFailure(project.nodes[project.rootId])) return project.nodes[project.rootId];
   const byParent = childrenByParent(project);
   const underReview = (id: string) => hasPendingAt(pending, id) || Boolean(reviewing?.has(id));
   const active = new Set([project.rootId]);
@@ -2593,6 +2665,7 @@ export const nextPendingForTutor = (
     const children = byParent.get(frame.id) ?? [];
     if (frame.index < children.length) {
       const child = children[frame.index++];
+      if (hasOpenFailure(child)) return child;
       if (child.takenAsKnown) continue;
       const kids = byParent.get(child.id);
       if (kids && kids.length > 0) {
@@ -2619,7 +2692,7 @@ export const projectMetrics = (project: Project | null, reviewing?: ReadonlySet<
   // Risco = trabalho pendente de baixa confiança. Raiz/categorias (100 fixo) e
   // folhas já resolvidas não contam.
   const atRisk = effectiveLeaves(project).filter(
-    (n) => !n.confirmado && !n.takenAsKnown && n.confidence < 40,
+    (n) => !isSelfResolved(n) && n.confidence < 40,
   ).length;
   return {
     nodeCount: nodes.length,

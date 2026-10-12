@@ -13,6 +13,7 @@ import { createAIProxy } from './cloudAI.mjs';
 import { CloudError, sendJson, sendError, readJson } from './cloudUtils.mjs';
 import { DOCUMENT_LIMIT, IMPORT_LIMIT } from './cloudValidation.mjs';
 import { createLiveInkRelay } from './live-ink.mjs';
+import { createExternalApi } from './externalApi.mjs';
 
 const PUBLIC_TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.wasm': 'application/wasm' };
 const notFound = () => new CloudError(404, 'not_found', 'The requested resource was not found.');
@@ -29,13 +30,14 @@ function publicHeaders(res) {
 }
 
 export function productionConfig(env = process.env) {
-  return { ...readCloudConfig(env), vaultEnabled: env.CLOUD_VAULT_ENABLED === '1', providers: { openrouter: env.OPENROUTER_API_KEY || env.OPENROUTER || '', openai: env.OPENAI_API_KEY || '', anthropic: env.ANTHROPIC_API_KEY || '' }, typesafeKey: env.TYPESAFE_API_KEY || env.TYPESAFE || '' };
+  return { ...readCloudConfig(env), vaultEnabled: env.CLOUD_VAULT_ENABLED === '1', externalApiEnabled: env.EXTERNAL_API_ENABLED === '1', externalApiKey: env.SUPABASE_SECRET_KEY || '', externalEncryptionKey: env.EXTERNAL_API_ENCRYPTION_KEY || '', providers: { openrouter: env.OPENROUTER_API_KEY || env.OPENROUTER || '', openai: env.OPENAI_API_KEY || '', anthropic: env.ANTHROPIC_API_KEY || '' }, typesafeKey: env.TYPESAFE_API_KEY || env.TYPESAFE || '' };
 }
 
-export function createProductionHandler({ config = productionConfig(), dist = path.resolve('dist'), auth, repository, vaultRepository, passwordAccessRepository, fetchImpl = fetch, publicFetch, referenceRegistry } = {}) {
+export function createProductionHandler({ config = productionConfig(), dist = path.resolve('dist'), auth, repository, vaultRepository, passwordAccessRepository, externalApi, fetchImpl = fetch, publicFetch, referenceRegistry } = {}) {
   auth ??= createCloudAuth({ config, fetchImpl }); repository ??= createCloudRepository({ config, fetchImpl });
   vaultRepository ??= createVaultRepository({ config, fetchImpl });
   passwordAccessRepository ??= createPasswordAccessRepository({ config, fetchImpl });
+  externalApi ??= createExternalApi({ config, vaultRepository, fetchImpl });
   const authorized = new WeakMap();
   const visuals = createVisualHandler({ local: false, typesafeKey: config.typesafeKey, authorize: req => authorized.get(req)?.user.id ?? null, fetchImpl, publicFetch, referenceRegistry });
   const ai = createAIProxy({ keys: config.providers, fetchImpl });
@@ -91,6 +93,7 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
         sendJson(res, 200, { enabled: config.enabled, authenticated: Boolean(session), ...(config.enabled ? { authMethod: 'email_link', passwordAuth: true, ...(passwordProvider ? { passwordProvider } : {}), ...(config.vaultEnabled ? { vaultAvailable: true, liveInkAvailable: true } : {}) } : {}), ...(session ? { user: session.user, passwordSetup: session.passwordSetup === true } : {}), providers: providers() }); return;
       }
       if (!config.enabled) throw new CloudError(503, 'cloud_not_configured', 'Cloud access is not configured.');
+      if (route.startsWith('/api/v1/')) { await externalApi.handle(req, res, route); return; }
       if (route === '/api/auth/callback' && req.method === 'GET') {
         res.setHeader('referrer-policy', 'no-referrer');
         let location = '/';
@@ -108,6 +111,7 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
       if (route === '/api/auth/logout' && req.method === 'POST') { await auth.logout(req, res); sendJson(res, 200, { authenticated: false }); return; }
       const session = await auth.authorize(req); if (!session) throw new CloudError(401, 'authentication_required', 'Sign in to continue.');
       if (req.aborted || res.destroyed) return;
+      if (route.startsWith('/api/integrations/')) { await externalApi.manage(req, res, session, route); return; }
       if (route === '/api/live/ink') { if (!config.vaultEnabled) throw new CloudError(503, 'vault_required', 'Unlock encrypted storage to share drawing updates.'); await liveInk.handle(req, res, session); return; }
       if (route === '/api/auth/password' && req.method === 'POST') { if (config.vaultEnabled) throw new CloudError(426, 'password_client_upgrade_required', 'Atualize a página para redefinir sua senha com segurança.'); const body = await readJson(req, 4096); await auth.setPassword(body.password, session); sendJson(res, 200, { saved: true }); return; }
       if (route.startsWith('/api/visuals/')) { authorized.set(req, session); await visuals(req, res); return; }
@@ -163,7 +167,7 @@ export function createProductionHandler({ config = productionConfig(), dist = pa
     } catch (error) { sendError(res, error); }
     finally { release?.(); if (activationOwner) activatingVaults.delete(activationOwner); }
   };
-  handler.close = () => { liveInk.close(); auth.close?.(); ai.close(); };
+  handler.close = () => { liveInk.close(); auth.close?.(); ai.close(); externalApi.close(); };
   return handler;
 }
 

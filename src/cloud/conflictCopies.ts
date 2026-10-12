@@ -10,7 +10,7 @@ const WORKSPACE = 'cellproject-workspace', GRAPH = 'cellproject-graph', CHAT = '
 const SUFFIX = ' (cópia deste aparelho)';
 const collections = ['projects', 'tasks', 'sprints', 'comments', 'notes', 'folders', 'boards'] as const;
 const ownedCollections = ['tasks', 'sprints', 'comments', 'notes'] as const;
-const plannerFields = ['project', 'selectedNodeId', 'focusedParentId', 'lens', 'viewMode', 'detailPanelOpen', 'lastTutorNodeId', 'drafts', 'objectiveDraft', 'archivedProject', 'pendingSuggestions', 'parkedSuggestions', 'archivedPending'];
+const plannerFields = ['project', 'selectedNodeId', 'focusedParentId', 'lens', 'viewMode', 'detailPanelOpen', 'lastTutorNodeId', 'drafts', 'objectiveDraft', 'archivedProject', 'pendingSuggestions', 'parkedSuggestions', 'archivedPending', 'archivedSession'];
 const conversationFields = ['id', 'sessionId', 'title', 'createdAt', 'updatedAt', 'archivedAt', 'deletedAt', 'messages', 'modelHistory', 'pendingHistory', 'compaction', 'contextUsage', 'contextObservation'];
 const record = (value: unknown): value is Row => !!value && typeof value === 'object' && !Array.isArray(value);
 const clone = <T>(value: T): T => structuredClone(value);
@@ -73,6 +73,24 @@ function copiedPlanner(snapshot: Row, ids: IdMaps): Row {
   }
   return next;
 }
+function graphPlanner(state: Row): Row {
+  if (Object.keys(state).some(field => ![...plannerFields, 'plannerOwnerId'].includes(field))) throw new Error('Unsupported planner field');
+  if (Object.hasOwn(state, 'plannerOwnerId') && state.plannerOwnerId !== null && (typeof state.plannerOwnerId !== 'string' || !state.plannerOwnerId)) throw new Error('Invalid planner owner');
+  return omit(state, ['plannerOwnerId']);
+}
+function graphOwner(state: Row, snapshot: Row, workspace: Row): string | undefined {
+  const projects = rows(workspace, 'projects');
+  if (Object.hasOwn(state, 'plannerOwnerId')) {
+    if (state.plannerOwnerId === null) return undefined;
+    if (typeof state.plannerOwnerId !== 'string' || !projects[state.plannerOwnerId]) throw new Error('Missing planner owner');
+    // The active editor is canonical; the managed checkpoint can predate its latest edit.
+    return state.plannerOwnerId;
+  }
+  const normalized = (value: Row) => ({ ...value, archivedSession: value.archivedSession ?? null });
+  const owners = Object.entries(projects).filter(([, managed]) => record(managed.planner) && same(normalized(managed.planner), normalized(snapshot)));
+  if (owners.length > 1) throw new Error('Ambiguous planner owner');
+  return owners[0]?.[0];
+}
 function copyTitle(row: Row, field: string, maximum = Infinity): string {
   const value = typeof row[field] === 'string' && row[field] ? row[field] : field === 'name' ? 'Projeto recuperado' : 'Conteúdo recuperado';
   if (value.length + SUFFIX.length > maximum) throw new Error('Copy title exceeds domain limit');
@@ -114,6 +132,11 @@ export function preserveConflictCopies(inputs: readonly ConflictCopyInput[]): Co
     const ids: IdMaps = { projects: new Map(), plans: new Map(), tasks: new Map(), sprints: new Map(), comments: new Map(), notes: new Map(), folders: new Map(), boards: new Map() };
     const managedCopies = new Map<string, Row>();
     const workspaceInput = byKey.get(WORKSPACE);
+    const graphInput = conflicts.has(GRAPH) ? byKey.get(GRAPH) : undefined;
+    const canonicalPlanner = graphInput ? graphPlanner(graphInput.local.state) : undefined;
+    const canonicalOwner = graphInput && canonicalPlanner && workspaceInput ? graphOwner(graphInput.local.state, canonicalPlanner, workspaceInput.local.state) : undefined;
+    // Recover the whole local owner even when only its newer singleton editor conflicted.
+    if (canonicalOwner !== undefined) conflicts.add(WORKSPACE);
     let workspaceEnvelope: Envelope | undefined = output.has(WORKSPACE) ? parse(WORKSPACE, output.get(WORKSPACE)!) : undefined;
     if (conflicts.has(WORKSPACE)) {
       if (!workspaceInput?.remote || !workspaceInput.base) return null;
@@ -122,6 +145,7 @@ export function preserveConflictCopies(inputs: readonly ConflictCopyInput[]): Co
       if (metadata === null) return null;
       const state: Row = { ...metadata };
       const projectCopies = new Set<string>(), rowCopies = new Map<string, Set<string>>();
+      if (canonicalOwner !== undefined) projectCopies.add(canonicalOwner);
       for (const collection of collections) {
         const b = rows(base, collection), l = rows(local, collection), r = rows(remote, collection), merged: Record<string, Row> = {};
         rowCopies.set(collection, new Set());
@@ -150,8 +174,8 @@ export function preserveConflictCopies(inputs: readonly ConflictCopyInput[]): Co
         const project = rows(local, 'projects')[id];
         if (!project) return null;
         ids.projects.set(id, fresh());
-        if (record(project.planner)) for (const field of ['project', 'archivedProject']) {
-          const plan = project.planner[field];
+        for (const snapshot of [project.planner, id === canonicalOwner ? canonicalPlanner : undefined]) if (record(snapshot)) for (const field of ['project', 'archivedProject']) {
+          const plan = snapshot[field];
           if (record(plan) && typeof plan.id === 'string' && !ids.plans.has(plan.id)) ids.plans.set(plan.id, fresh());
         }
         for (const collection of ownedCollections) for (const [rowId, row] of Object.entries(rows(local, collection))) if (row.projectId === id) ids[collection].set(rowId, fresh());
@@ -173,9 +197,10 @@ export function preserveConflictCopies(inputs: readonly ConflictCopyInput[]): Co
         state.projects = originals;
         const next = remap(project, ids) as Row;
         next.id = newId; next.name = copyTitle(project, 'name');
-        if (record(project.planner)) next.planner = copiedPlanner(project.planner, ids);
+        const sourcePlanner = id === canonicalOwner ? canonicalPlanner : project.planner;
+        if (record(sourcePlanner)) next.planner = copiedPlanner(sourcePlanner, ids);
         (state.projects as Record<string, Row>)[newId] = next;
-        if (record(project.planner) && record(next.planner)) managedCopies.set(id, next.planner);
+        if (record(next.planner)) managedCopies.set(id, next.planner);
         copies++;
         for (const collection of ownedCollections) {
           const destination = rows(state, collection);
@@ -205,12 +230,10 @@ export function preserveConflictCopies(inputs: readonly ConflictCopyInput[]): Co
     if (conflicts.has(GRAPH)) {
       const graph = byKey.get(GRAPH)!;
       if (!graph.remote || !graph.base || !workspaceEnvelope || !workspaceInput) return null;
-      const local = graph.local.state;
-      if (Object.keys(local).some(field => !plannerFields.includes(field))) return null;
-      const owners = Object.entries(rows(workspaceInput.local.state, 'projects')).filter(([, managed]) => record(managed.planner) && same(managed.planner, local));
-      if (owners.length > 1) return null;
-      const copied = owners.length === 1 ? managedCopies.get(owners[0][0]) : undefined;
-      if (copied) output.set(GRAPH, encode({ ...graph.local, state: copied }));
+      const local = canonicalPlanner!;
+      const copied = canonicalOwner !== undefined ? managedCopies.get(canonicalOwner) : undefined;
+      if (copied) output.set(GRAPH, encode({ ...graph.local, state: { ...copied,
+        ...(Object.hasOwn(graph.local.state, 'plannerOwnerId') ? { plannerOwnerId: ids.projects.get(canonicalOwner!)! } : {}) } }));
       else {
         if (!record(local.project) || typeof local.project.id !== 'string') return null;
         const newId = fresh(), ownIds: IdMaps = { ...ids, plans: new Map() };

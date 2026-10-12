@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useGraphStore } from '@/store';
+import { EMPTY_OBJECTIVE_DRAFT, useGraphStore } from '@/store';
 import { useWorkspaceStore } from '@/workspace/store';
 import { capturePlanner, initializeWorkspace } from '@/workspace/planner';
 import { buildDemoProject } from '@/data/demoProject';
@@ -27,8 +27,7 @@ function deferred<T>() {
 beforeEach(async () => {
   await Promise.all([useGraphStore.persist.rehydrate(), useWorkspaceStore.persist.rehydrate()]);
   useWorkspaceStore.setState({ projects: {}, notes: {}, activeProjectId: null, legacyImported: true });
-  useGraphStore.setState({ project: { ...buildDemoProject(), id: 'plan' }, aiJobs: {}, selectedNodeId: null });
-  initializeWorkspace();
+  useGraphStore.setState({ project: { ...buildDemoProject(), id: 'plan' }, plannerOwnerId: null, archivedProject: null, archivedPending: null, archivedSession: null, pendingSuggestions: null, parkedSuggestions: {}, drafts: {}, objectiveDraft: { ...EMPTY_OBJECTIVE_DRAFT }, aiJobs: {}, selectedNodeId: null, lastAction: null });
   projectId = useWorkspaceStore.getState().createProject('Chat test');
   useWorkspaceStore.getState().savePlanner(projectId, capturePlanner());
   initializeWorkspace();

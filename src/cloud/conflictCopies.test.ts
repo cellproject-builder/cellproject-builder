@@ -92,6 +92,52 @@ describe('preserveConflictCopies', () => {
     expect(copy.planner.project.nodes).toEqual(local.projects.project.planner.project.nodes);
   });
 
+  it('copies the canonical owner with its newer editor and archived session', () => {
+    const modern = (text: string) => ({ ...planner(text), archivedSession: { projectId: 'older-plan',
+      drafts: { root: { name: 'Archived local draft' } }, parkedSuggestions: {}, objectiveDraft: planner('Archived').objectiveDraft } });
+    const base = { ...workspace(), projects: { project: { ...project('Before'), planner: modern('Before') } } };
+    const local = { ...base, projects: { project: { ...project('Local'), planner: modern('Local checkpoint') } } };
+    const remote = { ...base, projects: { project: { ...project('Remote'), planner: modern('Remote') } } };
+    const localEditor = { ...modern('Canonical local'), plannerOwnerId: 'project' };
+    const result = preserveConflictCopies([input(W, base, local, remote),
+      input(G, { ...modern('Before'), plannerOwnerId: 'project' }, localEditor, { ...modern('Remote'), plannerOwnerId: 'project' }, 6)]);
+    const state = get(result, W), graph = get(result, G);
+    const copy = Object.values(state.projects).find((value: any) => value.id !== 'project') as any;
+    expect(result?.copies).toBe(1);
+    expect(state.projects.project).toEqual(remote.projects.project);
+    expect(copy.planner).not.toHaveProperty('plannerOwnerId');
+    expect(graph).toEqual({ ...copy.planner, plannerOwnerId: copy.id });
+    expect(copy.planner.project.objective).toBe('Canonical local');
+    expect(copy.planner.archivedSession).toEqual({ ...localEditor.archivedSession, projectId: copy.planner.archivedProject.id });
+  });
+
+  it('keeps an explicitly standalone editor separate from an identical managed checkpoint', () => {
+    const base = { ...planner('Before'), archivedSession: null, plannerOwnerId: null };
+    const local = { ...planner('Local'), archivedSession: null, plannerOwnerId: null };
+    const remote = { ...planner('Remote'), archivedSession: null, plannerOwnerId: null };
+    const managed = { ...workspace(), projects: { project: { ...project('Local'), planner: { ...planner('Local'), archivedSession: null } } } };
+    const result = preserveConflictCopies([input(W, managed, managed, managed), input(G, base, local, remote, 6)]);
+    const state = get(result, W), copy = Object.values(state.projects).find((value: any) => value.id !== 'project') as any;
+    expect(result?.copies).toBe(1);
+    expect(state.projects.project).toEqual(managed.projects.project);
+    expect(copy.planner).not.toHaveProperty('plannerOwnerId');
+    expect(copy.planner.project.nodes).toEqual(local.project.nodes);
+    expect(get(result, G)).toEqual(remote);
+  });
+
+  it('recovers the entire owner when only its active editor has conflicting newer edits', () => {
+    const managed = { ...workspace(), projects: { project: project('Checkpoint') },
+      tasks: { task: { id: 'task', projectId: 'project', title: 'Investigation', sourcePlanId: 'plan', sourceNodeId: 'root' } } };
+    const graph = (text: string) => ({ ...planner(text), archivedSession: null, plannerOwnerId: 'project' });
+    const result = preserveConflictCopies([input(W, managed, managed, managed), input(G, graph('Before'), graph('Local editor'), graph('Remote editor'), 6)]);
+    const state = get(result, W), copy = Object.values(state.projects).find((value: any) => value.id !== 'project') as any;
+    expect(result?.copies).toBe(1);
+    expect(state.projects.project).toEqual(managed.projects.project);
+    expect(copy.planner.project.objective).toBe('Local editor');
+    expect(Object.values(state.tasks)).toEqual(expect.arrayContaining([expect.objectContaining({ projectId: copy.id, sourcePlanId: copy.planner.project.id })]));
+    expect(get(result, G)).toEqual({ ...copy.planner, plannerOwnerId: copy.id });
+  });
+
   it('recovers a standalone local editor as a project and retains the remote singleton', () => {
     const base = planner('Before'), local = planner('Local'), remote = planner('Remote');
     const result = preserveConflictCopies([input(W, workspace(), workspace(), workspace()), input(G, base, local, remote, 6)]);

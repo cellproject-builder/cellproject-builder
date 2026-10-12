@@ -1,28 +1,19 @@
 import { decryptExport, encryptedExport, getVaultSession, vaultIsProtected } from './vault/privacy';
 import { get, entries, createStore } from 'idb-keyval';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
-import { validatePersistedNoteCanvases } from '@/workspace/noteCanvasPersistence';
-import { validatePersistedBoards } from '@/boards/model';
+import { validateBackup, backupManifestHash as manifestHash, MAX_BACKUP_BYTES as MAX_BYTES, type MigrationBackup } from './backupValidation';
+export { validateBackup } from './backupValidation';
+export type { MigrationBackup } from './backupValidation';
 import { CLOUD_DOCUMENT_KEYS, CloudConflictError, CloudRuntime, cloudJson, decodeBytes, encodeBytes, mutationHeaders, sanitizeCloudDocument, sha256, type CloudSnapshot } from './runtime';
 
 interface LegacyMedia { id: string; mime: string; name: string; projectId?: string; createdAt?: number; bytes: ArrayBuffer }
-export interface MigrationBackup {
-  format: 'cellproject-global-backup'; version: 1; exportedAt: string; operationId: string; manifestHash: string;
-  documents: { key: string; value: string }[];
-  media: { id: string; mime: string; name: string; projectId?: string; createdAt?: number; sha256: string; size: number; base64: string }[];
-}
 interface LegacySource { getDocument: (key: string) => Promise<string | null>; getPreference: (key: string) => string | null; getMedia: () => Promise<LegacyMedia[]> }
-const MAX_BYTES = 500 * 1024 * 1024;
+
 const defaultSource: LegacySource = {
   getDocument: async key => (await get<string>(key)) ?? null,
   getPreference: key => localStorage.getItem(key),
   getMedia: async () => (await entries<string, Omit<LegacyMedia, 'id'>>(createStore('cellproject-visual-media', 'media'))).map(([id, value]) => ({ ...value, id })),
 };
-async function manifestHash(backup: Pick<MigrationBackup, 'documents' | 'media'>) {
-  const documents = [...backup.documents].sort((a, b) => a.key.localeCompare(b.key));
-  const media = [...backup.media].sort((a, b) => a.id.localeCompare(b.id)).map(({ base64: _bytes, ...metadata }) => metadata);
-  return sha256(strToU8(JSON.stringify({ documents, media })).buffer as ArrayBuffer);
-}
 export async function captureLegacyBackup(source: LegacySource = defaultSource, prepare?: () => Promise<void>): Promise<MigrationBackup> {
   await prepare?.();
   const documents: MigrationBackup['documents'] = [];
@@ -34,32 +25,6 @@ export async function captureLegacyBackup(source: LegacySource = defaultSource, 
   for (const { bytes, ...metadata } of await source.getMedia()) media.push({ ...metadata, sha256: await sha256(bytes), size: bytes.byteLength, base64: encodeBytes(bytes) });
   const backup: MigrationBackup = { format: 'cellproject-global-backup', version: 1, exportedAt: new Date().toISOString(), operationId: crypto.randomUUID(), manifestHash: '', documents, media };
   backup.manifestHash = await manifestHash(backup); await validateBackup(backup); return backup;
-}
-export async function validateBackup(value: unknown): Promise<MigrationBackup> {
-  const backup = value as MigrationBackup;
-  if (!backup || backup.format !== 'cellproject-global-backup' || backup.version !== 1 || !Array.isArray(backup.documents) || !Array.isArray(backup.media) || typeof backup.manifestHash !== 'string' || typeof backup.operationId !== 'string' || backup.documents.length > 9 || backup.media.length > 10000) throw new Error('Backup global inválido.');
-  const keys = new Set<string>(), ids = new Set<string>(); let total = 0;
-  for (const doc of backup.documents) {
-    if (!doc || typeof doc.value !== 'string' || keys.has(doc.key) || !CLOUD_DOCUMENT_KEYS.includes(doc.key as typeof CLOUD_DOCUMENT_KEYS[number])) throw new Error('Documento duplicado ou inválido.');
-    keys.add(doc.key);
-    if (doc.key.startsWith('cellproject-') || doc.key === 'dynamic_diary-chat') {
-      const envelope = JSON.parse(doc.value) as { state?: unknown; version?: unknown };
-      if (!envelope || !envelope.state || typeof envelope.state !== 'object' || !Number.isInteger(envelope.version)) throw new Error('Envelope de persistência inválido.');
-      if (doc.key === 'cellproject-workspace') {
-        const workspace = envelope.state as { notes?: unknown; boards?: unknown };
-        validatePersistedNoteCanvases(workspace.notes);
-        validatePersistedBoards(workspace.boards, workspace.notes);
-      }
-    }
-    if (sanitizeCloudDocument(doc.key, doc.value) !== doc.value) throw new Error('Backup contém configuração de credencial.');
-  }
-  for (const file of backup.media) {
-    if (!file || !/^[\w-]{1,100}$/.test(file.id) || ids.has(file.id) || typeof file.base64 !== 'string' || file.base64.length > 14 * 1024 * 1024 || typeof file.mime !== 'string' || typeof file.name !== 'string') throw new Error('Arquivo inválido no backup.');
-    ids.add(file.id); const bytes = decodeBytes(file.base64); total += bytes.byteLength;
-    if (!bytes.byteLength || bytes.byteLength > 10 * 1024 * 1024 || total > MAX_BYTES || bytes.byteLength !== file.size || await sha256(bytes) !== file.sha256) throw new Error('Falha de integridade do arquivo no backup.');
-  }
-  if (await manifestHash(backup) !== backup.manifestHash) throw new Error('Falha de integridade do manifesto.');
-  return backup;
 }
 export async function backupBlob(backup: MigrationBackup): Promise<Blob> {
   await validateBackup(backup);
@@ -74,7 +39,7 @@ export async function readBackup(blob: Blob): Promise<MigrationBackup> {
   let bytes = typeof blob.arrayBuffer === 'function' ? await blob.arrayBuffer() : await new Promise<ArrayBuffer>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result as ArrayBuffer); reader.onerror = reject; reader.readAsArrayBuffer(blob); });
   if (new Uint8Array(bytes)[0] === 123) bytes = await decryptExport(bytes, 'backup');
   let unpackedBytes = 0;
-  const files = unzipSync(new Uint8Array(bytes), { filter: item => { unpackedBytes += item.originalSize; if (unpackedBytes > MAX_BYTES + 64 * 1024 * 1024 || (item.name !== 'manifest.json' && !/^media\/[\w-]{1,100}$/.test(item.name))) throw new Error('Estrutura do backup inválida.'); return true; } });
+  const files = unzipSync(new Uint8Array(bytes), { filter: item => { unpackedBytes += item.originalSize; if (unpackedBytes > MAX_BYTES + 64 * 1024 * 1024 || (item.name !== 'manifest.json' && !/^media\/(?!\.{1,2}$)[A-Za-z0-9_.:-]{1,180}$/.test(item.name))) throw new Error('Estrutura do backup inválida.'); return true; } });
   if (!files['manifest.json']) throw new Error('Manifesto ausente.');
   const backup = JSON.parse(strFromU8(files['manifest.json'])) as MigrationBackup;
   if (!Array.isArray(backup.media)) throw new Error('Manifesto inválido.');

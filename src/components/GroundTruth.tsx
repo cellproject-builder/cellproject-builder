@@ -1333,6 +1333,7 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
           nodeFx: cur.fx,
           oQue: cur.oQue,
           failureContext: failure,
+          failureReportedAt: cur.failureReportedAt,
           siblings,
           strategy: proj.constructionStrategy,
           archetype: proj.archetype,
@@ -1341,9 +1342,11 @@ function FailureBody({ node, project, collapsible, domIds }: SectionProps & { do
           currentChildren: currentChildren.length > 0 ? currentChildren : undefined,
           // Critério da IA só depois de revelado: senão o diagnóstico mostraria
           // o limiar da IA antes de o usuário escrever o dele.
-          comoConfirmar: canRevealAICriterionNow(cur)
-            ? cur.comoConfirmar || undefined
-            : cur.comoConfirmarUsuario || undefined,
+          comoConfirmar: canRevealAICriterionNow(cur) ? cur.comoConfirmar || undefined : undefined,
+          comoConfirmarUsuario: cur.comoConfirmarUsuario,
+          comoConfirmarUsuarioAt: cur.comoConfirmarUsuarioAt,
+          comoConfirmarAtendido: cur.comoConfirmarAtendido,
+          groundTruthRefs: cur.groundTruthRefs,
           failedAnchors: failedAnchors.length > 0 ? failedAnchors : undefined,
           planOverview: planOverviewFor(proj, cur.id),
         },

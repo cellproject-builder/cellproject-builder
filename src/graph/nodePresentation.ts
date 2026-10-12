@@ -1,6 +1,7 @@
 import { canConcludeNode, isActionableKind } from '@/store';
 import type { Project } from '@/types';
 import { childrenByParent } from './treeIndex';
+import { nodeResolution } from './nodeResolution';
 
 export interface NodePresentation { childCount: number; edgeCount: number; blocked: boolean; stepNo: number | null; canConclude: boolean }
 
@@ -10,29 +11,7 @@ const cached = new WeakMap<Project['nodes'], WeakMap<Project['edges'], ReadonlyM
 export function nodePresentation(project: Project): ReadonlyMap<string, NodePresentation> {
   const previous = cached.get(project.nodes)?.get(project.edges);
   if (previous) return previous;
-  const nodes = Object.values(project.nodes), children = childrenByParent(project), resolved = new Map<string, boolean>();
-  // Resolve each subtree once. The iterative walk also keeps deep imported plans
-  // safe, and a cycle stays unresolved unless a taken-as-known node cuts it.
-  for (const node of nodes) {
-    if (resolved.has(node.id)) continue;
-    const active = new Set<string>(), stack = [{ id: node.id, exiting: false }];
-    while (stack.length) {
-      const frame = stack.pop()!, current = project.nodes[frame.id];
-      if (frame.exiting) {
-        active.delete(frame.id);
-        if (!resolved.has(frame.id)) resolved.set(frame.id, (children.get(frame.id) ?? []).every(child => resolved.get(child.id) === true));
-        continue;
-      }
-      if (resolved.has(frame.id)) continue;
-      if (!current) { resolved.set(frame.id, false); continue; }
-      if (current.takenAsKnown) { resolved.set(frame.id, true); continue; }
-      if (active.has(frame.id)) { resolved.set(frame.id, false); continue; }
-      const kids = children.get(frame.id) ?? [];
-      if (!kids.length) { resolved.set(frame.id, current.confirmado); continue; }
-      active.add(frame.id); stack.push({ id: frame.id, exiting: true });
-      for (let index = kids.length - 1; index >= 0; index--) stack.push({ id: kids[index].id, exiting: false });
-    }
-  }
+  const nodes = Object.values(project.nodes), children = childrenByParent(project), resolved = nodeResolution(project, children);
   const steps = new Map<string, { blocked: boolean; stepNo: number }>();
   for (const siblings of children.values()) {
     const ordered = siblings.filter(node => node.kind === 'passo').sort((a, b) => a.order - b.order || (a.history[0]?.timestamp ?? 0) - (b.history[0]?.timestamp ?? 0) || a.name.localeCompare(b.name));

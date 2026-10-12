@@ -13,6 +13,7 @@ A contribuição científica pretendida é um método de desconstrução de plan
 | Encontrar código e decidir onde colocar arquivos | [Mapa do repositório](docs/repository-map.md) |
 | Entender propriedade de dados e fronteiras | [Arquitetura](docs/architecture.md) |
 | Usar a implementação em artigos, com limites de evidência | [Guia de pesquisa](docs/research/README.md) |
+| Operar o projeto com um runtime externo | [API autenticada e MCP](docs/EXTERNAL_API.md) |
 | Conferir o que foi organizado e verificado nesta revisão | [Relatório de organização](docs/reports/repository-review-2026-10-10.md) |
 
 ## O que existe
@@ -22,6 +23,7 @@ A contribuição científica pretendida é um método de desconstrução de plan
 - **Diagramas:** React renderiza documentos SVG declarativos, com parâmetros e interação. Execução de React arbitrário gerado é uma experiência de laboratório, não o contrato de produção.
 - **Notas e Dynamic Board:** caderno visual nas notas; quadro livre com textos, desenhos, imagens e artefatos. Cada superfície possui seu documento e contexto; copiar conteúdo não cria sincronização entre eles.
 - **Chat com ações:** referências com `@`, anexos, pesquisa de componentes e ferramentas validadas do workspace/planner. **Dairo é uma proposta documentada**, ainda sem agente de memórias/resumos diários entregue.
+- **API e MCP:** ações persistentes validadas para runtimes externos usarem a própria inteligência; credenciais com escopo, expiração e revogação. Requer ativação no servidor e migração do banco.
 - **Dados e plataforma:** armazenamento local ou cloud configurada, backup portátil e cofre opcional com criptografia no cliente. Backend Node para Railway; Supabase para Auth e persistência. A configuração atual tem limites de uma conta autorizada e uma instância de servidor.
 
 O [catálogo](docs/modules/README.md) descreve por módulo os fluxos, contratos, arquivos, testes, limites e perguntas investigáveis. Funcionalidade implementada não equivale a validação em usuários, dispositivo físico ou produção remota.
@@ -53,8 +55,8 @@ npm run check:bundle
 
 ## Publicação, dados e privacidade
 
-`npm run build` produz `dist`; `npm start` serve a aplicação e suas APIs pelo Node. `npm run preview` e hospedagem apenas estática não fornecem os gateways de pesquisa, IA ou cloud. Consulte [produção](docs/cloud-production.md), [PWA](docs/pwa.md) e [dados e privacidade](docs/modules/data-and-privacy.md).
+`npm run build` produz `dist` e os contratos de servidor em `dist-server`; `npm start` serve a aplicação e suas APIs pelo Node. `npm run preview` e hospedagem apenas estática não fornecem os gateways de pesquisa, IA ou cloud. Consulte [produção](docs/cloud-production.md), [API/MCP](docs/EXTERNAL_API.md), [PWA](docs/pwa.md) e [dados e privacidade](docs/modules/data-and-privacy.md).
 
-Com o cofre ativado, o armazenamento recebe conteúdo cifrado; o cliente desbloqueado e os provedores usados com contexto autorizado podem processar conteúdo legível. Isso não impede acesso por código malicioso executado no cliente aberto. O shell PWA cacheado também não garante inicialização offline. Os limites completos estão documentados nos respectivos módulos.
+Com o cofre ativado, o armazenamento recebe conteúdo cifrado; o cliente desbloqueado e os provedores usados com contexto autorizado podem processar conteúdo legível. Uma integração externa concedida também permite que o servidor abra os dados necessários e os entregue ao runtime dentro do escopo autorizado. Isso não impede acesso por código malicioso executado no cliente aberto. O shell PWA cacheado também não garante inicialização offline. Os limites completos estão documentados nos respectivos módulos.
 
 Nomes persistidos `cellproject-*` permanecem por compatibilidade com dados existentes; o nome do produto é **Dynamic Diary**. Experimentos em `docs/design/` e conceitos em [arquivo histórico](docs/archive/README.md) preservam sua proveniência.

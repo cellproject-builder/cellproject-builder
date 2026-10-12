@@ -4,7 +4,9 @@ import { mergeCloudDocument } from './documentMerge';
 import { preserveConflictCopies } from './conflictCopies';
 import { isPublicDemo, PUBLIC_DEMO_NETWORK_MESSAGE } from '@/demo/session';
 export type { CheckpointStore } from './offline/checkpoints';
-export const CLOUD_DOCUMENT_KEYS = ['cellproject-workspace', 'cellproject-graph', 'dynamic_diary-chat', 'cellproject-kb', 'cellproject-config', 'cellproject-locale', 'dynamic_diary-theme', 'dynamic_diary-sidebar-collapsed', 'dynamic_diary:task-view'] as const;
+import { CLOUD_DOCUMENT_KEYS, sanitizeCloudDocument } from './documentContract';
+export { CLOUD_DOCUMENT_KEYS, sanitizeCloudDocument } from './documentContract';
+export type CloudDocumentKey = typeof CLOUD_DOCUMENT_KEYS[number];
 export type CloudProvider = 'openrouter' | 'openai' | 'anthropic';
 export interface CloudDocument { key: string; value: string; revision: number }
 export interface CloudMedia { id: string; mime: string; name: string; projectId?: string; createdAt?: number; sha256: string; size: number }
@@ -49,15 +51,8 @@ export async function cloudJson<T>(path: string, init: RequestInit = {}, fetcher
   }
   return await response.json() as T;
 }
-export function sanitizeCloudDocument(key: string, value: string): string {
-  if (!CLOUD_DOCUMENT_KEYS.includes(key as typeof CLOUD_DOCUMENT_KEYS[number])) throw new Error('Documento de persistência desconhecido.');
-  if (key !== 'cellproject-config') return value;
-  const data = JSON.parse(value) as { state?: { providers?: Record<string, Record<string, unknown>> } };
-  for (const config of Object.values(data.state?.providers ?? {})) delete config.apiKey;
-  return JSON.stringify(data);
-}
-
 const plannerFields = ['project', 'selectedNodeId', 'focusedParentId', 'lens', 'viewMode', 'detailPanelOpen', 'lastTutorNodeId', 'drafts', 'objectiveDraft', 'archivedProject', 'pendingSuggestions', 'parkedSuggestions', 'archivedPending'];
+const optionalPlannerFields = ['archivedSession'];
 const jsonRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 function sameJson(a: unknown, b: unknown): boolean {
   if (a === b) return true;
@@ -79,11 +74,21 @@ function managedGraphCheckpoint(base: string | null, local: string, remote: stri
     const before: unknown = JSON.parse(base), here: unknown = JSON.parse(local), there: unknown = JSON.parse(remote), canonical: unknown = JSON.parse(workspace);
     if (!jsonRecord(before) || !jsonRecord(here) || !jsonRecord(there) || before.version !== here.version || here.version !== there.version || !Number.isSafeInteger(here.version) || !jsonRecord(before.state) || !jsonRecord(here.state) || !jsonRecord(there.state) || !jsonRecord(canonical) || !jsonRecord(canonical.state) || !jsonRecord(canonical.state.projects)) return false;
     const id = (state: Record<string, unknown>) => jsonRecord(state.project) && typeof state.project.id === 'string' ? state.project.id : null;
-    const baseId = id(before.state), localId = id(here.state), remoteId = id(there.state);
+    const identity = (state: Record<string, unknown>) => typeof state.plannerOwnerId === 'string' && state.plannerOwnerId ? `owner:${state.plannerOwnerId}` : id(state) ? `plan:${id(state)}` : null;
+    const baseId = identity(before.state), localId = identity(here.state), remoteId = identity(there.state);
     if (!baseId || !localId || !remoteId || localId === remoteId) return false;
-    const planners = Object.values(canonical.state.projects).flatMap(managed => jsonRecord(managed) && jsonRecord(managed.planner) ? [managed.planner] : []);
-    const covered = (state: Record<string, unknown>) => Object.keys(state).length === plannerFields.length && plannerFields.every(field => Object.hasOwn(state, field)) && planners.filter(planner => plannerFields.every(field => Object.hasOwn(planner, field) && sameJson(state[field], planner[field]))).length === 1;
-    return planners.some(planner => id(planner) === baseId) && covered(here.state) && covered(there.state);
+    const projects = canonical.state.projects;
+    const managed = Object.entries(projects).flatMap(([owner, value]) => jsonRecord(value) && jsonRecord(value.planner) ? [{ owner, planner: value.planner }] : []);
+    const covered = (state: Record<string, unknown>) => {
+      if (Object.keys(state).some(field => ![...plannerFields, ...optionalPlannerFields, 'plannerOwnerId'].includes(field)) || !plannerFields.every(field => Object.hasOwn(state, field))) return false;
+      // A modern envelope names its owner explicitly. Null/unknown ownership
+      // cannot borrow another imported copy's identical domain snapshot.
+      const candidates = Object.hasOwn(state, 'plannerOwnerId') ? managed.filter(item => item.owner === state.plannerOwnerId) : managed;
+      return candidates.filter(({ planner }) => plannerFields.every(field => Object.hasOwn(planner, field) && sameJson(state[field], planner[field])) && optionalPlannerFields.every(field => sameJson(state[field] ?? null, planner[field] ?? null))).length === 1;
+    };
+    const baseOwner = before.state.plannerOwnerId, basePlan = id(before.state);
+    const baseManaged = typeof baseOwner === 'string' ? managed.some(item => item.owner === baseOwner) : managed.some(item => id(item.planner) === basePlan);
+    return baseManaged && covered(here.state) && covered(there.state);
   } catch { return false; }
 }
 

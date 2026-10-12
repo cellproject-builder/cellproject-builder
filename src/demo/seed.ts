@@ -148,7 +148,7 @@ function plannerFor(example: Example, now: number): PlannerSnapshot {
     project, selectedNodeId: rootId, focusedParentId: rootId, lens: 'structure', viewMode: 'graph', detailPanelOpen: true,
     lastTutorNodeId: null, drafts: {},
     objectiveDraft: { ...EMPTY_OBJECTIVE_DRAFT, name: example.name, objective: example.objective, rules: [...project.rules!], expanded: {}, updatedAt: now },
-    pendingSuggestions: null, parkedSuggestions: {}, archivedProject: null, archivedPending: null,
+    pendingSuggestions: null, parkedSuggestions: {}, archivedProject: null, archivedPending: null, archivedSession: null,
   };
 }
 

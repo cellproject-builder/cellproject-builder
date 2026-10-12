@@ -15,6 +15,7 @@ import { useGraphStore } from '@/store';
 import { Modal } from './ui/Modal';
 import { LanguageToggle } from './LanguageToggle';
 import { isCloudEnabled, cloudProviderAvailable, getCloudRuntime } from '@/cloud/runtime';
+import { ExternalAccessPanel } from '@/external/ExternalAccessPanel';
 
 const PROVIDERS: Provider[] = ['openrouter', 'openai', 'anthropic'];
 
@@ -54,7 +55,7 @@ export function ApiKeyGate({ onClose, initialAdvanced = false, title, preference
     return onClose ? <Modal open onClose={onClose} title={title ?? tr.apiKey.modalTitle} className="max-w-xl">{content}</Modal> : <div className="p-6">{content}</div>;
   }
   if (isCloudEnabled()) {
-    const content = <>{preferences}<p className="text-control text-text-secondary">As credenciais de IA ficam protegidas no servidor.</p><CloudModelSettings onClose={onClose}/></>;
+    const content = <>{preferences}<p className="text-control text-text-secondary">As credenciais de IA ficam protegidas no servidor.</p><CloudModelSettings onClose={onClose}/><ExternalAccessPanel/></>;
     return onClose ? <Modal open onClose={onClose} title={title ?? tr.apiKey.modalTitle} className="max-w-xl">{content}</Modal> : <div className="p-6">{content}</div>;
   }
 

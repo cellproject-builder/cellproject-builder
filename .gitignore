@@ -3,6 +3,7 @@ node_modules/
 
 # build output
 dist/
+dist-server/
 *.tsbuildinfo
 
 # Configuração privada local/servidor; somente exemplos sem segredos são fontes.
@@ -27,6 +28,7 @@ pnpm-debug.log*
 .claude/
 .cursor/
 .mcp.json
+.mcp-runtime.private.md
 .atlas/
 .codex-audit-*/
 # Capturas locais de interfaces externas usadas como referência visual

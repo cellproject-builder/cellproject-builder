@@ -470,6 +470,45 @@ it('allows different managed plan checkpoints only after both complete planner s
   expect(projects['managed-0'].planner).toEqual(remoteOne); expect(projects['managed-1'].planner).toEqual(localTwo);
 });
 
+it('reconciles explicitly owned editor checkpoints for independent imported copies with the same inner plan id', async () => {
+  const originalOne = { ...managedPlanner('shared-import', 'One'), archivedSession: null }, originalTwo = { ...managedPlanner('shared-import', 'Two'), archivedSession: null };
+  const remoteOne = { ...managedPlanner('shared-import', 'PC edit'), archivedSession: null }, localTwo = { ...managedPlanner('shared-import', 'Tablet edit'), archivedSession: null };
+  const graph = (state: unknown, plannerOwnerId: string) => JSON.stringify({ version: 6, state: { ...(state as object), plannerOwnerId } });
+  const base = { documents: [{ key: 'cellproject-graph', value: graph(originalOne, 'managed-0'), revision: 1 }, { key: 'cellproject-workspace', value: managedWorkspace(originalOne, originalTwo), revision: 1 }], media: [] };
+  const incoming = { documents: [{ key: 'cellproject-graph', value: graph(remoteOne, 'managed-0'), revision: 2 }, { key: 'cellproject-workspace', value: managedWorkspace(remoteOne, originalTwo), revision: 2 }], media: [] };
+  let finish!: () => void;
+  const load = () => new Promise<typeof incoming>(resolve => { finish = () => resolve(incoming); });
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(documentRevisionConflict()).mockImplementation(async () => Response.json({ revision: 3 }));
+  const runtime = new CloudRuntime(base, fetcher, undefined, load);
+  const writing = runtime.write('cellproject-graph', graph(localTwo, 'managed-1'));
+  await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+  void runtime.write('cellproject-workspace', managedWorkspace(originalOne, localTwo));
+  finish(); await writing; await runtime.flush();
+  const projects = JSON.parse(runtime.get('cellproject-workspace')!).state.projects;
+  expect(projects['managed-0'].planner.project.name).toBe('PC edit');
+  expect(projects['managed-1'].planner.project.name).toBe('Tablet edit');
+  expect(JSON.parse(runtime.get('cellproject-graph')!).state.plannerOwnerId).toBe('managed-1');
+  expect(runtime.getSnapshot().issue).toBeNull();
+});
+
+it('keeps a remote A note out of the editor switched to an identical imported copy B', async () => {
+  const planner = managedPlanner('shared-import', 'Same imported plan');
+  const original = { ...planner, archivedSession: null, project: { ...planner.project, nodes: { root: { ...planner.project.nodes.root, notes: '' } } } };
+  const remoteOne = structuredClone(original); remoteOne.project.nodes.root.notes = 'Only for A';
+  const graph = (state: typeof original, plannerOwnerId: string) => JSON.stringify({ version: 6, state: { ...state, plannerOwnerId } });
+  const base = { documents: [{ key: 'cellproject-graph', value: graph(original, 'managed-0'), revision: 1 }, { key: 'cellproject-workspace', value: managedWorkspace(original, original), revision: 1 }], media: [] };
+  const incoming = { documents: [{ key: 'cellproject-graph', value: graph(remoteOne, 'managed-0'), revision: 2 }, { key: 'cellproject-workspace', value: managedWorkspace(remoteOne, original), revision: 2 }], media: [] };
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(documentRevisionConflict()).mockImplementation(async () => Response.json({ revision: 3 }));
+  const runtime = new CloudRuntime(base, fetcher, undefined, async () => incoming);
+  await runtime.write('cellproject-graph', graph(original, 'managed-1')); await runtime.flush();
+  const editor = JSON.parse(runtime.get('cellproject-graph')!).state, projects = JSON.parse(runtime.get('cellproject-workspace')!).state.projects;
+  expect(editor.plannerOwnerId).toBe('managed-1');
+  expect(editor.project.nodes.root.notes).toBe('');
+  expect(projects['managed-0'].planner.project.nodes.root.notes).toBe('Only for A');
+  expect(projects['managed-1'].planner.project.nodes.root.notes).toBe('');
+  expect(runtime.getSnapshot().issue).toBeNull();
+});
+
 it.each(['unmanaged', 'unsubmitted draft', 'different canonical content'])('keeps differing plan checkpoints conflicted when coverage is unsafe: %s', async reason => {
   const originalOne = managedPlanner('one', 'One'), originalTwo = managedPlanner('two', 'Two');
   const remoteOne = managedPlanner('one', 'PC edit'), localTwo = managedPlanner('two', 'Tablet edit');

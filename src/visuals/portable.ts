@@ -1,5 +1,5 @@
 import type { Project } from '@/types';
-import { parseImportedProject } from '@/store';
+import { importedProjectTreeError, parseImportedProject } from '@/store';
 import { useGraphStore } from '@/store';
 import { useWorkspaceStore } from '@/workspace/store';
 import { getPlannerOwnerId } from '@/workspace/planner';
@@ -34,7 +34,7 @@ export async function prepareVisualPlanImport(raw: unknown): Promise<Project> {
   const wrapped = envelope?.format === 'cellproject-visual-plan';
   if (wrapped && (envelope.version !== 1 || !Array.isArray(envelope.media) || Object.keys(envelope).some(key => !['format', 'version', 'project', 'media'].includes(key)))) throw new Error('visualPlanInvalid');
   const project = parseImportedProject(wrapped ? envelope.project : raw);
-  if (!project) throw new Error('visualPlanInvalid');
+  if (!project) throw new Error(importedProjectTreeError(wrapped ? envelope.project : raw) ?? 'visualPlanInvalid');
   const ids = collectVisualMediaIds(project);
   const media = wrapped ? envelope.media as PortableVisualMedia[] : [];
   if (ids.some(id => !media.some(record => record?.id === id))) throw new Error('visualMediaMissing');

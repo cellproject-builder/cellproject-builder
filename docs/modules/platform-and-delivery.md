@@ -53,6 +53,8 @@ Vite pode semear uma chave de desenvolvimento do ambiente no cliente local por `
 
 A conta autorizada do criador pode usar provedores configurados no servidor, mas isso não entrega uma “root key” ao navegador nem concede administração do Supabase. Chaves de OpenRouter/OpenAI/Anthropic/TypeSafe são variáveis somente do backend, sem prefixo `VITE_`, e capacidades retornam booleanos. Repositórios de persistência usam publishable key mais JWT do usuário. [cloudValidation.mjs](../../server/cloudValidation.mjs) recusa credenciais estruturadas dentro de configuração cloud; isso não é um detector geral de segredos escritos pelo usuário em texto livre.
 
+A [API para runtimes externos](../EXTERNAL_API.md) acrescenta operações determinísticas sem chamar os provedores internos. Sua gestão usa a sessão do navegador; a execução usa credenciais dedicadas e RPCs restritas com chave Supabase somente no servidor, delegação cifrada do cofre, revisão CAS e recibos cifrados. O build inclui os contratos em `dist-server`. A migração e a ativação dessa integração são independentes da existência do código no checkout.
+
 Fluxo principal de acesso:
 
 1. A interface oferece email/senha. Com `passwordProvider`, o navegador envia a senha diretamente ao Supabase Auth e entrega os tokens a `/api/auth/password/session`. Node valida identidade/autorização, prova o vínculo do par por refresh e cria uma sessão opaca. A senha não passa pelo gateway da aplicação nem faz parte dos documentos/logs. As rotas antigas que recebem senha retornam HTTP 426 quando o cofre está habilitado.
@@ -79,6 +81,8 @@ O domínio canônico fica em `APP_ORIGIN`. Hosts alternativos só redirecionam G
 | `/api/cloud/snapshot`, `/documents/:key`, `/import`, `/media` | Snapshot, CAS/idempotência, import e mídia legada privada | Stores + repositório cloud |
 | `/api/cloud/vault*` | Cabeçalho/manifesto/blob cifrado e revisão | Chave no cliente; bytes no repositório do cofre |
 | `/api/cloud/vault/password-access` | Vínculo da senha por envelope cifrado, revisão CAS e `expectedOwnerId` | Recuperação aberta apenas no cliente; chave de dados existente preservada |
+| `/api/v1/*` | Catálogo, consultas e ações com bearer, escopos, CAS e recibos | Domínio validado da interface; runtime externo fornece a inteligência |
+| `/api/integrations/external*` | Criar/listar/revogar integrações pela sessão autenticada do navegador | Usuário concede abertura do cofre pelo servidor e delimita projetos/permissões/prazo |
 | `/api/live/ink` | POST/SSE cifrado e efêmero por conta, com backpressure limitado | Prévia temporária; documento salvo continua canônico |
 | `/api/ai/*` | Proxy pago para quatro rotas fixas de provedores | Contexto enviado deliberadamente para geração/pesquisa |
 | `/api/visuals/*` | Capacidades, referências, mídia, especificações e classificação | Sessões efêmeras por acesso/contexto e resultados selecionados |

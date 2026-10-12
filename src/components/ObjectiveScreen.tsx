@@ -28,6 +28,8 @@ import { FileAttachments } from '@/attachments/FileAttachments';
 import { projectFiles, setProjectFiles } from '@/attachments/projectFiles';
 import { planFilesContext } from '@/attachments/files';
 import { classifyPlanRequest, intakeLabel, type PlanIntake } from '@/ai/planIntake';
+import { parseRules, mergeRules, sameRules } from '@/planningRules';
+export { parseRules, mergeRules, sameRules } from '@/planningRules';
 
 // ---------------------------------------------------------------------------
 // Helpers puros (testados em ObjectiveScreen.test.ts)
@@ -37,32 +39,6 @@ import { classifyPlanRequest, intakeLabel, type PlanIntake } from '@/ai/planInta
 export const MAX_PLANS = 9;
 // Planos por lote — o prompt pede exatamente 3.
 const PLANS_PER_BATCH = 3;
-
-// Várias regras coladas de uma vez: uma por linha ou separadas por ";".
-export function parseRules(text: string): string[] {
-  return text
-    .split(/[;\n\r]+/)
-    .map((r) => r.trim())
-    .filter(Boolean);
-}
-
-// Junta sem duplicar (comparação sem caixa/espaços extras), mantendo a ordem.
-export function mergeRules(rules: string[], extra: string[]): string[] {
-  const seen = new Set(rules.map((r) => r.trim().toLowerCase()));
-  const out = [...rules];
-  for (const r of extra) {
-    const key = r.trim().toLowerCase();
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(r.trim());
-  }
-  return out;
-}
-
-export function sameRules(a: string[], b: string[]): boolean {
-  const norm = (xs: string[]) => [...new Set(xs.map((x) => x.trim().toLowerCase()))].sort().join('\n');
-  return norm(a) === norm(b);
-}
 
 // Rank 1..N sem buracos nem empates. Sort estável: empate → quem veio antes
 // na lista (lote mais antigo) fica na frente. Garante um único ★.
@@ -234,6 +210,16 @@ export function ObjectiveScreen() {
     return (saved?.planApproach ?? 'new_creation') === (live.planApproach ?? 'new_creation') && (saved?.referenceTarget ?? '').trim() === (live.referenceTarget ?? '').trim();
   };
   const warnIntentChanged = () => { setView('form'); toast.show(tr.objective.approachChanged); };
+  const inputsMatch = (saved: { objective: string; rules: string[] }) => {
+    const live = useGraphStore.getState().objectiveDraft;
+    return saved.objective === live.objective.trim() && sameRules(saved.rules, mergeRules(live.rules, parseRules(live.ruleDraft)));
+  };
+  const warnInputsChanged = () => {
+    setView('form');
+    toast.show(locale === 'en'
+      ? 'Objective or rules changed. Generate alternatives again for the current inputs.'
+      : 'O objetivo ou as regras mudaram. Gere alternativas novamente para os dados atuais.');
+  };
 
   // Expansão (fase 2): um plano por vez, o selecionado.
   const [expandProgress, setExpandProgress] = useState<ExpandProgressEvent | null>(null);
@@ -338,6 +324,8 @@ export function ObjectiveScreen() {
   // Expansão especulativa: começa ao selecionar o card, antes do "Começar".
   const startExpansion = async (id: string) => {
     const d = useGraphStore.getState().objectiveDraft;
+    const inputs = d.plansFor ?? { objective: d.objective.trim(), rules: mergeRules(d.rules, parseRules(d.ruleDraft)) };
+    if (!inputsMatch(inputs)) { warnInputsChanged(); return; }
     if (!attachmentsMatch(d.plansFor?.attachmentsFingerprint)) { warnAttachmentsChanged(); return; }
     if (!matchesIntent(d.plansFor)) { warnIntentChanged(); return; }
     const outline = d.outlines?.find((o) => o.id === id);
@@ -363,6 +351,7 @@ export function ObjectiveScreen() {
     );
     if (token !== expandTokenRef.current) return; // substituída ou cancelada
     activeExpandRef.current = null;
+    if (result && !inputsMatch(inputs)) { stopExpansion(); setStarting(false); warnInputsChanged(); return; }
     if (result && !stillCurrentIntent(d.plansFor)) { stopExpansion(); setStarting(false); warnIntentChanged(); return; }
     if (result && !attachmentsMatch(d.plansFor?.attachmentsFingerprint)) { stopExpansion(); setStarting(false); warnAttachmentsChanged(); return; }
     if (result) {
@@ -523,6 +512,7 @@ export function ObjectiveScreen() {
       setProgress(null);
       return;
     }
+    if (!inputsMatch({ objective: obj, rules: eff })) { setProgress(null); warnInputsChanged(); return; }
     if (!stillCurrentIntent(intent)) { setProgress(null); warnIntentChanged(); return; }
     if (!attachmentsMatch(attachmentsFingerprint)) { setProgress(null); warnAttachmentsChanged(); return; }
     // Nada pré-selecionado: a estratégia é escolha consciente do usuário.
@@ -537,6 +527,7 @@ export function ObjectiveScreen() {
   // ângulos diferentes; o conjunto todo é re-ranqueado na fusão.
   const handleMorePlans = async () => {
     if (!outlines || busy || outlines.length >= MAX_PLANS) return;
+    if (plansFor && plansFor.objective !== useGraphStore.getState().objectiveDraft.objective.trim()) { warnInputsChanged(); return; }
     if (!attachmentsMatch(plansFor?.attachmentsFingerprint)) { warnAttachmentsChanged(); return; }
     if (!matchesIntent(plansFor)) { warnIntentChanged(); return; }
     if (!ensureConfigured()) return;
@@ -567,11 +558,12 @@ export function ObjectiveScreen() {
       setProgress(null);
       return;
     }
+    if (!inputsMatch({ objective: obj, rules: eff })) { setProgress(null); warnInputsChanged(); return; }
     if (!stillCurrentIntent(intent)) { setProgress(null); warnIntentChanged(); return; }
     if (!attachmentsMatch(attachmentsFingerprint)) { setProgress(null); warnAttachmentsChanged(); return; }
     // Lê de novo: o cache pode ter ganhado árvores durante a geração.
     const current = useGraphStore.getState().objectiveDraft;
-    const merged = mergePlanBatches(current.outlines ?? [], result);
+    const merged = mergePlanBatches(current.outlines ?? outlines, result);
     const keep = new Set(merged.plans.map((p) => p.id));
     if (activeExpandRef.current && !keep.has(activeExpandRef.current)) stopExpansion();
     if (selectedId && !keep.has(selectedId)) setSelectedId(null);
@@ -591,24 +583,26 @@ export function ObjectiveScreen() {
   };
 
   const handleSelect = (id: string) => {
+    const d = useGraphStore.getState().objectiveDraft;
+    if (d.plansFor && !inputsMatch(d.plansFor)) { warnInputsChanged(); return; }
+    if (!d.outlines?.some(outline => outline.id === id)) return;
     setSelectedId(id);
     void startExpansion(id);
   };
 
-  const effectiveObjective = plansFor?.objective ?? objective.trim();
-  const effectiveRulesForProject = plansFor?.rules ?? effectiveRules;
-
   const createProject = (id: string) => {
-    if (!attachmentsMatch(plansFor?.attachmentsFingerprint)) { warnAttachmentsChanged(); return false; }
-    if (!matchesIntent(plansFor)) { warnIntentChanged(); return false; }
-    const outline = outlines?.find((o) => o.id === id);
+    const d = useGraphStore.getState().objectiveDraft;
+    if (d.plansFor && !inputsMatch(d.plansFor)) { warnInputsChanged(); return false; }
+    if (!attachmentsMatch(d.plansFor?.attachmentsFingerprint)) { warnAttachmentsChanged(); return false; }
+    if (!stillCurrentIntent(d.plansFor)) { warnIntentChanged(); return false; }
+    const outline = d.outlines?.find((o) => o.id === id);
     if (!outline) return false;
     cancelRef.current();
     return createProjectFromOutline(
-      effectiveObjective,
+      d.plansFor?.objective ?? d.objective.trim(),
       name.trim() || outline.title,
       id,
-      effectiveRulesForProject,
+      d.plansFor?.rules ?? mergeRules(d.rules, parseRules(d.ruleDraft)),
     );
   };
 

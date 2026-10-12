@@ -8,6 +8,17 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createProductionHandler } from './production.mjs';
 import { CloudError } from './cloudAuth.mjs';
 
+test('external bearer routes bypass browser cookie gate while credential management retains it', async () => {
+  const calls=[];
+  const externalApi={handle:async(req,res,route)=>{calls.push(['runtime',route,req.headers.authorization]);res.writeHead(200,{'content-type':'application/json'});res.end('{}');},manage:async(_req,res,session,route)=>{calls.push(['manage',route,session.user.id]);res.writeHead(200,{'content-type':'application/json'});res.end('{}');},close(){}};
+  await setup(async({origin,mutationHeaders})=>{
+    assert.equal((await fetch(origin+'/api/v1/capabilities',{headers:{authorization:'Bearer dedicated'}})).status,200);
+    assert.equal((await fetch(origin+'/api/integrations/external')).status,401);
+    assert.equal((await fetch(origin+'/api/integrations/external',{headers:mutationHeaders})).status,200);
+    assert.deepEqual(calls,[['runtime','/api/v1/capabilities','Bearer dedicated'],['manage','/api/integrations/external','user-1']]);
+  },{externalApi});
+});
+
 async function setup(fn, options = {}) {
   const dist = await mkdtemp(path.join(tmpdir(), 'cellproject-server-'));
   await writeFile(path.join(dist, 'index.html'), '<!doctype html><div>APP SHELL</div>');

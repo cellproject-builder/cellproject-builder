@@ -124,3 +124,26 @@ export async function recoverVault(owner: string, value: unknown, recovery: stri
   const raw = Uint8Array.from(normalized.match(/../g)!, hex => parseInt(hex, 16));
   try { return await unwrap(owner, header, await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']), 'recovery'); } catch { throw new Error('Não foi possível desbloquear o cofre. Confira a chave de recuperação.'); } finally { raw.fill(0); }
 }
+
+/** Explicit delegation: rewrap a transient recovery-unwrapped key to the authorized server. */
+export async function wrapVaultDelegation(session: VaultSession, recovery: string, publicKey: JsonWebKey, keyId: string, credentialId: string) {
+  const normalized = recovery.replaceAll('-', '').trim();
+  if (!/^[a-f0-9]{64}$/i.test(normalized) || !/^[a-f0-9-]{36}$/i.test(keyId) || !/^[a-f0-9-]{36}$/i.test(credentialId)
+    || publicKey.kty !== 'RSA' || publicKey.d || typeof publicKey.n !== 'string' || typeof publicKey.e !== 'string') throw new Error('Concessão de acesso inválida.');
+  const recoveryBytes = Uint8Array.from(normalized.match(/../g)!, hex => parseInt(hex, 16));
+  let raw: Uint8Array<ArrayBuffer> | undefined;
+  try {
+    const recoveryKey = await crypto.subtle.importKey('raw', recoveryBytes, 'AES-GCM', false, ['decrypt']);
+    raw = await decrypt(recoveryKey, session.header.recovery, aad(session.ownerId, session.header.id, 'recovery-wrap'));
+    if (raw.length !== 32) throw new Error('Chave inválida.');
+    // Authenticate against the currently unlocked handle before delegating.
+    const checkKey = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
+    const probe = await session.seal('cellproject-external-capability', 'external-capability-probe');
+    if (decoder.decode(await decrypt(checkKey, probe, aad(session.ownerId, session.header.id, 'external-capability-probe'))) !== 'cellproject-external-capability') throw new Error('Chave inválida.');
+    const recipient = await crypto.subtle.importKey('jwk', publicKey, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']);
+    const label = encoder.encode(JSON.stringify(['cellproject-external-enrollment', 1, session.ownerId, session.header.id, credentialId, keyId]));
+    const data = b64(await crypto.subtle.encrypt({ name: 'RSA-OAEP', label }, recipient, raw));
+    session.deviceKeyForStorage();
+    return { v: 1 as const, keyId, data };
+  } finally { raw?.fill(0); recoveryBytes.fill(0); }
+}

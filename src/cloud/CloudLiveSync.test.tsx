@@ -9,7 +9,10 @@ function persistedStore(read: () => Record<string, any>, key: string) {
   return { getState: read, setState: (patch: object) => { Object.assign(read(), patch); storage.setItem(key, {}); }, persist: { getOptions: () => ({ storage }), setOptions: (options: { storage: typeof storage }) => { storage = options.storage; } } };
 }
 vi.mock('@/workspace/store', () => ({ useWorkspaceStore: persistedStore(() => mocks.workspace, 'cellproject-workspace') }));
-vi.mock('@/store', () => ({ useGraphStore: persistedStore(() => mocks.graph, 'cellproject-graph'), hasPendingGraphPersistence: () => mocks.pending }));
+vi.mock('@/store', async importOriginal => {
+  const { EMPTY_OBJECTIVE_DRAFT } = await importOriginal<typeof import('@/store')>();
+  return { EMPTY_OBJECTIVE_DRAFT, useGraphStore: persistedStore(() => mocks.graph, 'cellproject-graph'), hasPendingGraphPersistence: () => mocks.pending };
+});
 vi.mock('@/workspace/planner', () => ({ getPlannerOwnerId: () => mocks.owner, plannerBusy: () => mocks.busy }));
 vi.mock('@/chat/store', () => ({ useChatStore: { getState: () => ({ running: mocks.chat }) } }));
 import { CloudLiveSync, applyRemoteCanvasDocuments, cloudCanvasIdle } from './CloudLiveSync';

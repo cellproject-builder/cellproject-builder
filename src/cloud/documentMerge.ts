@@ -253,9 +253,11 @@ function mergeValue(base: Value, local: Value, remote: Value, path: string[], ke
   const planner = key === 'cellproject-graph' && path.length === 1 && path[0] === 'state' ||
     key === 'cellproject-workspace' && path.length === 4 && path[0] === 'state' && path[1] === 'projects' && path[3] === 'planner';
   const projectIdentity = (value: JsonObject): Value => object(value.project) ? own(value.project, 'id') : own(value, 'project');
-  // A draft and its selection belong to the open plan. Switching that plan while
-  // another device edits it needs domain coordination beyond one JSON document.
-  if (planner && (!equal(projectIdentity(base), projectIdentity(local)) || !equal(projectIdentity(base), projectIdentity(remote)))) return conflict;
+  // Drafts and selection belong to the managed owner as well as the inner plan.
+  // Imported copies may share a plan id; owner changes need workspace coverage
+  // from the runtime checkpoint path, rather than a generic attribute merge.
+  if (planner && (changed(['plannerOwnerId'], base, local) || changed(['plannerOwnerId'], base, remote) ||
+    !equal(projectIdentity(base), projectIdentity(local)) || !equal(projectIdentity(base), projectIdentity(remote)))) return conflict;
   if (!planner && changed(selectionKeys, base, local) && changed(selectionKeys, base, remote) && changed(selectionKeys, local, remote)) return conflict;
   // A turn can persist visible messages before its model history. Those fields
   // form one conversation even while the history is still empty or pending.

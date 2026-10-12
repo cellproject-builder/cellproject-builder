@@ -1,17 +1,18 @@
 import { beforeEach, expect, it } from 'vitest';
-import { useGraphStore } from '@/store';
+import { EMPTY_OBJECTIVE_DRAFT, useGraphStore } from '@/store';
 import { useWorkspaceStore } from '@/workspace/store';
 import { extractPlanFile } from '@/attachments/files';
 import { addProjectFiles } from '@/attachments/projectFiles';
 import { buildDemoProject } from '@/data/demoProject';
-import { capturePlanner, initializeWorkspace, getPlannerOwnerId } from '@/workspace/planner';
+import { capturePlanner, initializeWorkspace, getPlannerOwnerId, openPlanner } from '@/workspace/planner';
 import { listChatReferences, resolveChatReferenceTarget, resolveChatReferences } from './references';
 
 beforeEach(async () => {
   await Promise.all([useGraphStore.persist.rehydrate(), useWorkspaceStore.persist.rehydrate()]);
   useWorkspaceStore.setState({ projects: {}, notes: {}, activeProjectId: null, legacyImported: true });
-  useGraphStore.setState({ project: { ...buildDemoProject(), id: 'chat-plan' } });
+  useGraphStore.setState({ project: null, plannerOwnerId: null, archivedProject: null, archivedPending: null, archivedSession: null, pendingSuggestions: null, parkedSuggestions: {}, drafts: {}, objectiveDraft: { ...EMPTY_OBJECTIVE_DRAFT }, aiJobs: {}, lastAction: null });
   initializeWorkspace();
+  useGraphStore.setState({ project: { ...buildDemoProject(), id: 'chat-plan' } });
 });
 
 it('offers personal and explicit cross-project references without exposing bodies in the picker', () => {
@@ -129,8 +130,7 @@ it('reads an inactive selected project without swapping the editor and hides ind
   const ownNote = useWorkspaceStore.getState().createNote({ projectId: owner, title: 'Cálculo de torque' });
   const second = useWorkspaceStore.getState().createProject('Outro plano');
   useWorkspaceStore.getState().savePlanner(second, { ...capturePlanner(), project: { ...buildDemoProject(), id: 'other-plan' } });
-  useGraphStore.setState({ project: { ...buildDemoProject(), id: 'other-plan' } });
-  initializeWorkspace();
+  openPlanner(second);
   const targets = listChatReferences('', owner);
   const selected = targets.filter(t => t.projectId === owner && (t.id === root.id || t.id === ownNote));
   expect(selected).toHaveLength(2);

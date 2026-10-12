@@ -13,7 +13,7 @@ const planner: PlannerSnapshot = {
     outlines: null, expanded: {}, expansion: null, outlineResearch: null, plansFor: null,
     selectedId: null, generatingSince: null, updatedAt: 1000,
   },
-  pendingSuggestions: null, parkedSuggestions: {}, archivedProject: null, archivedPending: null,
+  pendingSuggestions: null, parkedSuggestions: {}, archivedProject: null, archivedPending: null, archivedSession: null,
 };
 
 function fixture(): WorkspaceData {

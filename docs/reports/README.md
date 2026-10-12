@@ -4,6 +4,10 @@ Relatórios registram um recorte datado: comandos, observações e limites. Eles
 
 | Relatório | Recorte |
 | --- | --- |
+| [API/MCP em produção — 12/10/2026](external-api-production-2026-10-12.md) | Migração e variáveis aplicadas, publicação Railway, MCP real com 140 ferramentas, leitura/gravação/recibo/limpeza e configuração privada pronta |
+| [API externa e MCP — 12/10/2026](external-api-mcp-2026-10-12.md) | 140 operações, acesso delegado ao cofre, testes de domínio/HTTP/SQL/MCP e instruções de ativação |
+| [Cobertura de ações API/MCP — 11/10/2026](external-action-coverage-2026-10-11.md) | Operações determinísticas, regras compartilhadas com a interface e limites de paridade |
+| [Núcleo dos planos — 11/10/2026](plan-core-audit-2026-10-11.md) | Auditoria e correção de 11 falhas de estado, estrutura, persistência e contexto; regressões permanentes, revisão independente e preparação para API/MCP/AXI |
 | [PDFs nos canvases — 11/10/2026](pdf-performance-2026-10-11.md) | Comparação compilada com workers reais, 30/100 cartões, ciclo do leitor, preflight e cache limitado; ganhos de retenção e custos de reprocessamento separados |
 | [Conversa e edição do plano — 11/10/2026](planner-conversation-2026-10-11.md) | Entrada central com referência ao modo avançado da Megavale, conflitos de revisão, rascunhos manuais, undo e bateria integrada |
 | [Controles, notas e anexos — 11/10/2026](canvas-controls-attachments-2026-10-11.md) | Reconstrução da barra compartilhada, editor silencioso, cartões padrão, cabeçalho único e biblioteca de originais com leitor PDF |

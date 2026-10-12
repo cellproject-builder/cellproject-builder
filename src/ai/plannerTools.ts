@@ -13,6 +13,7 @@ import { planFilesContext } from '@/attachments/files';
 import { normalizePlanningIntent } from '@/planningIntent';
 import { PLAN_TEXT_FIELDS, readAssistantPlan } from './planContext';
 import { assertPlannerEditBaseline, assertPlannerEditsCommitted, readPlannerEditBaseline, type PlannerEditBaseline } from './plannerEditBaseline';
+import type { ResearchDigest } from './research';
 
 const id = z.string().min(1).max(100);
 const base = { projectId: id };
@@ -130,27 +131,33 @@ async function executePlannerAI(raw: unknown, signal: AbortSignal, beforeRequest
   if (plannerBusy()) throw new Error('plannerBusy');
   requestWorkspaceUI({ projectId: input.projectId, surface: 'planner' });
   const state = useGraphStore.getState();
+  const effectiveObjective = () => useGraphStore.getState().objectiveDraft.objective.trim() || useWorkspaceStore.getState().projects[input.projectId]?.objective || '';
   const finish = registerAIAction();
   try {
     if (input.action === 'generate_plans') {
       const draft = state.objectiveDraft;
-      const managed = useWorkspaceStore.getState().projects[input.projectId];
-      const objective = draft.objective.trim() || managed.objective;
+      const objective = effectiveObjective();
       if (!objective) throw new Error('Set the project objective before generating plans.');
       const fileSnapshot = projectFiles(input.projectId), filesKey = fileSnapshot.map(file => `${file.id}:${file.fingerprint}`).join('|');
       const kb = [...planFilesContext(fileSnapshot), ...await useKBStore.getState().getContextFor({ label: objective }, 2, { signal, maxRetries: 0, beforeRequest, throwOnRateLimit: true })];
       const intent = normalizePlanningIntent(draft);
-      const outlines = await outlinePlans(objective, undefined, kb, draft.rules, undefined, { signal, maxRetries: 0, beforeRequest, ...intent });
+      let research: ResearchDigest | null = null;
+      const outlines = await outlinePlans(objective, event => {
+        if (event.research) research = event.research;
+      }, kb, draft.rules, undefined, { signal, maxRetries: 0, beforeRequest, ...intent });
       signal.throwIfAborted();
       assertCurrent();
+      if (objective !== effectiveObjective()) throw new Error('Project objective changed. Generate current alternatives again.');
       if (filesKey !== projectFiles(input.projectId).map(file => `${file.id}:${file.fingerprint}`).join('|')) throw new Error('Attachments changed during generation. Generate current alternatives again.');
       if (JSON.stringify(intent) !== JSON.stringify(normalizePlanningIntent(useGraphStore.getState().objectiveDraft))) throw new Error('Planning approach or reference changed. Generate current alternatives again.');
-      state.setOutlines(outlines, { objective, rules: draft.rules, attachmentsFingerprint: filesKey, ...intent });
+      state.setOutlines(outlines, { objective, rules: draft.rules, attachmentsFingerprint: filesKey, ...intent }, research);
       return outlines.map(({ id, title, pitch }) => ({ id, title, pitch }));
     }
     if (input.action === 'select_plan') {
       const draft = state.objectiveDraft, outline = draft.outlines?.find((p) => p.id === input.planId);
       if (!outline) throw new Error('planMissing');
+      const matchesGeneration = () => !draft.plansFor || draft.plansFor.objective === effectiveObjective() && JSON.stringify(draft.plansFor.rules) === JSON.stringify(useGraphStore.getState().objectiveDraft.rules);
+      if (!matchesGeneration()) throw new Error('Objective or rules changed. Generate current alternatives before selecting a plan.');
       if (JSON.stringify(normalizePlanningIntent(draft.plansFor)) !== JSON.stringify(normalizePlanningIntent(draft))) throw new Error('Planning approach or reference changed. Generate current alternatives before selecting a plan.');
       const filesKey = projectFiles(input.projectId).map(file => `${file.id}:${file.fingerprint}`).join('|');
       if ((draft.plansFor?.attachmentsFingerprint ?? '') !== filesKey) throw new Error('Project attachments changed. Generate current alternatives before selecting a plan.');
@@ -158,6 +165,7 @@ async function executePlannerAI(raw: unknown, signal: AbortSignal, beforeRequest
         const plan = await expandPlan(draft.plansFor?.objective ?? draft.objective, outline, undefined, planFilesContext(projectFiles(input.projectId)), draft.plansFor?.rules ?? draft.rules, { signal, maxRetries: 0, beforeRequest, research: draft.outlineResearch });
         signal.throwIfAborted();
         assertCurrent();
+        if (!matchesGeneration()) throw new Error('Objective or rules changed during expansion. Generate current alternatives again.');
         if (filesKey !== projectFiles(input.projectId).map(file => `${file.id}:${file.fingerprint}`).join('|')) throw new Error('Attachments changed during expansion. Generate current alternatives again.');
         if (JSON.stringify(normalizePlanningIntent(draft)) !== JSON.stringify(normalizePlanningIntent(useGraphStore.getState().objectiveDraft))) throw new Error('Planning approach or reference changed during expansion. Generate current alternatives again.');
         state.setExpandedPlan(outline.id, plan);
@@ -185,7 +193,8 @@ async function executePlannerAI(raw: unknown, signal: AbortSignal, beforeRequest
       const explanation = await explainNode(context, { signal, maxRetries: 0, beforeRequest }); signal.throwIfAborted(); assertCurrent(); state.setNodeExplanation(target.id, explanation); return { explanation };
     }
     if (input.action === 'critique_node') {
-      const critique = await critiqueNode(context, { signal, maxRetries: 0, beforeRequest }); signal.throwIfAborted(); assertCurrent(); state.setCritica(target.id, critique); return critique;
+      const critique = await critiqueNode(context, { signal, maxRetries: 0, beforeRequest }); signal.throwIfAborted(); assertCurrent(); state.setCritica(target.id, critique);
+      return { ...critique, criterioAlternativo: revealed ? critique.criterioAlternativo : '' };
     }
     const kb = [...planFilesContext(projectFiles(input.projectId)), ...await useKBStore.getState().getContextFor({ label: target.name, extra: project.objective }, 2, { signal, maxRetries: 0, beforeRequest, throwOnRateLimit: true })];
     const result = await decomposeNode(context, kb, { signal, maxRetries: 0, beforeRequest }); signal.throwIfAborted();

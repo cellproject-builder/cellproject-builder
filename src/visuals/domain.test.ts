@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useGraphStore } from '@/store';
+import { EMPTY_OBJECTIVE_DRAFT, useGraphStore } from '@/store';
 import { useWorkspaceStore } from '@/workspace/store';
 import { buildDemoProject } from '@/data/demoProject';
 import { capturePlanner, initializeWorkspace } from '@/workspace/planner';
@@ -20,8 +20,9 @@ const scene: SceneV1 = { version: 1, label: 'Estrutura', objects: [{ id: 'box', 
 beforeEach(async () => {
   await Promise.all([useGraphStore.persist.rehydrate(), useWorkspaceStore.persist.rehydrate()]);
   useWorkspaceStore.setState({ projects: {}, notes: {}, activeProjectId: null, legacyImported: true });
-  useGraphStore.setState({ project: { ...buildDemoProject(), id: 'plan-a' }, selectedNodeId: null });
+  useGraphStore.setState({ project: null, plannerOwnerId: null, archivedProject: null, archivedPending: null, archivedSession: null, pendingSuggestions: null, parkedSuggestions: {}, drafts: {}, objectiveDraft: { ...EMPTY_OBJECTIVE_DRAFT }, selectedNodeId: null, aiJobs: {}, lastAction: null });
   initializeWorkspace();
+  useGraphStore.setState({ project: { ...buildDemoProject(), id: 'plan-a' } });
   vi.mocked(generateObject).mockReset();
   vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 1, height: 1, close: () => {} })));
 });

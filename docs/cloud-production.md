@@ -2,6 +2,8 @@
 
 O servidor Node é iniciado por `npm start` (Node 22.9+), serve `dist`, expõe `/healthz` e compõe o gateway visual existente com autenticação Supabase. O Vite mantém o fluxo local BYOK; seu `/api/cloud/config` retorna `enabled:false`. Nenhuma Edge Function participa deste caminho.
 
+O build também produz `dist-server`, usado pela [API externa e pelo MCP](EXTERNAL_API.md). A API exige a migração e as variáveis próprias de ativação; provedores de IA podem permanecer sem configuração quando um runtime externo fornece a inteligência.
+
 ## Configuração
 
 Configuração do servidor: `CELLPROJECT_CLOUD_ENABLED=true`, `APP_ORIGIN=https://builder.cellprojectdiary.com`, `SUPABASE_URL=https://wxfootrnfiqpzhmjwgck.supabase.co` e `SUPABASE_PUBLISHABLE_KEY`. A URL Auth e a chave publicável validada são expostas como `passwordProvider` para o login direto no Supabase; não são credenciais administrativas. `SUPABASE_ALLOWED_USER_ID` é um reforço opcional após o primeiro cadastro autorizado; o UUID é confirmado pela allowlist privada e a sessão ativa do banco em cada requisição. O email admitido é fixo: `wylgnerbossman@gmail.com`.
@@ -26,7 +28,7 @@ Com a allowlist atual, a conta do criador usa essas credenciais automaticamente 
 - `GET /api/auth/callback?code=...` é o retorno fixo do link. Após verificar fluxo, trocar código no servidor e validar identidade/autorização, retorna `303 /` com cookie `__Host-cellproject_session`, HttpOnly, Secure, SameSite=Strict, Path=/. Falhas retornam `303 /?auth_error=link_invalid`, uma flag fixa sem código ou erro do provedor.
 - `POST /api/auth/verify-code` com `{email,token}` → `{authenticated:true,user}` permanece disponível para um futuro template com `{{ .Token }}` e usa a mesma validação e sessão. O template padrão atual não exibe código numérico.
 - `POST /api/auth/logout` invalida o handle local, limpa o cookie e tenta revogar a sessão Supabase correspondente.
-- Toda mutação exige Origin exata e `X-Cellproject-Request: 1`; Fetch Metadata incompatível é recusado. Não há CORS público.
+- Toda mutação da sessão do navegador exige Origin exata e `X-Cellproject-Request: 1`; Fetch Metadata incompatível é recusado. Não há CORS público. As rotas `/api/v1/*` usam credencial bearer dedicada, Host canônico e escopos próprios, permitindo runtimes sem navegador. A gestão em `/api/integrations/*` continua exigindo a sessão e as proteções do navegador.
 
 O link deve ser aberto no **mesmo navegador** que fez o pedido. O servidor mantém o verifier PKCE em memória por até 15 minutos e envia apenas um handle aleatório no cookie `__Host-cellproject_auth_flow` (HttpOnly, Secure, SameSite=Lax, Path=/). Lax permite a navegação de retorno do email. Cada callback consome o fluxo antes de qualquer chamada assíncrona, inclusive quando falha; um novo pedido no mesmo navegador substitui o anterior. Logout, substituição do fluxo e encerramento do servidor também cancelam callbacks em voo, com nova conferência após exchange e identidade antes de emitir sessão. Cookies ausentes, forjados, duplicados ou expirados são recusados sem troca do código. O fluxo PKCE e os códigos do Supabase têm suas próprias expirações; o código emitido pelo provedor vale cinco minutos após a autenticação.
 

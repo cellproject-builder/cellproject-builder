@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateObject } from 'ai';
-import { useGraphStore } from '@/store';
+import { EMPTY_OBJECTIVE_DRAFT, useGraphStore } from '@/store';
 import { useWorkspaceStore } from '@/workspace/store';
 import { capturePlanner, initializeWorkspace } from '@/workspace/planner';
 import { buildDemoProject } from '@/data/demoProject';
@@ -34,8 +34,7 @@ const signal = () => new AbortController().signal;
 beforeEach(async () => {
   await Promise.all([useGraphStore.persist.rehydrate(),useWorkspaceStore.persist.rehydrate()]);
   useWorkspaceStore.setState({projects:{},notes:{},activeProjectId:null,legacyImported:true});
-  useGraphStore.setState({project:{...buildDemoProject(),id:'decomposition-plan'},selectedNodeId:null,aiJobs:{}});
-  initializeWorkspace();
+  useGraphStore.setState({project:{...buildDemoProject(),id:'decomposition-plan'},plannerOwnerId:null,archivedProject:null,archivedPending:null,archivedSession:null,pendingSuggestions:null,parkedSuggestions:{},drafts:{},objectiveDraft:{...EMPTY_OBJECTIVE_DRAFT},selectedNodeId:null,aiJobs:{},lastAction:null});
   const owner = useWorkspaceStore.getState().createProject('Decomposição');
   useWorkspaceStore.getState().savePlanner(owner,capturePlanner()); initializeWorkspace();
   useWorkspaceStore.setState({activeProjectId:owner});

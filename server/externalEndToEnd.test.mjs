@@ -1,0 +1,108 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createServer} from 'node:http';
+import {createHash,randomBytes,randomUUID} from 'node:crypto';
+import {fileURLToPath} from 'node:url';
+import {Client} from '@modelcontextprotocol/client';
+import {StdioClientTransport} from '@modelcontextprotocol/client/stdio';
+import {createProductionHandler} from './production.mjs';
+import {createExternalApi} from './externalApi.mjs';
+import {buildExternalWorker} from '../scripts/build-external-worker.mjs';
+import {sealDelegatedKey,sealVaultManifest,openVaultManifest} from './externalVault.mjs';
+import {CloudError} from './cloudUtils.mjs';
+
+test('real stdio runtime operates a plan through production API, isolated UI domain and encrypted persistence with no AI configured',{timeout:60000},async t=>{
+  await buildExternalWorker();
+  const ownerId=randomUUID(),vaultId=randomUUID(),raw=randomBytes(32),encryptionKey=randomBytes(32).toString('base64'),token='cp_'+randomBytes(32).toString('base64url');
+  const cipher={v:1,iv:Buffer.alloc(12).toString('base64'),data:Buffer.alloc(48).toString('base64')};
+  const header={format:'dynamic-diary-vault',version:1,id:vaultId,kdf:{name:'PBKDF2',hash:'SHA-256',iterations:600000,salt:Buffer.alloc(16).toString('base64')},password:cipher,recovery:cipher};
+  const credential={id:randomUUID(),ownerId,vaultId,projects:'*',permissions:['read','write']};
+  credential.sealedKey=sealDelegatedKey(raw,{ownerId,vaultId,credentialId:credential.id},encryptionKey);
+  let revision=1,live=true,commits=0;const receipts=new Map(),wire=[],blobs=new Map();
+  let encrypted=sealVaultManifest(raw,ownerId,vaultId,revision,{snapshot:{documents:[],media:[]},files:{}});
+  const active=()=>{if(!live)throw new CloudError(401,'invalid_credential','Revoked.');};
+  const repository={
+    authenticate:async hash=>{active();assert.equal(hash,createHash('sha256').update(token).digest('hex'));return credential;},
+    snapshot:async()=>{active();return {header,revision,manifest:encrypted};},
+    replay:async(_c,input)=>{active();const old=receipts.get(input.operationId);if(old&&old.fingerprint!==input.fingerprint)throw new CloudError(409,'operation_conflict','Operation conflict.');return old??null;},
+    commit:async(_c,input)=>{active();const old=receipts.get(input.operationId);if(old)return {...old,replayed:true};if(input.baseRevision!==revision)throw new CloudError(409,'vault_revision_conflict','Revision conflict.');wire.push(JSON.stringify(input));encrypted=input.manifest;revision++;commits++;const saved={revision,receipt:input.receipt,fingerprint:input.fingerprint};receipts.set(input.operationId,saved);return {revision,replayed:false,receipt:input.receipt};},
+    writeBlob:async(_c,input)=>{active();const bytes=Buffer.from(input.base64,'base64');assert.ok(!bytes.includes('Original file from runtime'));blobs.set(input.id,bytes);return {id:input.id,sha256:input.sha256,size:bytes.length};},
+    readBlob:async(_c,input)=>{active();return blobs.get(input.id);},
+  };
+  let origin;const config={enabled:true,vaultEnabled:true,externalApiEnabled:true,externalApiKey:'server-only',externalEncryptionKey:encryptionKey,providers:{},get origin(){return origin;}};
+  const externalApi=createExternalApi({config,repository});
+  const handler=createProductionHandler({config,externalApi,auth:{sameOrigin:()=>false,authorize:async()=>null,close(){}},fetchImpl:async()=>{throw new Error('No AI or upstream network is permitted.');}});
+  const server=createServer(handler);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));origin=`http://127.0.0.1:${server.address().port}`;
+  t.after(async()=>{handler.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));raw.fill(0);});
+  const transport=new StdioClientTransport({command:process.execPath,args:[fileURLToPath(new URL('./mcp.mjs',import.meta.url))],env:{CELLPROJECT_API_URL:origin,CELLPROJECT_API_TOKEN:token},stderr:'pipe'});
+  let stderr='';transport.stderr.on('data',chunk=>{stderr+=chunk;});
+  const client=new Client({name:'external-runtime-e2e',version:'1.0.0'},{versionNegotiation:{mode:{pin:'2026-07-28'}},cache:{mode:'no-store'}});
+  t.after(async()=>{await client.close();assert.ok(!stderr.includes(token));});await client.connect(transport);
+  const list=await client.listTools();assert.ok(list.tools.some(tool=>tool.name==='action_plan.stage'));
+  const call=async(name,args={})=>{const reply=await client.callTool({name,arguments:args});assert.notEqual(reply.isError,true,JSON.stringify(reply));return reply.structuredContent;};
+  const action=async(name,input={},projectId)=>call('action_'+name,{input,...(projectId?{projectId}:{}),operationId:randomUUID(),baseRevision:revision});
+  const project=await action('project.create',{name:'Runtime project',objective:'Test an externally planned premise'}),projectId=project.result.id;
+  const taskArgs={input:{title:'External runtime task'},projectId,operationId:randomUUID(),baseRevision:revision};
+  await call('action_task.create',taskArgs);const firstCommits=commits;assert.equal((await call('action_task.create',taskArgs)).replayed,true);assert.equal(commits,firstCommits);
+  const plan={id:'runtime-plan',title:'Robot plan',pitch:'Measure first',approach:'Start with a test',strategy:'hibrido',archetype:'construir',rank:1,rankReason:'Test early',tree:{categorias:[{tempId:'execution',name:'Execution',kind:'execucao',oQue:'',porQue:'',children:[{tempId:'measure',kind:'passo',name:'Measure torque',fx:'',problem:'',confidence:50,confidenceReason:'',pros:[],cons:[],oQue:'Measure',porQue:'Check capability',comoConfirmar:'Independent runtime prediction'}]}]}};
+  await action('plan.create',{plan},projectId);
+  let read=await call('query_plan',{projectId});const node=Object.values(read.result.project.nodes).find(value=>value.kind==='passo');assert.equal(node.comoConfirmar,'');
+  await action('plan.criterion.set',{nodeId:node.id,text:'Torque must exceed measured load'},projectId);
+  await action('plan.criterion.attest',{nodeId:node.id,observation:'Bench measurement: 2 N at the tested radius'},projectId);
+  read=await call('query_plan',{projectId});assert.equal(read.result.project.nodes[node.id].state,'concept');
+  await action('plan.node.confirm',{nodeId:node.id},projectId);
+  read=await call('query_plan',{projectId});assert.equal(read.result.project.nodes[node.id].state,'done');
+  await action('plan.failure.report',{nodeId:node.id,text:'Repeated trial stalled'},projectId);
+  await action('plan.node.confirm',{nodeId:node.id,force:true},projectId);
+  read=await call('query_plan',{projectId});assert.notEqual(read.result.project.nodes[node.id].state,'done');
+  const saved=openVaultManifest(raw,ownerId,await repository.snapshot());assert.equal(Object.keys(JSON.parse(saved.snapshot.documents.find(doc=>doc.key==='cellproject-workspace').value).state.tasks).length,1);
+  assert.ok(wire.every(body=>!body.includes('Runtime project')&&!body.includes('Bench measurement')&&!body.includes('External runtime task')));
+  const original=Buffer.from('Original file from runtime'),mediaId='runtime-original';
+  await action('media.put',{id:mediaId,name:'source.txt',mime:'text/plain',base64:original.toString('base64'),sha256:createHash('sha256').update(original).digest('hex')},projectId);
+  const media=await call('query_media.read',{projectId,input:{id:mediaId}});assert.equal(Buffer.from(media.result.base64,'base64').toString(),'Original file from runtime');
+  assert.equal(blobs.size,1);
+  const conversation=await action('conversation.new',{title:'External investigation'}),conversationId=conversation.result.id;
+  await action('conversation.message.append',{id:conversationId,role:'user',text:'External premise: compare the repeated torque trials'});
+  await action('conversation.message.append',{id:conversationId,role:'assistant',text:'Runtime observation: the repeated trial stalled'});
+  const transcript=await call('query_conversation',{input:{id:conversationId}});
+  assert.equal(transcript.result.messages.length,2);assert.equal(transcript.result.modelHistory.length,2);
+  const sources=await call('query_conversation.references',{input:{referenceProjectId:projectId}});
+  const selected=sources.result.items.find(item=>item.kind==='node');assert.ok(selected);
+  const reference={id:selected.id,kind:selected.kind,projectId:selected.projectId,...(selected.planId?{planId:selected.planId}:{}),fingerprint:selected.fingerprint};
+  const withReference=await action('conversation.message.append',{id:conversationId,role:'user',referenceProjectId:projectId,references:[reference]});
+  assert.equal(withReference.result.message.references.length,1);assert.ok(withReference.result.message.text.length>0);
+  const withFile=await action('conversation.message.append',{id:conversationId,role:'user',referenceProjectId:projectId,files:[{name:'bench.txt',kind:'text',size:25,text:'Original bench observation',truncated:false}]});
+  assert.equal(withFile.result.message.files.length,1);assert.ok(withFile.result.message.files[0].fingerprint);assert.ok(withFile.result.message.text.length>0);
+  const richTranscript=await call('query_conversation',{input:{id:conversationId}});
+  assert.match(richTranscript.result.modelHistory.at(-1).content,/Selected file excerpts/);
+  const source={filename:'trial-notes.txt',sizeBytes:48,pageCount:1,extractedText:'Repeated torque trial stalled under the measured load.',summary:{titulo:'External trial notes',autores:null,dominio:'robotics',tags:['torque'],resumo:['The repeated trial stalled.'],fatos:[{claim:'The repeated trial stalled',tipo:'medida',valor:null}],nivel:'iniciante'}};
+  const knowledge=await action('knowledge.add',source);assert.equal(knowledge.result.duplicate,false);
+  assert.equal((await action('knowledge.add',source)).result.duplicate,true);
+  const library=await call('query_knowledge');assert.equal(library.result.total,1);assert.equal(library.result.items[0].extractedText,source.extractedText);
+  const content=openVaultManifest(raw,ownerId,await repository.snapshot());
+  assert.ok(content.snapshot.documents.some(doc=>doc.key==='dynamic_diary-chat'));
+  assert.ok(content.snapshot.documents.some(doc=>doc.key==='cellproject-kb'));
+  assert.ok(wire.every(body=>!body.includes('External premise')&&!body.includes('Runtime observation')&&!body.includes(source.extractedText)));
+  const backup=await call('query_backup.manifest');assert.ok(backup.result.documents.some(doc=>doc.key==='cellproject-workspace'));
+  const document=await call('query_backup.document',{input:{key:'cellproject-workspace'}});
+  assert.equal(createHash('sha256').update(document.result.value).digest('hex'),document.result.sha256);
+  const backupRead=await call('query_backup.media.read',{input:{id:mediaId}});assert.equal(Buffer.from(backupRead.result.base64,'base64').toString(),'Original file from runtime');
+  const localeValue=JSON.stringify({state:{locale:'pt-BR'},version:1}),localeBytes=Buffer.from(localeValue),localeHash=createHash('sha256').update(localeBytes).digest('hex');
+  const stagedDocument=await action('backup.document.stage',{key:'cellproject-locale',base64:localeBytes.toString('base64'),sha256:localeHash});
+  const backupBytes=Buffer.from('Whole backup original'),stageArgs={input:{id:'backup-original',name:'backup.txt',mime:'text/plain',base64:backupBytes.toString('base64'),sha256:createHash('sha256').update(backupBytes).digest('hex')},operationId:randomUUID(),baseRevision:revision};
+  const staged=await call('action_backup.media.stage',stageArgs);
+  assert.deepEqual((await call('action_backup.media.stage',stageArgs)).result,staged.result);
+  assert.ok(!openVaultManifest(raw,ownerId,await repository.snapshot()).snapshot.media.some(item=>item.id==='backup-original'));
+  const backupDocuments=[{key:'cellproject-locale',value:localeValue}];
+  const documentPart={descriptor:stagedDocument.result.descriptor,sha256:stagedDocument.result.sha256,size:stagedDocument.result.size};
+  const backupInput={format:'cellproject-global-backup',version:1,operationId:randomUUID(),exportedAt:new Date().toISOString(),manifestHash:createHash('sha256').update(JSON.stringify({documents:backupDocuments,media:[staged.result.metadata]})).digest('hex'),documents:[{key:'cellproject-locale',parts:[documentPart],sha256:localeHash,size:localeBytes.length}],media:[staged.result]};
+  await action('backup.import',backupInput);
+  assert.ok(openVaultManifest(raw,ownerId,await repository.snapshot()).snapshot.media.some(item=>item.id==='backup-original'));
+  assert.equal(openVaultManifest(raw,ownerId,await repository.snapshot()).snapshot.documents.find(item=>item.key==='cellproject-locale').value,localeValue);
+  assert.ok(wire.every(body=>!body.includes('Whole backup original')));
+  credential.projects=[projectId];
+  const forbidden=await client.callTool({name:'query_conversation',arguments:{input:{id:conversationId}}});assert.equal(forbidden.isError,true);
+  const forbiddenBackup=await client.callTool({name:'query_backup.manifest',arguments:{}});assert.equal(forbiddenBackup.isError,true);
+  credential.projects='*';
+  live=false;const denied=await client.callTool({name:'query_projects',arguments:{}});assert.equal(denied.isError,true);
+});

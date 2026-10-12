@@ -12,6 +12,8 @@ Os comandos abaixo não exigem inferência paga no modo padrão. As suítes live
 | `npm run check:bundle` — [audit-client-bundle.mjs](audit-client-bundle.mjs) | Compila em memória, mede fechamento transitivo inicial e recusa módulos pesados específicos. `--output caminho` salva JSON explicitamente |
 | `npm run check:gateway` — [check-visual-gateway.mjs](check-visual-gateway.mjs) | `node --check` em `server/*.mjs`; sintaxe, sem provar integração |
 | `npm test` / `npm run test:gateway` | Suítes cliente e Node; provedores/serviços simulados onde indicado |
+| `npm run build:external` — [build-external-worker.mjs](build-external-worker.mjs) | Compila contratos determinísticos em `dist-server` e recusa dependências de execução de IA no worker; incluído no build completo |
+| `npm run mcp` | Inicia o bridge stdio autenticado para [runtimes externos](../docs/EXTERNAL_API.md); exige URL e credencial no ambiente e reserva stdout ao protocolo |
 | `npm run test:planning-quality` | Testa captura e limites do [laboratório de planos](../docs/design/plan-quality/README.md) com transporte roteirizado; não faz inferência paga |
 | `npm run bench:planner` | CPU em árvores sintéticas de 100 a 12.000 nós, abertas/resolvidas; salva JSON em `.codex-audit-planning-performance`, falha se qualquer operação/invariante falhar. Não mede FPS nem carga de servidor |
 | [pdf-performance/README.md](pdf-performance/README.md) | Bateria manual com PDFs sintéticos reais, componente compartilhado compilado e workers reais. Compara versões congeladas em origem local isolada; conta workers, cópias de bytes e raster retido. Não usa projetos/contas reais nem mede o transporte cifrado da nuvem |

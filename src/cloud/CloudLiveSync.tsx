@@ -3,24 +3,28 @@ import { hasActiveAIActions } from '@/ai/actions';
 import { useChatStore } from '@/chat/store';
 import { restoreWorkspaceBackup, type WorkspaceData } from '@/data/workspaceTransfer';
 import { getLiveInk, liveInkGestureActive } from '@/ink/live';
-import { useGraphStore, hasPendingGraphPersistence } from '@/store';
+import { useGraphStore, hasPendingGraphPersistence, EMPTY_OBJECTIVE_DRAFT } from '@/store';
 import type { Project } from '@/types';
 import { normalizeVisualWorkspace } from '@/visuals/normalize';
 import { getPlannerOwnerId, plannerBusy } from '@/workspace/planner';
 import { useWorkspaceStore } from '@/workspace/store';
+import type { PlannerSnapshot } from '@/workspace/types';
 import { hasActiveDataIngestions } from './activity';
 import { hasDeferredPersistence } from '@/data/selectiveJSONStorage';
 import { CloudConflictError, CloudRuntime, type CloudDocument } from './runtime';
+import { CONTENT_SYNC_KEYS, prepareRemoteContentDocuments } from './remoteContent';
 
-const SYNC_KEYS = ['cellproject-workspace', 'cellproject-graph'] as const;
+const CANVAS_SYNC_KEYS = ['cellproject-workspace', 'cellproject-graph'] as const;
+const SYNC_KEYS = [...CANVAS_SYNC_KEYS,...CONTENT_SYNC_KEYS] as const;
 const POLL_MS = 2000;
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 
 /** No cross-device replacement while a local gesture, text edit, paid call or unsent draft owns the data. */
 export function cloudCanvasIdle(): boolean {
-  if (liveInkGestureActive() || hasActiveDataIngestions() || hasActiveAIActions() || hasPendingGraphPersistence() || hasDeferredPersistence() || plannerBusy() || useChatStore.getState().running) return false;
+  if (liveInkGestureActive() || hasActiveDataIngestions() || hasActiveAIActions() || hasPendingGraphPersistence() || hasDeferredPersistence() || plannerBusy() || useChatStore.getState().running || useChatStore.getState().compacting) return false;
   const graph = useGraphStore.getState();
   if (Object.keys(graph.drafts).length || graph.objectiveDraft.generatingSince || graph.objectiveDraft.expansion) return false;
+  if (Object.values(graph.project?.visuals?.drafts ?? {}).some(draft => draft.text.trim() || draft.attachments.length || draft.mentions.length)) return false;
   const focused = document.activeElement;
   return !(focused instanceof Element && focused.matches('textarea,[contenteditable="true"],input:not([type="button"]):not([type="checkbox"]):not([type="range"]):not([type="color"])'));
 }
@@ -36,6 +40,12 @@ function remoteProject(value: unknown): Project | null {
   return project.visuals === undefined ? project : { ...project, visuals: normalizeVisualWorkspace(project.visuals) };
 }
 
+function remoteObjectiveDraft(draft: PlannerSnapshot['objectiveDraft'] | undefined) {
+  // Requests belong to one runtime. Their results travel across devices, their
+  // loading markers cannot own or lock this device's singleton editor.
+  return { ...EMPTY_OBJECTIVE_DRAFT, ...draft, expanded: draft?.expanded ?? {}, generatingSince: null, expansion: null };
+}
+
 function parseWorkspace(value: unknown): WorkspaceData {
   if (!record(value)) throw new Error('Workspace remoto inválido.');
   const data = restoreWorkspaceBackup({ format: 'cellproject-workspace-backup', version: 1, exportedAt: '2026-01-01T00:00:00.000Z', data: { ...value, comments: value.comments ?? {}, boards: value.boards ?? {}, legacyImported: value.legacyImported ?? false } });
@@ -43,11 +53,25 @@ function parseWorkspace(value: unknown): WorkspaceData {
     if (!managed || managed.id !== id || typeof managed.name !== 'string' || typeof managed.objective !== 'string') throw new Error('Projeto remoto inválido.');
     if (managed.planner) {
       const project = remoteProject(managed.planner.project), archivedProject = remoteProject(managed.planner.archivedProject);
-      data.projects[id] = { ...managed, planner: { ...managed.planner, project, archivedProject } };
+      const session = managed.planner.archivedSession;
+      data.projects[id] = { ...managed, planner: { ...managed.planner, project, archivedProject, objectiveDraft: remoteObjectiveDraft(managed.planner.objectiveDraft), archivedSession: session ? { ...session, objectiveDraft: remoteObjectiveDraft(session.objectiveDraft) } : null } };
     }
   }
   for (const [id, note] of Object.entries(data.notes)) if (!note || note.id !== id || typeof note.title !== 'string' || !Array.isArray(note.blocks) || note.blocks.some(block => !block || typeof block.id !== 'string' || typeof block.text !== 'string')) throw new Error('Nota remota inválida.');
   return data;
+}
+
+function plannerDomain(snapshot: Partial<PlannerSnapshot>) {
+  return {
+    project: snapshot.project ?? null,
+    drafts: snapshot.drafts ?? {},
+    objectiveDraft: remoteObjectiveDraft(snapshot.objectiveDraft),
+    pendingSuggestions: snapshot.pendingSuggestions ?? null,
+    parkedSuggestions: snapshot.parkedSuggestions ?? {},
+    archivedProject: snapshot.archivedProject ?? null,
+    archivedPending: snapshot.archivedPending ?? null,
+    archivedSession: snapshot.archivedSession ?? null,
+  };
 }
 
 /** Pause each persist adapter only for this synchronous set. Real edits after return retain their normal adapter. */
@@ -78,35 +102,38 @@ function acknowledgeAppliedInk(workspace: Pick<WorkspaceData, 'boards' | 'notes'
 
 /** Apply only domain documents; never rehydrate another device's active surface or singleton editor ownership. */
 export function applyRemoteCanvasDocuments(documents: readonly CloudDocument[]) {
-  let workspace: WorkspaceData | undefined, graphProject: Project | null | undefined;
+  const applyContent=prepareRemoteContentDocuments(documents);
+  let workspace: WorkspaceData | undefined, graphSnapshot: Partial<PlannerSnapshot> | undefined;
   for (const document of documents) {
-    if (!SYNC_KEYS.includes(document.key as typeof SYNC_KEYS[number])) continue;
+    if (!CANVAS_SYNC_KEYS.includes(document.key as typeof CANVAS_SYNC_KEYS[number])) continue;
     const envelope = JSON.parse(document.value) as { version?: unknown; state?: unknown };
     if (!record(envelope.state) || !Number.isSafeInteger(envelope.version)) throw new Error('Envelope remoto inválido.');
     if (document.key === 'cellproject-workspace') workspace = parseWorkspace(envelope.state);
-    else graphProject = remoteProject(envelope.state.project);
+    else graphSnapshot = { ...envelope.state, project: remoteProject(envelope.state.project), archivedProject: remoteProject(envelope.state.archivedProject) };
   }
   const localWorkspace = useWorkspaceStore.getState(), localGraph = useGraphStore.getState(), owner = getPlannerOwnerId();
-  let nextProject = localGraph.project;
+  let nextDomain: ReturnType<typeof plannerDomain> | undefined;
   if (owner && workspace) {
     const managed = workspace.projects[owner];
     if (!managed || localGraph.project && managed.planner?.project?.id !== localGraph.project.id) throw new CloudConflictError();
-    if (managed.planner) nextProject = managed.planner.project;
-  } else if (graphProject && graphProject.id === localGraph.project?.id) nextProject = graphProject;
-  // A local popup can hold an unsubmitted prompt after losing keyboard focus.
-  if (nextProject?.visuals && localGraph.project?.visuals && nextProject.id === localGraph.project.id) nextProject = { ...nextProject, visuals: { ...nextProject.visuals, drafts: localGraph.project.visuals.drafts } };
+    if (managed.planner) nextDomain = plannerDomain(managed.planner);
+  } else if (!owner && graphSnapshot?.project && graphSnapshot.project.id === localGraph.project?.id) nextDomain = plannerDomain(graphSnapshot);
+  const nextProject = nextDomain ? nextDomain.project : localGraph.project;
+  const selectedNodeId = localGraph.selectedNodeId && nextProject?.nodes[localGraph.selectedNodeId] ? localGraph.selectedNodeId : nextProject?.rootId ?? null;
+  const focusedParentId = localGraph.focusedParentId && nextProject?.nodes[localGraph.focusedParentId] ? localGraph.focusedParentId : nextProject?.rootId ?? null;
   if (workspace) {
     for (const [id, board] of Object.entries(workspace.boards ?? {})) {
       const local = localWorkspace.boards[id];
       if (local) workspace.boards![id] = { ...board, document: { ...board.document, viewport: local.document.viewport } };
     }
-    if (owner && workspace.projects[owner]?.planner) workspace.projects[owner] = { ...workspace.projects[owner], planner: { ...workspace.projects[owner].planner!, project: nextProject, selectedNodeId: localGraph.selectedNodeId, focusedParentId: localGraph.focusedParentId, lens: localGraph.lens, viewMode: localGraph.viewMode, detailPanelOpen: localGraph.detailPanelOpen, lastTutorNodeId: localGraph.lastTutorNodeId, drafts: localGraph.drafts, objectiveDraft: localGraph.objectiveDraft, pendingSuggestions: localGraph.pendingSuggestions, parkedSuggestions: localGraph.parkedSuggestions, archivedProject: localGraph.archivedProject, archivedPending: localGraph.archivedPending } };
+    if (owner && workspace.projects[owner]?.planner) workspace.projects[owner] = { ...workspace.projects[owner], planner: { ...workspace.projects[owner].planner!, ...nextDomain, selectedNodeId, focusedParentId, lens: localGraph.lens, viewMode: localGraph.viewMode, detailPanelOpen: localGraph.detailPanelOpen, lastTutorNodeId: localGraph.lastTutorNodeId } };
   }
   // Both inputs are fully validated before the first setter. connectPlanner may fire
   // synchronously; the workspace domain snapshot is installed last to avoid its echo.
   withoutPersistenceEcho(() => {
-    if (nextProject !== localGraph.project) useGraphStore.setState({ project: nextProject, lastAction: null, selectedNodeId: localGraph.selectedNodeId && nextProject?.nodes[localGraph.selectedNodeId] ? localGraph.selectedNodeId : nextProject?.rootId ?? null, focusedParentId: localGraph.focusedParentId && nextProject?.nodes[localGraph.focusedParentId] ? localGraph.focusedParentId : nextProject?.rootId ?? null });
+    if (nextDomain) useGraphStore.setState({ ...nextDomain, lastAction: null, selectedNodeId, focusedParentId });
     if (workspace) useWorkspaceStore.setState(workspace);
+    applyContent();
   });
   // A commit signal can arrive before its durable PUT, or while typing defers
   // refresh. Hand the preview over only after the same stroke is canonical.

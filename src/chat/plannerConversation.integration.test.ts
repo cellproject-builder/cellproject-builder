@@ -89,7 +89,7 @@ beforeEach(async () => {
   previousConfig = useConfigStore.getState();
   useConfigStore.setState({ activeProvider: 'openai', providers: { openai: { apiKey: 'SYNTHETIC_LOCAL_ONLY', mainModel: 'gpt-4o', kbModel: 'gpt-4o-mini' } } });
   workspace.setState({ projects: {}, tasks: {}, notes: {}, activeProjectId: null, surface: 'projects', legacyImported: true });
-  graph.setState({ project: null, archivedProject: null, archivedPending: null, pendingSuggestions: null, parkedSuggestions: {}, drafts: {}, aiJobs: {}, lastAction: null, objectiveDraft: { ...EMPTY_OBJECTIVE_DRAFT } });
+  graph.setState({ project: null, plannerOwnerId: null, archivedProject: null, archivedPending: null, archivedSession: null, pendingSuggestions: null, parkedSuggestions: {}, drafts: {}, aiJobs: {}, lastAction: null, objectiveDraft: { ...EMPTY_OBJECTIVE_DRAFT } });
   initializeWorkspace(); disconnect = connectPlanner();
   chat.setState({ sessionId: 'planner-conversation', id: 'planner-conversation', title: undefined, createdAt: 1, updatedAt: 1, archivedAt: null, deletedAt: null, compaction: null, contextUsage: null, contextObservation: null, messages: [], modelHistory: [], pendingHistory: null, archivedSessions: [], running: false, compacting: false, error: null, hydrated: true, loadFailed: false, saveFailed: false, rateLimits: {} });
   vi.spyOn(intake, 'classifyPlanRequest').mockResolvedValue({ status: 'not-configured' });
@@ -494,7 +494,7 @@ describe('conversational planner with the real SDK and stores', () => {
     // Import/account rehydration can replace a singleton without openPlanner's
     // normal busy gate. The importer then reinitializes its ownership boundary.
     disconnect();
-    graph.setState({ project: replacement.project, pendingSuggestions: null }); initializeWorkspace();
+    graph.setState({ project: replacement.project, plannerOwnerId: replacement.projectId, pendingSuggestions: null }); initializeWorkspace();
     disconnect = connectPlanner();
     workspace.getState().selectProject(replacement.projectId); workspace.getState().navigate('planner');
     release.resolve(); await pending;

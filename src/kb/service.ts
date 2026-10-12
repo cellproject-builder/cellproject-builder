@@ -4,6 +4,7 @@ import { currentLocaleAIName } from '@/i18n';
 import { readRateLimit } from '@/ai/rateLimit';
 import { KBSummarySchema, RelevancePickSchema } from './schemas';
 import type { KBContextEntry, KBDocument, KBSummary } from './types';
+import { MAX_CHARS } from './content';
 
 // ---------------------------------------------------------------------------
 // summarizeDocument — 1 call to kbModel per upload.
@@ -13,7 +14,7 @@ import type { KBContextEntry, KBDocument, KBSummary } from './types';
 // up the prompt.
 // ---------------------------------------------------------------------------
 
-export const MAX_CHARS = 40_000;
+export { MAX_CHARS } from './content';
 
 // Parâmetros das chamadas do kbModel: modelos de raciocínio ignoram/rejeitam
 // temperature; o teto de saída ganha folga pros tokens de pensamento.

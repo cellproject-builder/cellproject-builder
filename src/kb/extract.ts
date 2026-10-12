@@ -60,10 +60,4 @@ export async function extractPdfText(
 
 // Hash simples (djb2) — suficiente pra deduplicar documentos localmente.
 // Não precisa ser criptográfico; só queremos detectar "já processei este texto".
-export function fingerprintText(text: string): string {
-  let hash = 5381;
-  for (let i = 0; i < text.length; i += 1) {
-    hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
-  }
-  return (hash >>> 0).toString(16).padStart(8, '0');
-}
+export { fingerprintText } from './content';
