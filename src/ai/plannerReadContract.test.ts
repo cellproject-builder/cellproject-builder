@@ -58,7 +58,65 @@ it('uses explicit overview even when the model fills every inactive selector and
   expect(Object.keys(data.project.nodes).length).toBeGreaterThan(1);
   expect(data.edgePage.omitted).not.toBe(true);
   expect(data.text).toBeUndefined();
+  expect(data.hiddenCriterionNodeIds).toBeInstanceOf(Array);
+  expect(model.doStreamCalls[0].prompt.find(message => message.role === 'system')?.content).toContain('hiddenCriterionNodeIds');
   expect(model.doStreamCalls).toHaveLength(2);
+});
+
+function criterionPlan() {
+  const { projectId } = currentPlan(), project = useGraphStore.getState().project!;
+  const nodeIds = Object.keys(project.nodes).slice(0, 6);
+  const criteria = ['PRIVATE-HIDDEN-CRITERION', '', '  \n ', 'VISIBLE-CRITERION', 'PRIVATE-GRACE-CRITERION', 'PRIVATE-HIDDEN-WITHOUT-USER'];
+  useGraphStore.setState({ project: { ...project, nodes: { ...project.nodes, ...Object.fromEntries(nodeIds.map((id, index) => [id, {
+    ...project.nodes[id], comoConfirmar: criteria[index], confirmado: index === 3, takenAsKnown: false,
+    comoConfirmarUsuario: index === 0 || index === 1 || index === 4 ? 'The independent user criterion' : undefined,
+    comoConfirmarUsuarioAt: index === 4 ? Date.now() : undefined,
+  }])) } } });
+  const tools = createAssistantTools(new AbortController().signal, () => {}, 'revise o plano');
+  const execute = async (input: unknown) => {
+    const output = await tools.planner_read.execute!(input as never, { toolCallId: 'criterion-read', messages: [] });
+    expect(output).toMatchObject({ ok: true });
+    return (output as { result: Record<string, any> }).result;
+  };
+  return { projectId, nodeIds, execute };
+}
+
+it('distinguishes stored hidden criteria from absent criteria only within the returned page without exposing their contents', async () => {
+  const { projectId, nodeIds, execute } = criterionPlan();
+  const before = useGraphStore.getState().project;
+  const overview = await execute({ projectId, mode: 'overview', limit: 4 });
+  expect(overview.hiddenCriterionNodeIds).toEqual([nodeIds[0]]);
+  expect(overview.project.nodes[nodeIds[0]].comoConfirmar).toBe('');
+  expect(overview.project.nodes[nodeIds[1]].comoConfirmar).toBe('');
+  expect(overview.project.nodes[nodeIds[3]].comoConfirmar).toBe('VISIBLE-CRITERION');
+  expect(JSON.stringify(overview)).not.toMatch(/PRIVATE-HIDDEN-CRITERION|PRIVATE-GRACE-CRITERION|PRIVATE-HIDDEN-WITHOUT-USER/);
+  const secondPage = await execute({ projectId, mode: 'overview', offset: 4, limit: 1 });
+  expect(secondPage.hiddenCriterionNodeIds).toEqual([nodeIds[4]]);
+  expect(secondPage.project.nodes[nodeIds[4]].comoConfirmar).toBe('');
+  const thirdPage = await execute({ projectId, mode: 'overview', offset: 5, limit: 1 });
+  expect(thirdPage.hiddenCriterionNodeIds).toEqual([nodeIds[5]]);
+  expect(useGraphStore.getState().project).toBe(before);
+});
+
+it('preserves hidden versus absent status through explicit node and legacy criterion-text reads, including the unlock grace period', async () => {
+  const { projectId, nodeIds, execute } = criterionPlan();
+  for (const [index, nodeId] of nodeIds.entries()) {
+    const hiddenIds = index === 0 || index === 4 || index === 5 ? [nodeId] : [];
+    const detail = await execute({ projectId, mode: 'node', nodeId });
+    expect(detail.hiddenCriterionNodeIds).toEqual(hiddenIds);
+    const text = await execute({ projectId, nodeId, textField: 'comoConfirmar', ...(index === 5 ? { mode: 'text' } : {}) });
+    expect(text.hiddenCriterionNodeIds).toEqual(hiddenIds);
+    expect(text.project.nodes).toEqual({});
+    if (hiddenIds.length) expect(text.text).toEqual({ field: 'comoConfirmar', content: '', offset: 0, totalCharacters: 0, nextOffset: null });
+    expect(JSON.stringify(detail) + JSON.stringify(text)).not.toMatch(/PRIVATE-HIDDEN-CRITERION|PRIVATE-GRACE-CRITERION|PRIVATE-HIDDEN-WITHOUT-USER/);
+  }
+  const unrelatedField = await execute({ projectId, mode: 'text', nodeId: nodeIds[0], textField: 'oQue' });
+  expect(unrelatedField.hiddenCriterionNodeIds).toEqual([]);
+  const { project } = useGraphStore.getState(), nodeId = nodeIds[4];
+  useGraphStore.setState({ project: { ...project!, nodes: { ...project!.nodes, [nodeId]: { ...project!.nodes[nodeId], comoConfirmarUsuarioAt: Date.now() - 60_000 } } } });
+  const revealed = await execute({ projectId, mode: 'text', nodeId, textField: 'comoConfirmar' });
+  expect(revealed.hiddenCriterionNodeIds).toEqual([]);
+  expect(revealed.text.content).toBe('PRIVATE-GRACE-CRITERION');
 });
 
 it('exposes explicit mode and nullable inactive selectors in the actual SDK tool schema', async () => {

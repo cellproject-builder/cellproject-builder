@@ -103,6 +103,8 @@ export function readAssistantPlan(input: AssistantPlanRead) {
     workspaceProjectName: useWorkspaceStore.getState().projects[input.projectId]?.name.slice(0, 240) ?? '',
     planId: project?.id ?? null,
     readMode: textField ? 'text' as const : selected ? 'node' as const : 'overview' as const,
+    hiddenCriterionNodeIds: (textField === 'comoConfirmar' && selected ? [selected] : nodes)
+      .filter(node => node.comoConfirmar?.trim() && !canRevealAICriterionNow(node)).map(node => node.id),
     project: publicProject, revision: project ? planRevision(project) : null,
     selectedNodeId: snapshot.selectedNodeId, focusedParentId: snapshot.focusedParentId, lens: snapshot.lens, viewMode: snapshot.viewMode,
     nodePage: selected || textField ? { total: selected ? 1 : 0, offset: 0, returned: nodes.length, nextOffset: null, scope: textField ? 'text-only' : 'selected-node' } : page(allNodes.length, offset, nodes.length),
