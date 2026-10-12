@@ -20,6 +20,8 @@ import { captureNoteEditBaseline, noteTextSnapshot, type NoteEditBaseline } from
 import { capturePlannerEditBaseline, type PlannerEditBaseline } from './plannerEditBaseline';
 import { projectWorkspaceRecord } from './workspaceContext';
 import { createWorkspaceReadCoverage } from './workspaceReadCoverage';
+import { CloudConflictError, getCloudRuntime } from '@/cloud/runtime';
+import { isDeferredJSONStorage } from '@/data/selectiveJSONStorage';
 
 const id = z.string().min(1).max(100);
 const text = z.string().max(100_000);
@@ -94,9 +96,23 @@ function notePatch(input: z.infer<typeof note>) {
   return { ...rest, ...(body !== undefined ? { blocks: [{ id: nanoid(10), type: 'text' as const, text: body }] } : {}), ...(blocks ? { blocks: blocks.map((b) => ({ ...b, id: b.id ?? nanoid(10) })) } : {}) };
 }
 
+function persistenceFailure(reason: unknown, owner = getCloudRuntime()) {
+  const sameOwner = getCloudRuntime() === owner, status = owner?.getSnapshot();
+  const storage = useWorkspaceStore.persist.getOptions().storage;
+  const deferred = isDeferredJSONStorage(storage) ? storage.getSnapshot() : undefined;
+  const kind = !sameOwner ? 'session' : status?.localError || deferred?.error ? 'local' : reason instanceof CloudConflictError ? 'conflict' :
+    status?.issue?.kind ?? (status && (status.offline || status.pending > 0) ? 'network' : 'local');
+  const localSaved = sameOwner && status?.localSaved === true && !status.localSaving && !status.localError && !deferred?.pending && !deferred?.error;
+  const warning = !sameOwner ? 'The persistence session changed. Preserve this session before continuing.' :
+    kind === 'local' ? 'Local saving failed. Preserve this session and retry saving.' :
+    `Cloud synchronization ${kind === 'conflict' ? 'has a revision conflict' : kind === 'session' ? 'requires authentication' : 'is pending'}. ${localSaved ? 'The local checkpoint is confirmed' : 'Local persistence has not been confirmed'}; cloud confirmation is still pending.`;
+  return { kind, localSaved, cloudSynced: false, warning };
+}
+
 export async function executeWorkspaceAction(raw: unknown, signal?: AbortSignal): Promise<unknown> {
   const input = workspaceActionSchema.parse(raw);
   signal?.throwIfAborted();
+  const persistenceOwner = getCloudRuntime();
   const state = useWorkspaceStore.getState();
   let result: unknown = { changed: true };
   switch (input.action) {
@@ -134,8 +150,9 @@ export async function executeWorkspaceAction(raw: unknown, signal?: AbortSignal)
     case 'update_comment': state.updateComment(input.id, input.body); break;
     case 'delete_comment': if (!state.comments[input.id]) throw new Error('commentMissing'); state.deleteComment(input.id); break;
   }
-  try { await flushWorkspacePersistence(); } catch {
-    return { applied: true, saved: false, result, error: 'Changes are visible but local saving failed. Do not repeat the mutation; ask the user to preserve this session.' };
+  try { await flushWorkspacePersistence(); } catch (reason) {
+    const persistence = persistenceFailure(reason, persistenceOwner);
+    return { applied: true, saved: false, result, persistence, error: `${persistence.warning} Changes are visible. Do not repeat the mutation.` };
   }
   return result;
 }
@@ -182,12 +199,24 @@ export function createAssistantTools(signal: AbortSignal, onAction: (event: Assi
     signal.throwIfAborted();
     control?.assertActive?.();
     const event: AssistantActionEvent = { id: nanoid(10), name, action: (input as { action?: string }).action ?? name, status: 'running' };
+    const readOnly = name === 'workspace_read' || name === 'planner_read' || name === 'planner_action' && event.action === 'read_plan';
+    const persistenceOwner = getCloudRuntime();
+    const assertReadOwner = () => { if (readOnly && getCloudRuntime() !== persistenceOwner) throw new Error('The persistence session changed. Read the current session again.'); };
     onAction(event);
     try {
       let result = await fn(input);
-      try { await flushWorkspacePersistence(); } catch {
-        result = { applied: true, saved: false, result, error: 'Local saving failed. Do not repeat mutations; preserve this session and retry saving.' };
+      assertReadOwner();
+      try { await flushWorkspacePersistence(); } catch (reason) {
+        // Never return an old session's read after an owner change. Otherwise a
+        // persistence warning must not discard a successful, read-only result.
+        if (getCloudRuntime() !== persistenceOwner) throw reason;
+        const persistence = persistenceFailure(reason, persistenceOwner);
+        if (readOnly) result = { ...(result as Record<string, unknown>), persistence };
+        else if (!(result && typeof result === 'object' && 'saved' in result && result.saved === false)) {
+          result = { applied: true, saved: false, result, persistence, error: `${persistence.warning} Do not repeat mutations.` };
+        }
       }
+      assertReadOwner();
       const saveFailed = !!result && typeof result === 'object' && 'saved' in result && result.saved === false;
       const unchanged = !!result && typeof result === 'object' && 'changed' in result && result.changed === false;
       const requiresApproval = !!result && typeof result === 'object' && 'requiresApproval' in result && result.requiresApproval === true;
