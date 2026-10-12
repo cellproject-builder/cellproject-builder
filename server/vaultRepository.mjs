@@ -31,7 +31,12 @@ export function createVaultRepository({ config, fetchImpl = fetch } = {}) {
     if (response.status === 404) throw new CloudError(404, 'vault_missing', 'Vault object not found.');
     if (response.status === 429) throw new CloudError(429, 'vault_rate_limited', 'Please retry later.'); throw unavailable();
   };
-  const rpc = async (session, name, body, limit = VAULT_LIMIT) => remoteJson(await request(session, `/rest/v1/rpc/${name}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }), limit);
+  const rpc = async (session, name, body, limit = VAULT_LIMIT) => {
+    const response = await request(session, `/rest/v1/rpc/${name}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    // PostgREST returns no body for this VOID function; other RPCs require JSON.
+    if (name === 'dynamic_diary_register_vault_blob' && response.status === 204) return;
+    return remoteJson(response, limit);
+  };
   const blobPath = (owner, id) => `/storage/v1/object/dynamic-diary-vault/${owner}/${blobId(id)}`;
   return {
     async get(session) {
