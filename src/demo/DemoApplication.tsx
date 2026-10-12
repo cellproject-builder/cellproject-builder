@@ -8,6 +8,8 @@ import { useChatStore } from '@/chat/store';
 import { useKBStore } from '@/kb/store';
 import { seedPublicDemo } from './seed';
 import { isPublicDemo } from './session';
+import { AsciiWorkshop } from '@/workspace/AsciiWorkshop';
+import { useSidebarStore } from '@/workspace/sidebarPreference';
 import './demo.css';
 
 let ready: Promise<{ default: typeof DemoApplication }> | undefined;
@@ -23,17 +25,20 @@ export function loadDemoApplication() {
     initializeTheme();
     document.title = 'Demonstração · Cellproject';
     await seedPublicDemo();
+    useSidebarStore.getState().setCollapsed(true);
     return { default: DemoApplication };
   })();
   return ready;
 }
 
 export function DemoApplication() {
+  const surface = useWorkspaceStore(state => state.surface);
   return <div className="demo-session">
     <header className="demo-banner" aria-label="Modo de demonstração">
       <div><strong><span aria-hidden="true" className="demo-dot"/>Demonstração</strong><span>Dados fictícios; alterações não são salvas. Recarregue para recomeçar.</span></div>
       <button type="button" onClick={() => window.location.reload()} title="Descartar as alterações desta demonstração e voltar aos exemplos">Recomeçar demo<span aria-hidden="true"> ↻</span></button>
     </header>
     <div className="demo-content"><App /></div>
+    {surface === 'projects' && <div className="demo-project-workshop"><AsciiWorkshop interest={null} /></div>}
   </div>;
 }

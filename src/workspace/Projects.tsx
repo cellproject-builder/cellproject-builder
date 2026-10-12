@@ -1,5 +1,5 @@
 import { AudioTextarea, AudioTextInput } from '@/audio/AudioField';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useT, useLocaleStore } from '@/i18n';
 import { Modal } from '@/components/ui/Modal';
 import { useWorkspaceStore } from './store';
@@ -15,6 +15,9 @@ import { AsciiWorkshop } from './AsciiWorkshop';
 import { ProjectIconPicker } from './project-appearance/ProjectIconPicker';
 import { ProjectIcon } from './project-appearance/projectIcons';
 import { DEFAULT_PROJECT_APPEARANCE } from './project-appearance/projectAppearance';
+import { isPublicDemo } from '@/demo/session';
+
+const DemoDiagrams = lazy(() => import('@/demo/DemoDiagrams').then(module => ({ default: module.DemoDiagrams })));
 
 function enterPlan(projectId: string) {
   openPlanner(projectId);
@@ -87,6 +90,7 @@ export function Projects() {
       </>}
       actions={<button className="ws-button primary" onClick={() => setCreating({ objective: '' })}><Icon name="plus" />{tr.newProject}</button>}
     />
+    {isPublicDemo() && <Suspense fallback={null}><DemoDiagrams /></Suspense>}
     {!archived && !query && <section className="ws-start-panel" aria-labelledby="start-plan-title">
       <div><p className="ws-eyebrow">{tr.planner}</p><h2 id="start-plan-title">{tr.greeting}</h2><p className="ws-subtitle">{tr.projectsHint}</p></div>
       <div className="ws-start-examples">{tr.starterExamples.map((example, index) => <button key={example.label} onPointerEnter={() => setStarterInterest(index)} onPointerLeave={() => setStarterInterest(null)} onFocus={() => setStarterInterest(index)} onBlur={() => setStarterInterest(null)} onClick={() => setCreating({ objective: example.objective })}><Icon name="planner" size={16} /><span>{example.label}</span><Icon name="arrow" size={14} /></button>)}</div>

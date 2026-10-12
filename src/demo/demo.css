@@ -10,4 +10,9 @@
 .demo-content .ws-app { height:100%; }
 /* Present the populated catalogue immediately when sharing a demonstration. */
 .demo-session :is(.ws-start-panel,.ws-research-panel,.ws-demo-action) { display:none; }
+.demo-project-workshop { position:relative; flex:none; height:72px; }
+.demo-project-workshop .ws-drift-workshop { inset-inline:12px; bottom:0; }
+.demo-project-workshop .ws-drift-pause { width:44px; height:44px; top:-8px; right:64px; }
+.demo-project-workshop:hover .ws-drift-pause { opacity:.5; }
+.demo-project-workshop .ws-drift-pause:is(:hover,:focus-visible) { opacity:1; }
 @media(max-width:600px) { .demo-banner { padding:8px 10px; gap:10px; font-size:11px; } .demo-banner>div { display:block; } .demo-banner strong { display:flex; margin-bottom:2px; } .demo-banner button { max-width:115px; font-size:11px; } }

@@ -4,13 +4,16 @@ import type { ConceptNodeData, Project } from '@/types';
 import { loadWorkspaceDemo } from '@/workspace/demoData';
 import { flushWorkspacePersistence, useWorkspaceStore } from '@/workspace/store';
 import type { NoteBlock, PlannerSnapshot, TaskInput } from '@/workspace/types';
+import { normalizeVisualWorkspace } from '@/visuals/normalize';
+import { createDemoRobotScene, createDemoGardenScene } from './models';
+import { demoVisualWorkspace, type DemoDiagramKey } from './diagrams';
 
 const PREFIX = 'cellproject-public-demo-v1:';
 const FICTION = 'Exemplo fictício de apresentação. Nenhuma validação física ou operação real foi realizada.';
 
 interface ExampleStep { title: string; delivery: string; acceptance: string }
 interface Example {
-  key: string;
+  key: DemoDiagramKey;
   name: string;
   objective: string;
   icon: string;
@@ -141,9 +144,20 @@ function plannerFor(example: Example, now: number): PlannerSnapshot {
     }])),
     rules: [FICTION, 'Escrever o critério antes de interpretar o resultado.', 'Preservar dúvidas e revisar o plano quando aparecer evidência nova.'],
     archetype: 'construir', constructionStrategy: 'hibrido', planApproach: 'new_creation',
+    manualLayout: true,
   };
   const positions = computeTreeLayout(project);
-  project.nodes = Object.fromEntries(Object.values(nodes).map(item => [item.id, { ...item, position: positions[item.id] }]));
+  // Reserve a band under the root for the local diagram; retain the tree's sibling spacing.
+  project.nodes = Object.fromEntries(Object.values(nodes).map(item => [item.id, {
+    ...item, position: { x: positions[item.id].x, y: positions[item.id].y + (item.id === rootId ? 0 : 340) },
+  }]));
+  project.visuals = demoVisualWorkspace(example.key, project, now);
+  const scene = example.key === 'robot' ? createDemoRobotScene() : example.key === 'garden' ? createDemoGardenScene() : null;
+  if (scene) project.visuals = normalizeVisualWorkspace({ ...project.visuals, artifacts: [...project.visuals.artifacts, {
+    id: `${id}:model`, label: scene.label, kind: 'model', linkedNodeId: `${id}:step:${example.key === 'robot' ? 4 : 7}`,
+    x: 450, y: 220, width: 520, height: 360, scene, mediaId: null, source: null,
+    revisions: [{ scene, mediaId: null, createdAt: now }], revisionIndex: 0,
+  }] });
   return {
     project, selectedNodeId: rootId, focusedParentId: rootId, lens: 'structure', viewMode: 'graph', detailPanelOpen: true,
     lastTutorNodeId: null, drafts: {},
