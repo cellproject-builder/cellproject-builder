@@ -63,7 +63,9 @@ it.each(['success', 'provider error'])('cleans up the model subscription and ext
   const model = new MockLanguageModelV3({ doStream: async () => {
     if (outcome === 'provider error') throw failure;
     return { stream: convertArrayToReadableStream<LanguageModelV3StreamPart>([
-      { type: 'stream-start', warnings: [] }, { type: 'finish', finishReason: { unified: 'stop', raw: undefined }, usage },
+      { type: 'stream-start', warnings: [] },
+      { type: 'text-start', id: 'hello-answer' }, { type: 'text-delta', id: 'hello-answer', delta: 'Olá.' }, { type: 'text-end', id: 'hello-answer' },
+      { type: 'finish', finishReason: { unified: 'stop', raw: undefined }, usage },
     ]) };
   } });
   vi.spyOn(client, 'aiModel', 'get').mockReturnValue(model);
@@ -77,7 +79,7 @@ it.each(['success', 'provider error'])('cleans up the model subscription and ext
     const result = await runAssistant({ messages: [{ role: 'user', content: 'Hello' }], userText: 'Hello', signal: controller.signal, onText: () => {}, onAction: () => {} })
       .then(value => value, (error: unknown) => error);
     if (outcome === 'provider error') expect(result).toBe(failure);
-    else expect(result).toMatchObject({ text: '', usage: { inputTokens: 10 } });
+    else expect(result).toMatchObject({ text: 'Olá.', usage: { inputTokens: 10 } });
     expect(unsubscribe).toHaveBeenCalledOnce();
     expect(removed).toHaveBeenCalledWith('abort', expect.any(Function));
   } finally { useConfigStore.setState(previous); }

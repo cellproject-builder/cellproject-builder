@@ -25,7 +25,9 @@ it('reviews a new contextual plan conversation, applies once, compacts completed
     { type: 'stream-start', warnings: [] },
     ...(calls === 0 ? [call('discover', 'enable_capabilities', { capabilities: ['plan'] }), call('read-first', 'planner_read', { projectId })]
       : calls === 1 ? [call('apply-once', 'planner_action', { action: 'update_node', projectId, nodeId, patch: { name: 'Montagem revisada' } }), call('read-second', 'planner_read', { projectId, offset: 10 })]
-        : calls === 2 ? [call('read-third', 'planner_read', { projectId, offset: 20 })] : []),
+        : calls === 2 ? [call('read-third', 'planner_read', { projectId, offset: 20 })] : [
+          { type: 'text-start' as const, id: 'review-answer' }, { type: 'text-delta' as const, id: 'review-answer', delta: 'Montagem revisada foi aplicada. As premissas ainda exigem testes físicos.' }, { type: 'text-end' as const, id: 'review-answer' },
+        ]),
     { type: 'finish', finishReason: { unified: calls++ < 3 ? 'tool-calls' : 'stop', raw: undefined }, usage },
   ]) }) });
   const contexts: WorkspaceContextEvent[] = [], events: unknown[] = [];

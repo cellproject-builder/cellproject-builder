@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid';
 import type { ModelMessage } from 'ai';
 import { workspaceRepository } from '@/data/workspaceRepository';
 import { getCloudRuntime } from '@/cloud/runtime';
-import { runAssistant } from '@/ai/assistant';
+import { runAssistant, type ChatFinalAnswerError } from '@/ai/assistant';
 import { estimateWorkspacePromptTokens } from '@/ai/agents/workspaceAgent';
 import { classifyAIError } from '@/ai/service';
 import { currentModelIds } from '@/ai/client';
@@ -218,6 +218,13 @@ export async function sendChatMessage(value: string, options?: { references?: Ch
     for (const message of additionalAudits()) if (!seen.has(message)) { seen.add(message); extra.push(message); }
     return extra.length ? [...messages, ...extra] : messages;
   };
+  const observeInput = (generatedHistory: ModelMessage[], inputTokens: number | undefined): ChatContextObservation | null => {
+    if (typeof inputTokens !== 'number' || !Number.isFinite(inputTokens) || inputTokens < 0) return null;
+    // Usage is the last step's input, before its final assistant response.
+    let historyMessageCount = generatedHistory.length;
+    for (let index = generatedHistory.length - 1; index >= history.length; index--) if (generatedHistory[index].role === 'assistant') { historyMessageCount = index; break; }
+    return { modelKey: requestScope, inputTokens, historyMessageCount, fixedTokens: useChatStore.getState().contextUsage?.fixedTokens };
+  };
   const patch = (update: Partial<ChatMessage>, allowAborted = false) => {
     if (!ownsTurn() || active.signal.aborted && !allowAborted) return;
     useChatStore.setState((s) => ({ messages: s.messages.map((m) => m.id === assistant.id ? { ...m, ...update } : m) }));
@@ -292,21 +299,18 @@ export async function sendChatMessage(value: string, options?: { references?: Ch
     });
     assertTurn();
     flushText();
-    patch({ text: result.text || copy.processed });
+    const missingReply = !result.text.trim();
+    patch({ text: missingReply ? copy.missingReply : result.text });
     const generatedHistory = result.contextMessages ?? [...history, ...result.messages];
-    const modelHistory = carryAdditionalAudits(generatedHistory);
-    // The final step's input excludes its generated assistant message. The next
-    // estimate adds only messages after that baseline, never summed request usage.
-    let historyMessageCount = generatedHistory.length;
-    for (let index = generatedHistory.length - 1; index >= history.length; index--) if (generatedHistory[index].role === 'assistant') { historyMessageCount = index; break; }
-    const inputTokens = result.usage?.inputTokens;
-    useChatStore.setState({ pendingHistory: null, modelHistory, updatedAt: Date.now(),
-      contextObservation: typeof inputTokens === 'number' && Number.isFinite(inputTokens) && inputTokens >= 0 ? { modelKey: requestScope, inputTokens, historyMessageCount,
-        fixedTokens: useChatStore.getState().contextUsage?.fixedTokens } : null });
+    const modelHistory = carryAdditionalAudits(missingReply ? [...generatedHistory, { role: 'assistant', content: `${copy.missingReply}\nRead current records before repeating mutations.` }] : generatedHistory);
+    useChatStore.setState({ pendingHistory: null, modelHistory, updatedAt: Date.now(), error: missingReply ? copy.missingReply : null,
+      contextObservation: observeInput(generatedHistory, result.usage?.inputTokens) });
   } catch (error) {
     if (!ownsTurn()) return;
     flushText(true);
     const interrupted = active.signal.aborted;
+    const finalAnswerError = error instanceof Error && error.name === 'ChatFinalAnswerError' && error.message === 'chatFinalAnswerMissing' ? error as ChatFinalAnswerError : null;
+    const completedHistory = finalAnswerError?.contextMessages ?? (finalAnswerError ? [...history, ...finalAnswerError.messages] : history);
     const details = classifyAIError(error);
     if (!interrupted && details.kind === 'rate') {
       const retryAt = Date.now() + Math.max(1000, details.retryAfterMs ?? 60_000);
@@ -321,12 +325,14 @@ export async function sendChatMessage(value: string, options?: { references?: Ch
             ? currentLocale() === 'en' ? 'These tool families exceed the available context. Split the requested work into smaller steps. Your message and completed actions are preserved.' : 'As ferramentas desta etapa excederam o espaço disponível. Divida o trabalho em etapas menores. Sua mensagem e as ações concluídas foram preservadas.'
             : currentLocale() === 'en' ? 'The conversation memory could not be prepared safely. Try again; your messages, references and completed actions are preserved.' : 'Não foi possível preparar a memória da conversa com segurança. Tente novamente; suas mensagens, referências e ações concluídas foram preservadas.'
       : null;
-    const errorText = interrupted ? copy.interrupted : budgetMessage ?? (details.kind === 'rate' ? copy.rateLimited : `${details.title}. ${details.hint}`);
+    const errorText = interrupted ? copy.interrupted : finalAnswerError ? copy.missingReply : budgetMessage ?? (details.kind === 'rate' ? copy.rateLimited : `${details.title}. ${details.hint}`);
     const message = useChatStore.getState().messages.find((m) => m.id === assistant.id);
     patch({ text: message?.text ? `${message.text}\n\n${errorText}` : errorText, interrupted,
       actions: message?.actions?.map((a) => a.status === 'running' ? { ...a, status: 'error', detail: errorText } : a),
     }, true);
-    useChatStore.setState({ pendingHistory: null, updatedAt: Date.now(), error: interrupted ? null : errorText, modelHistory: carryAdditionalAudits([...history, { role: 'assistant', content: `${errorText}\nAction audit: ${JSON.stringify(message?.actions ?? [])}. Read current records before repeating mutations.` }]) });
+    useChatStore.setState({ pendingHistory: null, updatedAt: Date.now(), error: interrupted ? null : errorText,
+      ...(finalAnswerError ? { contextObservation: observeInput(completedHistory, finalAnswerError.usage?.inputTokens) } : {}),
+      modelHistory: carryAdditionalAudits([...completedHistory, { role: 'assistant', content: `${errorText}\nAction audit: ${JSON.stringify(message?.actions ?? [])}. Read current records before repeating mutations.` }]) });
   } finally {
     unsubscribe();
     if (textTimer !== null) clearTimeout(textTimer);

@@ -69,17 +69,25 @@ function serverProviders(providers: Partial<Record<CloudProvider, boolean>>, sel
 it.each([null, 'openai'] as const)('sends chat using the server provider without a local key (selection: %s)', async selected => {
   serverProviders({ openrouter: true }, selected);
   await act(async () => root.render(<AssistantChat />));
-  expect(host.querySelector('.dd-chat-context button')?.textContent).toBe('openai/gpt-6.1-sol');
+  const contextToggle = host.querySelector<HTMLButtonElement>('[aria-label="Contexto da conversa"]')!;
+  expect(contextToggle.getAttribute('aria-expanded')).toBe('false');
+  act(() => contextToggle.click());
+  expect(contextToggle.getAttribute('aria-expanded')).toBe('true');
+  const modelButton = host.querySelector<HTMLButtonElement>('[aria-label="Configurar modelo de IA"]')!;
+  expect(modelButton.closest<HTMLElement>('[hidden]')).toBeNull();
+  expect(modelButton.textContent).toBe('openai/gpt-6.1-sol');
   const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
   act(() => Simulate.change(input, { target: { value: 'Quais evidências preciso registrar?' } } as never));
   expect(host.querySelector<HTMLButtonElement>('[aria-label="Enviar"]')?.disabled).toBe(false);
   await act(async () => { Simulate.submit(input.closest('form')!); await flushChatPersistence(); });
+  expect(inference.chat).toHaveBeenCalledOnce();
+  expect(inference.chat).toHaveBeenCalledWith(expect.objectContaining({ userText: 'Quais evidências preciso registrar?' }));
   expect(host.textContent).toContain('Resposta usando o provedor do servidor.');
   expect(useChatStore.getState().messages.find(message => message.role === 'user')?.text).toBe('Quais evidências preciso registrar?');
   expect(host.querySelector('.dd-chat-configure')).toBeNull();
 
   await act(async () => { useConfigStore.getState().saveProviderConfig('openrouter', { apiKey: '', mainModel: 'server-preferred-model', kbModel: 'server-kb' }); await cloud?.flush(); });
-  expect(host.querySelector('.dd-chat-context button')?.textContent).toBe('server-preferred-model');
+  expect(modelButton.textContent).toBe('server-preferred-model');
 });
 
 it('keeps chat blocked when cloud has no provider, even if the browser has an old key', async () => {

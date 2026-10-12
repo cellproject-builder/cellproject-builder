@@ -104,6 +104,46 @@ function dragCanvasEntry(pointerType: string, destination: { x: number; y: numbe
   return entry;
 }
 
+it('reveals context and model metadata on demand without clearing the composer', () => {
+  act(() => root.render(<CanvasHarness />));
+  const toggle = host.querySelector<HTMLButtonElement>('[aria-label="Contexto da conversa"]')!;
+  expect(toggle).not.toBeNull();
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  const details = document.getElementById(toggle.getAttribute('aria-controls')!)!;
+  expect(details.hidden).toBe(true);
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  act(() => Simulate.change(input, { target: { value: 'Rascunho preservado', selectionStart: 19 } } as never));
+  act(() => Simulate.click(toggle));
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  expect(details.hidden).toBe(false);
+  expect(details.textContent).toContain('test-model');
+  expect(details.querySelector('[aria-label="Configurar modelo de IA"]')).not.toBeNull();
+  act(() => Simulate.click(toggle));
+  expect(details.hidden).toBe(true);
+  expect(input.value).toBe('Rascunho preservado');
+});
+
+it('groups repeated completed reads while retaining every audit and exposing approval or error states', () => {
+  const reads = Array.from({ length: 16 }, (_, index) => ({ id: `read-${index}`, name: 'planner_read', action: 'planner_read', status: 'done' as const }));
+  useChatStore.setState({ messages: [{ id: 'review', role: 'assistant', text: 'Revise a alimentação antes da montagem.', createdAt: 1, actions: reads }] });
+  act(() => root.render(<CanvasHarness />));
+  const audit = host.querySelector<HTMLDetailsElement>('.dd-chat-actions')!;
+  expect(audit.open).toBe(false);
+  expect(audit.querySelectorAll(':scope > ul > li')).toHaveLength(1);
+  const group = audit.querySelector<HTMLDetailsElement>('.dd-chat-action-group')!;
+  expect(group.querySelector('summary')?.textContent).toContain('16');
+  expect(group.querySelectorAll('li')).toHaveLength(16);
+  expect(group.open).toBe(false);
+  act(() => { useChatStore.setState({ messages: [{ id: 'review', role: 'assistant', text: 'Uma proposta precisa da sua decisão.', createdAt: 1, actions: [...reads,
+    { id: 'approval', name: 'visual_action', action: 'generate_model', status: 'awaiting_approval' },
+    { id: 'failed', name: 'workspace_action', action: 'create_note', status: 'error', detail: 'Não foi salvo.' },
+  ] }] }); });
+  expect(audit.open).toBe(true);
+  expect(audit.querySelectorAll(':scope > ul > li')).toHaveLength(3);
+  expect(audit.querySelector('.awaiting_approval')?.textContent).toContain('Aguardando aprovação');
+  expect(audit.querySelector('.error')?.textContent).toContain('Não concluído');
+});
+
 it('moves the open conversation between center and right without remounting its draft or interrupting work', () => {
   useChatStore.setState({ running: true, messages: [{ id: 'active', role: 'assistant', text: 'Current conversation', createdAt: 1 }] });
   act(() => root.render(<CanvasHarness />));

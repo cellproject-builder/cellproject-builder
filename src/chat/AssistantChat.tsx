@@ -7,7 +7,8 @@ import { useGraphStore } from '@/store';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { requestWorkspaceUI } from '@/workspace/uiRequests';
 import { Icon } from '@/workspace/ui';
-import { ArrowLeftIcon, ArrowRightIcon, ChatBubbleIcon, EnterFullScreenIcon, ExitFullScreenIcon, HistoryIcon } from '@/components/ui/SoftIcons';
+import { ArrowLeftIcon, ArrowRightIcon, ChatBubbleIcon, ChevronDownIcon, EnterFullScreenIcon, ExitFullScreenIcon, HistoryIcon } from '@/components/ui/SoftIcons';
+import type { AssistantActionEvent } from '@/ai/workspaceTools';
 import { ExplanationContent } from '@/components/Markdown';
 import { actionLabel, chatEn, chatPt } from './messages';
 import { chatCooldownUntil, retryChatPersistence, sendChatMessage, stopChat, useChatStore } from './store';
@@ -29,6 +30,33 @@ import { ChatVisualActions } from './ChatVisualActions';
 
 function ChatIcon() { return <ChatBubbleIcon size={20} />; }
 const ChatMarkdown = memo(ExplanationContent);
+const readActions = new Set(['workspace_read', 'planner_read', 'read_plan', 'list_references']);
+function AuditRow({ action, english }: { action: AssistantActionEvent; english: boolean }) {
+  const tr = english ? chatEn : chatPt;
+  return <li className={action.status} data-action-id={action.id}>
+    <span>{action.status === 'running' ? <i /> : <Icon name={action.status === 'error' ? 'close' : 'check'} size={13} />}</span>
+    <span>{actionLabel(action.action, english)}</span>
+    <small>{action.status === 'running' ? tr.working : action.status === 'done' ? tr.actionDone : action.status === 'awaiting_approval' ? (english ? 'Awaiting approval' : 'Aguardando aprovação') : tr.actionError}</small>
+  </li>;
+}
+const ChatActionAudit = memo(function ChatActionAudit({ actions, english, running }: { actions: AssistantActionEvent[]; english: boolean; running: boolean }) {
+  if (!actions.length) return null;
+  // Only consecutive successful reads collapse. Decisions, errors and writes
+  // keep their position and status; all original receipts remain accessible.
+  const groups: AssistantActionEvent[][] = [];
+  for (const action of actions) {
+    const previous = groups.at(-1), first = previous?.[0];
+    if (action.status === 'done' && readActions.has(action.action) && first?.status === 'done' && first.action === action.action && first.name === action.name) previous!.push(action);
+    else groups.push([action]);
+  }
+  return <details className="dd-chat-actions" open={running || actions.some(action => action.status === 'error' || action.status === 'awaiting_approval')}>
+    <summary><ChevronDownIcon size={12} /><span>{english ? chatEn.actions : chatPt.actions}</span><small>{actions.filter(action => action.status === 'done').length}/{actions.length}</small></summary>
+    <ul>{groups.map(group => group.length === 1 ? <AuditRow key={group[0].id} action={group[0]} english={english} /> : <li key={group[0].id} className="done is-read-group"><details className="dd-chat-action-group">
+      <summary><Icon name="check" size={13} /><span>{actionLabel(group[0].action, english)}</span><small>{group.length} {english ? 'reads' : 'consultas'}</small><ChevronDownIcon size={12} /></summary>
+      <ul>{group.map(action => <AuditRow key={action.id} action={action} english={english} />)}</ul>
+    </details></li>)}</ul>
+  </details>;
+});
 export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   const english = useLocaleStore((s) => s.locale) === 'en', tr = english ? chatEn : chatPt;
   const state = useChatStore();
@@ -58,6 +86,7 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
   const [files, setFiles] = useState<PlanFile[]>([]), [filesBusy, setFilesBusy] = useState(false);
   const [referenceError, setReferenceError] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
   const [visibleMessages, setVisibleMessages] = useState(60);
   const [choosingImage, setChoosingImage] = useState(false), imageChoiceRunning = useRef(false);
   const handoff = useChatReferenceHandoff(state => state.pending);
@@ -191,17 +220,26 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
     }
   }}>
       <header className="dd-chat-header">
-        <div className="dd-chat-symbol"><ChatIcon /></div>
-        <div><h2 id={titleId}>{tr.title}{expanded && <> <small>{english ? 'Expanded' : 'Expandido'}</small></>}</h2><p>{state.compacting ? (english ? 'Organizing context…' : 'Organizando contexto…') : state.running ? tr.working : ready ? tr.ready : tr.noKey}</p></div>
+        <div className="dd-chat-heading"><span className="dd-chat-symbol"><ChatIcon /></span><div><h2 id={titleId}>{tr.title}{expanded && <> <small>{english ? 'Expanded' : 'Expandido'}</small></>}</h2><p>{state.compacting ? (english ? 'Organizing context…' : 'Organizando contexto…') : state.running ? tr.working : ready ? tr.ready : tr.noKey}</p></div></div>
         <div className="dd-chat-header-actions" role="group" aria-label={english ? 'Conversation actions' : 'Ações da conversa'}>
+          <div className="dd-chat-control-group">
           <button className="ws-icon-button" aria-label={english ? 'Conversation history' : 'Histórico de conversas'} title={tr.conversations} aria-expanded={historyOpen} onClick={() => setHistoryOpen(!historyOpen)}><HistoryIcon size={15}/></button>
           <button className="ws-icon-button" disabled={state.running || !state.hydrated || state.loadFailed} aria-label={tr.newChat} title={tr.newChat} onClick={state.newConversation}><Icon name="plus" size={16}/></button>
+          </div><div className="dd-chat-control-group is-presentation">
           {canvas && <button className="ws-icon-button dd-chat-placement" aria-label={canvasPanel === 'right' ? (english ? 'Center chat' : 'Centralizar chat') : (english ? 'Move chat to the right' : 'Mover chat para a direita')} title={canvasPanel === 'right' ? (english ? 'Center chat' : 'Centralizar chat') : (english ? 'Move chat to the right' : 'Mover chat para a direita')} aria-pressed={canvasPanel === 'right'} onClick={() => setCanvasPanel(canvasPanel === 'right' ? 'center' : 'right')}>{canvasPanel === 'right' ? <ArrowLeftIcon size={15}/> : <ArrowRightIcon size={15}/>}</button>}
           <button className="ws-icon-button" aria-label={expanded ? (english ? 'Collapse chat' : 'Recolher chat') : (english ? 'Expand chat' : 'Expandir chat')} title={expanded ? (english ? 'Return to popup' : 'Voltar ao pop-up') : (english ? 'Expand chat' : 'Expandir chat')} onClick={() => setExpanded(!expanded)}>{expanded ? <ExitFullScreenIcon size={15}/> : <EnterFullScreenIcon size={15}/>}</button>
           <button className="ws-icon-button" aria-label={tr.close} title={tr.close} onClick={close}><Icon name="close" size={15}/></button>
+          </div>
         </div>
       </header>
-      <div className="dd-chat-context"><span title={`${english && expanded ? 'Source screen' : expanded ? 'Tela de origem' : tr.context}: ${contextLabel}`}>{expanded ? (english ? 'In focus' : 'Em foco') : tr.context}: {contextLabel}</span>{state.contextUsage && <small className="dd-chat-budget" title={budgetHint || undefined}>~{Math.round(state.contextUsage.percent)}%{state.compaction ? ' ↻' : ''}</small>}<button onClick={() => requestWorkspaceUI({ settings: true })}>{ready ? model : tr.settings}</button></div>
+      <div className="dd-chat-context">
+        <button className="dd-chat-context-toggle" aria-label={english ? 'Conversation context' : 'Contexto da conversa'} aria-expanded={contextOpen} aria-controls={`${titleId}-context`} onClick={() => setContextOpen(!contextOpen)}>
+          <span className="dd-chat-context-dot" aria-hidden="true" /><span title={contextLabel}>{expanded ? (english ? 'Source' : 'Origem') : tr.context}: {contextLabel}</span><ChevronDownIcon size={12} />
+        </button>
+        <div className="dd-chat-context-details" id={`${titleId}-context`} hidden={!contextOpen}>
+          <p>{contextLabel}</p><div><button aria-label={english ? 'Configure AI model' : 'Configurar modelo de IA'} onClick={() => requestWorkspaceUI({ settings: true })}>{ready ? model : tr.settings}</button>{state.contextUsage && <small className="dd-chat-budget" title={budgetHint || undefined}>~{Math.round(state.contextUsage.percent)}%{state.compaction ? ' ↻' : ''}</small>}</div>
+        </div>
+      </div>
       {(state.loadFailed || state.saveFailed) && <div className="dd-chat-storage-error" role="alert"><span>{state.loadFailed ? tr.loadError : tr.saveError}</span><button onClick={() => void retryChatPersistence()}>{tr.retry}</button></div>}
       <div className={`dd-chat-layout ${historyOpen ? 'has-history' : ''}`}>
       {historyOpen && <ChatHistory english={english} onSelect={() => { if (mobile || !expanded) setHistoryOpen(false); }}/>}<div className="dd-chat-conversation" hidden={historyOpen && (mobile || !expanded)}>
@@ -209,8 +247,8 @@ export function AssistantChat({ suspended = false }: { suspended?: boolean }) {
       <div className="dd-chat-messages" aria-busy={state.running}>
         {state.messages.length > visibleMessages && <button className="dd-chat-older" onClick={() => setVisibleMessages(visibleMessages + 60)}>{english ? 'Load earlier messages' : 'Carregar mensagens anteriores'}</button>}
         {!state.hydrated ? <p className="dd-chat-empty">{tr.loading}</p> : !state.messages.length ? <div className="dd-chat-welcome"><div className="dd-chat-welcome-icon"><ChatIcon /></div><h3>{greeting}</h3><p>{greetingHint}</p><div>{examples.map((example) => <button key={example} onClick={() => { setInput(example); inputRef.current?.focus(); }}>{example}<Icon name="arrow" size={14} /></button>)}</div></div> : state.messages.slice(-visibleMessages).map((message) => <article className={`dd-chat-message ${message.role}`} key={message.id}>
-          {message.actions && message.actions.length > 0 && <details className="dd-chat-actions" open={state.running || message.actions.some((a) => a.status === 'error' || a.status === 'awaiting_approval')}><summary>{tr.actions}<span>{message.actions.filter((a) => a.status === 'done').length}/{message.actions.length}</span></summary><ul>{message.actions.map((action) => <li key={action.id} className={action.status}><span>{action.status === 'running' ? <i /> : <Icon name={action.status === 'error' ? 'close' : 'check'} size={13} />}</span><span>{actionLabel(action.action, english)}</span><small>{action.status === 'running' ? tr.working : action.status === 'done' ? tr.actionDone : action.status === 'awaiting_approval' ? (english ? 'Awaiting approval' : 'Aguardando aprovação') : tr.actionError}</small></li>)}</ul></details>}
-          {message.text ? <ChatMarkdown text={message.text} /> : state.running && <span className="dd-chat-thinking" role="status">{tr.working}<i /><i /><i /></span>}
+          {message.actions && <ChatActionAudit actions={message.actions} english={english} running={state.running && message === state.messages.at(-1)} />}
+          {message.text ? <div className={message.role === 'assistant' && message === state.messages.at(-1) && state.error ? 'dd-chat-reply-warning' : undefined} role={message.role === 'assistant' && message === state.messages.at(-1) && state.error ? 'alert' : undefined}><ChatMarkdown text={message.text} /></div> : state.running && <span className="dd-chat-thinking" role="status">{tr.working}<i /><i /><i /></span>}
           {message.role === 'user' && message.turnContext && <small className="dd-chat-message-context">{[screenLabels[message.turnContext.surface], message.turnContext.projectName, message.turnContext.nodeName || message.turnContext.noteTitle || message.turnContext.boardTitle].filter(Boolean).join(' · ')}</small>}
           {!!message.references?.length && <div className="dd-chat-message-references" aria-label={english ? 'References sent' : 'Referências enviadas'}>{message.references.map(reference => <span key={`${reference.kind}:${reference.projectId}:${reference.id}`} title={english ? 'Snapshot at the time of sending' : 'Versão no momento do envio'}>@ {reference.label}</span>)}</div>}
           {!!message.files?.length && <div className="dd-chat-message-references" aria-label={english ? 'Files sent' : 'Anexos enviados'}>{message.files.map(file => <details key={file.id}><summary>{file.name}{file.truncated ? (english ? ' · excerpt' : ' · trecho') : ''}</summary><pre className="plan-attachment-preview">{file.text.slice(0, 8000)}</pre></details>)}</div>}

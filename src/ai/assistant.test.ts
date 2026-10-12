@@ -59,6 +59,7 @@ it('carries the private submission baseline through the SDK adapter without expo
     { type: 'finish' as const, finishReason: { unified: 'tool-calls' as const, raw: undefined }, usage },
   ] : [
     { type: 'stream-start' as const, warnings: [] },
+    { type: 'text-start', id: 'conflict-answer' }, { type: 'text-delta', id: 'conflict-answer', delta: 'A nota mudou; a substituição foi recusada e suas edições foram preservadas.' }, { type: 'text-end', id: 'conflict-answer' },
     { type: 'finish' as const, finishReason: { unified: 'stop' as const, raw: undefined }, usage },
     ];
     return { stream: convertArrayToReadableStream(parts) };
@@ -174,6 +175,7 @@ it.each([
     { type: 'finish', finishReason: { unified: 'tool-calls', raw: undefined }, usage },
   ] : [
     { type: 'stream-start', warnings: [] },
+    { type: 'text-start', id: 'partial-source-answer' }, { type: 'text-delta', id: 'partial-source-answer', delta: 'A fonte é extensa; consultei uma projeção parcial sem alterar seu conteúdo.' }, { type: 'text-end', id: 'partial-source-answer' },
     { type: 'finish', finishReason: { unified: 'stop', raw: undefined }, usage },
   ]) }) });
   const events: AssistantActionEvent[] = [];
@@ -298,8 +300,9 @@ it('streams intermediate and final text and restores real tool history from chat
   await firstDone;
   await vi.advanceTimersByTimeAsync(1500);
   const first = await firstRun;
-  expect(first.text).toBe('Vou consultar.\n\nConsulta concluída.');
-  expect(firstChunks).toEqual(['Vou consultar.', first.text]);
+  expect(first.text).toBe('Consulta concluída.');
+  expect(firstChunks[0]).toBe('Vou consultar.');
+  expect(firstChunks.at(-1)).toBe(first.text);
   expect(first.messages.some((message) => message.role === 'tool')).toBe(true);
 
   // Use actual IndexedDB persistence between requests, with SDK-generated
@@ -329,40 +332,49 @@ it('streams intermediate and final text and restores real tool history from chat
   await secondDone;
   await vi.advanceTimersByTimeAsync(1500);
   const second = await secondRun;
-  expect(second.text).toBe('Vou conferir novamente.\n\nConferência concluída.');
-  expect(secondChunks).toEqual(['Vou conferir novamente.', second.text]);
+  expect(second.text).toBe('Conferência concluída.');
+  expect(secondChunks[0]).toBe('Vou conferir novamente.');
+  expect(secondChunks.at(-1)).toBe(second.text);
   expect(model.doStreamCalls).toHaveLength(4);
   const secondTurnPrompt = model.doStreamCalls[2].prompt;
   expect(secondTurnPrompt.some((message) => message.role === 'tool' && message.content.some((part) => part.type === 'tool-result' && part.toolCallId === 'read-0'))).toBe(true);
   expect(second.messages.some((message) => message.role === 'tool' && message.content.some((part) => part.type === 'tool-result' && part.toolCallId === 'read-2'))).toBe(true);
 });
 
-it('stops the real SDK loop at sixteen steps while preserving the request spacing', async () => {
+it('reserves a written final answer inside sixteen SDK steps while preserving request spacing', async () => {
   await flushWorkspacePersistence();
   vi.useFakeTimers();
   const completed: (() => void)[] = [];
-  const stepsDone = Array.from({ length: 16 }, (_, index) => new Promise<void>((resolve) => { completed[index] = resolve; }));
+  const stepsDone = Array.from({ length: 15 }, (_, index) => new Promise<void>((resolve) => { completed[index] = resolve; }));
   const requestedAt: number[] = [];
   let done = 0;
-  const model = new MockLanguageModelV3({ doStream: async () => {
+  const model = new MockLanguageModelV3({ doStream: async options => {
     requestedAt.push(Date.now());
     return { stream: convertArrayToReadableStream<LanguageModelV3StreamPart>([
       { type: 'stream-start', warnings: [] },
-      { type: 'tool-call', toolCallId: `step-${requestedAt.length}`, toolName: 'workspace_read', input: JSON.stringify({ collection: 'projects' }) },
-      { type: 'finish', finishReason: { unified: 'tool-calls', raw: undefined }, usage },
+      ...(options.toolChoice?.type === 'none' ? [
+        { type: 'text-start' as const, id: 'bounded-answer' }, { type: 'text-delta' as const, id: 'bounded-answer', delta: 'Consultei as páginas disponíveis; não há projetos cadastrados.' }, { type: 'text-end' as const, id: 'bounded-answer' },
+        { type: 'finish' as const, finishReason: { unified: 'stop' as const, raw: undefined }, usage },
+      ] : [
+        { type: 'tool-call' as const, toolCallId: `step-${requestedAt.length}`, toolName: 'workspace_read', input: JSON.stringify({ collection: 'projects', offset: requestedAt.length }) },
+        { type: 'finish' as const, finishReason: { unified: 'tool-calls' as const, raw: undefined }, usage },
+      ]),
     ]) };
   } });
   const run = runAssistant({ messages: [{ role: 'user', content: 'Continue consultando os projetos.' }], userText: 'Continue consultando os projetos.',
     model, signal: new AbortController().signal, onText: () => {}, onAction: (event) => { if (event.status === 'done') completed[done++](); } });
-  for (let index = 0; index < 16; index++) {
+  for (let index = 0; index < 15; index++) {
     await stepsDone[index];
-    if (index < 15) await vi.advanceTimersByTimeAsync(1500);
+    await vi.advanceTimersByTimeAsync(1500);
   }
   const result = await run;
   await vi.advanceTimersByTimeAsync(10_000);
   expect(model.doStreamCalls).toHaveLength(16);
-  expect(done).toBe(16);
-  expect(result.messages.filter((message) => message.role === 'tool')).toHaveLength(16);
+  expect(done).toBe(15);
+  expect(result.text).toContain('não há projetos cadastrados');
+  expect(model.doStreamCalls[15].toolChoice).toEqual({ type: 'none' });
+  expect(model.doStreamCalls[15].tools).toEqual([]);
+  expect(result.messages.filter((message) => message.role === 'tool')).toHaveLength(15);
   expect(requestedAt.slice(1).every((time, index) => time - requestedAt[index] >= 1500)).toBe(true);
 });
 

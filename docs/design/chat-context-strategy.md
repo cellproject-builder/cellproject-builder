@@ -27,6 +27,16 @@ A aplicação usa `ai@6.0.168`. O contrato foi conferido no [código oficial des
 
 [chatCapabilities.ts](../../src/ai/chatCapabilities.ts) inicia cada execução com apenas `workspace_read`, `planner_read` e `enable_capabilities`. O modelo descobre famílias `workspace`, `plan`, `visual` e `note`; a allowlist de `activeTools` passa a expor os schemas necessários no próximo passo. A seleção vale somente para aquele turno e pode ser substituída quando a tarefa muda de domínio. A escolha de ferramentas não concede autorização nova: os argumentos, escopo, aprovação e ações do domínio continuam validados. Conversas comuns deixam de pagar todos os schemas de mutação, sem depender de um roteador por palavras-chave nem impedir referências de outra tela.
 
+## Conclusão do turno e revisão de planos
+
+O limite de 16 passos inclui a resposta à pessoa. Na reprodução do defeito, o modelo consumia todos os passos consultando o plano; o SDK encerrava depois da última ferramenta e o store substituía texto vazio por uma mensagem genérica de sucesso. A lista de consultas concluídas não demonstrava que a revisão tinha sido entregue.
+
+[workspaceAgent.ts](../../src/ai/agents/workspaceAgent.ts) agora reserva o 16º passo para síntese, com `activeTools: []`, `toolChoice: 'none'` e bloqueio de execução das ferramentas. Três passos consecutivos com a mesma leitura, argumentos e resultado antecipam essa síntese. Leituras com paginação diferente ou resultado atualizado continuam disponíveis; esse mecanismo não é cache. As instruções de revisão pedem visão geral, detalhes relevantes, achados e limites, sem percorrer todos os campos extensos por obrigação.
+
+[assistant.ts](../../src/ai/assistant.ts) só aceita conclusão quando o último passo contém texto não vazio, sem novas chamadas de ferramenta ou encerramento por limite, filtro ou erro. Frases intermediárias como “vou consultar” não satisfazem esse contrato. Uma conclusão ausente gera `ChatFinalAnswerError`, com mensagens estruturadas, contexto ativo e uso da última entrada preservados. Não dispara nova requisição nem repete ações automaticamente.
+
+[chat/store.ts](../../src/chat/store.ts) mantém a auditoria, os pares de ferramenta e o histórico retornado também nessa falha. A interface apresenta um aviso de resposta não concluída, nunca a mensagem de ações processadas como substituto. Uma defesa adicional trata retorno vazio ou só com espaços. O texto válido é preservado; a pessoa pode continuar manualmente, e o próximo turno deve consultar registros atuais antes de repetir mutações.
+
 ## Orçamento e medição
 
 Quando uma janela verificada for informada pelo catálogo, ela pode ser passada como `contextWindowTokens` com origem `catalog`. A implementação atual não inventa limites para IDs reconhecidos por nome. Sem esse dado, usa um **orçamento conservador da aplicação de 32.768 tokens**, identificado como `fallback`; isso não é o tamanho real declarado pelo provedor.
@@ -61,6 +71,8 @@ Se uma ação já aplicada terminar de salvar depois que a resposta foi cancelad
 
 O modo expandido reutiliza a conversa e o rascunho de texto, referências e anexos já lidos. A interface mostra inicialmente as 60 mensagens mais recentes e permite carregar anteriores sem apagá-las. Deltas de texto são agrupados em intervalos de até 80 ms, com flush final e ao cancelar; eventos de auditoria continuam imediatos. Isso reduz atualizações e serializações durante o stream, mas não constitui um benchmark de desempenho geral.
 
+O contexto visual é um disclosure com foco visível e `aria-expanded`; origem completa, modelo e uso estimado aparecem ao abrir. O cabeçalho separa ações da conversa e apresentação em dois grupos compactos, preservando as funções central/lateral/expandida. Leituras concluídas consecutivas iguais ficam agrupadas por contagem, com cada recibo acessível na auditoria; erros e propostas aguardando aprovação permanecem destacados. A lista recolhe ao concluir um turno sem pendências. A resposta continua fora desse disclosure.
+
 ## Caching e limites
 
 Caching reutiliza um prefixo idêntico. Mantemos instruções e schemas estáveis antes dos dados variáveis; a conversa cresce sem reescrever turnos anteriores até precisar compactar. Uma compactação altera o prefixo histórico e pode reduzir o cache no primeiro pedido seguinte. Caching não permite omitir o histórico exigido por Chat Completions nem garante um cache hit. [Documentação de prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching).
@@ -72,5 +84,7 @@ Compactações repetidas podem perder detalhes; a fonte completa continua necess
 ## Verificação
 
 Os testes locais exercitam orçamento de 60%, continuidade incremental, turnos recentes, ferramentas, troca de modelo, dados atuais, Unicode, fontes grandes, falhas e cancelamento. `assistant.context.test.ts` reproduz uma conversa nova de revisão: leitura do plano, alteração única, novas leituras, compactação entre passos e resposta final, conservando pedido, identidade do plano e auditoria. `stepContext.test.ts` também preserva um pedido humano que começa com o próprio prefixo de memória, sem confundi-lo com checkpoint. `workspaceReadCoverage.test.ts` verifica caudas de notas, múltiplos blocos, chunks da mesma versão, edição concorrente, continuidade entre turnos e precedência de `blocks` sobre `text`.
+
+[assistant.finalAnswer.test.ts](../../src/ai/assistant.finalAnswer.test.ts) e [assistant.review-flow.test.ts](../../src/ai/assistant.review-flow.test.ts) exercitam o SDK instalado com provedor simulado para término sem texto, síntese reservada e repetição de consultas. [store.test.ts](../../src/chat/store.test.ts) reproduz o falso sucesso, incluindo espaços em branco, preservação após recarga e uso retornado pelo erro. [AssistantChat.test.tsx](../../src/chat/AssistantChat.test.tsx) confere contexto sob demanda, rascunho intacto, 16 recibos agrupados e exposição de erro/aprovação.
 
 O adapter é testado com o SDK real e modelo determinístico; nenhum benchmark pago foi executado. Latência, tokens faturados, cache e precisão de continuidade precisam de avaliação com o provedor real. O fallback ainda não representa a janela real do GPT-6.1 Sol. Resumos são falíveis; uma fonte enorme que ainda seja necessária pode exigir várias leituras, e o limite de 16 passos continua explícito.
