@@ -3,7 +3,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const storage = vi.hoisted(() => ({ slots: new Map<string, unknown>(), authorization: null as any, leased: false, failRecoveredRuntime: false }));
 const canvas = vi.hoisted(() => ({ idle: true, apply: vi.fn() }));
 vi.mock('../CloudLiveSync', () => ({ cloudCanvasIdle: () => canvas.idle, applyRemoteCanvasDocuments: canvas.apply }));
-vi.mock('./repository', () => ({
+vi.mock('./repository', async importOriginal => ({
+  ...await importOriginal<typeof import('./repository')>(),
   OfflineRepository: class {
     async read(slot: string) { return structuredClone(storage.slots.get(slot) ?? null); }
     async write(slot: string, value: any) { if (storage.failRecoveredRuntime && slot === 'runtime' && value.confirmed.documents.some((doc: any) => doc.key === 'cellproject-workspace')) throw new Error('synthetic adoption quota'); storage.slots.set(slot, structuredClone(value)); }

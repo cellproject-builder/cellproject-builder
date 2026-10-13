@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -22,6 +22,20 @@ async function fixture() {
   const head: VaultHead = { header: vault.header, revision: 1, manifest: await vault.session.seal(JSON.stringify({ snapshot, files: {} }), 'manifest:1') };
   return { vault, head };
 }
+
+it('consumes the login password once through StrictMode effect replay and opens without asking again', async () => {
+  const { vault, head } = await fixture(), access = await sealPasswordAccess(vault.session, vault.recoveryKey, password);
+  let submitted: string | null = password;
+  const take = vi.fn(() => { const secret = submitted; submitted = null; return secret; });
+  const fetcher = vi.fn<typeof fetch>(async () => Response.json({ access, revision: 1 }));
+  const ready = vi.fn(async (transport: VaultTransport) => { opened.push(transport); });
+  await act(async () => root.render(<StrictMode><PasswordVaultGate ownerId={vault.session.ownerId} email={email} provider={provider} head={head} snapshot={null} fetcher={fetcher} takeLoginPassword={take} onUnlocked={ready} onRetry={vi.fn()} onRestart={vi.fn(async () => {})}/></StrictMode>));
+  expect(take).toHaveBeenCalledOnce();
+  await waitFor(() => expect(ready).toHaveBeenCalledOnce());
+  expect(ready.mock.calls[0][0].snapshot()).toEqual(snapshot);
+  expect(take).toHaveBeenCalledOnce();
+  expect(host.querySelector('input[type=password]')).toBeNull(); vault.session.dispose();
+}, 15000);
 
 it('opens a new device automatically with the password from login and preserves the canonical encrypted vault', async () => {
   const { vault, head } = await fixture(), canonical = JSON.stringify(head);

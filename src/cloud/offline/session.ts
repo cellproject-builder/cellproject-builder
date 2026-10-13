@@ -2,7 +2,7 @@ import { CloudConflictError, CloudHttpError, CloudRuntime, cloudJson, type Cloud
 import { readDeviceVault } from '../vault/deviceKeys';
 import { sessionFromDeviceKey, validateCipher, validateHeader, type VaultSession } from '../vault/crypto';
 import { VaultTransport, type VaultHead } from '../vault/transport';
-import { OfflineRepository, acquireOfflineLease, authorizeOffline, readOfflineAuthorization, type OfflineAuthorization } from './repository';
+import { OfflineRepository, OfflineWorkspaceBusyError, acquireOfflineLease, authorizeOffline, readOfflineAuthorization, type OfflineAuthorization } from './repository';
 
 export interface OfflineWorkspace {
   runtime: CloudRuntime;
@@ -20,8 +20,10 @@ const allowedEmail = 'wylgnerbossman@gmail.com';
 const sameHeader = (a: unknown, b: unknown) => JSON.stringify(validateHeader(a)) === JSON.stringify(validateHeader(b));
 
 async function construct(authorization: OfflineAuthorization, session: VaultSession, fetcher: typeof fetch, online: boolean, fresh?: VaultTransport): Promise<OfflineWorkspace> {
-  const release = await acquireOfflineLease(session.ownerId, session.header.id);
-  if (!release) { session.dispose(); throw new Error('Este workspace está aberto em outra aba ou o navegador não permite edição offline. Feche a outra aba e tente novamente.'); }
+  let release: (() => void) | null;
+  try { release = await acquireOfflineLease(session.ownerId, session.header.id); }
+  catch (reason) { session.dispose(); throw reason; }
+  if (!release) { session.dispose(); throw new OfflineWorkspaceBusyError(session.ownerId, session.header.id); }
   let ready = false, disposed = false, started = false, pendingRecovery = false, timer: number | undefined, connecting: Promise<void> | null = null;
   const repository = new OfflineRepository(session), networkReady = () => ready && !disposed && navigator.onLine !== false;
   let vault: VaultTransport | undefined, runtime: CloudRuntime | undefined;

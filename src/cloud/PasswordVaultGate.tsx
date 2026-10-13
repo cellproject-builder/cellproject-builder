@@ -75,8 +75,13 @@ export function PasswordVaultGate({ ownerId, email, provider, head, snapshot, fe
     finally { if (live.current && id === epoch.current) { loginPassword.current = null; setPassword(''); setHasLoginPassword(false); setBusy(false); } }
   }
   useEffect(() => {
-    live.current = true; const id = ++epoch.current; loginPassword.current = takeLoginPassword(); setHasLoginPassword(!!loginPassword.current);
+    live.current = true; const id = ++epoch.current;
     void (async () => {
+      // StrictMode replays setup/cleanup synchronously. Only the surviving
+      // attempt may consume the one-use password handed over by login.
+      await Promise.resolve();
+      if (!live.current || id !== epoch.current) return;
+      loginPassword.current = takeLoginPassword(); setHasLoginPassword(!!loginPassword.current);
       try {
         if (head) {
           let restored: VaultSession | null = null;
@@ -94,10 +99,11 @@ export function PasswordVaultGate({ ownerId, email, provider, head, snapshot, fe
     return () => { live.current = false; epoch.current++; loginPassword.current = null; createdRecovery.current = undefined; if (!accepted.current) session.current?.dispose(); };
   }, []);
   const unavailable = !!head && !trusted && !hasAccess;
+  const opening = loading || busy || accepted.current;
   return <section className="cloud-card cloud-vault-card" aria-label="Acesso privado">
     <p className="cloud-kicker">DYNAMIC DIARY · PRIVACIDADE</p>
-    <h1>{loading || busy ? 'Abrindo seus dados' : unavailable ? 'Conecte um aparelho autorizado' : head ? 'Sua senha, seus dados' : 'Privacidade com sua senha'}</h1>
-    {loading ? <p role="status">Conferindo o acesso deste aparelho…</p> : unavailable ? <>
+    <h1>{opening ? 'Abrindo seus dados' : unavailable ? 'Conecte um aparelho autorizado' : head ? 'Sua senha, seus dados' : 'Privacidade com sua senha'}</h1>
+    {opening ? <p role="status">{loading ? 'Conferindo o acesso deste aparelho…' : 'Conectando seus projetos…'}</p> : unavailable ? <>
       <p>Abra o Dynamic Diary em um aparelho onde seus projetos já aparecem e entre com sua senha para vincular o acesso. Depois, volte aqui.</p>
       <button className="primary" disabled={busy} onClick={onRetry}>Conferir novamente</button>
     </> : <>
@@ -109,7 +115,7 @@ export function PasswordVaultGate({ ownerId, email, provider, head, snapshot, fe
       <p className="cloud-muted">Esqueceu a senha? Redefina pelo link temporário do e-mail em um aparelho já autorizado. Sem a senha e sem esse aparelho, os dados antigos não podem ser recuperados.</p>
     </>}
     {error && <p role="alert">{error}</p>}
-    <button className="cloud-text-button" disabled={busy || loading} onClick={() => { setBusy(true); setError(''); loginPassword.current = null; setPassword(''); void onRestart().catch(reason => { if (live.current) { setError(reason instanceof Error ? reason.message : 'Não foi possível reiniciar o acesso.'); setBusy(false); } }); }}>Voltar ao login</button>
+    <button className="cloud-text-button" disabled={opening} onClick={() => { setBusy(true); setError(''); loginPassword.current = null; setPassword(''); void onRestart().catch(reason => { if (live.current) { setError(reason instanceof Error ? reason.message : 'Não foi possível reiniciar o acesso.'); setBusy(false); } }); }}>Voltar ao login</button>
     <details className="cloud-vault-details"><summary>Sobre a privacidade</summary><p>A senha protege a chave no navegador. O servidor de armazenamento recebe dados cifrados. Seu navegador continua autorizado após sair da conta.</p><p>IA, busca e TypeSafe recebem o contexto que você autorizar. A proteção não cobre um aparelho comprometido nem alterações maliciosas futuras no código da aplicação.</p></details>
   </section>;
 }

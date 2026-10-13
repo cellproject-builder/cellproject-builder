@@ -213,7 +213,7 @@ it('holds one nonblocking Web Lock per owner and vault until an idempotent relea
 });
 
 it('declines offline ownership when Web Locks are unsupported or rejected', async () => {
-  vi.stubGlobal('navigator', {}); expect(await acquireOfflineLease('owner', 'vault')).toBeNull();
+  vi.stubGlobal('navigator', {}); await expect(acquireOfflineLease('owner', 'vault')).rejects.toThrow(/armazenamento offline/);
   vi.stubGlobal('navigator', { locks: { request: async () => { throw new DOMException('denied', 'SecurityError'); } } });
-  expect(await acquireOfflineLease('owner', 'vault')).toBeNull();
+  await expect(acquireOfflineLease('owner', 'vault')).rejects.toThrow(/armazenamento offline/);
 });

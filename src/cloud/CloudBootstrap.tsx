@@ -6,6 +6,7 @@ import { CloudStatus } from './CloudStatus';
 import { PasswordSetup } from './PasswordSetup';
 import { VaultGate } from './VaultGate';
 import { PasswordVaultGate } from './PasswordVaultGate';
+import { WorkspaceInUse } from './WorkspaceInUse';
 import { signInPassword } from './passwordAuth';
 import { preparePasswordProtection } from './vault/passwordSetup';
 import { VaultTransport, type VaultHead } from './vault/transport';
@@ -14,7 +15,7 @@ import { readDeviceVault } from './vault/deviceKeys';
 import { configureLiveInk } from '@/ink/live';
 import { CloudInkConnection } from './CloudInkConnection';
 import { hasOfflineCheckpoints, openOfflineWorkspace, prepareOfflineWorkspace, type OfflineWorkspace } from './offline/session';
-import { revokeOfflineAuthorization } from './offline/repository';
+import { OfflineWorkspaceBusyError, revokeOfflineAuthorization } from './offline/repository';
 import './cloud.css';
 
 const CloudLiveSync = lazy(() => import('./CloudLiveSync').then(module => ({ default: module.CloudLiveSync })));
@@ -29,6 +30,7 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
   const [password, setPassword] = useState('');
   const [vaultGate, setVaultGate] = useState(false), [vaultHead, setVaultHead] = useState<VaultHead | null>(null);
   const [deviceError, setDeviceError] = useState('');
+  const [workspaceBusy, setWorkspaceBusy] = useState<OfflineWorkspaceBusyError | null>(null);
   const [networkOnline, setNetworkOnline] = useState(() => navigator.onLine !== false), [connectionIssue, setConnectionIssue] = useState(false);
   const emailLink = config?.authMethod === 'email_link';
   const passwordLogin = config?.passwordAuth && loginMethod === 'password', passwordLink = config?.passwordAuth && loginMethod === 'setup';
@@ -43,7 +45,9 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
     if (vault && typeof navigator.locks?.request !== 'function' && await hasOfflineCheckpoints(vault.session)) throw new Error('Este navegador não consegue retomar a cópia offline com segurança. Use um navegador com suporte à edição offline. Seus rascunhos foram preservados.');
     // Restore the durable queue before importing persisted domain stores. A new
     // runtime made only from the head would discard its unconfirmed operations.
-    const offline = restored ?? (vault && typeof navigator.locks?.request === 'function' ? await prepareOfflineWorkspace(next, vault, fetcher) : null);
+    let offline: OfflineWorkspace | null;
+    try { offline = restored ?? (vault && typeof navigator.locks?.request === 'function' ? await prepareOfflineWorkspace(next, vault, fetcher) : null); }
+    catch (reason) { if (id === generation.current && reason instanceof OfflineWorkspaceBusyError) setWorkspaceBusy(reason); throw reason; }
     if (offline) vault = offline.vault;
     const privateVault = vault;
     const cloud = offline?.runtime ?? (selected ? new CloudRuntime(selected, privateVault?.fetch ?? fetcher, privateVault ? () => { ink?.dispose(); privateVault.dispose(); } : undefined, privateVault ? () => privateVault.refreshSnapshot() : undefined, privateVault ? { rejectOperation: id => privateVault.discardRejectedOperation(id) } : {}) : null);
@@ -68,7 +72,7 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
     return latest;
   }
   async function refresh(id = ++generation.current) {
-    setBusy(true); setError(''); setConnectionIssue(false);
+    setBusy(true); setError(''); setConnectionIssue(false); setWorkspaceBusy(null); setVaultGate(false);
     try {
       if (navigator.onLine === false) { await openCached(id); return; }
       let next: CloudConfig;
@@ -117,7 +121,7 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
         setMigration(true); return;
       }
       await load(remote, next);
-    } catch (reason) { if (id === generation.current) setError(reason instanceof Error ? reason.message : 'Não foi possível abrir o workspace.'); }
+    } catch (reason) { if (id === generation.current) { if (reason instanceof OfflineWorkspaceBusyError) setWorkspaceBusy(reason); setError(reason instanceof Error ? reason.message : 'Não foi possível abrir o workspace.'); } }
     finally { if (id === generation.current) setBusy(false); }
   }
   useEffect(() => {
@@ -164,6 +168,7 @@ export function CloudBootstrap({ loadApplication, fetcher = fetch }: Props) {
     await refresh();
   }
   if (App) return <><App/>{runtime && <><Suspense fallback={null}><CloudLiveSync runtime={runtime}/></Suspense><CloudStatus runtime={runtime} userId={config?.user?.id ?? ''} email={config?.user?.email ?? email} passwordProvider={config?.passwordProvider} fetcher={fetcher} onVerifyConnection={activeOffline.current ? () => activeOffline.current!.reconnect() : undefined} onResume={activeOffline.current ? async () => { await activeOffline.current!.reconnect(); const issue = runtime.getSnapshot().issue; if (issue) throw new Error(issue.message); } : undefined} onLogout={() => { runtime.dispose(); window.location.reload(); }}/></>}</>;
+  if (workspaceBusy) return <WorkspaceInUse issue={workspaceBusy} onRetry={() => void refresh()} onRestart={networkOnline && config?.authenticated ? restartLogin : undefined}/>;
   if (connectionIssue) return <main className="cloud-entry"><section className="cloud-card">
     <p className="cloud-kicker">DYNAMIC DIARY</p><h1>Sem conexão</h1>
     <p role="alert">{error || 'Não foi possível conectar ao servidor e não há uma cópia offline disponível neste aparelho. Conecte-se à internet e abra seus projetos uma vez para prepará-la.'}</p>
