@@ -9,6 +9,7 @@ import type { VisualArtifact } from '@/visuals/types';
 import { capturePlanner, getPlannerOwnerId, openPlanner, readPlanner } from '@/workspace/planner';
 import { useWorkspaceStore } from '@/workspace/store';
 import { isPublicDemo } from './session';
+import { ServoLab } from './ServoLab';
 import './diagrams.css';
 
 const BoardModelPreview = lazy(() => import('@/boards/BoardModelPreview').then(module => ({ default: module.BoardModelPreview })));
@@ -69,14 +70,13 @@ export function DemoDiagrams() {
   if (!isPublicDemo() || !examples.length) return null;
   const example = selected && examples.find(item => item.projectId === selected.projectId && item.planId === selected.planId && item.artifactId === selected.artifactId);
   const close = () => { setSelected(null); setError(''); };
-  const openPlan = (nodeId?: string) => {
-    if (!example) return;
+  const openExamplePlan = (target: ExampleId, nodeId?: string) => {
     try {
-      const { project } = currentExample(example);
+      const { project } = currentExample(target);
       if (nodeId && !Object.hasOwn(project.nodes, nodeId)) throw new Error('Esta parte não está mais disponível.');
-      openPlanner(example.projectId);
+      openPlanner(target.projectId);
       const workspace = useWorkspaceStore.getState();
-      workspace.selectProject(example.projectId);
+      workspace.selectProject(target.projectId);
       if (nodeId) {
         useGraphStore.getState().selectNode(nodeId);
         useGraphStore.getState().setDetailPanelOpen(true);
@@ -85,8 +85,12 @@ export function DemoDiagrams() {
       close();
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível abrir este exemplo.'); }
   };
+  const openPlan = (nodeId?: string) => { if (example) openExamplePlan(example, nodeId); };
+  const robot = examples.find(item => item.planId === 'cellproject-public-demo-v1:robot');
 
   return <section className="demo-examples" aria-label={english ? 'Interactive examples' : 'Exemplos interativos'}>
+    <ServoLab english={english} onOpenPlan={robot ? () => openExamplePlan(robot, `${robot.planId}:step:4`) : undefined}/>
+    {error && !example && <p className="demo-example-error" role="alert">{error}</p>}
     <div className="demo-examples-heading"><h2>{english ? 'Explore an example' : 'Explore um exemplo'}</h2><p>{english ? 'Fictional scenarios. Changes disappear when you reload.' : 'Cenários fictícios. As alterações desaparecem ao recarregar.'}</p></div>
     <div className="demo-examples-actions">{examples.map(item => <button type="button" key={`${item.projectId}:${item.artifactId}`}
       aria-label={`${english ? 'Explore' : 'Explorar'} ${item.artifact.kind === 'model' ? '3D' : (english ? 'diagram' : 'diagrama')}: ${item.artifact.label}`}

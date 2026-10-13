@@ -118,3 +118,18 @@ it('opens the native modal, updates the SVG with a slider and opens its linked p
   expect(f.useGraphStore.getState().selectedNodeId).toBe(f.project.rootId);
   expect(document.querySelector('[role="dialog"]')).toBeNull();
 });
+
+it('connects the servo laboratory to the robot investigation in the seeded plan', async () => {
+  const f = await fixture();
+  const { seedPublicDemo } = await import('./seed');
+  await seedPublicDemo();
+  host = document.createElement('div'); document.body.append(host); root = createRoot(host);
+  await act(async () => root!.render(<f.ui.DemoDiagrams />));
+  expect(host.querySelector('.servo-lab')).not.toBeNull();
+  const open = Array.from(host.querySelectorAll('button')).find(button => button.textContent?.includes('Ver premissa no plano'))!;
+  expect(open).toBeTruthy();
+  act(() => Simulate.click(open));
+  expect(f.workspace.getState().surface).toBe('planner');
+  expect(f.useGraphStore.getState().project?.id).toBe('cellproject-public-demo-v1:robot');
+  expect(f.useGraphStore.getState().selectedNodeId).toBe('cellproject-public-demo-v1:robot:step:4');
+});
