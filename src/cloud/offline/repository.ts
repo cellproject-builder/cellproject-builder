@@ -8,6 +8,24 @@ interface OfflineRecord { version: 1; ownerId: string; vaultId: string; slot: st
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 const identifier = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 1024 && !/[\u0000-\u001f]/.test(value);
 const physicalKey = (owner: string, vault: string, slot: string) => JSON.stringify([owner, vault, slot]);
+const leaseKey = (owner: string, vault: string) => `dynamic-diary-offline:${JSON.stringify([owner, vault])}`;
+export class OfflineWorkspaceBusyError extends Error {
+  constructor(readonly ownerId: string, readonly vaultId: string) {
+    super('Seus projetos já estão abertos em outra aba deste navegador.');
+    this.name = 'OfflineWorkspaceBusyError';
+  }
+}
+function leaseUnavailable() { return new Error('Não foi possível acessar o armazenamento offline neste navegador. Confira as permissões do site e tente novamente.'); }
+function lockManager(): LockManager {
+  try { if (typeof navigator !== 'undefined' && typeof navigator.locks?.request === 'function') return navigator.locks; }
+  catch { /* Browser policy can deny access to the LockManager itself. */ }
+  throw leaseUnavailable();
+}
+/** Wait without taking over the writer or touching its encrypted checkpoints. */
+export async function waitForOfflineLease(ownerId: string, vaultId: string, signal: AbortSignal): Promise<void> {
+  if (!identifier(ownerId) || !identifier(vaultId)) throw leaseUnavailable();
+  await lockManager().request(leaseKey(ownerId, vaultId), { mode: 'exclusive', signal }, () => {});
+}
 function canonicalHeader(header: VaultHeader): string {
   const value = validateHeader(header), { kdf, password, recovery } = value;
   return JSON.stringify([value.format, value.version, value.id, kdf.name, kdf.hash, kdf.iterations, kdf.salt, password.v, password.iv, password.data, recovery.v, recovery.iv, recovery.data]);
@@ -128,15 +146,13 @@ export async function revokeOfflineAuthorization(): Promise<void> {
 }
 export async function acquireOfflineLease(ownerId: string, vaultId: string): Promise<(() => void) | null> {
   if (!identifier(ownerId) || !identifier(vaultId)) return null;
-  let locks: LockManager;
-  try { if (typeof navigator === 'undefined' || !navigator.locks?.request) return null; locks = navigator.locks; }
-  catch { return null; }
-  return new Promise(resolve => {
+  const locks = lockManager();
+  return new Promise((resolve, reject) => {
     try {
-      void locks.request(`dynamic-diary-offline:${JSON.stringify([ownerId, vaultId])}`, { mode: 'exclusive', ifAvailable: true }, lock => {
+      void locks.request(leaseKey(ownerId, vaultId), { mode: 'exclusive', ifAvailable: true }, lock => {
         if (!lock) { resolve(null); return; }
         return new Promise<void>(release => { let released = false; resolve(() => { if (!released) { released = true; release(); } }); });
-      }).catch(() => resolve(null));
-    } catch { resolve(null); }
+      }).catch(() => reject(leaseUnavailable()));
+    } catch { reject(leaseUnavailable()); }
   });
 }
