@@ -101,35 +101,32 @@ it('keeps the current workspace selection when previewing the editor owner from 
   expect(f.useGraphStore.getState().project!.visuals!.artifacts[0].diagramValues).toEqual({ mass: .4 });
 });
 
-it('opens the native modal, updates the SVG with a slider and opens its linked plan node', async () => {
+it('opens the diagram inside its native project canvas instead of a standalone preview', async () => {
   const f = await fixture();
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
   await act(async () => root!.render(<f.ui.DemoDiagrams />));
   act(() => Simulate.click(host!.querySelector<HTMLButtonElement>('[aria-label="Explorar diagrama: Torque do exemplo"]')!));
-  const dialog = document.querySelector('[role="dialog"]')!;
-  expect(dialog.textContent).toContain('Projeto fictício');
-  expect(dialog.textContent).toContain('Premissas e limites');
-  const slider = dialog.querySelector<HTMLInputElement>('input[aria-label="Carga"]')!;
-  act(() => { slider.value = '.4'; Simulate.change(slider); });
-  expect(dialog.querySelector('[data-element-id="result"]')?.textContent).toBe('0.392 N·m');
-  expect(f.workspace.getState().projects[f.id.projectId].planner!.project!.visuals!.artifacts[0].diagramValues).toEqual({ mass: .4 });
-  act(() => Simulate.click(dialog.querySelector('[data-element-id="joint"]')!));
   expect(f.workspace.getState().surface).toBe('planner');
-  expect(f.useGraphStore.getState().selectedNodeId).toBe(f.project.rootId);
+  expect(f.useGraphStore.getState().project?.id).toBe(f.project.id);
+  expect(f.useGraphStore.getState().centerRequest?.nodeId).toBe('visual:chosen');
   expect(document.querySelector('[role="dialog"]')).toBeNull();
 });
 
-it('connects the servo laboratory to the robot investigation in the seeded plan', async () => {
+it('opens the native robot project and frames its 3D servo instead of rendering a standalone laboratory', async () => {
   const f = await fixture();
   const { seedPublicDemo } = await import('./seed');
   await seedPublicDemo();
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
   await act(async () => root!.render(<f.ui.DemoDiagrams />));
-  expect(host.querySelector('.servo-lab')).not.toBeNull();
-  const open = Array.from(host.querySelectorAll('button')).find(button => button.textContent?.includes('Ver premissa no plano'))!;
+  expect(host.querySelector('.servo-lab')).toBeNull();
+  const open = Array.from(host.querySelectorAll('button')).find(button => button.textContent?.includes('Abrir projeto do robô'))!;
   expect(open).toBeTruthy();
   act(() => Simulate.click(open));
   expect(f.workspace.getState().surface).toBe('planner');
   expect(f.useGraphStore.getState().project?.id).toBe('cellproject-public-demo-v1:robot');
-  expect(f.useGraphStore.getState().selectedNodeId).toBe('cellproject-public-demo-v1:robot:step:4');
+  expect(f.useGraphStore.getState().centerRequest?.nodeId).toBe('visual:cellproject-public-demo-v1:robot:servo');
+  const artifacts = f.useGraphStore.getState().project!.visuals!.artifacts;
+  expect(artifacts.filter(artifact => artifact.kind === 'diagram')).toHaveLength(2);
+  expect(artifacts.filter(artifact => artifact.kind === 'model')).toHaveLength(2);
+  expect(artifacts.find(artifact => artifact.id.endsWith(':servo'))?.assembly?.groups).toHaveLength(7);
 });

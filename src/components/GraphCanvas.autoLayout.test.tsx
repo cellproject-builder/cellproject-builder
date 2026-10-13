@@ -200,6 +200,23 @@ afterEach(() => {
   vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers();
 });
 
+it('frames an explicit 3D artifact after measurement when opening a manual project', () => {
+  act(() => root.unmount());
+  const project = fixture(); project.manualLayout = true;
+  project.visuals = { version: 1, mode: 'approval', proposals: [], drafts: { search: { text: '', mentions: [], attachments: [] }, model: { text: '', mentions: [], attachments: [] } }, artifacts: [{ id: 'servo', label: 'Servo', kind: 'model', x: 2400, y: 1800, width: 620, height: 500, scene: { version: 1, label: 'Servo', objects: [{ id: 'case', type: 'box', position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], color: '#112233' }] }, mediaId: null, source: null, revisions: [{ scene: null, mediaId: null, createdAt: 1 }], revisionIndex: 0 }] };
+  useGraphStore.setState({ project, centerRequest: { nodeId: 'visual:servo', version: 1 } });
+  flow.initialized = false; flow.setViewport.mockClear();
+  root = createRoot(host); act(() => root.render(<GraphCanvas/>)); advance();
+  expect(flow.setViewport).not.toHaveBeenCalled();
+  measureDisplayedNodes(); advance();
+  const viewport = flow.setViewport.mock.calls.at(-1)?.[0] as { x: number; y: number; zoom: number } | undefined;
+  expect(viewport).toBeDefined();
+  expect(2400 * viewport!.zoom + viewport!.x).toBeGreaterThanOrEqual(0);
+  expect(1800 * viewport!.zoom + viewport!.y).toBeGreaterThanOrEqual(0);
+  expect(3020 * viewport!.zoom + viewport!.x).toBeLessThanOrEqual(width);
+  expect(2300 * viewport!.zoom + viewport!.y).toBeLessThanOrEqual(height);
+});
+
 describe('GraphCanvas automatic layout integration', () => {
   it.each([false, true])('opens a compact reader on double click without zooming or moving saved nodes (expanded: %s)', maximized => {
     useLocaleStore.setState({ locale: 'en' });

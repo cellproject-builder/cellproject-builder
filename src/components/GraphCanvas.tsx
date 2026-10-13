@@ -734,20 +734,18 @@ export function GraphCanvas({ maximized = false, onToggleMaximized }: { maximize
   // centraliza nele em vez de mostrar a árvore inteira.
   const [initialTarget] = useState<string | null>(() => {
     const s = useGraphStore.getState();
+    const requested = s.centerRequest?.nodeId;
+    if (requested && s.project?.visuals?.artifacts.some(artifact => `visual:${artifact.id}` === requested)) return requested;
     const sel = s.selectedNodeId;
     if (!s.project || !sel || sel === s.project.rootId || !s.project.nodes[sel]) return null;
     return sel;
   });
   useEffect(() => {
     if (!initialTarget) return;
-    schedule(
-      camTimer,
-      () => {
+    pendingCameraFrame.current = { lens, action: () => {
         if (isOnCanvas(initialTarget)) centerOn(initialTarget);
         else frameOverview(300);
-      },
-      60,
-    );
+      } };
     // só na montagem
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

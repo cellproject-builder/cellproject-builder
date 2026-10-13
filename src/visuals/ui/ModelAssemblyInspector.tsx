@@ -30,7 +30,7 @@ export function ModelAssemblyInspector({ artifact, onResearch }: { artifact: Vis
   }
   return <section className="visual-decomposition visual-assembly-inspector" aria-label={en ? 'Modular assembly' : 'Conjunto modular'}>
     <div className="visual-decomposition-heading"><span aria-hidden="true">⊞</span><div><h3>{en ? 'Modular assembly' : 'Conjunto modular'}</h3><p>{artifact.label}</p></div></div>
-    <p className="visual-decomposition-footnote">{en ? 'Each module was generated separately against the same assembly contract. Geometry and contact anchors remain illustrative; this is not a verified physical fit.' : 'Cada módulo foi gerado separadamente com o mesmo contrato de montagem. Geometria e pontos de contato são ilustrativos; o encaixe físico ainda precisa ser validado.'}</p>
+    <p className="visual-decomposition-footnote">{en ? 'These modules share an assembly contract. Explore their relationship to the project; geometry and contact anchors remain illustrative, without a verified physical fit.' : 'Os módulos compartilham um contrato de montagem. Explore sua relação com o projeto; geometria e pontos de contato são ilustrativos, sem validação de encaixe físico.'}</p>
     <div className="visual-decomposition-view"><div className="visual-segmented" role="group" aria-label={en ? 'Assembly view' : 'Vista do conjunto'}>
       <button type="button" aria-pressed={explosion === 0} onClick={() => useVisualViewStore.getState().setExplosion(artifact.id, 0)}>{en ? 'Assembled' : 'Montado'}</button>
       <button type="button" aria-pressed={explosion === 1} onClick={() => useVisualViewStore.getState().setExplosion(artifact.id, 1)}>{en ? 'Exploded' : 'Explodido'}</button>

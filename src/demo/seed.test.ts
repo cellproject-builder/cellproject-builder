@@ -103,7 +103,7 @@ describe('public demonstration content', () => {
     expect(createWorkspaceBackup(useWorkspaceStore.getState(), 1).data).toEqual(before);
   });
 
-  it('includes three local interactive SVG examples with valid plan links and meaningful calculations', async () => {
+  it('includes local interactive SVG examples with valid plan links and meaningful calculations', async () => {
     await seedPublicDemo();
     const projects = Object.values(useWorkspaceStore.getState().projects);
     const examples = [
@@ -111,14 +111,14 @@ describe('public demonstration content', () => {
       { name: '(Demo) Horta automatizada', output: 'volume', parameter: 'flow', next: 2, before: 5, after: 10 },
       { name: '(Demo) Oficina de invenções', output: 'total', parameter: 'revision', next: 15, before: 30, after: 35 },
     ];
-    expect(projects.flatMap(project => project.planner?.project?.visuals?.artifacts ?? []).filter(artifact => artifact.kind === 'diagram')).toHaveLength(3);
+    expect(projects.flatMap(project => project.planner?.project?.visuals?.artifacts ?? []).filter(artifact => artifact.kind === 'diagram')).toHaveLength(4);
     for (const example of examples) {
       const planner = projects.find(project => project.name === example.name)!.planner!;
       const project = planner.project!;
       expect(planner).toMatchObject({ lens: 'structure', viewMode: 'graph', selectedNodeId: project.rootId });
       expect(project.manualLayout).toBe(true);
       const visuals = normalizeVisualWorkspace(project.visuals);
-      expect(visuals.artifacts.filter(artifact => artifact.kind === 'diagram')).toHaveLength(1);
+      expect(visuals.artifacts.filter(artifact => artifact.kind === 'diagram')).toHaveLength(example.name.includes('Robô') ? 2 : 1);
       expect(visuals.proposals).toEqual([]);
       const artifact = visuals.artifacts.find(artifact => artifact.kind === 'diagram')!;
       expect(artifact).toMatchObject({ kind: 'diagram', scene: null, mediaId: null, source: null, revisionIndex: 0 });
@@ -152,7 +152,7 @@ describe('public demonstration content', () => {
     await seedPublicDemo();
     const state = useWorkspaceStore.getState();
     const project = Object.values(state.projects).find(item => item.name === '(Demo) Robô de dois braços')!;
-    expect(project.planner!.project!.visuals?.artifacts.filter(artifact => artifact.kind === 'diagram')).toHaveLength(1);
+    expect(project.planner!.project!.visuals?.artifacts.filter(artifact => artifact.kind === 'diagram')).toHaveLength(2);
     openPlanner(project.id);
     const artifact = useGraphStore.getState().project!.visuals!.artifacts[0];
     setDiagramParameter(artifact.id, 'mass', .65);
@@ -164,14 +164,14 @@ describe('public demonstration content', () => {
     expect(useWorkspaceStore.getState().projects[project.id].planner!.project!.visuals!.artifacts[0].diagramValues).toEqual({ mass: .65 });
   });
 
-  it('stores two local 3D models beside their diagrams with complete revisions and valid project links', async () => {
+  it('stores native grouped 3D examples beside their diagrams with complete revisions and valid project links', async () => {
     await seedPublicDemo();
     const projects = Object.values(useWorkspaceStore.getState().projects);
     const models = projects.flatMap(managed => {
       const project = managed.planner?.project;
       return project ? (project.visuals?.artifacts ?? []).filter(artifact => artifact.kind === 'model').map(artifact => ({ project, artifact })) : [];
     });
-    expect(models).toHaveLength(2);
+    expect(models).toHaveLength(3);
     for (const { project, artifact } of models) {
       expect(project.nodes[artifact.linkedNodeId!]).toBeDefined();
       expect(artifact.mediaId).toBeNull();

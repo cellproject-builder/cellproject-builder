@@ -5,7 +5,9 @@ import { loadWorkspaceDemo } from '@/workspace/demoData';
 import { flushWorkspacePersistence, useWorkspaceStore } from '@/workspace/store';
 import type { NoteBlock, PlannerSnapshot, TaskInput } from '@/workspace/types';
 import { normalizeVisualWorkspace } from '@/visuals/normalize';
-import { createDemoRobotScene, createDemoGardenScene } from './models';
+import { createDemoRobotScene, createDemoGardenScene, createDemoServoScene, createDemoAssembly } from './models';
+import { servoSignalDiagram } from './servoDiagrams';
+import { useVisualViewStore } from '@/visuals/rendering/viewStore';
 import { demoVisualWorkspace, type DemoDiagramKey } from './diagrams';
 
 const PREFIX = 'cellproject-public-demo-v1:';
@@ -149,15 +151,25 @@ function plannerFor(example: Example, now: number): PlannerSnapshot {
   const positions = computeTreeLayout(project);
   // Reserve a band under the root for the local diagram; retain the tree's sibling spacing.
   project.nodes = Object.fromEntries(Object.values(nodes).map(item => [item.id, {
-    ...item, position: { x: positions[item.id].x, y: positions[item.id].y + (item.id === rootId ? 0 : 340) },
+    ...item, position: { x: positions[item.id].x, y: positions[item.id].y + (item.id === rootId ? 0 : example.key === 'robot' ? 1320 : 340) },
   }]));
   project.visuals = demoVisualWorkspace(example.key, project, now);
   const scene = example.key === 'robot' ? createDemoRobotScene() : example.key === 'garden' ? createDemoGardenScene() : null;
   if (scene) project.visuals = normalizeVisualWorkspace({ ...project.visuals, artifacts: [...project.visuals.artifacts, {
     id: `${id}:model`, label: scene.label, kind: 'model', linkedNodeId: `${id}:step:${example.key === 'robot' ? 4 : 7}`,
-    x: 450, y: 220, width: 520, height: 360, scene, mediaId: null, source: null,
-    revisions: [{ scene, mediaId: null, createdAt: now }], revisionIndex: 0,
+    x: 450, y: 220, width: 520, height: 360, scene, assembly: createDemoAssembly(scene, `${id}:step:${example.key === 'robot' ? 4 : 7}`), mediaId: null, source: null,
+    revisions: [{ scene, assembly: createDemoAssembly(scene, `${id}:step:${example.key === 'robot' ? 4 : 7}`), mediaId: null, createdAt: now }], revisionIndex: 0,
   }] });
+  if (example.key === 'robot') {
+    const root = project.nodes[rootId].position, left = root.x - 490;
+    const servo = createDemoServoScene(), assembly = createDemoAssembly(servo, `${id}:step:1`), signal = servoSignalDiagram(id);
+    project.visuals = normalizeVisualWorkspace({ ...project.visuals, artifacts: [
+      ...project.visuals.artifacts.map(artifact => ({ ...artifact, x: artifact.kind === 'diagram' ? left + 660 : left, y: root.y + (artifact.kind === 'diagram' ? 220 : 760), width: 620, height: 500 })),
+      { id: `${id}:servo`, label: servo.label, kind: 'model', linkedNodeId: `${id}:step:1`, x: left, y: root.y + 220, width: 620, height: 500, scene: servo, assembly, mediaId: null, source: null, revisions: [{ scene: servo, assembly, mediaId: null, createdAt: now }], revisionIndex: 0 },
+      { id: `${id}:servo-signal`, label: signal.title, kind: 'diagram', linkedNodeId: `${id}:step:6`, x: left + 660, y: root.y + 760, width: 620, height: 500, scene: null, mediaId: null, source: null, diagram: signal, diagramValues: {}, revisions: [{ scene: null, mediaId: null, diagram: signal, diagramValues: {}, createdAt: now }], revisionIndex: 0 },
+    ] });
+    if (useVisualViewStore.getState().explosions[`${id}:servo`] === undefined) useVisualViewStore.getState().setExplosion(`${id}:servo`, .8);
+  }
   return {
     project, selectedNodeId: rootId, focusedParentId: rootId, lens: 'structure', viewMode: 'graph', detailPanelOpen: true,
     lastTutorNodeId: null, drafts: {},

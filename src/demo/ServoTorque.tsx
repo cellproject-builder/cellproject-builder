@@ -5,13 +5,14 @@ export function ServoTorque({ scenario, english }: { scenario: ServoScenario; en
   const id = useId().replaceAll(':', '');
   const { mass, reach, angle, reference } = scenario;
   const result = servoScenario(scenario);
+  const plotMax = Math.max(1.2, servoScenario({ ...scenario, reach: 30 }).torque * 1.15, reference * 1.2);
   const radians = angle * Math.PI / 180;
   const length = reach * 7;
   const x = 185 + Math.cos(radians) * length, y = 290 - Math.sin(radians) * length;
-  const curve = Array.from({ length: 31 }, (_, r) => `${r ? 'L' : 'M'}${470 + r * 7.2} ${340 - servoScenario({ ...scenario, reach: r }).torque / 1.2 * 210}`).join(' ');
-  const referenceY = 340 - reference / 1.2 * 210;
+  const curve = Array.from({ length: 31 }, (_, r) => `${r ? 'L' : 'M'}${470 + r * 7.2} ${340 - servoScenario({ ...scenario, reach: r }).torque / plotMax * 210}`).join(' ');
+  const referenceY = 340 - reference / plotMax * 210;
   const color = result.exceedsReference ? '#efb47d' : '#96e3cd';
-  return <svg viewBox="0 0 760 540" className="servo-torque-svg" role="img" aria-label={english ? 'Arm load investigation and torque versus reach graph' : 'Investigação de carga no braço e gráfico de torque por alcance'}>
+  return <svg viewBox="0 0 760 540" className="servo-torque-svg" style={{ background: '#0d1b25' }} role="img" aria-label={`${english ? 'Estimated moment' : 'Momento estimado'}: ${result.torque.toFixed(3)} N·m. ${english ? 'Arm load investigation and torque versus reach graph' : 'Investigação de carga no braço e gráfico de torque por alcance'}`}>
     <defs>
       <pattern id={`${id}-grid`} width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#4d6b7b" strokeOpacity=".18"/></pattern>
       <linearGradient id={`${id}-area`} x1="0" y1="0" x2="0" y2="1"><stop stopColor={color} stopOpacity=".28"/><stop offset="1" stopColor={color} stopOpacity=".01"/></linearGradient>
@@ -42,13 +43,13 @@ export function ServoTorque({ scenario, english }: { scenario: ServoScenario; en
     <g fill="#98b2be" fontSize="10"><text x="470" y="108">{english ? 'TORQUE × REACH' : 'TORQUE × ALCANCE'}</text><text x="470" y="126">N·m</text></g>
     <rect x="470" y="130" width="216" height="210" fill={`url(#${id}-grid)`}/>
     <rect x="470" y="130" width="216" height={Math.max(0, referenceY - 130)} fill="#eab37d" opacity=".045"/>
-    {[0, .3, .6, .9, 1.2].map(v => <g key={v}><path d={`M470 ${340 - v / 1.2 * 210}H686`} stroke="#4a6875" strokeOpacity=".35"/><text x="458" y={344 - v / 1.2 * 210} fill="#8da5b3" fontSize="10" textAnchor="end">{v.toFixed(1)}</text></g>)}
+    {[0, .25, .5, .75, 1].map(fraction => <g key={fraction}><path d={`M470 ${340 - fraction * 210}H686`} stroke="#4a6875" strokeOpacity=".35"/><text x="458" y={344 - fraction * 210} fill="#8da5b3" fontSize="10" textAnchor="end">{(fraction * plotMax).toFixed(1)}</text></g>)}
     <path d={`${curve}L686 340H470Z`} fill={`url(#${id}-area)`}/>
     <path d={curve} fill="none" stroke={color} strokeWidth="2.5"/>
     <path d={`M470 ${referenceY}H686`} stroke="#f3ce8b" strokeDasharray="4 4"/>
     <text x="686" y={referenceY - 9} textAnchor="end" fill="#f3ce8b" fontSize="10">{english ? 'Scenario reference' : 'Referência do cenário'}</text>
-    <path d={`M${470 + reach * 7.2} 340V${340 - result.torque / 1.2 * 210}`} stroke={color} strokeDasharray="3 4"/>
-    <circle cx={470 + reach * 7.2} cy={340 - result.torque / 1.2 * 210} r="6" fill="#0c1d25" stroke={color} strokeWidth="2"/>
+    <path d={`M${470 + reach * 7.2} 340V${340 - result.torque / plotMax * 210}`} stroke={color} strokeDasharray="3 4"/>
+    <circle cx={470 + reach * 7.2} cy={340 - result.torque / plotMax * 210} r="6" fill="#0c1d25" stroke={color} strokeWidth="2"/>
     {[0, 10, 20, 30].map(r => <text key={r} x={470 + r * 7.2} y="357" fill="#8da5b3" fontSize="10" textAnchor="middle">{r}</text>)}
     <text x="686" y="378" fill="#8da5b3" fontSize="10" textAnchor="end">{english ? 'Reach (cm)' : 'Alcance (cm)'}</text>
     <rect x="36" y="418" width="688" height="78" rx="8" fill="#142630" stroke="#334c59"/>

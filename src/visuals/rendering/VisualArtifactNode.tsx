@@ -14,6 +14,7 @@ import { useVisualViewStore } from './viewStore';
 import { containedImageRect } from './geometry';
 import { ModelArtifactEditor } from '../ui/ModelArtifactEditor';
 import { DiagramView } from '../diagram/DiagramView';
+import { projectDiagramIllustration } from '@/demo/ProjectDiagramIllustration';
 import './visual-canvas.css';
 
 export const VisualArtifactNode = memo(function VisualArtifactNode({ data, selected, dragging, width, height }: NodeProps) {
@@ -208,7 +209,7 @@ export const VisualArtifactNode = memo(function VisualArtifactNode({ data, selec
         }} />}
       {missing && <span className="visual-missing">{en ? 'Image file unavailable' : 'Arquivo da imagem indisponível'}</span>}
       {artifact.kind === 'model' && <span className="visual-model-fallback">{en ? '3D preview needs WebGL 2' : 'Prévia 3D precisa de WebGL 2'}</span>}
-      {artifact.kind === 'diagram' && artifact.diagram && <DiagramView diagram={artifact.diagram} values={artifact.diagramValues} english={en} nodeNames={Object.fromEntries(Object.values(conceptNodes ?? {}).map(n => [n.id, n.name]))}
+      {artifact.kind === 'diagram' && artifact.diagram && <DiagramView illustration={projectDiagramIllustration(artifact, en)} diagram={artifact.diagram} values={artifact.diagramValues} english={en} nodeNames={Object.fromEntries(Object.values(conceptNodes ?? {}).map(n => [n.id, n.name]))}
         onParameter={(id, value) => setDiagramParameter(artifact.id, id, value)} onSelectNode={id => { if (Object.hasOwn(useGraphStore.getState().project?.nodes ?? {}, id)) useGraphStore.getState().selectNode(id); }} />}
     </div>
     <NodeToolbar isVisible={selected && !quickOrbit && !dragging && !resizing} position={Position.Bottom} offset={6} style={{ zIndex: 10 }}>

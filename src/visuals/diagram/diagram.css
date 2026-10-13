@@ -4,6 +4,7 @@
 .visual-diagram-node:focus-visible { outline:2px solid rgb(var(--ai-accent)); outline-offset:2px; }
 .visual-diagram-controls { display:flex; flex-wrap:wrap; align-items:center; flex-shrink:0; max-height:45%; overflow:auto; gap:6px 14px; padding:4px 8px; cursor:auto; touch-action:auto; font-size:11px; line-height:1.4; }
 .visual-diagram-controls>label { min-width:92px; flex:1; }
+.visual-diagram-stage-link { padding:4px 6px; border:1px solid rgb(var(--border-base)); border-radius:5px; color:rgb(var(--text-secondary)); font-size:10px; cursor:pointer; }
 .visual-diagram-controls label>span { display:flex; justify-content:space-between; gap:8px; }
 .visual-diagram-controls output { color:rgb(var(--text-muted)); font-variant-numeric:tabular-nums; }
 .visual-diagram-controls input { width:100%; height:18px; accent-color:rgb(var(--ai-accent)); }

@@ -1,5 +1,7 @@
-import { Euler, Quaternion, Vector3 } from 'three';
-import type { CustomVisualGeometry, SceneV1 } from '@/visuals/types';
+import { Box3, Euler, Quaternion, Vector3 } from 'three';
+import type { CustomVisualGeometry, SceneV1, VisualModelAssembly } from '@/visuals/types';
+import { modelSceneFingerprint } from '@/visuals/modelAssembly';
+import { decompositionObjectBounds } from '@/visuals/decompositionLayout';
 
 type Vec3 = [number, number, number];
 type Point = [number, number];
@@ -12,7 +14,7 @@ const canonicalNumbers = <T extends number[]>(values: T): T => values.map(value 
 function canonicalGeometry(geometry: CustomVisualGeometry): CustomVisualGeometry {
   switch (geometry.kind) {
     case 'extrude': return { ...geometry, points: geometry.points.map(canonicalNumbers), holes: geometry.holes.map(hole => hole.map(canonicalNumbers)) };
-    case 'lathe': return { ...geometry, points: geometry.points.map(canonicalNumbers) };
+    case 'lathe': return { kind: 'lathe', points: geometry.points.map(canonicalNumbers), segments: geometry.segments };
     case 'tube': return { ...geometry, points: geometry.points.map(canonicalNumbers) };
     case 'buffer': return { ...geometry, vertices: geometry.vertices.map(canonicalNumbers), indices: canonicalNumbers(geometry.indices) };
   }
@@ -46,6 +48,88 @@ const chamfered = (width: number, height: number, corner: number): Point[] => [
 ];
 const extrude = (points: Point[], depth: number, bevel = 0, holes: Point[][] = []): CustomVisualGeometry =>
   ({ kind: 'extrude', points, holes, depth, bevel });
+
+/** Hand-built microservo study with real 3D meshes; illustrative, not measured CAD. */
+export function createDemoServoScene(): SceneV1 {
+  const b = builder('demo-servo', 'MG90S · anatomia 3D ilustrativa');
+  const navy = '#24415A', edge = '#52799A', metal = '#BCCCD0', gold = '#D9AD58';
+  b.add('case:bottom', 'box', [0, .1, 0], [2.4, .16, 1.22], navy);
+  for (const z of [-.58, .58]) b.add(`case:wall:${z}`, 'box', [0, 1.13, z], [2.4, 2.0, .1], navy);
+  for (const x of [-1.15, 1.15]) {
+    b.add(`case:end:${x}`, 'box', [x, 1.13, 0], [.1, 2.0, 1.13], navy);
+    b.custom(`case:mount:${x}`, extrude(chamfered(.63, .72, .08), .14, .02, [Array.from({ length: 16 }, (_, i): Point => [Math.cos(i / 16 * Math.PI * 2) * .12, Math.sin(i / 16 * Math.PI * 2) * .12])]), edge, [x * 1.22, 1.55, 0], [Math.PI / 2, 0, 0]);
+  }
+  for (let i = 0; i < 4; i++) b.add(`case:rib:${i}`, 'box', [-.85 + i * .57, 1.1, .642], [.06, 1.4, .06], edge);
+  b.add('case:label', 'box', [0, 1.18, .655], [1.0, .7, .035], '#153347');
+  b.add('case:label-stripe', 'box', [0, 1.4, .678], [.8, .05, .02], '#6CA9BC');
+  for (let i = 0; i < 3; i++) b.add(`case:label-line:${i}`, 'box', [-.1, 1.25 - i * .12, .68], [.58 - i * .1, .025, .02], metal);
+
+  b.add('board:pcb', 'box', [0, .33, 0], [2.1, .075, 1.0], '#2F7054');
+  b.add('board:controller', 'box', [.2, .43, .1], [.5, .13, .36], '#1D292D');
+  for (let i = 0; i < 6; i++) for (const z of [-.23, .23]) b.add(`board:pin:${i}:${z}`, 'box', [-.03 + i * .09, .42, z + .1], [.04, .04, .12], gold);
+  for (const x of [-.65, .65]) b.add(`board:capacitor:${x}`, 'cylinder', [x, .45, -.28], [.16, .18, .16], metal);
+  for (let i = 0; i < 4; i++) b.add(`board:track:${i}`, 'box', [-.65 + i * .34, .375, .23], [.024, .01, .48], '#B3B76C');
+  for (const [index, color] of ['#B56A54', '#D6AE62', '#414A50'].entries()) {
+    b.tube(`board:wire:${index}`, [[-1, .35, -.22 + index * .15], [-1.5, .3, -.22 + index * .15], [-1.9, .12, .1 + index * .15], [-2.25, .12, .28 + index * .15]], .038, color, 16);
+  }
+  b.add('board:plug', 'box', [-2.35, .13, .44], [.26, .25, .52], '#2A343D');
+  for (let i = 0; i < 3; i++) b.add(`board:contact:${i}`, 'box', [-2.49, .14, .28 + i * .15], [.04, .07, .07], gold);
+
+  b.add('motor:body', 'cylinder', [-.52, 1.1, 0], [.78, 1.18, .78], metal);
+  b.add('motor:cap', 'cylinder', [-.52, 1.7, 0], [.7, .09, .7], '#7E9FA9');
+  b.add('motor:shaft', 'cylinder', [-.52, 1.9, 0], [.12, .37, .12], '#E5D1A0');
+  for (const x of [-.74, -.3]) b.add(`motor:terminal:${x}`, 'box', [x, .5, .05], [.08, .2, .09], gold);
+  for (const z of [-.36, .36]) b.add(`motor:vent:${z}`, 'box', [-.52, 1.15, z], [.3, .37, .025], '#526D78');
+
+  const circle = (radius: number, segments = 20): Point[] => Array.from({ length: segments }, (_, i) => [Math.cos(i / segments * Math.PI * 2) * radius, Math.sin(i / segments * Math.PI * 2) * radius]);
+  const gear = (name: string, x: number, y: number, radius: number, teeth: number) => {
+    const points: Point[] = Array.from({ length: teeth * 4 }, (_, i) => { const a = i / (teeth * 4) * Math.PI * 2, r = radius * (i % 4 < 2 ? 1 : .85); return [Math.cos(a) * r, Math.sin(a) * r]; });
+    b.custom(`gears:${name}`, extrude(points, .11, .003, [circle(radius * .17)]), gold, [x, y, 0], [Math.PI / 2, 0, 0]);
+    b.add(`gears:${name}:hub`, 'cylinder', [x, y + .07, 0], [radius * .48, .12, radius * .48], '#F1D494');
+    b.add(`gears:${name}:shaft`, 'cylinder', [x, 2.02, 0], [.08, .37, .08], metal);
+    for (let i = 0; i < 3; i++) { const a = i * Math.PI * 2 / 3; b.add(`gears:${name}:recess:${i}`, 'cylinder', [x + Math.cos(a) * radius * .53, y + .06, Math.sin(a) * radius * .53], [radius * .16, .01, radius * .16], '#8B6B32'); }
+  };
+  gear('pinion', -.52, 1.99, .17, 10); gear('reduction', -.16, 2.1, .38, 24); gear('output', .57, 2.18, .43, 28);
+
+  b.add('feedback:sensor', 'cylinder', [.57, 1.4, 0], [.57, .34, .57], '#C2A86D');
+  b.add('feedback:axis', 'cylinder', [.57, 1.77, 0], [.15, .5, .15], '#DEE2CB');
+  b.add('feedback:seat', 'box', [.57, 1.21, 0], [.7, .1, .7], '#263B3D');
+  for (let i = 0; i < 3; i++) b.add(`feedback:terminal:${i}`, 'box', [.38 + i * .19, .97, .22], [.06, .4, .08], gold);
+
+  b.custom('cover:lid', extrude(chamfered(2.42, 1.24, .12), .14, .02, [circle(.18).map(([x, y]) => [x + .57, y])]), edge, [0, 2.36, 0], [Math.PI / 2, 0, 0]);
+  b.add('cover:bearing', 'cylinder', [.57, 2.52, 0], [.53, .21, .53], metal);
+  b.add('cover:output-shaft', 'cylinder', [.57, 2.71, 0], [.25, .25, .25], gold);
+  for (const x of [-1, 1]) for (const z of [-.43, .43]) {
+    b.add(`cover:screw:${x}:${z}`, 'cylinder', [x, 2.46, z], [.13, .05, .13], metal);
+    b.add(`cover:slot:${x}:${z}`, 'box', [x, 2.489, z], [.09, .008, .02], '#455866');
+  }
+  const hornPoints: Point[] = [[-1.02, -.15], [-.28, -.15], [-.15, -.28], [.15, -.28], [.28, -.15], [1.02, -.15], [1.12, -.06], [1.12, .06], [1.02, .15], [.28, .15], [.15, .28], [-.15, .28], [-.28, .15], [-1.02, .15], [-1.12, .06], [-1.12, -.06]];
+  const holes = [-.9, -.68, -.46, .46, .68, .9].map(x => circle(.055, 12).map(([a, z]): Point => [a + x, z]));
+  b.custom('horn:arm', extrude(hornPoints, .09, .015, [...holes, circle(.1)]), '#E8F0EC', [.57, 2.94, 0], [Math.PI / 2, 0, 0]);
+  b.add('horn:hub', 'cylinder', [.57, 2.87, 0], [.41, .18, .41], '#B9CCC9');
+  return b.scene();
+}
+
+/** Uses the same native grouping/inspection contract as a model created in a real project. */
+export function createDemoAssembly(scene: SceneV1, nodeId: string): VisualModelAssembly {
+  const definitions = scene.objects[0].id.startsWith('demo-servo:')
+    ? [['case', 'Carcaça e fixação', 'case:'], ['board', 'Placa e alimentação', 'board:'], ['motor', 'Motor DC', 'motor:'], ['feedback', 'Sensor de posição', 'feedback:'], ['gears', 'Trem de engrenagens', 'gears:'], ['cover', 'Tampa e eixo', 'cover:'], ['horn', 'Braço de saída', 'horn:']]
+    : scene.objects[0].id.startsWith('demo-robot:')
+      ? [['left', 'Braço esquerdo e servos', ':left:'], ['right', 'Braço direito e servos', ':right:'], ['base', 'Base e bancada', '']]
+      : [['plants', 'Plantas ilustrativas', ':plant:'], ['water', 'Reservatório e irrigação', ':reservoir:', ':irrigation:'], ['structure', 'Estrutura e controle', '']];
+  const assigned = new Set<string>();
+  const groups = definitions.map(([partId, name, ...patterns]) => {
+    const objects = scene.objects.filter(object => !assigned.has(object.id) && patterns.some(pattern => !pattern || object.id.includes(pattern)));
+    objects.forEach(object => assigned.add(object.id));
+    return { partId, name, objectIds: objects.map(object => object.id) };
+  });
+  return { version: 1, sceneFingerprint: modelSceneFingerprint(scene), summary: 'Exemplo construído localmente para investigar as partes do projeto. Geometria ilustrativa, sem pesquisa documental nem validação física.',
+    groups, selectedNodeIds: [nodeId], selectedImageIds: [], sources: [], unknowns: ['Medidas, encaixes, folgas e especificações precisam ser conferidos nos componentes reais.'],
+    plan: { units: 'illustrative', sharedConstraints: ['As peças compartilham o mesmo sistema de coordenadas e representam uma montagem conceitual.'], unknowns: ['Não usar o modelo para fabricação ou para concluir capacidade física.'], interfaces: [], modules: groups.map(group => {
+      const bounds = scene.objects.filter(object => group.objectIds.includes(object.id)).reduce((box, object) => box.union(decompositionObjectBounds(object)), new Box3());
+      return { id: group.partId, name: group.name, prompt: `Investigar ${group.name.toLocaleLowerCase()} no contexto do projeto. Modelo autoral local, não resultado de uma API.`, nodeIds: [nodeId], sourceIds: [], center: canonicalNumbers(bounds.getCenter(new Vector3()).toArray()) as Vec3, size: bounds.getSize(new Vector3()).toArray().map(value => Math.max(.01, value)) as Vec3, primitiveBudget: Math.max(1, group.objectIds.length) };
+    }) } };
+}
 
 /** A stylized study scene, not CAD, a measured robot or a fabrication specification. */
 export function createDemoRobotScene(): SceneV1 {

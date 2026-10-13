@@ -15,7 +15,7 @@ export function ServoSignal({ angle, english }: { angle: number; english: boolea
   const pulse = 1 + angle / 180;
   const pw = pulse * 30;
   const wave = `M54 469V412H${54 + pw}V469H654`;
-  return <svg viewBox="0 0 760 540" className="servo-signal-svg" role="img" aria-label={english ? 'Conceptual servo feedback circuit and PWM waveform' : 'Circuito conceitual de realimentação e forma de onda PWM'}>
+  return <svg viewBox="0 0 760 540" className="servo-signal-svg" style={{ background: '#0d1b25' }} role="img" aria-label={english ? 'Conceptual servo feedback circuit and PWM waveform' : 'Circuito conceitual de realimentação e forma de onda PWM'}>
     <defs>
       <marker id={`${id}-arrow`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="m1 1 8 4-8 4" fill="none" stroke="#80daca" strokeWidth="1.5"/></marker>
       <pattern id={`${id}-grid`} width="30" height="24" patternUnits="userSpaceOnUse"><path d="M30 0H0V24" fill="none" stroke="#426170" strokeOpacity=".23"/></pattern>
